@@ -57,7 +57,7 @@
 - [docs/concepts/CANONICAL_IDENTITY_AND_PROVENANCE.md](/home/oruorane/github/Toitoi/docs/concepts/CANONICAL_IDENTITY_AND_PROVENANCE.md)
 - 目的: identity 周りの責務分離を確認する
 - 見るべき点:
-  - transport identity
+  - carrier identity
   - canonical identity
   - identity key
   - identity claim
@@ -70,13 +70,13 @@
 - [docs/protocols/CANONICAL_EVENT.md](/home/oruorane/github/Toitoi/docs/protocols/CANONICAL_EVENT.md)
 - 目的: append-only、raw / canonical 分離、index の位置づけを確認する
 - 見るべき点:
-  - raw event
+  - raw wire event
   - normalized event
   - canonicalized event
   - derived index
   - storage snapshot
   - protocol-independent representation
-  - transport 由来の判断を semantic layer に持ち込まない方針
+  - carrier 由来の判断を semantic layer に持ち込まない方針
 
 ### 5. 用語集
 
@@ -94,7 +94,7 @@
   - `indexer`
   - `canonical view`
   - `protocol`
-  - `transport`
+  - `carrier`
 
 ---
 
@@ -111,7 +111,7 @@
 - raw と canonical の分離
 - lineage の保持
 - index は派生構造であること
-- protocol と transport を分けること
+- protocol と carrier を同一視すること
 
 ### B. 一般化して持っていくもの
 
@@ -188,13 +188,13 @@
 - [docs/protocols/CANONICAL_EVENT.md](/home/oruorane/github/Toitoi/docs/protocols/CANONICAL_EVENT.md)
 - [schemas/canonical-event.schema.json](/home/oruorane/github/Toitoi/schemas/canonical-event.schema.json)
 
-### 5. transport と relay
+### 5. carrier と relay
 
 確認すること:
 
 - relay は保存と配信だけを担うのか
 - 最小限の検証や重複排除を標準責務に入れるか
-- どの transport を最初の運搬路にするか
+- どの carrier を最初の運搬路にするか
 
 参照先:
 
@@ -237,6 +237,7 @@
 - identity claim schema
 - canonical identity と provenance の仕様
 - canonical event の責務分離
+- wire object と canonical object の責務分離
 
 ### 語彙
 
@@ -251,14 +252,14 @@
 ### 実装境界
 
 - raw / normalized / canonical の段階分離
-- adapter / converter / indexer / API の責務分離
-- transport と protocol の分離
+- codec / validator / indexer / API の責務分離
+- carrier と protocol の同一化
 
 ### 将来の一般化対象
 
 - knowledge object の多型化
 - domain vocabulary の外部化
-- multi-transport 化
+- multi-carrier 化
 - profile 駆動化
 
 ---
@@ -271,4 +272,3 @@
 4. 実装を始める前に、identity と provenance の方針を固定する
 
 この順番で進めると、Toitoi 固有の都合に引きずられずに、分野非依存のプロトコルへ拡張しやすくなります。
-

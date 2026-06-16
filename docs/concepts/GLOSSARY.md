@@ -11,16 +11,17 @@
 - canonical identity を持ちます。
 - provenance と raw reference を保持します。
 - 特定分野に依存しない、再利用可能な意味単位です。
+- carrier 上では protocol object として表現されます。
 
 ## canonical identity
 
 - プロトコル内部で使う主識別子です。
-- transport ごとの id とは分けて扱います。
+- carrier ごとの id とは役割を分けて扱います。
 - semantic identity を表します。
 
-## transport identity
+## carrier identity
 
-- relay、record、archive など transport 固有の識別子です。
+- relay、record、archive など carrier 固有の識別子です。
 - ルーティング、重複排除、再取得に使います。
 - semantic identity とは別です。
 
@@ -28,7 +29,7 @@
 
 - canonical identity を解決するための照合キーです。
 - 決定的で再計算可能であることを目指します。
-- transport endpoint には依存しません。
+- carrier endpoint には依存しません。
 
 ## identity claim
 
@@ -42,7 +43,7 @@
 
 ## raw reference
 
-- raw transport object または raw payload への参照です。
+- carrier 上の raw object または raw payload への参照です。
 - 再取得、再 canonicalize、監査のために使います。
 
 ## lineage
@@ -69,7 +70,7 @@
 ## relay
 
 - knowledge object を受け取り、保存し、配信するノードです。
-- transport 層の責務を担います。
+- protocol carrier としての責務を担います。
 
 ## indexer
 
@@ -78,11 +79,10 @@
 
 ## canonical view
 
-- raw transport 表現ではなく、共通の見方で整えた参照面です。
+- raw carrier 表現ではなく、共通の見方で整えた参照面です。
 - API や UI が扱うための表示形です。
 
 ## application profile
 
 - 特定分野向けに、core protocol の上へ載せる追加ルールのまとまりです。
 - 例: Toitoi のような分野特化アプリケーション。
-

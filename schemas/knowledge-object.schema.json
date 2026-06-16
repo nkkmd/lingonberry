@@ -2,19 +2,19 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://lingonberry.example/schemas/v1/knowledge-object.schema.json",
   "title": "Lingonberry Knowledge Object",
-  "description": "Canonical knowledge object schema for the Lingonberry protocol.",
+  "description": "Protocol-native knowledge object schema for the Lingonberry protocol.",
   "type": "object",
   "required": ["id", "schemaVersion", "type", "createdAt", "body", "provenance"],
   "properties": {
     "id": {
       "type": "string",
       "pattern": "^lb:obj:[^\\s]+$",
-      "description": "Transport-independent canonical object ID."
+      "description": "Protocol-native canonical object ID."
     },
     "schemaVersion": {
       "type": "string",
       "const": "0.1.0",
-      "description": "Knowledge object schema version."
+      "description": "Protocol object schema version."
     },
     "type": {
       "type": "string",

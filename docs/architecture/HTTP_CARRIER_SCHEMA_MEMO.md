@@ -10,7 +10,7 @@
 ## 前提
 
 - HTTP は carrier であり、protocol の外側にある翻訳層ではない
-- request body は protocol object をそのまま運ぶ
+- request body は protocol-native な knowledge object をそのまま運ぶ
 - response は canonical view と metadata を返す
 - error は carrier 固有の失敗ではなく、できるだけ protocol 的に扱えるようにする
 
@@ -34,6 +34,7 @@
 
 - `object` に protocol-native な `knowledge object` を入れる
 - HTTP 側で semantic adapter を挟まない
+- 受け取る object は `id`, `schemaVersion`, `type`, `createdAt`, `body`, `provenance`, `rawRef` を満たす
 - 受け取った object は validate / normalize / finalize に渡す
 
 #### 成功時の応答
@@ -58,6 +59,7 @@
 - canonical view を返せる
 - rawRef を保持できる
 - identityKey を必要に応じて返せる
+- `identityClaims` はあれば返してよいが、publish の必須応答にはしない
 
 ### 2. Retrieve
 
@@ -82,6 +84,7 @@
 - canonical id で取得できる
 - carrier 固有の詳細を response から隠せる
 - canonical object を安定して返せる
+- rawRef を含む canonical representation を返せる
 
 ### 3. Capability discovery
 
@@ -147,6 +150,7 @@ HTTP carrier の response は、なるべく次の 3 種類に絞ると扱いや
 - required field がない
 - format が合わない
 - identity / provenance の最小整合性がない
+- rawRef がない、または不正である
 
 ### conflict / duplicate
 
@@ -154,6 +158,7 @@ HTTP carrier の response は、なるべく次の 3 種類に絞ると扱いや
 
 - 同じ identity key に対して重複した publish が来る
 - carrier identity で既存 log と衝突する
+- identity resolution が未確定で重複扱いを保留する必要がある
 
 ### not found
 
@@ -173,6 +178,7 @@ request body に余計な carrier 情報を混ぜない方がよいです。
 
 HTTP で返すべき主役は raw ではなく canonical view です。  
 必要なら rawRef を添えます。
+publish 応答では canonical object と rawRef を同時に返すと、再取得と監査の導線がそろいます。
 
 ### 3. carrier metadata は header か別 envelope
 
@@ -220,4 +226,3 @@ HTTP 固有 metadata は header か別 envelope に閉じます。
 - file/archive ingest と response 形を揃えたくなったとき
 - auth / authorization を強く組み込みたくなったとき
 - carrier capability をより厳密に公開する必要が出たとき
-

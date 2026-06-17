@@ -4,7 +4,7 @@
   "title": "Lingonberry Knowledge Object",
   "description": "Protocol-native knowledge object schema for the Lingonberry protocol.",
   "type": "object",
-  "required": ["id", "schemaVersion", "type", "createdAt", "body", "provenance"],
+  "required": ["id", "schemaVersion", "type", "createdAt", "body", "provenance", "rawRef"],
   "properties": {
     "id": {
       "type": "string",

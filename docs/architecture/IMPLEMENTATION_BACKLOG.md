@@ -27,12 +27,18 @@
 
 ## Epic 0: 仕様の固定点
 
+Phase 0 の各 issue は、文書上の固定点として完了済みです。
+
 ### Issue 0.1: knowledge object の必須フィールドを確定する
 
 - 目的: publish 可能な最小構造を確定する
 - 依存: なし
 - 完了条件:
   - 必須フィールドが文書化されている
+  - `id`, `schemaVersion`, `type`, `createdAt`, `body`, `provenance`, `rawRef` が core の最小必須として一致している
+  - optional / extension フィールドが明示されている
+  - 最小構造の JSON 例がある
+  - fixture に切り出された最小構造の JSON 例がある
   - schema と概念文書の間で矛盾がない
 
 ### Issue 0.2: identity claim と provenance の責務分離を明文化する
@@ -42,6 +48,7 @@
 - 完了条件:
   - identity claim が identity 用であることが明確
   - provenance が origin / history 用であることが明確
+  - identity claim が Phase 0 / 1 では任意であることが明確
 
 ### Issue 0.3: rawRef の役割を固定する
 
@@ -76,6 +83,7 @@
 - 完了条件:
   - JSON か protocol-native wire 表現のどちらを受けるか決まっている
   - 入力例がある
+  - 最小構造の具体例が `protocol-native wire format` と fixture にある
 
 ### Issue 1.2: wire object の validate を実装する
 
@@ -84,6 +92,7 @@
 - 完了条件:
   - schema validation が動く
   - 必須項目欠落や型不整合を検出できる
+  - `rawRef` 欠落の不正例が fixture としてある
 
 ### Issue 1.3: normalize を実装する
 
@@ -312,4 +321,3 @@
 - 1.4
 
 このセットで、最初の publish 可能条件をかなり早く固められます。
-

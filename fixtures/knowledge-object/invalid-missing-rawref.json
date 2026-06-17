@@ -1,0 +1,20 @@
+{
+  "id": "lb:obj:example-0002",
+  "schemaVersion": "0.1.0",
+  "type": "inquiry",
+  "createdAt": "2026-06-17T00:00:00Z",
+  "body": {
+    "text": "What evidence supports this claim?",
+    "language": "en"
+  },
+  "provenance": {
+    "sources": [
+      {
+        "protocol": "lingonberry",
+        "sourceId": "draft:example-0002",
+        "authorId": "alice",
+        "observedAt": "2026-06-17T00:00:00Z"
+      }
+    ]
+  }
+}

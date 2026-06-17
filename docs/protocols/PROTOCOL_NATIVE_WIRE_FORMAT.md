@@ -1,6 +1,6 @@
 # Protocol-Native Wire Format
 
-**Status: draft** | **Last updated: 2026-06-16**
+**Status: draft** | **Last updated: 2026-06-17**
 
 ## 目的
 
@@ -38,6 +38,24 @@ wire object は、追加の意味変換を前提にしません。
 - raw reference を保持できること
 - versioned であること
 
+### 参照 schema で固定すること
+
+現在の参照 schema では、`id`, `schemaVersion`, `type`, `createdAt`, `body`, `provenance`, `rawRef` を core の最小必須として扱います。
+`identityClaims` は任意で、identity resolution の実用化は後続フェーズで扱います。
+
+### 最小例
+
+次は、Phase 0 で想定する最小の wire object 例です。
+
+具体例は [fixtures/knowledge-object/minimal-wire-object.json](../../fixtures/knowledge-object/minimal-wire-object.json) に切り出しています。
+
+この例は、`identityClaims` を含まない最小形です。  
+`contexts`, `relations`, `status`, `lineage`, `attachments`, `labels`, `meta` は必要に応じて追加できます。
+
+### 不正例
+
+`rawRef` を欠く例は、schema validation で reject されるべきです。具体例は [fixtures/knowledge-object/invalid-missing-rawref.json](../../fixtures/knowledge-object/invalid-missing-rawref.json) に置いています。
+
 ## 参照 schema
 
 現在の参照 schema は次のものです。
@@ -74,6 +92,7 @@ carrier から protocol object を復元します。
 - timestamp
 - relation / lineage の構造
 - 省略可能 field の default 扱い
+- identityClaims の順序や表現の揺れ
 
 ### 5. finalize
 
@@ -84,6 +103,7 @@ wire object を canonical knowledge object として確定します。
 - canonical id を解決する
 - provenance を付与する
 - raw/wire reference を保持する
+- identityClaims があれば canonical id との対応を保持する
 - deterministic な object 表現を得る
 
 ## ルール

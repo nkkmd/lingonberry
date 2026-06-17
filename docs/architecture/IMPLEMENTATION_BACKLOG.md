@@ -27,9 +27,10 @@
 
 ## Epic 0: 仕様の固定点
 
-Phase 0 の各 issue は、文書上の固定点として完了済みです。
+Phase 0 の各 issue は、文書上の固定点として完了済みです。  
+完了済みの issue は、見出しに `（完了済み）` を付けて統一します。
 
-### Issue 0.1: knowledge object の必須フィールドを確定する
+### Issue 0.1: knowledge object の必須フィールドを確定する（完了済み）
 
 - 目的: publish 可能な最小構造を確定する
 - 依存: なし
@@ -41,7 +42,7 @@ Phase 0 の各 issue は、文書上の固定点として完了済みです。
   - fixture に切り出された最小構造の JSON 例がある
   - schema と概念文書の間で矛盾がない
 
-### Issue 0.2: identity claim と provenance の責務分離を明文化する
+### Issue 0.2: identity claim と provenance の責務分離を明文化する（完了済み）
 
 - 目的: 同一性の根拠と来歴の責務を分ける
 - 依存: なし
@@ -50,7 +51,7 @@ Phase 0 の各 issue は、文書上の固定点として完了済みです。
   - provenance が origin / history 用であることが明確
   - identity claim が Phase 0 / 1 では任意であることが明確
 
-### Issue 0.3: rawRef の役割を固定する
+### Issue 0.3: rawRef の役割を固定する（完了済み）
 
 - 目的: 再解析と監査のための参照先を確定する
 - 依存: なし
@@ -58,7 +59,7 @@ Phase 0 の各 issue は、文書上の固定点として完了済みです。
   - rawRef が provenance と別責務である
   - carrier/wire payload への参照として説明できる
 
-### Issue 0.4: relation と lineage の使い分けを整理する
+### Issue 0.4: relation と lineage の使い分けを整理する（完了済み）
 
 - 目的: semantic relation と派生履歴を混同しない
 - 依存: なし
@@ -66,7 +67,7 @@ Phase 0 の各 issue は、文書上の固定点として完了済みです。
   - relation の用途が明確
   - lineage の用途が明確
 
-### Issue 0.5: validate / normalize / finalize の境界を定義する
+### Issue 0.5: validate / normalize / finalize の境界を定義する（完了済み）
 
 - 目的: wire から canonical への変換手順を固定する
 - 依存: 0.1, 0.2, 0.3
@@ -74,16 +75,26 @@ Phase 0 の各 issue は、文書上の固定点として完了済みです。
   - 各段階の責務が説明できる
   - 決定性の要件が明確
 
+### Issue 0.6: publish 時の author identity / signing model を固定する（完了済み）
+
+- 目的: 作者同定を password ではなく公開鍵署名ベースで扱う
+- 依存: 0.2
+- 完了条件:
+  - publish 主体が public key で識別される前提が明確
+  - author / actor の同定が provenance に記録されることが明確
+  - identity claim との役割分担が説明できる
+
 ## Epic 1: 単一オブジェクト publish
 
 ### Issue 1.1: 単一 object の入力形式を決める
 
 - 目的: 最初の publish 入力を固定する
-- 依存: 0.1, 0.5
+- 依存: 0.1, 0.5, 0.6
 - 完了条件:
   - JSON か protocol-native wire 表現のどちらを受けるか決まっている
   - 入力例がある
   - 最小構造の具体例が `protocol-native wire format` と fixture にある
+  - publish request に署名情報をどう載せるか決まっている
 
 ### Issue 1.2: wire object の validate を実装する
 
@@ -189,7 +200,7 @@ Phase 0 の各 issue は、文書上の固定点として完了済みです。
 ### Issue 3.3: provenance の保存と取得を実装する
 
 - 目的: 来歴を追跡できるようにする
-- 依存: 1.4
+- 依存: 1.4, 0.6
 - 完了条件:
   - source / author / time / transform chain を保持できる
   - provenance を API から参照できる

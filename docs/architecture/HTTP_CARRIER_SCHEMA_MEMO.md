@@ -11,6 +11,10 @@
 
 - HTTP は carrier であり、protocol の外側にある翻訳層ではない
 - request body は protocol-native な knowledge object をそのまま運ぶ
+- publish 主体は password ではなく公開鍵署名ベースで識別する
+- author / actor の同定は object 本体ではなく request envelope と provenance で扱う
+- publish 主体の public key は canonical には lowercase hex で扱う
+- `npub` 形式は ingress で受けてもよいが、保存前に hex へ正規化する
 - response は canonical view と metadata を返す
 - error は carrier 固有の失敗ではなく、できるだけ protocol 的に扱えるようにする
 
@@ -26,16 +30,26 @@
 {
   "object": {
     "...": "knowledge object"
+  },
+  "publisher": {
+    "publicKey": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    "signature": "..."
   }
 }
 ```
 
+参照 schema は [http-publish-request.schema.json](../../schemas/http-publish-request.schema.json) です。
+
 #### 使い方
 
 - `object` に protocol-native な `knowledge object` を入れる
+- `publisher.publicKey` で publish 主体を識別する
+- `publisher.signature` で request の真正性を検証する
+- `publisher.publicKey` は canonical には hex で扱う
 - HTTP 側で semantic adapter を挟まない
 - 受け取る object は `id`, `schemaVersion`, `type`, `createdAt`, `body`, `provenance`, `rawRef` を満たす
 - 受け取った object は validate / normalize / finalize に渡す
+- `publisher` は wire object そのものではなく request envelope に属する
 
 #### 成功時の応答
 
@@ -59,6 +73,7 @@
 - canonical view を返せる
 - rawRef を保持できる
 - identityKey を必要に応じて返せる
+- publisher の public key を provenance に引き渡せる
 - `identityClaims` はあれば返してよいが、publish の必須応答にはしない
 
 ### 2. Retrieve
@@ -172,7 +187,8 @@ HTTP carrier の response は、なるべく次の 3 種類に絞ると扱いや
 ### 1. request body は薄くする
 
 request body に余計な carrier 情報を混ぜない方がよいです。  
-中身は基本的に `knowledge object` そのものに寄せます。
+中身は基本的に `knowledge object` そのものに寄せます。  
+ただし publish 主体の識別と署名は `publisher` envelope に分離します。
 
 ### 2. response は canonical を返す
 
@@ -214,9 +230,10 @@ HTTP 固有 metadata は header か別 envelope に閉じます。
 
 1. request body を `object` 包み込みにするか、object 直置きにするか
 2. `status: ok` 形式に統一するか、HTTP status code を主にするか
-3. auth を初期版に入れるか
-4. `identityKey` を publish 応答で常に返すか
-5. `capabilities` の詳細粒度
+3. 署名対象を request 全体にするか、`object` だけにするか
+4. auth を初期版に入れるか
+5. `identityKey` を publish 応答で常に返すか
+6. `capabilities` の詳細粒度
 
 ## 見直し条件
 

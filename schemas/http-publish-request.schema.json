@@ -1,0 +1,31 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://lingonberry.example/schemas/v1/http-publish-request.schema.json",
+  "title": "Lingonberry HTTP Publish Request",
+  "description": "Request envelope for HTTP publish. It carries a protocol-native knowledge object plus publisher identity and signature metadata.",
+  "type": "object",
+  "required": ["object", "publisher"],
+  "properties": {
+    "object": {
+      "$ref": "./knowledge-object.schema.json"
+    },
+    "publisher": {
+      "type": "object",
+      "required": ["publicKey", "signature"],
+      "properties": {
+        "publicKey": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "Publisher public key in canonical 32-byte lowercase hex form."
+        },
+        "signature": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Signature covering the request payload or a canonicalized subset defined by the carrier."
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

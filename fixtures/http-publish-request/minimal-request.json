@@ -1,0 +1,32 @@
+{
+  "object": {
+    "id": "lb:obj:example-0001",
+    "schemaVersion": "0.1.0",
+    "type": "inquiry",
+    "createdAt": "2026-06-17T00:00:00Z",
+    "body": {
+      "text": "What evidence supports this claim?",
+      "language": "en"
+    },
+    "provenance": {
+      "sources": [
+        {
+          "protocol": "lingonberry",
+          "sourceId": "draft:example-0001",
+          "authorId": "alice",
+          "observedAt": "2026-06-17T00:00:00Z"
+        }
+      ]
+    },
+    "rawRef": {
+      "protocol": "lingonberry",
+      "sourceId": "draft:example-0001",
+      "locator": "memory://drafts/example-0001",
+      "payloadHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  },
+  "publisher": {
+    "publicKey": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    "signature": "sig:example-0001"
+  }
+}

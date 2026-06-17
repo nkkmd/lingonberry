@@ -54,6 +54,8 @@
 - 文書を更新するときは関連文書も同時に見直す
 - 動作や仕様の意味を変えるなら、近い位置の概念文書、protocol 文書、schema も整合させる
 - JSON Schema を変更するときは、概念文書と protocol 文書の用語とずれていないか確認する
+- 完了済みの backlog issue は見出しに `（完了済み）` を付けて統一する
+- 完了済みの roadmap phase も見出しに `（完了済み）` を付けて統一する
 - `knowledge object`、`canonical identity`、`provenance`、`raw reference`、`lineage`、`carrier` の意味を曖昧に広げない
 - Toitoi は参照元または application profile の例として扱い、Lingonberry の core protocol を Toitoi 固有の都合に縛りつけない
 - 分野固有の語彙は core protocol へ直接入れず、原則として application profile 側の拡張点として扱う

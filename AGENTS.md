@@ -23,6 +23,8 @@
 
 - `docs/concepts/`: 中核概念、用語、識別子、carrier などの定義
 - `docs/architecture/`: 分散知識コモンズとしての設計、Toitoi 参照時の観点
+- `docs/operations/`: 技術選定、ADR、carrier / storage の決定メモ
+- `docs/roadmap/`: 実装ロードマップと backlog
 - `docs/protocols/`: protocol-native な wire format などの仕様
 - `schemas/`: protocol-native な JSON Schema
 - `fixtures/`: サンプル JSON と検証用データ
@@ -35,6 +37,8 @@
 - `docs/concepts/CARRIER.md`
 - protocol / wire format を変更するとき: `docs/protocols/PROTOCOL_NATIVE_WIRE_FORMAT.md`
 - schema を変更するとき: `schemas/README.md` と該当する schema ファイル
+- 実装計画を確認するとき: `docs/roadmap/IMPLEMENTATION_ROADMAP.md` と `docs/roadmap/IMPLEMENTATION_BACKLOG.md`
+- 技術選定や carrier / storage 方針を確認するとき: `docs/operations/README.md`
 - Toitoi との対応関係を確認するとき: `docs/architecture/TOITOI_REFERENCE_CHECKLIST.md`
 - アーキテクチャ全体に触れるとき: `docs/architecture/DISTRIBUTED_KNOWLEDGE_COMMONS_ARCHITECTURE.md`
 - 必要に応じて、関連する `docs/` の個別文書も確認する

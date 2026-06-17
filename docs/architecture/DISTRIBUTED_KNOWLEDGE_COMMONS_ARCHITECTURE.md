@@ -720,33 +720,57 @@ Toitoi profile は、core object type と relation を組み合わせて inquiry
 
 ## 13. 推奨リポジトリ構成
 
-このプロトコルを独立リポジトリにするなら、次のような構成が実用的です。
+このリポジトリは、仕様、概念、運用判断、実装計画を役割ごとに分けて保つ構成にします。  
+実装が増えた場合は、同じ境界を保ったまま `packages/` を追加するのが扱いやすいです。
 
 ```text
 lingonberry/
 ├─ README.md
+├─ AGENTS.md
 ├─ docs/
 │  ├─ architecture/
 │  ├─ concepts/
-│  ├─ protocols/
 │  ├─ operations/
+│  ├─ protocols/
 │  └─ roadmap/
 ├─ schemas/
-├─ packages/
-│  ├─ protocol/
-│  ├─ core/
-│  ├─ codecs/
-│  ├─ carriers/
-│  ├─ relay/
-│  ├─ indexer/
-│  ├─ api/
-│  └─ cli/
 ├─ fixtures/
-├─ examples/
-└─ tests/
+└─ (optional future)
+   ├─ packages/
+   │  ├─ protocol/
+   │  ├─ core/
+   │  ├─ codecs/
+   │  ├─ carriers/
+   │  ├─ relay/
+   │  ├─ indexer/
+   │  ├─ api/
+   │  └─ cli/
+   ├─ examples/
+   └─ tests/
 ```
 
-### 13.1 package の責務
+### 13.1 ディレクトリの役割
+
+- `README.md`
+  - リポジトリ全体の入口
+- `AGENTS.md`
+  - 作業ルールと参照順序
+- `docs/concepts/`
+  - `knowledge object`、`canonical identity`、`carrier` などの中核概念
+- `docs/architecture/`
+  - 全体アーキテクチャ、設計草案、Toitoi 参照情報
+- `docs/operations/`
+  - 技術選定、ADR、carrier / storage の決定メモ
+- `docs/roadmap/`
+  - 実装ロードマップと backlog
+- `docs/protocols/`
+  - protocol-native な wire 仕様
+- `schemas/`
+  - protocol-native な JSON Schema
+- `fixtures/`
+  - schema や wire 仕様の検証用サンプル
+
+### 13.2 実装を追加する場合の責務
 
 - `packages/protocol/`
   - descriptor、capability table、registry、versioning

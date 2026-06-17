@@ -19,6 +19,18 @@
 - carrier ごとの id とは役割を分けて扱います。
 - semantic identity を表します。
 
+## wire
+
+- protocol object が carrier 上で受け渡される生の表現です。
+- canonical 化の前後をまたいで再解析や再構成の対象になります。
+- raw reference の参照先として扱います。
+
+## carrier
+
+- protocol object を wire 上で運ぶ正規の実装です。
+- relay、HTTP、file/archive など、具体的な transport / framing を担います。
+- routing、serialization、retry、ordering などの carrier 固有差分を含みます。
+
 ## carrier identity
 
 - relay、record、archive など carrier 固有の識別子です。

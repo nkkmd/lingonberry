@@ -1,4 +1,5 @@
 use lingonberry_core::{default_state_dir, SqliteStorageBackend, StorageBackend};
+use lingonberry_indexer::IndexSnapshot;
 use lingonberry_protocol::{
     detect_shape, derive_identity_key, finalize_knowledge_object, read_json_file, to_canonical_json,
     validate_knowledge_object, validate_publish_request, JsonValue,
@@ -16,7 +17,7 @@ fn main() {
 
 fn run(args: Vec<String>) -> Result<(), String> {
     let Some(command) = args.first().map(String::as_str) else {
-        return Err("usage: lingonberry <validate|publish|identity-key|get|raw|list|subscribe|replay> <json-file|id|type>".to_string());
+        return Err("usage: lingonberry <validate|publish|identity-key|get|raw|list|subscribe|replay|rebuild-index|relation-graph|lineage-graph|provenance-graph> <json-file|id|type>".to_string());
     };
     let backend = SqliteStorageBackend::new(default_state_dir());
 
@@ -44,6 +45,20 @@ fn run(args: Vec<String>) -> Result<(), String> {
         "list" => handle_list(&backend),
         "subscribe" => handle_subscribe(args.get(1).map(String::as_str), &backend),
         "replay" => handle_replay(&backend),
+        "rebuild-index" => handle_rebuild_index(&backend),
+        "relation-graph" => {
+            let canonical_id = args.get(1).ok_or_else(|| "usage: lingonberry relation-graph <canonical-id>".to_string())?;
+            handle_relation_graph(canonical_id, &backend)
+        }
+        "lineage-graph" => {
+            let canonical_id = args.get(1).ok_or_else(|| "usage: lingonberry lineage-graph <canonical-id>".to_string())?;
+            handle_lineage_graph(canonical_id, &backend)
+        }
+        "provenance-graph" => {
+            let protocol = args.get(1).ok_or_else(|| "usage: lingonberry provenance-graph <protocol> <source-id>".to_string())?;
+            let source_id = args.get(2).ok_or_else(|| "usage: lingonberry provenance-graph <protocol> <source-id>".to_string())?;
+            handle_provenance_graph(protocol, source_id, &backend)
+        }
         _ => Err(format!("unknown command: {}", command)),
     }
 }
@@ -229,6 +244,89 @@ fn handle_replay(backend: &impl StorageBackend) -> Result<(), String> {
     Ok(())
 }
 
+fn handle_relation_graph(canonical_id: &str, backend: &impl StorageBackend) -> Result<(), String> {
+    let snapshot = IndexSnapshot::from_backend(backend).map_err(|error| error.to_string())?;
+    let fragment = snapshot
+        .relation_graph(canonical_id)
+        .ok_or_else(|| format!("object not found: {}", canonical_id))?;
+    let output = json_object(vec![
+        ("canonicalId", JsonValue::String(fragment.canonical_id)),
+        (
+            "outbound",
+            JsonValue::Array(fragment.outbound.into_iter().map(relation_edge_json).collect()),
+        ),
+        (
+            "inbound",
+            JsonValue::Array(fragment.inbound.into_iter().map(relation_edge_json).collect()),
+        ),
+        (
+            "relatedIds",
+            JsonValue::Array(fragment.related_ids.into_iter().map(JsonValue::String).collect()),
+        ),
+    ]);
+    println!("{}", to_canonical_json(&output));
+    Ok(())
+}
+
+fn handle_lineage_graph(canonical_id: &str, backend: &impl StorageBackend) -> Result<(), String> {
+    let snapshot = IndexSnapshot::from_backend(backend).map_err(|error| error.to_string())?;
+    let fragment = snapshot
+        .lineage_graph(canonical_id)
+        .ok_or_else(|| format!("object not found: {}", canonical_id))?;
+    let output = json_object(vec![
+        ("canonicalId", JsonValue::String(fragment.canonical_id)),
+        (
+            "outbound",
+            JsonValue::Array(fragment.outbound.into_iter().map(lineage_edge_json).collect()),
+        ),
+        (
+            "inbound",
+            JsonValue::Array(fragment.inbound.into_iter().map(lineage_edge_json).collect()),
+        ),
+        (
+            "relatedIds",
+            JsonValue::Array(fragment.related_ids.into_iter().map(JsonValue::String).collect()),
+        ),
+    ]);
+    println!("{}", to_canonical_json(&output));
+    Ok(())
+}
+
+fn handle_provenance_graph(protocol: &str, source_id: &str, backend: &impl StorageBackend) -> Result<(), String> {
+    let snapshot = IndexSnapshot::from_backend(backend).map_err(|error| error.to_string())?;
+    let fragment = snapshot
+        .provenance_graph(protocol, source_id)
+        .ok_or_else(|| format!("provenance source not found: {} / {}", protocol, source_id))?;
+    let output = json_object(vec![
+        ("protocol", JsonValue::String(fragment.protocol)),
+        ("sourceId", JsonValue::String(fragment.source_id)),
+        (
+            "canonicalIds",
+            JsonValue::Array(fragment.canonical_ids.into_iter().map(JsonValue::String).collect()),
+        ),
+        (
+            "entries",
+            JsonValue::Array(fragment.entries.into_iter().map(provenance_entry_json).collect()),
+        ),
+    ]);
+    println!("{}", to_canonical_json(&output));
+    Ok(())
+}
+
+fn handle_rebuild_index(backend: &impl StorageBackend) -> Result<(), String> {
+    let snapshot = IndexSnapshot::rebuild_from_backend(backend).map_err(|error| error.to_string())?;
+    let output = json_object(vec![
+        ("ok", JsonValue::Bool(true)),
+        ("recordCount", JsonValue::Number(snapshot.record_count().to_string())),
+        ("typeCount", JsonValue::Number(snapshot.list_types().len().to_string())),
+        ("relationEdgeCount", JsonValue::Number(snapshot.relation_edges().len().to_string())),
+        ("lineageEdgeCount", JsonValue::Number(snapshot.lineage_edges().len().to_string())),
+        ("provenanceSourceCount", JsonValue::Number(snapshot.provenance_source_count().to_string())),
+    ]);
+    println!("{}", to_canonical_json(&output));
+    Ok(())
+}
+
 fn format_validation_error(message: &str, errors: &[String]) -> String {
     let suffix = if errors.is_empty() {
         String::new()
@@ -244,6 +342,41 @@ fn json_object(entries: Vec<(&str, JsonValue)>) -> JsonValue {
         map.insert(key.to_string(), value);
     }
     JsonValue::Object(map)
+}
+
+fn relation_edge_json(edge: lingonberry_indexer::RelationEdge) -> JsonValue {
+    let mut entries = vec![
+        ("canonicalId", JsonValue::String(edge.canonical_id)),
+        ("source", JsonValue::String(edge.source)),
+        ("target", JsonValue::String(edge.target)),
+    ];
+    if let Some(kind) = edge.kind {
+        entries.push(("kind", JsonValue::String(kind)));
+    }
+    json_object(entries)
+}
+
+fn lineage_edge_json(edge: lingonberry_indexer::LineageEdge) -> JsonValue {
+    json_object(vec![
+        ("canonicalId", JsonValue::String(edge.canonical_id)),
+        ("edgeType", JsonValue::String(edge.edge_type)),
+        ("target", JsonValue::String(edge.target)),
+    ])
+}
+
+fn provenance_entry_json(entry: lingonberry_indexer::ProvenanceGraphEntry) -> JsonValue {
+    let mut entries = vec![
+        ("canonicalId", JsonValue::String(entry.canonical_id)),
+        ("protocol", JsonValue::String(entry.protocol)),
+        ("sourceId", JsonValue::String(entry.source_id)),
+    ];
+    if let Some(author_id) = entry.author_id {
+        entries.push(("authorId", JsonValue::String(author_id)));
+    }
+    if let Some(observed_at) = entry.observed_at {
+        entries.push(("observedAt", JsonValue::String(observed_at)));
+    }
+    json_object(entries)
 }
 
 fn as_object(value: &JsonValue) -> Option<&BTreeMap<String, JsonValue>> {

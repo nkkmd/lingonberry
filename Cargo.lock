@@ -10,6 +10,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "lingonberry-indexer"
+version = "0.1.0"
+dependencies = [
+ "lingonberry-core",
+ "lingonberry-protocol",
+]
+
+[[package]]
 name = "lingonberry-protocol"
 version = "0.1.0"
 
@@ -18,5 +26,6 @@ name = "lingonberry-relay"
 version = "0.1.0"
 dependencies = [
  "lingonberry-core",
+ "lingonberry-indexer",
  "lingonberry-protocol",
 ]

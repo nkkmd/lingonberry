@@ -265,13 +265,14 @@ Phase 3 では、次の順で切り出すと進めやすいです。
 - provenance を見れば来歴を辿れる
 - raw payload を再取得して再 canonicalize できる
 
-## フェーズ 4: indexer と API を分離する
+## フェーズ 4: indexer と API を分離する（完了済み）
 
 ### 目的
 
 検索しやすさを追加しつつ、semantic source を canonical store に残します。
 
-Phase 4 では、index を source of truth にせず、canonical store から再構築できる派生構造として扱います。
+Phase 4 では、index を source of truth にせず、canonical store から再構築できる派生構造として扱います。  
+このフェーズは完了済みで、type index / relation graph / lineage graph / provenance graph / canonical view API / index 再構築手順まで実装済みです。
 
 ### やること
 

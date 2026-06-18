@@ -7,6 +7,7 @@
 
 - [分散知識コモンズ・アーキテクチャ草案](./DISTRIBUTED_KNOWLEDGE_COMMONS_ARCHITECTURE.md)
 - [Toitoi 参照チェックリスト](./TOITOI_REFERENCE_CHECKLIST.md)
+- [Toitoi application profile](../profiles/TOITOI_APPLICATION_PROFILE.md)
 - [ロードマップ](../roadmap/README.md)
 - [運用メモ](../operations/README.md)
 - [Protocols](../protocols/README.md)

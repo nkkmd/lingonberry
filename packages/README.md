@@ -10,6 +10,8 @@
   - protocol object の validate / normalize / finalize
 - `packages/core/`
   - Rust 版の append-only storage と replay / retrieval
+- `packages/indexer/`
+  - canonical store から派生する search / graph / view index
 - `packages/relay/`
   - Rust 版の relay バイナリ
 - `packages/api/`

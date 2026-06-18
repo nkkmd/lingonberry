@@ -791,6 +791,8 @@ lingonberry/
   - validate / normalize / finalize の共通処理
 - `packages/core/`
   - append-only storage と replay / retrieval
+- `packages/indexer/`
+  - canonical store から派生する search / graph / view index
 - `packages/relay/`
   - relay runtime
 - `packages/api/`

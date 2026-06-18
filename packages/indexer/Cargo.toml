@@ -1,9 +1,12 @@
 [package]
-name = "lingonberry-relay"
+name = "lingonberry-indexer"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+name = "lingonberry_indexer"
+path = "src/lib.rs"
+
 [dependencies]
 lingonberry-core = { path = "../core" }
-lingonberry-indexer = { path = "../indexer" }
 lingonberry-protocol = { path = "../protocol" }

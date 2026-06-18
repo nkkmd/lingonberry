@@ -1,11 +1,17 @@
-use lingonberry_core::{default_state_dir, SqliteStorageBackend, StorageBackend};
+use lingonberry_core::{
+    build_runtime_capability_manifest, default_state_dir, export_archive, import_archive,
+    SqliteStorageBackend, StorageBackend,
+};
 use lingonberry_indexer::IndexSnapshot;
 use lingonberry_protocol::{
-    detect_shape, derive_identity_key, finalize_knowledge_object, read_json_file, to_canonical_json,
-    validate_knowledge_object, validate_publish_request, JsonValue,
+    build_capability_manifest, detect_shape, derive_identity_key, finalize_knowledge_object,
+    read_json_file, to_canonical_json, validate_knowledge_object, validate_publish_request,
+    JsonValue, DEFAULT_ACCESS_SCOPE, DEFAULT_RETENTION_HINT, CARRIER_KIND_HTTP,
 };
 use std::collections::BTreeMap;
 use std::env;
+use std::io::{BufRead, BufReader, Read, Write};
+use std::net::{TcpListener, TcpStream};
 use std::process;
 
 fn main() {
@@ -17,7 +23,7 @@ fn main() {
 
 fn run(args: Vec<String>) -> Result<(), String> {
     let Some(command) = args.first().map(String::as_str) else {
-        return Err("usage: lingonberry <validate|publish|identity-key|get|raw|list|subscribe|replay|rebuild-index|relation-graph|lineage-graph|provenance-graph> <json-file|id|type>".to_string());
+        return Err("usage: lingonberry <validate|publish|identity-key|get|raw|list|subscribe|replay|rebuild-index|relation-graph|lineage-graph|provenance-graph|capabilities|export-archive|import-archive|serve-http> <json-file|id|type|archive-dir|addr>".to_string());
     };
     let backend = SqliteStorageBackend::new(default_state_dir());
 
@@ -58,6 +64,19 @@ fn run(args: Vec<String>) -> Result<(), String> {
             let protocol = args.get(1).ok_or_else(|| "usage: lingonberry provenance-graph <protocol> <source-id>".to_string())?;
             let source_id = args.get(2).ok_or_else(|| "usage: lingonberry provenance-graph <protocol> <source-id>".to_string())?;
             handle_provenance_graph(protocol, source_id, &backend)
+        }
+        "capabilities" => handle_capabilities(),
+        "export-archive" => {
+            let archive_dir = args.get(1).ok_or_else(|| "usage: lingonberry export-archive <archive-dir>".to_string())?;
+            handle_export_archive(archive_dir, &backend)
+        }
+        "import-archive" => {
+            let archive_dir = args.get(1).ok_or_else(|| "usage: lingonberry import-archive <archive-dir>".to_string())?;
+            handle_import_archive(archive_dir, &backend)
+        }
+        "serve-http" => {
+            let addr = args.get(1).map(String::as_str).unwrap_or("127.0.0.1:8787");
+            handle_serve_http(addr, &backend)
         }
         _ => Err(format!("unknown command: {}", command)),
     }
@@ -311,6 +330,226 @@ fn handle_provenance_graph(protocol: &str, source_id: &str, backend: &impl Stora
     ]);
     println!("{}", to_canonical_json(&output));
     Ok(())
+}
+
+fn handle_capabilities() -> Result<(), String> {
+    let output = build_runtime_capability_manifest();
+    println!("{}", to_canonical_json(&output));
+    Ok(())
+}
+
+fn handle_serve_http(addr: &str, backend: &impl StorageBackend) -> Result<(), String> {
+    let listener = TcpListener::bind(addr).map_err(|error| format!("failed to bind {}: {}", addr, error))?;
+    eprintln!("listening on http://{}", addr);
+    for stream in listener.incoming() {
+        match stream {
+            Ok(stream) => {
+                if let Err(error) = handle_http_connection(stream, backend) {
+                    eprintln!("{}", error);
+                }
+            }
+            Err(error) => eprintln!("accept error: {}", error),
+        }
+    }
+    Ok(())
+}
+
+fn handle_export_archive(archive_dir: &str, backend: &impl StorageBackend) -> Result<(), String> {
+    let report = export_archive(backend, archive_dir).map_err(|error| error.to_string())?;
+    let output = json_object(vec![
+        ("ok", JsonValue::Bool(true)),
+        ("archiveDir", JsonValue::String(report.archive_dir.to_string_lossy().to_string())),
+        ("manifestPath", JsonValue::String(report.manifest_path.to_string_lossy().to_string())),
+        ("wireLogPath", JsonValue::String(report.wire_log_path.to_string_lossy().to_string())),
+        ("catalogPath", JsonValue::String(report.catalog_path.to_string_lossy().to_string())),
+        ("recordCount", JsonValue::Number(report.record_count.to_string())),
+    ]);
+    println!("{}", to_canonical_json(&output));
+    Ok(())
+}
+
+fn handle_import_archive(archive_dir: &str, backend: &impl StorageBackend) -> Result<(), String> {
+    let report = import_archive(backend, archive_dir).map_err(|error| error.to_string())?;
+    let output = json_object(vec![
+        ("ok", JsonValue::Bool(true)),
+        ("archiveDir", JsonValue::String(report.archive_dir.to_string_lossy().to_string())),
+        ("recordCount", JsonValue::Number(report.record_count.to_string())),
+        ("duplicateCount", JsonValue::Number(report.duplicate_count.to_string())),
+    ]);
+    println!("{}", to_canonical_json(&output));
+    Ok(())
+}
+
+fn handle_http_connection(mut stream: TcpStream, backend: &impl StorageBackend) -> Result<(), String> {
+    let mut reader = BufReader::new(stream.try_clone().map_err(|error| error.to_string())?);
+    let mut request_line = String::new();
+    reader.read_line(&mut request_line).map_err(|error| error.to_string())?;
+    if request_line.trim().is_empty() {
+        return Ok(());
+    }
+    let (method, path, _version) = parse_http_request_line(&request_line)?;
+    let headers = read_http_headers(&mut reader)?;
+    let body = read_http_body(&mut reader, &headers)?;
+    let (status_code, status_text, response_body) = route_http_request(&method, &path, &body, backend)?;
+    write_http_response(&mut stream, status_code, status_text, &response_body).map_err(|error| error.to_string())
+}
+
+fn route_http_request(
+    method: &str,
+    path: &str,
+    body: &str,
+    backend: &impl StorageBackend,
+) -> Result<(u16, &'static str, JsonValue), String> {
+    match (method, path) {
+        ("GET", "/v1/capabilities") => Ok((
+            200,
+            "OK",
+            build_capability_manifest(CARRIER_KIND_HTTP, DEFAULT_ACCESS_SCOPE, DEFAULT_RETENTION_HINT),
+        )),
+        ("POST", "/v1/objects") => handle_http_publish(body, backend),
+        ("GET", path) if path.starts_with("/v1/objects/") => {
+            let canonical_id = path.trim_start_matches("/v1/objects/");
+            handle_http_get(canonical_id, backend)
+        }
+        _ => Ok((404, "Not Found", http_error("not_found", "route not found"))),
+    }
+}
+
+fn handle_http_publish(body: &str, backend: &impl StorageBackend) -> Result<(u16, &'static str, JsonValue), String> {
+    if body.trim().is_empty() {
+        return Ok((400, "Bad Request", http_error("validation_error", "request body is empty")));
+    }
+    let value = lingonberry_protocol::parse_json(body).map_err(|error| error.to_string())?;
+    let errors = validate_publish_request(&value);
+    if !errors.is_empty() {
+        return Ok((400, "Bad Request", http_error("validation_error", &errors.join("; "))));
+    }
+    let Some(request_map) = as_object(&value) else {
+        return Ok((400, "Bad Request", http_error("validation_error", "publish request must be an object")));
+    };
+    let Some(object) = request_map.get("object") else {
+        return Ok((400, "Bad Request", http_error("validation_error", "publish request missing object")));
+    };
+    let finalized = finalize_knowledge_object(object).map_err(|errors| format_validation_error("validation failed", &errors))?;
+    match backend.append_publish_request(body, &finalized) {
+        Ok(outcome) => {
+            let raw_ref = as_object(object)
+                .and_then(|map| map.get("rawRef"))
+                .cloned()
+                .unwrap_or(JsonValue::Null);
+            let response = json_object(vec![
+                ("status", JsonValue::String("ok".to_string())),
+                ("id", JsonValue::String(outcome.canonical_id)),
+                ("identityKey", JsonValue::String(finalized.identity_key)),
+                ("storedAt", match outcome.stored_at {
+                    Some(value) => JsonValue::String(value),
+                    None => JsonValue::Null,
+                }),
+                ("duplicate", JsonValue::Bool(outcome.duplicate)),
+                ("canonical", outcome.object),
+                ("rawRef", raw_ref),
+            ]);
+            Ok((200, "OK", response))
+        }
+        Err(error) if error.code == "LB_OBJECT_CONFLICT" => Ok((409, "Conflict", http_error("conflict", &error.message))),
+        Err(error) => Ok((500, "Internal Server Error", http_error("storage_error", &error.to_string()))),
+    }
+}
+
+fn handle_http_get(canonical_id: &str, backend: &impl StorageBackend) -> Result<(u16, &'static str, JsonValue), String> {
+    if canonical_id.trim().is_empty() {
+        return Ok((400, "Bad Request", http_error("validation_error", "missing canonical id")));
+    }
+    let record = backend
+        .get(canonical_id)
+        .map_err(|error| error.to_string())?
+        .ok_or_else(|| "not found".to_string())?;
+    let raw_ref = as_object(&record.object)
+        .and_then(|map| map.get("rawRef"))
+        .cloned()
+        .unwrap_or(JsonValue::Null);
+    let identity_key = derive_identity_key(&record.object);
+    let response = json_object(vec![
+        ("status", JsonValue::String("ok".to_string())),
+        ("id", JsonValue::String(record.canonical_id)),
+        ("identityKey", JsonValue::String(identity_key)),
+        ("storedAt", JsonValue::String(record.stored_at)),
+        ("carrierIdentity", JsonValue::String(record.carrier_identity)),
+        ("canonical", record.object),
+        ("rawRef", raw_ref),
+    ]);
+    Ok((200, "OK", response))
+}
+
+fn read_http_headers(reader: &mut BufReader<TcpStream>) -> Result<BTreeMap<String, String>, String> {
+    let mut headers = BTreeMap::new();
+    loop {
+        let mut line = String::new();
+        let bytes = reader.read_line(&mut line).map_err(|error| error.to_string())?;
+        if bytes == 0 {
+            break;
+        }
+        let trimmed = line.trim_end_matches(['\r', '\n']);
+        if trimmed.is_empty() {
+            break;
+        }
+        if let Some((name, value)) = trimmed.split_once(':') {
+            headers.insert(name.trim().to_ascii_lowercase(), value.trim().to_string());
+        }
+    }
+    Ok(headers)
+}
+
+fn read_http_body(reader: &mut BufReader<TcpStream>, headers: &BTreeMap<String, String>) -> Result<String, String> {
+    let Some(content_length) = headers.get("content-length") else {
+        return Ok(String::new());
+    };
+    let length: usize = content_length
+        .parse()
+        .map_err(|_| "invalid content-length".to_string())?;
+    let mut buffer = vec![0u8; length];
+    reader.read_exact(&mut buffer).map_err(|error| error.to_string())?;
+    String::from_utf8(buffer).map_err(|error| error.to_string())
+}
+
+fn parse_http_request_line(line: &str) -> Result<(String, String, String), String> {
+    let trimmed = line.trim_end_matches(['\r', '\n']);
+    let mut parts = trimmed.split_whitespace();
+    let method = parts
+        .next()
+        .ok_or_else(|| "invalid HTTP request line".to_string())?;
+    let path = parts
+        .next()
+        .ok_or_else(|| "invalid HTTP request line".to_string())?;
+    let version = parts
+        .next()
+        .ok_or_else(|| "invalid HTTP request line".to_string())?;
+    Ok((method.to_string(), path.to_string(), version.to_string()))
+}
+
+fn write_http_response(stream: &mut TcpStream, status_code: u16, status_text: &str, body: &JsonValue) -> Result<(), std::io::Error> {
+    let body_json = to_canonical_json(body);
+    let response = format!(
+        "HTTP/1.1 {} {}\r\nContent-Type: application/json; charset=utf-8\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+        status_code,
+        status_text,
+        body_json.len(),
+        body_json
+    );
+    stream.write_all(response.as_bytes())
+}
+
+fn http_error(kind: &str, message: &str) -> JsonValue {
+    json_object(vec![
+        ("status", JsonValue::String("error".to_string())),
+        (
+            "error",
+            json_object(vec![
+                ("type", JsonValue::String(kind.to_string())),
+                ("message", JsonValue::String(message.to_string())),
+            ]),
+        ),
+    ])
 }
 
 fn handle_rebuild_index(backend: &impl StorageBackend) -> Result<(), String> {

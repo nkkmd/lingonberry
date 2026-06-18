@@ -334,7 +334,7 @@ Lingonberry を Toitoi の基盤として使えるようにします。
 - Toitoi が core protocol を fork せずに載る
 - core は Toitoi 固有語彙に縛られない
 
-## フェーズ 6: carrier 拡張と運用性を高める
+## フェーズ 6: carrier 拡張と運用性を高める（完了済み）
 
 ### 目的
 
@@ -349,6 +349,28 @@ Lingonberry を Toitoi の基盤として使えるようにします。
 - access policy と retention policy を整理する
 - migration / schema versioning を整える
 
+このフェーズは完了済みです。carrier、policy、versioning の正本を整え、後続 carrier に必要な運用境界を固定しました。
+
+### 最初の着手順
+
+Phase 6 は、次の順で切り出すと進めやすいです。
+
+1. HTTP carrier の request / response contract を固める
+2. file / archive carrier の archive layout と replay 条件を固める
+3. capability negotiation を carrier 間で比較できる形にする
+4. access policy と retention policy を運用境界として整理する
+5. migration / schema versioning の方針を固める
+
+この順にすると、carrier を増やしても canonicalization と replay の責務を崩さずに進められます。
+
+参照先:
+
+- [HTTP Carrier Contract](../operations/HTTP_CARRIER_CONTRACT.md)
+- [File / Archive Carrier Contract](../operations/FILE_ARCHIVE_CARRIER_CONTRACT.md)
+- [Carrier Capability Negotiation](../operations/CARRIER_CAPABILITY_NEGOTIATION.md)
+- [Access and Retention Policy](../operations/ACCESS_RETENTION_POLICY.md)
+- [Migration and Schema Versioning](../operations/MIGRATION_AND_SCHEMA_VERSIONING.md)
+
 ### 成果物
 
 - carrier 別実装
@@ -357,8 +379,12 @@ Lingonberry を Toitoi の基盤として使えるようにします。
 
 ### 完了条件
 
-- carrier が増えても semantic model が変わらない
+- HTTP / archive / future carrier の違いが capability で説明できる
 - replay と canonicalization が carrier 非依存で動く
+- access / retention の運用境界が protocol semantic と分離されている
+- archive から replay できる条件が文書化されている
+- migration / schema versioning の方針が文書化されている
+- carrier が増えても semantic model が変わらない
 
 ## 推奨する実装順
 

@@ -6,3 +6,8 @@
 
 - [技術決定 ADR](./TECH_DECISION_ADR.md)
 - [Carrier Decision Memo](./CARRIER_DECISION_MEMO.md)
+- [HTTP Carrier Contract](./HTTP_CARRIER_CONTRACT.md)
+- [File / Archive Carrier Contract](./FILE_ARCHIVE_CARRIER_CONTRACT.md)
+- [Carrier Capability Negotiation](./CARRIER_CAPABILITY_NEGOTIATION.md)
+- [Access and Retention Policy](./ACCESS_RETENTION_POLICY.md)
+- [Migration and Schema Versioning](./MIGRATION_AND_SCHEMA_VERSIONING.md)

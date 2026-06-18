@@ -5,6 +5,16 @@ use std::path::Path;
 use std::process::Command;
 
 pub const IDENTITY_KEY_RULE_VERSION_V1: &str = "lb.identity.key.v1";
+pub const PROTOCOL_VERSION: &str = "0.1.0";
+pub const KNOWLEDGE_OBJECT_SCHEMA_VERSION: &str = "0.1.0";
+pub const HTTP_PUBLISH_REQUEST_SCHEMA_VERSION: &str = "0.1.0";
+pub const ARCHIVE_VERSION: &str = "1";
+pub const CAPABILITY_VERSION: &str = "1";
+pub const DEFAULT_ACCESS_SCOPE: &str = "public";
+pub const DEFAULT_RETENTION_HINT: &str = "long-lived";
+pub const CARRIER_KIND_HTTP: &str = "http";
+pub const CARRIER_KIND_ARCHIVE: &str = "archive";
+pub const CARRIER_KIND_RELAY: &str = "relay";
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum JsonValue {
@@ -106,8 +116,8 @@ pub fn validate_knowledge_object(value: &JsonValue) -> Vec<String> {
         errors.push("id must match ^lb:obj:[^\\s]+$".to_string());
     }
 
-    if !matches!(map.get("schemaVersion"), Some(JsonValue::String(value)) if value == "0.1.0") {
-        errors.push("schemaVersion must be 0.1.0".to_string());
+    if !matches!(map.get("schemaVersion"), Some(JsonValue::String(value)) if value == KNOWLEDGE_OBJECT_SCHEMA_VERSION) {
+        errors.push(format!("schemaVersion must be {}", KNOWLEDGE_OBJECT_SCHEMA_VERSION));
     }
 
     if !matches!(map.get("type"), Some(JsonValue::String(value)) if supported_knowledge_types().contains(&value.as_str())) {
@@ -237,7 +247,7 @@ pub fn is_lb_object_id(value: &str) -> bool {
     value.starts_with("lb:obj:") && !value.chars().any(char::is_whitespace)
 }
 
-fn supported_knowledge_types() -> &'static [&'static str] {
+pub fn supported_knowledge_types() -> &'static [&'static str] {
     &[
         "inquiry",
         "observation",
@@ -249,6 +259,72 @@ fn supported_knowledge_types() -> &'static [&'static str] {
         "reference",
         "concept",
     ]
+}
+
+pub fn build_capability_manifest(carrier_kind: &str, default_access: &str, default_retention: &str) -> JsonValue {
+    let mut supported_schema_versions = BTreeMap::new();
+    supported_schema_versions.insert(
+        "knowledgeObject".to_string(),
+        JsonValue::String(KNOWLEDGE_OBJECT_SCHEMA_VERSION.to_string()),
+    );
+    supported_schema_versions.insert(
+        "httpPublishRequest".to_string(),
+        JsonValue::String(HTTP_PUBLISH_REQUEST_SCHEMA_VERSION.to_string()),
+    );
+
+    let supported_object_types = JsonValue::Array(
+        supported_knowledge_types()
+            .iter()
+            .map(|value| JsonValue::String((*value).to_string()))
+            .collect(),
+    );
+
+    JsonValue::Object(BTreeMap::from([
+        ("capabilityVersion".to_string(), JsonValue::String(CAPABILITY_VERSION.to_string())),
+        ("protocolVersion".to_string(), JsonValue::String(PROTOCOL_VERSION.to_string())),
+        ("carrierKind".to_string(), JsonValue::String(carrier_kind.to_string())),
+        (
+            "supportedCarrierKinds".to_string(),
+            JsonValue::Array(vec![
+                JsonValue::String(CARRIER_KIND_HTTP.to_string()),
+                JsonValue::String(CARRIER_KIND_ARCHIVE.to_string()),
+                JsonValue::String(CARRIER_KIND_RELAY.to_string()),
+            ]),
+        ),
+        ("supportedSchemaVersions".to_string(), JsonValue::Object(supported_schema_versions)),
+        ("supportedObjectTypes".to_string(), supported_object_types),
+        (
+            "supportedContentTypes".to_string(),
+            JsonValue::Array(vec![JsonValue::String("application/json".to_string())]),
+        ),
+        (
+            "supportedAuthModes".to_string(),
+            JsonValue::Array(vec![JsonValue::String("signature".to_string()), JsonValue::String("none".to_string())]),
+        ),
+        (
+            "supportedAccessScopes".to_string(),
+            JsonValue::Array(vec![
+                JsonValue::String("public".to_string()),
+                JsonValue::String("curated".to_string()),
+                JsonValue::String("private".to_string()),
+            ]),
+        ),
+        (
+            "supportedRetentionHints".to_string(),
+            JsonValue::Array(vec![
+                JsonValue::String(default_retention.to_string()),
+                JsonValue::String("curated-short-lived".to_string()),
+                JsonValue::String("archive-long-lived".to_string()),
+            ]),
+        ),
+        (
+            "defaults".to_string(),
+            JsonValue::Object(BTreeMap::from([
+                ("accessScope".to_string(), JsonValue::String(default_access.to_string())),
+                ("retentionHint".to_string(), JsonValue::String(default_retention.to_string())),
+            ])),
+        ),
+    ]))
 }
 
 fn validate_body(value: Option<&JsonValue>, errors: &mut Vec<String>) {

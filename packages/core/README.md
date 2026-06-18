@@ -8,5 +8,7 @@
   - append-only な JSONL ストアと再取得
 - `src/`
   - Rust 版の file-backed storage backend、SQLite catalog、replay
+  - archive export / import
+  - capability manifest の組み立て
 
 Phase 1 の JS 実装を残しつつ、Phase 2 では Rust 版の relay / storage node の最小実装をここから育てます。

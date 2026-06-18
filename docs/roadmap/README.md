@@ -6,6 +6,17 @@ Phase 0 と Phase 1 は、仕様固定と単一オブジェクト publish 経路
 実装の本命は ADR にある Rust + SQLite で、現行の Phase 1 JavaScript 実装はその前段の検証用ブートストラップです。
 Phase 2 では relay / storage node の分離を起点に、本命実装へ移行します。
 Phase 4 は完了済みで、`packages/indexer/` を起点に canonical store から派生 index を組み立てています。
+Phase 6 も完了済みで、HTTP carrier、archive carrier、capability negotiation、access / retention、migration / schema versioning の正本と最小実装を整えています。
+
+## 実行の入口
+
+まず試すなら、次の順が分かりやすいです。
+
+1. `cargo run -p lingonberry-relay -- capabilities`
+2. `cargo run -p lingonberry-relay -- serve-http 127.0.0.1:8787`
+3. `cargo run -p lingonberry-relay -- publish fixtures/http-publish-request/minimal-request.json`
+4. `cargo run -p lingonberry-relay -- export-archive /tmp/lingonberry-archive`
+5. `cargo run -p lingonberry-relay -- import-archive /tmp/lingonberry-archive`
 
 ## 文書
 

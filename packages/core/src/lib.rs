@@ -1,4 +1,9 @@
-use lingonberry_protocol::{finalize_knowledge_object, parse_json, to_canonical_json, FinalizedKnowledgeObject, JsonValue};
+use lingonberry_protocol::{
+    build_capability_manifest, finalize_knowledge_object, parse_json, to_canonical_json,
+    FinalizedKnowledgeObject, JsonValue, ARCHIVE_VERSION, CAPABILITY_VERSION, CARRIER_KIND_ARCHIVE,
+    DEFAULT_ACCESS_SCOPE, DEFAULT_RETENTION_HINT, HTTP_PUBLISH_REQUEST_SCHEMA_VERSION,
+    KNOWLEDGE_OBJECT_SCHEMA_VERSION, PROTOCOL_VERSION,
+};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::fs::{self, OpenOptions};
@@ -73,6 +78,22 @@ pub trait StorageBackend {
 }
 
 #[derive(Debug, Clone)]
+pub struct ArchiveExportReport {
+    pub archive_dir: PathBuf,
+    pub manifest_path: PathBuf,
+    pub wire_log_path: PathBuf,
+    pub catalog_path: PathBuf,
+    pub record_count: usize,
+}
+
+#[derive(Debug, Clone)]
+pub struct ArchiveImportReport {
+    pub archive_dir: PathBuf,
+    pub record_count: usize,
+    pub duplicate_count: usize,
+}
+
+#[derive(Debug, Clone)]
 pub struct FileStorageBackend {
     paths: StorePaths,
 }
@@ -124,6 +145,173 @@ impl StorageBackend for FileStorageBackend {
 
 pub fn default_state_dir() -> PathBuf {
     PathBuf::from(".lingonberry")
+}
+
+pub fn build_runtime_capability_manifest() -> JsonValue {
+    build_capability_manifest(lingonberry_protocol::CARRIER_KIND_RELAY, DEFAULT_ACCESS_SCOPE, DEFAULT_RETENTION_HINT)
+}
+
+pub fn export_archive(backend: &impl StorageBackend, archive_dir: impl AsRef<Path>) -> Result<ArchiveExportReport, StoreError> {
+    let archive_dir = archive_dir.as_ref().to_path_buf();
+    fs::create_dir_all(&archive_dir).map_err(|error| store_error("LB_IO_ERROR", error.to_string()))?;
+    let manifest_path = archive_dir.join("manifest.json");
+    let wire_log_path = archive_dir.join("wire-log.jsonl");
+    let catalog_path = archive_dir.join("canonical-catalog.jsonl");
+
+    let ids = backend.list_ids()?;
+    let mut wire_log_lines = Vec::new();
+    let mut catalog_lines = Vec::new();
+
+    for canonical_id in &ids {
+        let raw_request = backend
+            .get_raw_request(canonical_id)?
+            .ok_or_else(|| store_error("LB_ARCHIVE_EXPORT", format!("raw request not found for {}", canonical_id)))?;
+        wire_log_lines.push(json_object(vec![
+            ("storedAt", JsonValue::String(raw_request.stored_at)),
+            ("canonicalId", JsonValue::String(raw_request.canonical_id)),
+            ("carrierIdentity", JsonValue::String(raw_request.carrier_identity)),
+            ("requestJson", JsonValue::String(raw_request.request_json)),
+        ]));
+
+        let record = backend
+            .get(canonical_id)?
+            .ok_or_else(|| store_error("LB_ARCHIVE_EXPORT", format!("catalog record not found for {}", canonical_id)))?;
+        catalog_lines.push(json_object(vec![
+            ("storedAt", JsonValue::String(record.stored_at)),
+            ("canonicalId", JsonValue::String(record.canonical_id)),
+            ("carrierIdentity", JsonValue::String(record.carrier_identity)),
+            ("object", record.object),
+        ]));
+    }
+
+    write_jsonl(&wire_log_path, &wire_log_lines)?;
+    write_jsonl(&catalog_path, &catalog_lines)?;
+
+    let manifest = archive_manifest(ids.len());
+    write_text_file(&manifest_path, &format!("{}\n", to_canonical_json(&manifest)))?;
+
+    Ok(ArchiveExportReport {
+        archive_dir,
+        manifest_path,
+        wire_log_path,
+        catalog_path,
+        record_count: ids.len(),
+    })
+}
+
+pub fn import_archive(backend: &impl StorageBackend, archive_dir: impl AsRef<Path>) -> Result<ArchiveImportReport, StoreError> {
+    let archive_dir = archive_dir.as_ref().to_path_buf();
+    let manifest_path = archive_dir.join("manifest.json");
+    let wire_log_path = archive_dir.join("wire-log.jsonl");
+    let manifest_raw = fs::read_to_string(&manifest_path).map_err(|error| store_error("LB_IO_ERROR", error.to_string()))?;
+    let manifest_value = parse_json(&manifest_raw).map_err(|error| store_error("LB_ARCHIVE_IMPORT", error.to_string()))?;
+    validate_archive_manifest(&manifest_value)?;
+
+    let lines = read_lines(&wire_log_path)?;
+    let mut imported = 0usize;
+    let mut duplicates = 0usize;
+    for line in lines {
+        let value = parse_json(&line).map_err(|error| store_error("LB_ARCHIVE_IMPORT", error.to_string()))?;
+        let Some(map) = as_object(&value) else {
+            return Err(store_error("LB_ARCHIVE_IMPORT", "wire-log record must be an object"));
+        };
+        let Some(request_json) = map.get("requestJson").and_then(as_string) else {
+            return Err(store_error("LB_ARCHIVE_IMPORT", "wire-log record missing requestJson"));
+        };
+        let request_value = parse_json(request_json).map_err(|error| store_error("LB_ARCHIVE_IMPORT", error.to_string()))?;
+        let Some(request_map) = as_object(&request_value) else {
+            return Err(store_error("LB_ARCHIVE_IMPORT", "requestJson is not a publish request"));
+        };
+        let Some(object_value) = request_map.get("object") else {
+            return Err(store_error("LB_ARCHIVE_IMPORT", "publish request missing object"));
+        };
+        let finalized = finalize_knowledge_object(object_value)
+            .map_err(|errors| store_error("LB_ARCHIVE_IMPORT", errors.join("; ")))?;
+        let outcome = backend.append_publish_request(request_json, &finalized)?;
+        if outcome.duplicate {
+            duplicates += 1;
+        } else {
+            imported += 1;
+        }
+    }
+
+    Ok(ArchiveImportReport {
+        archive_dir,
+        record_count: imported,
+        duplicate_count: duplicates,
+    })
+}
+
+fn archive_manifest(record_count: usize) -> JsonValue {
+    json_object(vec![
+        ("archiveVersion", JsonValue::String(ARCHIVE_VERSION.to_string())),
+        ("capabilityVersion", JsonValue::String(CAPABILITY_VERSION.to_string())),
+        ("protocolVersion", JsonValue::String(PROTOCOL_VERSION.to_string())),
+        ("carrierKind", JsonValue::String(CARRIER_KIND_ARCHIVE.to_string())),
+        ("createdAt", JsonValue::String(now_utc_rfc3339())),
+        ("itemCount", JsonValue::Number(record_count.to_string())),
+        (
+            "schemaVersions",
+            json_object(vec![
+                ("knowledgeObject", JsonValue::String(KNOWLEDGE_OBJECT_SCHEMA_VERSION.to_string())),
+                ("httpPublishRequest", JsonValue::String(HTTP_PUBLISH_REQUEST_SCHEMA_VERSION.to_string())),
+            ]),
+        ),
+        (
+            "policy",
+            json_object(vec![
+                ("defaultAccess", JsonValue::String(DEFAULT_ACCESS_SCOPE.to_string())),
+                ("defaultRetention", JsonValue::String(DEFAULT_RETENTION_HINT.to_string())),
+                ("privateEnabled", JsonValue::Bool(false)),
+                ("scrubMode", JsonValue::String("operator-controlled".to_string())),
+            ]),
+        ),
+        (
+            "paths",
+            json_object(vec![
+                ("manifest", JsonValue::String("manifest.json".to_string())),
+                ("wireLog", JsonValue::String("wire-log.jsonl".to_string())),
+                ("catalog", JsonValue::String("canonical-catalog.jsonl".to_string())),
+            ]),
+        ),
+    ])
+}
+
+fn validate_archive_manifest(value: &JsonValue) -> Result<(), StoreError> {
+    let Some(map) = as_object(value) else {
+        return Err(store_error("LB_ARCHIVE_IMPORT", "archive manifest must be an object"));
+    };
+    match map.get("archiveVersion") {
+        Some(JsonValue::String(value)) if value == ARCHIVE_VERSION => {}
+        Some(JsonValue::String(_)) => return Err(store_error("LB_ARCHIVE_IMPORT", "archiveVersion mismatch")),
+        _ => return Err(store_error("LB_ARCHIVE_IMPORT", "archive manifest missing archiveVersion")),
+    }
+    match map.get("protocolVersion") {
+        Some(JsonValue::String(value)) if value == PROTOCOL_VERSION => {}
+        Some(JsonValue::String(_)) => return Err(store_error("LB_ARCHIVE_IMPORT", "protocolVersion mismatch")),
+        _ => return Err(store_error("LB_ARCHIVE_IMPORT", "archive manifest missing protocolVersion")),
+    }
+    match map.get("carrierKind") {
+        Some(JsonValue::String(value)) if value == CARRIER_KIND_ARCHIVE => {}
+        Some(JsonValue::String(_)) => return Err(store_error("LB_ARCHIVE_IMPORT", "carrierKind mismatch")),
+        _ => return Err(store_error("LB_ARCHIVE_IMPORT", "archive manifest missing carrierKind")),
+    }
+    Ok(())
+}
+
+fn write_text_file(path: &Path, contents: &str) -> Result<(), StoreError> {
+    ensure_parent(path)?;
+    fs::write(path, contents).map_err(|error| store_error("LB_IO_ERROR", error.to_string()))
+}
+
+fn write_jsonl(path: &Path, lines: &[JsonValue]) -> Result<(), StoreError> {
+    ensure_parent(path)?;
+    let mut contents = String::new();
+    for line in lines {
+        contents.push_str(&to_canonical_json(line));
+        contents.push('\n');
+    }
+    fs::write(path, contents).map_err(|error| store_error("LB_IO_ERROR", error.to_string()))
 }
 
 pub fn get_store_paths(base_dir: impl AsRef<Path>) -> StorePaths {
@@ -484,7 +672,9 @@ fn unix_seconds_to_utc(seconds: i64) -> (i32, u32, u32, u32, u32, u32) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use lingonberry_protocol::{parse_json, validate_publish_request, validate_knowledge_object};
+    use lingonberry_protocol::{
+        parse_json, validate_publish_request, validate_knowledge_object,
+    };
 
     #[test]
     fn append_duplicate_is_idempotent() {
@@ -537,5 +727,42 @@ mod tests {
             .append_publish_request(include_str!("../../../fixtures/http-publish-request/minimal-request.json"), &altered_finalized)
             .expect_err("must conflict");
         assert_eq!(error.code, "LB_OBJECT_CONFLICT");
+    }
+
+    #[test]
+    fn export_and_import_archive_round_trip() {
+        let source_dir = temp_store_dir("archive-source");
+        let backend = FileStorageBackend::new(&source_dir);
+        let request = parse_json(include_str!("../../../fixtures/http-publish-request/minimal-request.json")).unwrap();
+        let object = as_object(&request).unwrap().get("object").unwrap().clone();
+        let finalized = lingonberry_protocol::finalize_knowledge_object(&object).unwrap();
+        backend
+            .append_publish_request(include_str!("../../../fixtures/http-publish-request/minimal-request.json"), &finalized)
+            .unwrap();
+
+        let archive_dir = temp_store_dir("archive-export");
+        let export_report = export_archive(&backend, &archive_dir).expect("must export archive");
+        assert_eq!(export_report.record_count, 1);
+        assert!(archive_dir.join("manifest.json").exists());
+        assert!(archive_dir.join("wire-log.jsonl").exists());
+        assert!(archive_dir.join("canonical-catalog.jsonl").exists());
+
+        let import_dir = temp_store_dir("archive-import");
+        let import_backend = FileStorageBackend::new(&import_dir);
+        let import_report = import_archive(&import_backend, &archive_dir).expect("must import archive");
+        assert_eq!(import_report.record_count, 1);
+        assert_eq!(import_report.duplicate_count, 0);
+        assert_eq!(import_backend.list_ids().unwrap(), vec!["lb:obj:example-0001".to_string()]);
+    }
+
+    #[test]
+    fn runtime_capability_manifest_mentions_carrier_defaults() {
+        let manifest = build_runtime_capability_manifest();
+        let map = as_object(&manifest).expect("manifest must be an object");
+        assert_eq!(map.get("carrierKind").and_then(as_string), Some("relay"));
+        assert_eq!(map.get("protocolVersion").and_then(as_string), Some(PROTOCOL_VERSION));
+        let defaults = as_object(map.get("defaults").expect("manifest defaults")).expect("defaults object");
+        assert_eq!(defaults.get("accessScope").and_then(as_string), Some(DEFAULT_ACCESS_SCOPE));
+        assert_eq!(defaults.get("retentionHint").and_then(as_string), Some(DEFAULT_RETENTION_HINT));
     }
 }

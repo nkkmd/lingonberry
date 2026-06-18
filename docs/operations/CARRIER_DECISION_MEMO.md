@@ -224,6 +224,19 @@ carrier が何を受けられるか、どこまで互換かを公開します。
 - supported content type
 - validation / finalize の制約
 
+### 4. Access / retention hint
+
+HTTP carrier では、運用上の access / retention hint を capability に載せてもよいです。
+
+ただし、次は protocol semantic にしません。
+
+- public / curated / private の最終決定
+- retention の既定値
+- export 時の scrub 方針
+- authentication / authorization の強制有無
+
+これらは [Access and Retention Policy](./ACCESS_RETENTION_POLICY.md) で運用ポリシーとして扱います。
+
 ### 推奨 response 形
 
 HTTP carrier の response は、なるべく次の 3 種類に絞ると扱いやすいです。
@@ -328,3 +341,8 @@ HTTP carrier の response は、なるべく次の 3 種類に絞ると扱いや
 - file/archive ingest が先に必要になったとき
 - public relay の trust model が HTTP より別 carrier に向いたとき
 - carrier 間同期の要件が早期に必要になったとき
+- access / retention policy の運用が carrier ごとに大きく分岐したとき
+
+## 関連
+
+- [Access and Retention Policy](./ACCESS_RETENTION_POLICY.md)

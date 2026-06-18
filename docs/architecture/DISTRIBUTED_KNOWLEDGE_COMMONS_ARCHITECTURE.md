@@ -720,8 +720,8 @@ Toitoi profile は、core object type と relation を組み合わせて inquiry
 
 ## 13. 推奨リポジトリ構成
 
-このリポジトリは、仕様、概念、運用判断、実装計画を役割ごとに分けて保つ構成にします。  
-実装が増えた場合は、同じ境界を保ったまま `packages/` を追加するのが扱いやすいです。
+このリポジトリは、仕様、概念、運用判断、実装計画、実装を役割ごとに分けて保つ構成にします。  
+現在は実装が始まっているため、`packages/` を中核の実装置き場として含める前提で整理します。  
 
 ```text
 lingonberry/
@@ -733,18 +733,20 @@ lingonberry/
 │  ├─ operations/
 │  ├─ protocols/
 │  └─ roadmap/
+├─ packages/
+│  ├─ protocol/
+│  ├─ codecs/
+│  ├─ core/
+│  ├─ relay/
+│  ├─ api/
+│  └─ cli/
 ├─ schemas/
 ├─ fixtures/
 └─ (optional future)
    ├─ packages/
-   │  ├─ protocol/
-   │  ├─ core/
-   │  ├─ codecs/
    │  ├─ carriers/
-   │  ├─ relay/
    │  ├─ indexer/
-   │  ├─ api/
-   │  └─ cli/
+   │  └─ ...
    ├─ examples/
    └─ tests/
 ```
@@ -769,25 +771,34 @@ lingonberry/
   - protocol-native な JSON Schema
 - `fixtures/`
   - schema や wire 仕様の検証用サンプル
+- `packages/`
+  - 実装本体。責務ごとに分離したパッケージを置く
 
-### 13.2 実装を追加する場合の責務
+### 13.2 現在の実装配置
 
 - `packages/protocol/`
-  - descriptor、capability table、registry、versioning
-- `packages/core/`
-  - canonical model、identity、provenance、relations
+  - protocol object の parser / validator / canonicalizer
 - `packages/codecs/`
-  - protocol object の validate / normalize / finalize
+  - validate / normalize / finalize の共通処理
+- `packages/core/`
+  - append-only storage と replay / retrieval
+- `packages/relay/`
+  - relay runtime
+- `packages/api/`
+  - canonical view の組み立て
+- `packages/cli/`
+  - validate / publish / get / list の実行入口
+
+### 13.3 実装を追加する場合の責務
+
 - `packages/carriers/`
   - protocol object の正規 wire 実装、carrier 固有の framing と helper
-- `packages/relay/`
-  - relay runtime と ingest service
 - `packages/indexer/`
   - replay、search、graph、derived memory
-- `packages/api/`
-  - canonical view API
-- `packages/cli/`
-  - inspect、validate、replay、migrate
+- `examples/`
+  - 仕様検証や profile 例の最小サンプル
+- `tests/`
+  - 統合テストや回帰テスト
 
 ## 14. Toitoi からの移行戦略
 

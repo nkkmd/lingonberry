@@ -87,6 +87,9 @@ carrier から protocol object を復元します。
 - identity と provenance の基本整合性があること
 - carrier が許容する framing に収まっていること
 
+HTTP publish の場合は、まず request envelope を validate し、その後に `object` 本体を validate します。
+`publisher` は carrier 側メタデータとして扱い、wire object 本体の必須 field とは分離します。
+
 ### 4. normalize
 
 次を揃えます。
@@ -109,6 +112,9 @@ wire object を canonical knowledge object として確定します。
 - raw/wire reference を保持する
 - identityClaims があれば canonical id との対応を保持する
 - deterministic な object 表現を得る
+
+Phase 1 では canonical id の新規発番ロジックを増やしません。
+validate 済み object が持つ `id` を canonical id の参照軸として保持し、以後の保存・再取得で安定して扱えるようにします。
 
 ## ルール
 

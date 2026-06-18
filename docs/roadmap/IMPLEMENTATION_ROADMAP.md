@@ -1,6 +1,6 @@
 # 実装ロードマップ
 
-**Status: draft** | **Last updated: 2026-06-17**
+**Status: draft** | **Last updated: 2026-06-18**
 
 ## 目的
 
@@ -65,11 +65,27 @@ Phase 0 では、core の固定点を次のように扱います。
 - 仕様を読めば、publish された object の canonicalization 規則を再実装できる
 - Toitoi 固有の語彙を core に入れずに説明できる
 
-## フェーズ 1: 単一オブジェクトの publish 経路を作る
+## フェーズ 1: 単一オブジェクトの publish 経路を作る（完了済み）
 
 ### 目的
 
 1 件の `knowledge object` を、草稿から canonical storage まで通せるようにします。
+
+### 実装の進め方
+
+Phase 1 は、まず HTTP publish を最小の carrier として固定して進めます。
+
+1. `http-publish-request` を入口にする
+2. request envelope を validate する
+3. `object` 本体を `knowledge-object` schema で validate する
+4. normalize を pure transform として実装する
+5. finalize で canonical object を確定する
+6. append-only storage に保存する
+7. canonical id で再取得できるようにする
+
+この段階では、canonical id の新規発番ルールを追加しません。
+validate 済みの object が持つ `id` を、そのまま canonical object の参照軸として保持します。
+`id` の再設計が必要になった場合は、Phase 3 以降の identity 作業として切り出します。
 
 ### やること
 
@@ -87,17 +103,38 @@ Phase 0 では、core の固定点を次のように扱います。
 - 処理: validate → normalize → finalize
 - 出力: canonical object の保存と取得
 
+### 最初の着手点
+
+- `schemas/http-publish-request.schema.json` を publish 入力の入口として扱う
+- `schemas/knowledge-object.schema.json` を object 本体の検証基準にする
+- `fixtures/http-publish-request/*.json` を request 検証の fixtures として使う
+- `fixtures/knowledge-object/*.json` を object 検証の fixtures として使う
+
 ### 成果物
 
 - publish API または publish CLI
 - 単一ノードの永続化層
 - canonical object 取得 API
 
+Phase 1 の最初のスキャフォールドは、依存を増やさずに fixture を直接回しやすい `publish CLI` を優先します。
+CLI 実装は、推奨リポジトリ構成に合わせて `packages/cli/` に置き、validate / normalize / finalize の共通処理は `packages/codecs/` に寄せます。
+単一ノード保存と再取得は `packages/core/` に置き、CLI から `publish` と `get` で触れる最小形から始めます。
+canonical view の組み立ては `packages/api/` に置き、`get` の返却形をそこへ寄せます。
+
 ### 完了条件
 
 - 1 つの object を publish できる
 - 再取得時に canonical object が安定して返る
 - 不正な wire object は reject される
+
+### 完了した実装
+
+- `packages/codecs/` に validate / normalize / finalize の最小実装を配置
+- `packages/core/` に append-only JSONL ストアと再取得を配置
+- `packages/api/` に canonical view の組み立てを配置
+- `packages/cli/` に `validate` / `publish` / `get` / `list` を配置
+- `fixtures/` に検証手順を追加
+- `.lingonberry/` をローカル保存先として無視対象に追加
 
 ## フェーズ 2: relay と storage node を分離して成立させる
 

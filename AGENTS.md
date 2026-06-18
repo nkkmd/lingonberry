@@ -29,6 +29,13 @@
 - `schemas/`: protocol-native な JSON Schema
 - `fixtures/`: サンプル JSON と検証用データ
 
+## 実装配置の基準
+
+- 実装を追加するときは、`docs/architecture/DISTRIBUTED_KNOWLEDGE_COMMONS_ARCHITECTURE.md` の `## 13. 推奨リポジトリ構成` を基準にする
+- 新しい実装は、原則として `packages/` 配下の責務別ディレクトリに置く
+- 既存の `docs/`、`schemas/`、`fixtures/` は、それぞれ仕様、schema、検証サンプルの役割に保つ
+- 配置が迷うときは、まず構成章に照らして役割を分け、必要なら文書側の責務を見直す
+
 ## 変更前に読むもの
 
 - `README.md`

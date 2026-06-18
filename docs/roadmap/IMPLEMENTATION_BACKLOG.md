@@ -1,6 +1,6 @@
 # 実装バックログ
 
-**Status: draft** | **Last updated: 2026-06-17**
+**Status: draft** | **Last updated: 2026-06-18**
 
 この文書は、[実装ロードマップ](./IMPLEMENTATION_ROADMAP.md) を issue 単位に分解したものです。  
 実作業では、上から順に切るよりも、依存が薄いところから並行に進めても構いません。  
@@ -84,55 +84,80 @@ Phase 0 の各 issue は、文書上の固定点として完了済みです。
   - author / actor の同定が provenance に記録されることが明確
   - identity claim との役割分担が説明できる
 
-## Epic 1: 単一オブジェクト publish
+## Epic 1: 単一オブジェクト publish（完了済み）
 
-### Issue 1.1: 単一 object の入力形式を決める
+### Issue 1.1: 単一 object の入力形式を決める（完了済み）
 
 - 目的: 最初の publish 入力を固定する
 - 依存: 0.1, 0.5, 0.6
+- 実装メモ:
+  - 入口は `http-publish-request` を第一候補にする
+  - request envelope と object 本体を分けて validate する
+  - `publisher` は carrier 側メタデータとして扱う
 - 完了条件:
   - JSON か protocol-native wire 表現のどちらを受けるか決まっている
   - 入力例がある
   - 最小構造の具体例が `protocol-native wire format` と fixture にある
   - publish request に署名情報をどう載せるか決まっている
 
-### Issue 1.2: wire object の validate を実装する
+### Issue 1.2: wire object の validate を実装する（完了済み）
 
 - 目的: 不正な object を早い段階で reject する
 - 依存: 1.1
+- 実装メモ:
+  - `knowledge-object.schema.json` を検証の基準にする
+  - `rawRef` 欠落と type / format 不整合を最初に落とす
+  - 正常系と不正系の fixture を使って validate を固定する
 - 完了条件:
   - schema validation が動く
   - 必須項目欠落や型不整合を検出できる
   - `rawRef` 欠落の不正例が fixture としてある
 
-### Issue 1.3: normalize を実装する
+### Issue 1.3: normalize を実装する（完了済み）
 
 - 目的: canonicalization の前処理を決定的にする
 - 依存: 1.2
+- 実装メモ:
+  - field 順序を安定化する
+  - 省略可能 field の default 扱いを固定する
+  - 文字列表現の揺れは validate 後に吸収する
 - 完了条件:
   - field 順序や default の扱いが安定している
   - 同じ input から同じ normalized object が得られる
 
-### Issue 1.4: finalize を実装する
+### Issue 1.4: finalize を実装する（完了済み）
 
 - 目的: canonical object を確定する
 - 依存: 1.3, 0.2, 0.3
+- 実装メモ:
+  - canonical id は validate 済み object の `id` を軸に保持する
+  - provenance と rawRef は finalize で失わない
+  - identityClaims がある場合だけ対応関係を保持する
 - 完了条件:
   - canonical id を付与できる
   - provenance と rawRef を保持できる
 
-### Issue 1.5: 単一ノード保存を実装する
+### Issue 1.5: 単一ノード保存を実装する（完了済み）
 
 - 目的: publish された object を永続化する
 - 依存: 1.4
+- 実装メモ:
+  - 最小の append-only JSONL ストアを `packages/core/` に置く
+  - `publish` 時に canonical object を追記する
+  - 同一 `id` の再 publish は idempotent に扱い、内容が異なる場合は conflict にする
+  - `get` で canonical id から再取得できるようにする
 - 完了条件:
   - append-only で保存される
   - 再起動後も再取得できる
 
-### Issue 1.6: canonical object の取得 API を実装する
+### Issue 1.6: canonical object の取得 API を実装する（完了済み）
 
 - 目的: canonical id で再取得できるようにする
 - 依存: 1.5
+- 実装メモ:
+  - CLI の `get` を最初の取得 API として扱う
+  - まずは単一ノードのローカル再取得に限定する
+  - canonical view の組み立ては `packages/api/` に寄せる
 - 完了条件:
   - `id` で取得できる
   - 安定した canonical view を返せる

@@ -23,7 +23,7 @@
 
 ### 1. canonical event schema
 
-- [schemas/canonical-event.schema.json](/home/oruorane/github/Toitoi/schemas/canonical-event.schema.json)
+- [canonical-event.schema.json](https://github.com/nkkmd/Toitoi/blob/main/schemas/canonical-event.schema.json)
 - 目的: 正規化された知識オブジェクトの最小構造を確認する
 - 見るべき点:
   - `id` の形式
@@ -40,7 +40,7 @@
 
 ### 2. identity claim schema
 
-- [schemas/identity-claim.schema.json](/home/oruorane/github/Toitoi/schemas/identity-claim.schema.json)
+- [identity-claim.schema.json](https://github.com/nkkmd/Toitoi/blob/main/schemas/identity-claim.schema.json)
 - 目的: identity key と canonical id の対応をどう検証するかを確認する
 - 見るべき点:
   - `identityKey`
@@ -54,7 +54,7 @@
 
 ### 3. canonical identity と provenance の正本
 
-- [docs/concepts/CANONICAL_IDENTITY_AND_PROVENANCE.md](/home/oruorane/github/Toitoi/docs/concepts/CANONICAL_IDENTITY_AND_PROVENANCE.md)
+- [CANONICAL_IDENTITY_AND_PROVENANCE.md](https://github.com/nkkmd/Toitoi/blob/main/docs/concepts/CANONICAL_IDENTITY_AND_PROVENANCE.md)
 - 目的: identity 周りの責務分離を確認する
 - 見るべき点:
   - carrier identity
@@ -67,7 +67,7 @@
 
 ### 4. canonical event の正本
 
-- [docs/protocols/CANONICAL_EVENT.md](/home/oruorane/github/Toitoi/docs/protocols/CANONICAL_EVENT.md)
+- [CANONICAL_EVENT.md](https://github.com/nkkmd/Toitoi/blob/main/docs/protocols/CANONICAL_EVENT.md)
 - 目的: append-only、raw / canonical 分離、index の位置づけを確認する
 - 見るべき点:
   - raw wire event
@@ -80,7 +80,7 @@
 
 ### 5. 用語集
 
-- [docs/concepts/GLOSSARY.md](/home/oruorane/github/Toitoi/docs/concepts/GLOSSARY.md)
+- [GLOSSARY.md](https://github.com/nkkmd/Toitoi/blob/main/docs/concepts/GLOSSARY.md)
 - 目的: `inquiry`、`boundary object`、`commons`、`relay`、`indexer` の意味を揃える
 - 見るべき点:
   - `inquiry`
@@ -144,8 +144,8 @@
 
 参照先:
 
-- [schemas/canonical-event.schema.json](/home/oruorane/github/Toitoi/schemas/canonical-event.schema.json)
-- [docs/concepts/GLOSSARY.md](/home/oruorane/github/Toitoi/docs/concepts/GLOSSARY.md)
+- [canonical-event.schema.json](https://github.com/nkkmd/Toitoi/blob/main/schemas/canonical-event.schema.json)
+- [GLOSSARY.md](https://github.com/nkkmd/Toitoi/blob/main/docs/concepts/GLOSSARY.md)
 
 ### 2. identity の扱い
 
@@ -158,8 +158,8 @@
 
 参照先:
 
-- [schemas/identity-claim.schema.json](/home/oruorane/github/Toitoi/schemas/identity-claim.schema.json)
-- [docs/concepts/CANONICAL_IDENTITY_AND_PROVENANCE.md](/home/oruorane/github/Toitoi/docs/concepts/CANONICAL_IDENTITY_AND_PROVENANCE.md)
+- [identity-claim.schema.json](https://github.com/nkkmd/Toitoi/blob/main/schemas/identity-claim.schema.json)
+- [CANONICAL_IDENTITY_AND_PROVENANCE.md](https://github.com/nkkmd/Toitoi/blob/main/docs/concepts/CANONICAL_IDENTITY_AND_PROVENANCE.md)
 
 ### 3. provenance と raw reference
 
@@ -171,8 +171,8 @@
 
 参照先:
 
-- [schemas/canonical-event.schema.json](/home/oruorane/github/Toitoi/schemas/canonical-event.schema.json)
-- [docs/concepts/CANONICAL_IDENTITY_AND_PROVENANCE.md](/home/oruorane/github/Toitoi/docs/concepts/CANONICAL_IDENTITY_AND_PROVENANCE.md)
+- [canonical-event.schema.json](https://github.com/nkkmd/Toitoi/blob/main/schemas/canonical-event.schema.json)
+- [CANONICAL_IDENTITY_AND_PROVENANCE.md](https://github.com/nkkmd/Toitoi/blob/main/docs/concepts/CANONICAL_IDENTITY_AND_PROVENANCE.md)
 
 ### 4. 変更と履歴
 
@@ -185,8 +185,8 @@
 
 参照先:
 
-- [docs/protocols/CANONICAL_EVENT.md](/home/oruorane/github/Toitoi/docs/protocols/CANONICAL_EVENT.md)
-- [schemas/canonical-event.schema.json](/home/oruorane/github/Toitoi/schemas/canonical-event.schema.json)
+- [CANONICAL_EVENT.md](https://github.com/nkkmd/Toitoi/blob/main/docs/protocols/CANONICAL_EVENT.md)
+- [canonical-event.schema.json](https://github.com/nkkmd/Toitoi/blob/main/schemas/canonical-event.schema.json)
 
 ### 5. carrier と relay
 
@@ -198,8 +198,8 @@
 
 参照先:
 
-- [docs/protocols/CANONICAL_EVENT.md](/home/oruorane/github/Toitoi/docs/protocols/CANONICAL_EVENT.md)
-- [docs/architecture/MULTI_PROTOCOL_INDEXER.md](/home/oruorane/github/Toitoi/docs/architecture/MULTI_PROTOCOL_INDEXER.md)
+- [CANONICAL_EVENT.md](https://github.com/nkkmd/Toitoi/blob/main/docs/protocols/CANONICAL_EVENT.md)
+- [MULTI_PROTOCOL_INDEXER.md](https://github.com/nkkmd/Toitoi/blob/main/docs/architecture/MULTI_PROTOCOL_INDEXER.md)
 
 ### 6. indexer と API
 
@@ -211,8 +211,8 @@
 
 参照先:
 
-- [docs/architecture/MULTI_PROTOCOL_INDEXER.md](/home/oruorane/github/Toitoi/docs/architecture/MULTI_PROTOCOL_INDEXER.md)
-- [docs/architecture/DIRECTORY_BOUNDARIES.md](/home/oruorane/github/Toitoi/docs/architecture/DIRECTORY_BOUNDARIES.md)
+- [MULTI_PROTOCOL_INDEXER.md](https://github.com/nkkmd/Toitoi/blob/main/docs/architecture/MULTI_PROTOCOL_INDEXER.md)
+- [DIRECTORY_BOUNDARIES.md](https://github.com/nkkmd/Toitoi/blob/main/docs/architecture/DIRECTORY_BOUNDARIES.md)
 
 ### 7. 語彙とアプリケーション・プロファイル
 
@@ -224,8 +224,8 @@
 
 参照先:
 
-- [docs/concepts/GLOSSARY.md](/home/oruorane/github/Toitoi/docs/concepts/GLOSSARY.md)
-- [README.md](/home/oruorane/github/Toitoi/README.md)
+- [GLOSSARY.md](https://github.com/nkkmd/Toitoi/blob/main/docs/concepts/GLOSSARY.md)
+- [README.md](https://github.com/nkkmd/Toitoi/blob/main/README.md)
 
 ---
 

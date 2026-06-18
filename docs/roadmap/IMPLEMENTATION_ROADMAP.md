@@ -309,7 +309,7 @@ Phase 4 は、次の順で切り出すと進めやすいです。
 - search 結果から provenance と lineage を辿れる
 - index の破損が semantic data の破損にならない
 
-## フェーズ 5: Toitoi 用の application profile を載せる
+## フェーズ 5: Toitoi 用の application profile を載せる（完了済み）
 
 ### 目的
 
@@ -318,6 +318,7 @@ Lingonberry を Toitoi の基盤として使えるようにします。
 ### やること
 
 - Toitoi 用の application profile を分離する
+- 最小必須 object / relation set を profile 側で確定する
 - inquiry / observation / evidence / synthesis / annotation の使い方を profile 側で定義する
 - Toitoi 固有の context 語彙を core から切り離す
 - Toitoi が必要とする API だけを profile として公開する

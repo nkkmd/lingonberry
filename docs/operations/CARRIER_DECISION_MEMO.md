@@ -1,6 +1,6 @@
 # Carrier Decision Memo
 
-**Status: draft** | **Last updated: 2026-06-17**
+**Status: draft** | **Last updated: 2026-06-18**
 
 ## 目的
 
@@ -10,7 +10,7 @@
 
 ## 決定
 
-現時点の第一候補は **HTTP publish API** です。
+**HTTP publish API** を最初の正規 carrier に決定します。
 
 その上で、後続 carrier として次を位置づけます。
 

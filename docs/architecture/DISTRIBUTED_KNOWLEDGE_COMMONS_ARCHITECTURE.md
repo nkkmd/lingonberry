@@ -1,6 +1,6 @@
 # 分散知識コモンズ・アーキテクチャ草案
 
-**Status: draft** | **Last updated: 2026-06-17**
+**Status: draft** | **Last updated: 2026-06-18**
 
 ## 1. 目的
 

@@ -162,7 +162,7 @@ Phase 2 は、次の前提がそろった時点で着手できます。
 - JS ブートストラップで validate / normalize / finalize の挙動が確認済みである
 - 本命実装は `Rust + SQLite` で進める方針が確定している
 - relay / storage の責務分離を先に進める方針が確定している
-- carrier の第一候補は未確定でも、Phase 2 の開始自体は妨げない
+- carrier の第一候補は HTTP publish API に固定済みであり、Phase 2 の開始自体は後続 carrier の確定を待たない
 - relay の最小 validation 範囲が schema / framing / carrier identity までであることが明確である
 - public relay の最小 trust model が署名と形式の妥当性に限定されることが明確である
 - carrier capability と application profile の管理方式が完全分散であることが明確である

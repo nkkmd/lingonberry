@@ -32,3 +32,36 @@ node packages/cli/lingonberry.mjs list
 
 publish の最小スキャフォールドは、`http-publish-request` を入力として受け取り、`object` を canonical 化した結果を返す形で進めます。
 同一 `id` で内容が同じ場合は idempotent、内容が異なる場合は conflict として扱います。
+
+## Phase 1 の手動テスト
+
+Phase 1 の動作確認は、リポジトリルートから次の順で行えます。
+
+```bash
+rm -rf .lingonberry
+node packages/cli/lingonberry.mjs validate fixtures/knowledge-object/minimal-wire-object.json
+node packages/cli/lingonberry.mjs validate fixtures/knowledge-object/invalid-missing-rawref.json
+node packages/cli/lingonberry.mjs validate fixtures/http-publish-request/minimal-request.json
+node packages/cli/lingonberry.mjs validate fixtures/http-publish-request/invalid-missing-signature.json
+node packages/cli/lingonberry.mjs publish fixtures/http-publish-request/minimal-request.json
+node packages/cli/lingonberry.mjs get lb:obj:example-0001
+node packages/cli/lingonberry.mjs list
+node packages/cli/lingonberry.mjs publish fixtures/http-publish-request/minimal-request.json
+```
+
+期待結果:
+
+- 正常系の validate が通る
+- 不正系の validate が reject される
+- publish 後に `get` で canonical view を再取得できる
+- `list` で保存済み ID を確認できる
+- 同一内容の再 publish は idempotent に扱われる
+
+## Conflict の確認
+
+同じ `id` で内容だけ変えた JSON を作って `publish` すると、conflict として reject されることを確認できます。
+
+期待結果:
+
+- `LB_OBJECT_CONFLICT` が返る
+- `object already exists with different content` を含むエラーになる

@@ -20,6 +20,7 @@
         },
         "signature": {
           "type": "string",
+          "pattern": "^[0-9a-f]{128}$",
           "minLength": 1,
           "description": "Signature covering the request payload or a canonicalized subset defined by the carrier."
         }

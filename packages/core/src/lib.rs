@@ -33,6 +33,14 @@ pub struct StoredReplayRecord {
 }
 
 #[derive(Debug, Clone)]
+pub struct RawRequestRecord {
+    pub stored_at: String,
+    pub canonical_id: String,
+    pub carrier_identity: String,
+    pub request_json: String,
+}
+
+#[derive(Debug, Clone)]
 pub struct AppendOutcome {
     pub stored_at: Option<String>,
     pub canonical_id: String,
@@ -58,6 +66,7 @@ impl std::error::Error for StoreError {}
 pub trait StorageBackend {
     fn append_publish_request(&self, request_json: &str, finalized: &FinalizedKnowledgeObject) -> Result<AppendOutcome, StoreError>;
     fn get(&self, canonical_id: &str) -> Result<Option<StoredCatalogRecord>, StoreError>;
+    fn get_raw_request(&self, canonical_id: &str) -> Result<Option<RawRequestRecord>, StoreError>;
     fn list_ids(&self) -> Result<Vec<String>, StoreError>;
     fn subscribe(&self, object_type: Option<&str>) -> Result<Vec<StoredCatalogRecord>, StoreError>;
     fn replay(&self) -> Result<Vec<StoredReplayRecord>, StoreError>;
@@ -94,6 +103,10 @@ impl StorageBackend for FileStorageBackend {
 
     fn get(&self, canonical_id: &str) -> Result<Option<StoredCatalogRecord>, StoreError> {
         get_record(&self.paths, canonical_id)
+    }
+
+    fn get_raw_request(&self, canonical_id: &str) -> Result<Option<RawRequestRecord>, StoreError> {
+        get_raw_request(&self.paths, canonical_id)
     }
 
     fn list_ids(&self) -> Result<Vec<String>, StoreError> {
@@ -215,6 +228,28 @@ pub fn get_record(paths: &StorePaths, canonical_id: &str) -> Result<Option<Store
 pub fn get_record_by_carrier_identity(paths: &StorePaths, carrier_identity: &str) -> Result<Option<StoredCatalogRecord>, StoreError> {
     let records = list_records(paths)?;
     Ok(records.into_iter().rev().find(|record| record.carrier_identity == carrier_identity))
+}
+
+pub fn get_raw_request(paths: &StorePaths, canonical_id: &str) -> Result<Option<RawRequestRecord>, StoreError> {
+    let lines = read_lines(&paths.raw_log_path)?;
+    for line in lines.into_iter().rev() {
+        let value = parse_json(&line).map_err(|error| store_error("LB_INVALID_LOG", error.to_string()))?;
+        let Some(map) = as_object(&value) else {
+            continue;
+        };
+        if map.get("canonicalId").and_then(as_string) == Some(canonical_id) {
+            let stored_at = map.get("storedAt").and_then(as_string).unwrap_or_default().to_string();
+            let carrier_identity = map.get("carrierIdentity").and_then(as_string).unwrap_or_default().to_string();
+            let request_json = map.get("requestJson").and_then(as_string).unwrap_or_default().to_string();
+            return Ok(Some(RawRequestRecord {
+                stored_at,
+                canonical_id: canonical_id.to_string(),
+                carrier_identity,
+                request_json,
+            }));
+        }
+    }
+    Ok(None)
 }
 
 pub fn list_ids(paths: &StorePaths) -> Result<Vec<String>, StoreError> {
@@ -468,6 +503,8 @@ mod tests {
         assert!(second.duplicate);
         assert_eq!(backend.list_ids().unwrap(), vec!["lb:obj:example-0001".to_string()]);
         assert!(backend.get("lb:obj:example-0001").unwrap().is_some());
+        let raw_request = backend.get_raw_request("lb:obj:example-0001").unwrap().unwrap();
+        assert!(raw_request.request_json.contains("\"publisher\""));
     }
 
     #[test]

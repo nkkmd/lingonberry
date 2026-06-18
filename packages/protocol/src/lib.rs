@@ -2,6 +2,9 @@ use std::collections::BTreeMap;
 use std::fmt;
 use std::fs;
 use std::path::Path;
+use std::process::Command;
+
+pub const IDENTITY_KEY_RULE_VERSION_V1: &str = "lb.identity.key.v1";
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum JsonValue {
@@ -30,6 +33,7 @@ impl std::error::Error for JsonError {}
 #[derive(Debug, Clone)]
 pub struct FinalizedKnowledgeObject {
     pub canonical_id: String,
+    pub identity_key: String,
     pub object: JsonValue,
     pub canonical_json: String,
 }
@@ -123,7 +127,7 @@ pub fn validate_knowledge_object(value: &JsonValue) -> Vec<String> {
     validate_lineage(map.get("lineage"), &mut errors);
     validate_provenance(map.get("provenance"), &mut errors);
     validate_raw_ref(map.get("rawRef"), &mut errors);
-    validate_identity_claims(map.get("identityClaims"), &mut errors);
+    validate_identity_claims(map.get("identityClaims"), map, &mut errors);
     validate_attachments(map.get("attachments"), &mut errors);
     validate_labels(map.get("labels"), &mut errors);
     validate_meta(map.get("meta"), &mut errors);
@@ -173,8 +177,8 @@ pub fn validate_publish_request(value: &JsonValue) -> Vec<String> {
                 _ => errors.push("publisher.publicKey must be a 64-character lowercase hex string".to_string()),
             }
             match publisher.get("signature") {
-                Some(JsonValue::String(value)) if !value.is_empty() => {}
-                _ => errors.push("publisher.signature must be a non-empty string".to_string()),
+                Some(JsonValue::String(value)) if is_lower_hex(value) && value.len() == 128 => {}
+                _ => errors.push("publisher.signature must be a 128-character lowercase hex string".to_string()),
             }
             let allowed = ["publicKey", "signature"];
             for key in publisher.keys() {
@@ -186,6 +190,10 @@ pub fn validate_publish_request(value: &JsonValue) -> Vec<String> {
         }
         Some(_) => errors.push("publisher must be an object".to_string()),
         None => errors.push("missing required field: publisher".to_string()),
+    }
+
+    if let Err(error) = verify_publish_request_signature(value) {
+        errors.push(error);
     }
 
     for key in map.keys() {
@@ -209,11 +217,20 @@ pub fn finalize_knowledge_object(value: &JsonValue) -> Result<FinalizedKnowledge
         .and_then(as_string)
         .map(ToString::to_string)
         .unwrap_or_default();
+    let identity_key = derive_identity_key(&normalized);
     Ok(FinalizedKnowledgeObject {
         canonical_id,
+        identity_key,
         object: normalized,
         canonical_json,
     })
+}
+
+pub fn derive_identity_key(value: &JsonValue) -> String {
+    let basis = identity_key_basis(value);
+    let canonical_json = to_canonical_json(&basis);
+    let fingerprint = fnv1a64_hex(&canonical_json);
+    format!("lb:key:{}:fnv1a64:{}", IDENTITY_KEY_RULE_VERSION_V1, fingerprint)
 }
 
 pub fn is_lb_object_id(value: &str) -> bool {
@@ -439,13 +456,16 @@ fn validate_raw_ref(value: Option<&JsonValue>, errors: &mut Vec<String>) {
     }
 }
 
-fn validate_identity_claims(value: Option<&JsonValue>, errors: &mut Vec<String>) {
+fn validate_identity_claims(value: Option<&JsonValue>, object: &BTreeMap<String, JsonValue>, errors: &mut Vec<String>) {
     let Some(JsonValue::Array(items)) = value else {
         if value.is_some() {
             errors.push("identityClaims must be an array".to_string());
         }
         return;
     };
+
+    let expected_identity_key = derive_identity_key(&JsonValue::Object(object.clone()));
+    let expected_canonical_id = object.get("id").and_then(as_string).unwrap_or_default().to_string();
 
     for (index, item) in items.iter().enumerate() {
         let Some(map) = as_object(item) else {
@@ -462,7 +482,8 @@ fn validate_identity_claims(value: Option<&JsonValue>, errors: &mut Vec<String>)
             _ => errors.push(format!("identityClaims[{}].claimType must be identity", index)),
         }
         match map.get("ruleVersion") {
-            Some(JsonValue::String(value)) if !value.is_empty() => {}
+            Some(JsonValue::String(value)) if value == IDENTITY_KEY_RULE_VERSION_V1 => {}
+            Some(JsonValue::String(_)) => errors.push(format!("identityClaims[{}].ruleVersion must be {}", index, IDENTITY_KEY_RULE_VERSION_V1)),
             _ => errors.push(format!("identityClaims[{}].ruleVersion must be a non-empty string", index)),
         }
         match map.get("identityKey") {
@@ -537,6 +558,17 @@ fn validate_identity_claims(value: Option<&JsonValue>, errors: &mut Vec<String>)
                 }
             }
             _ => errors.push(format!("identityClaims[{}].verification must be an object", index)),
+        }
+
+        match map.get("canonicalId") {
+            Some(JsonValue::String(value)) if value == &expected_canonical_id => {}
+            Some(JsonValue::String(_)) => errors.push(format!("identityClaims[{}].canonicalId must match the enclosing object id", index)),
+            _ => {}
+        }
+        match map.get("identityKey") {
+            Some(JsonValue::String(value)) if value == &expected_identity_key => {}
+            Some(JsonValue::String(_)) => errors.push(format!("identityClaims[{}].identityKey must match the derived identity key", index)),
+            _ => {}
         }
         let allowed = [
             "schemaVersion",
@@ -625,6 +657,123 @@ fn validate_meta(value: Option<&JsonValue>, errors: &mut Vec<String>) {
     }
 }
 
+pub fn verify_publish_request_signature(value: &JsonValue) -> Result<(), String> {
+    let Some(map) = as_object(value) else {
+        return Err("publish request must be an object".to_string());
+    };
+    let Some(JsonValue::Object(publisher)) = map.get("publisher") else {
+        return Ok(());
+    };
+    let (Some(JsonValue::String(public_key_hex)), Some(JsonValue::String(signature_hex))) = (
+        publisher.get("publicKey"),
+        publisher.get("signature"),
+    ) else {
+        return Ok(());
+    };
+    if public_key_hex.len() != 64 || !is_lower_hex(public_key_hex) {
+        return Ok(());
+    }
+    if signature_hex.len() != 128 || !is_lower_hex(signature_hex) {
+        return Ok(());
+    }
+
+    let payload = canonical_publish_request_payload(value)?;
+    let public_key_bytes = decode_lower_hex(public_key_hex)
+        .ok_or_else(|| "publisher.publicKey is not valid hex".to_string())?;
+    if public_key_bytes.len() != 32 {
+        return Err("publisher.publicKey must decode to 32 bytes".to_string());
+    }
+    let signature_bytes = decode_lower_hex(signature_hex)
+        .ok_or_else(|| "publisher.signature is not valid hex".to_string())?;
+    if signature_bytes.len() != 64 {
+        return Err("publisher.signature must decode to 64 bytes".to_string());
+    }
+    verify_publish_request_signature_with_openssl(payload.as_bytes(), &public_key_bytes, &signature_bytes)?;
+    Ok(())
+}
+
+fn canonical_publish_request_payload(value: &JsonValue) -> Result<String, String> {
+    let Some(map) = as_object(value) else {
+        return Err("publish request must be an object".to_string());
+    };
+    let Some(object) = map.get("object") else {
+        return Err("missing required field: object".to_string());
+    };
+    let Some(JsonValue::Object(publisher)) = map.get("publisher") else {
+        return Err("missing required field: publisher".to_string());
+    };
+    let mut publisher = publisher.clone();
+    publisher.remove("signature");
+    let mut request = BTreeMap::new();
+    request.insert("object".to_string(), object.clone());
+    request.insert("publisher".to_string(), JsonValue::Object(publisher));
+    Ok(to_canonical_json(&JsonValue::Object(request)))
+}
+
+fn verify_publish_request_signature_with_openssl(
+    message: &[u8],
+    public_key: &[u8],
+    signature: &[u8],
+) -> Result<(), String> {
+    let temp_root = std::env::temp_dir().join(format!(
+        "lingonberry-signature-{}",
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos()
+    ));
+    fs::create_dir_all(&temp_root).map_err(|error| format!("failed to create temp dir: {}", error))?;
+
+    let key_path = temp_root.join("public-key.der");
+    let sig_path = temp_root.join("signature.bin");
+    let msg_path = temp_root.join("message.bin");
+
+    let mut der = vec![
+        0x30, 0x2a, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x03, 0x21, 0x00,
+    ];
+    der.extend_from_slice(public_key);
+    fs::write(&key_path, der).map_err(|error| format!("failed to write public key: {}", error))?;
+    fs::write(&sig_path, signature).map_err(|error| format!("failed to write signature: {}", error))?;
+    fs::write(&msg_path, message).map_err(|error| format!("failed to write message: {}", error))?;
+
+    let output = Command::new("openssl")
+        .args([
+            "pkeyutl",
+            "-verify",
+            "-pubin",
+            "-inkey",
+            key_path.to_str().ok_or_else(|| "temp key path is not valid UTF-8".to_string())?,
+            "-keyform",
+            "DER",
+            "-rawin",
+            "-in",
+            msg_path.to_str().ok_or_else(|| "temp message path is not valid UTF-8".to_string())?,
+            "-sigfile",
+            sig_path.to_str().ok_or_else(|| "temp signature path is not valid UTF-8".to_string())?,
+        ])
+        .output()
+        .map_err(|error| format!("failed to run openssl: {}", error))?;
+
+    if output.status.success() {
+        return Ok(());
+    }
+
+    Err("publisher.signature does not verify the canonical request payload".to_string())
+}
+
+fn identity_key_basis(value: &JsonValue) -> JsonValue {
+    let Some(map) = as_object(value) else {
+        return JsonValue::Object(BTreeMap::new());
+    };
+    let mut basis = BTreeMap::new();
+    for key in ["type", "createdAt", "body", "contexts", "relations", "status", "lineage", "attachments", "labels"] {
+        if let Some(value) = map.get(key) {
+            basis.insert(key.to_string(), value.clone());
+        }
+    }
+    JsonValue::Object(basis)
+}
+
 fn as_object(value: &JsonValue) -> Option<&BTreeMap<String, JsonValue>> {
     match value {
         JsonValue::Object(map) => Some(map),
@@ -637,6 +786,29 @@ fn as_string(value: &JsonValue) -> Option<&str> {
         JsonValue::String(value) => Some(value.as_str()),
         _ => None,
     }
+}
+
+fn decode_lower_hex(value: &str) -> Option<Vec<u8>> {
+    if !is_lower_hex(value) || value.len() % 2 != 0 {
+        return None;
+    }
+    let mut bytes = Vec::with_capacity(value.len() / 2);
+    let chars: Vec<char> = value.chars().collect();
+    for index in (0..chars.len()).step_by(2) {
+        let hi = chars[index].to_digit(16)?;
+        let lo = chars[index + 1].to_digit(16)?;
+        bytes.push(((hi << 4) | lo) as u8);
+    }
+    Some(bytes)
+}
+
+fn fnv1a64_hex(input: &str) -> String {
+    let mut hash: u64 = 0xcbf29ce484222325;
+    for byte in input.as_bytes() {
+        hash ^= *byte as u64;
+        hash = hash.wrapping_mul(0x100000001b3);
+    }
+    format!("{:016x}", hash)
 }
 
 fn is_lower_hex(value: &str) -> bool {
@@ -1044,6 +1216,10 @@ mod tests {
         assert!(validate_knowledge_object(&value).is_empty());
         let finalized = finalize_knowledge_object(&value).expect("fixture must finalize");
         assert_eq!(finalized.canonical_id, "lb:obj:example-0001");
+        assert_eq!(
+            finalized.identity_key,
+            derive_identity_key(&value)
+        );
     }
 
     #[test]
@@ -1060,5 +1236,21 @@ mod tests {
         let value = parse_json(raw).expect("fixture must parse");
         assert_eq!(detect_shape(&value), "publish-request");
         assert!(validate_publish_request(&value).is_empty());
+    }
+
+    #[test]
+    fn validates_identity_claim_fixture() {
+        let raw = include_str!("../../../fixtures/knowledge-object/with-identity-claim.json");
+        let value = parse_json(raw).expect("fixture must parse");
+        let errors = validate_knowledge_object(&value);
+        assert!(errors.is_empty(), "{:?}", errors);
+    }
+
+    #[test]
+    fn rejects_mismatched_identity_claim_fixture() {
+        let raw = include_str!("../../../fixtures/knowledge-object/invalid-identity-claim-mismatch.json");
+        let value = parse_json(raw).expect("fixture must parse");
+        let errors = validate_knowledge_object(&value);
+        assert!(errors.iter().any(|error| error.contains("enclosing object id")));
     }
 }

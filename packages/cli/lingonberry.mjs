@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import {
   detectShape,
+  deriveIdentityKey,
   finalizeKnowledgeObject,
   readJsonFile,
   validateKnowledgeObject,
@@ -16,6 +17,22 @@ import { toCanonicalView } from '../api/canonical-view.mjs';
 function fail(message, details = []) {
   const suffix = details.length > 0 ? `\n- ${details.join('\n- ')}` : '';
   throw new Error(`${message}${suffix}`);
+}
+
+async function readKnowledgeObjectFromPath(pathname) {
+  const value = await readJsonFile(pathname);
+  if (detectShape(value) === 'publish-request') {
+    const errors = validatePublishRequest(value);
+    if (errors.length > 0) {
+      fail('validation failed', errors);
+    }
+    return value.object;
+  }
+  const errors = validateKnowledgeObject(value);
+  if (errors.length > 0) {
+    fail('validation failed', errors);
+  }
+  return value;
 }
 
 async function handleValidate(pathname) {
@@ -44,6 +61,15 @@ async function handlePublish(pathname) {
   }, null, 2));
 }
 
+async function handleIdentityKey(pathname) {
+  const object = await readKnowledgeObjectFromPath(pathname);
+  const finalized = finalizeKnowledgeObject(object);
+  console.log(JSON.stringify({
+    canonicalId: finalized.canonicalId,
+    identityKey: finalized.identityKey,
+  }, null, 2));
+}
+
 async function handleGet(id) {
   const record = await getKnowledgeObjectRecord(id);
   if (!record) {
@@ -60,7 +86,7 @@ async function handleList() {
 async function main(argv) {
   const [command, pathname] = argv;
   if (!command) {
-    fail('usage: lingonberry <validate|publish|get|list> <json-file|id>');
+    fail('usage: lingonberry <validate|publish|identity-key|get|list> <json-file|id>');
   }
 
   if (command === 'validate') {
@@ -76,6 +102,14 @@ async function main(argv) {
       fail('usage: lingonberry publish <json-file>');
     }
     await handlePublish(pathname);
+    return;
+  }
+
+  if (command === 'identity-key') {
+    if (!pathname) {
+      fail('usage: lingonberry identity-key <json-file>');
+    }
+    await handleIdentityKey(pathname);
     return;
   }
 

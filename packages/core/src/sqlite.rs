@@ -1,8 +1,8 @@
 use crate::{
     append_line, as_object, as_string, carrier_identity_for_request, ensure_parent,
-    filter_records_by_type, finalize_knowledge_object, json_object, now_utc_rfc3339, read_lines,
-    store_error, to_canonical_json, AppendOutcome, FinalizedKnowledgeObject, JsonValue, StoreError,
-    StorePaths, StoredCatalogRecord, StoredReplayRecord, StorageBackend,
+    filter_records_by_type, finalize_knowledge_object, get_raw_request, json_object, now_utc_rfc3339,
+    read_lines, store_error, to_canonical_json, AppendOutcome, FinalizedKnowledgeObject, JsonValue,
+    RawRequestRecord, StoreError, StorePaths, StoredCatalogRecord, StoredReplayRecord, StorageBackend,
 };
 use lingonberry_protocol::{parse_json, to_canonical_json as protocol_to_canonical_json};
 use std::collections::BTreeSet;
@@ -148,6 +148,10 @@ impl StorageBackend for SqliteStorageBackend {
 
     fn get(&self, canonical_id: &str) -> Result<Option<StoredCatalogRecord>, StoreError> {
         self.open_db()?.get_object(canonical_id)
+    }
+
+    fn get_raw_request(&self, canonical_id: &str) -> Result<Option<RawRequestRecord>, StoreError> {
+        get_raw_request(&self.paths, canonical_id)
     }
 
     fn list_ids(&self) -> Result<Vec<String>, StoreError> {

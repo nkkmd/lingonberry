@@ -46,6 +46,14 @@ wire object は、追加の意味変換を前提にしません。
 現在の参照 schema では、`id`, `schemaVersion`, `type`, `createdAt`, `body`, `provenance`, `rawRef` を core の最小必須として扱います。
 `identityClaims` は任意で、identity resolution の実用化は後続フェーズで扱います。
 
+### Identity key と identity claim
+
+Phase 3 では、identity key を versioned な導出規則で決定的に計算し、その対応を identity claim で表します。
+
+詳細は [Identity and Provenance](./IDENTITY_AND_PROVENANCE.md) を参照してください。
+
+identity claim を含む具体例は [fixtures/knowledge-object/with-identity-claim.json](../../fixtures/knowledge-object/with-identity-claim.json) と [fixtures/http-publish-request/with-identity-claim.json](../../fixtures/http-publish-request/with-identity-claim.json) に切り出します。
+
 ### 最小例
 
 次は、Phase 0 で想定する最小の wire object 例です。

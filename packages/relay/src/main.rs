@@ -1,6 +1,6 @@
 use lingonberry_core::{default_state_dir, SqliteStorageBackend, StorageBackend};
 use lingonberry_protocol::{
-    detect_shape, finalize_knowledge_object, read_json_file, to_canonical_json,
+    detect_shape, derive_identity_key, finalize_knowledge_object, read_json_file, to_canonical_json,
     validate_knowledge_object, validate_publish_request, JsonValue,
 };
 use std::collections::BTreeMap;
@@ -16,7 +16,7 @@ fn main() {
 
 fn run(args: Vec<String>) -> Result<(), String> {
     let Some(command) = args.first().map(String::as_str) else {
-        return Err("usage: lingonberry <validate|publish|get|list|subscribe|replay> <json-file|id|type>".to_string());
+        return Err("usage: lingonberry <validate|publish|identity-key|get|raw|list|subscribe|replay> <json-file|id|type>".to_string());
     };
     let backend = SqliteStorageBackend::new(default_state_dir());
 
@@ -29,9 +29,17 @@ fn run(args: Vec<String>) -> Result<(), String> {
             let pathname = args.get(1).ok_or_else(|| "usage: lingonberry publish <json-file>".to_string())?;
             handle_publish(pathname, &backend)
         }
+        "identity-key" => {
+            let pathname = args.get(1).ok_or_else(|| "usage: lingonberry identity-key <json-file>".to_string())?;
+            handle_identity_key(pathname)
+        }
         "get" => {
             let canonical_id = args.get(1).ok_or_else(|| "usage: lingonberry get <canonical-id>".to_string())?;
             handle_get(canonical_id, &backend)
+        }
+        "raw" => {
+            let canonical_id = args.get(1).ok_or_else(|| "usage: lingonberry raw <canonical-id>".to_string())?;
+            handle_raw(canonical_id, &backend)
         }
         "list" => handle_list(&backend),
         "subscribe" => handle_subscribe(args.get(1).map(String::as_str), &backend),
@@ -79,6 +87,7 @@ fn handle_publish(pathname: &str, backend: &impl StorageBackend) -> Result<(), S
     let output = json_object(vec![
         ("canonicalId", JsonValue::String(canonical_id)),
         ("carrierIdentity", JsonValue::String(carrier_identity)),
+        ("identityKey", JsonValue::String(finalized.identity_key)),
         ("storedAt", match stored_at {
             Some(value) => JsonValue::String(value),
             None => JsonValue::Null,
@@ -95,11 +104,63 @@ fn handle_get(canonical_id: &str, backend: &impl StorageBackend) -> Result<(), S
         .get(canonical_id)
         .map_err(|error| error.to_string())?
         .ok_or_else(|| format!("object not found: {}", canonical_id))?;
+    let identity_key = derive_identity_key(&record.object);
     let output = json_object(vec![
         ("canonicalId", JsonValue::String(record.canonical_id)),
         ("carrierIdentity", JsonValue::String(record.carrier_identity)),
+        ("identityKey", JsonValue::String(identity_key)),
         ("storedAt", JsonValue::String(record.stored_at)),
         ("object", record.object),
+    ]);
+    println!("{}", to_canonical_json(&output));
+    Ok(())
+}
+
+fn handle_identity_key(pathname: &str) -> Result<(), String> {
+    let loaded = read_json_file(pathname)?;
+    let object = match detect_shape(&loaded.value) {
+        "publish-request" => {
+            let errors = validate_publish_request(&loaded.value);
+            if !errors.is_empty() {
+                return Err(format_validation_error("validation failed", &errors));
+            }
+            as_object(&loaded.value)
+                .and_then(|request| request.get("object"))
+                .cloned()
+                .ok_or_else(|| "publish request missing object".to_string())?
+        }
+        _ => {
+            let errors = validate_knowledge_object(&loaded.value);
+            if !errors.is_empty() {
+                return Err(format_validation_error("validation failed", &errors));
+            }
+            loaded.value
+        }
+    };
+    let identity_key = derive_identity_key(&object);
+    let canonical_id = as_object(&object)
+        .and_then(|map| map.get("id"))
+        .and_then(as_string)
+        .unwrap_or_default()
+        .to_string();
+    let output = json_object(vec![
+        ("canonicalId", JsonValue::String(canonical_id)),
+        ("identityKey", JsonValue::String(identity_key)),
+    ]);
+    println!("{}", to_canonical_json(&output));
+    Ok(())
+}
+
+fn handle_raw(canonical_id: &str, backend: &impl StorageBackend) -> Result<(), String> {
+    let record = backend
+        .get_raw_request(canonical_id)
+        .map_err(|error| error.to_string())?
+        .ok_or_else(|| format!("raw request not found: {}", canonical_id))?;
+    let output = json_object(vec![
+        ("canonicalId", JsonValue::String(record.canonical_id)),
+        ("carrierIdentity", JsonValue::String(record.carrier_identity)),
+        ("requestJson", JsonValue::String(record.request_json)),
+        ("storedAt", JsonValue::String(record.stored_at)),
     ]);
     println!("{}", to_canonical_json(&output));
     Ok(())
@@ -188,6 +249,13 @@ fn json_object(entries: Vec<(&str, JsonValue)>) -> JsonValue {
 fn as_object(value: &JsonValue) -> Option<&BTreeMap<String, JsonValue>> {
     match value {
         JsonValue::Object(map) => Some(map),
+        _ => None,
+    }
+}
+
+fn as_string(value: &JsonValue) -> Option<&str> {
+    match value {
+        JsonValue::String(value) => Some(value.as_str()),
         _ => None,
     }
 }

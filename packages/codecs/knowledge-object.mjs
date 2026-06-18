@@ -1,3 +1,4 @@
+import { createPublicKey, verify as verifySignature } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
@@ -14,6 +15,74 @@ function validateDateTime(value, path, errors) {
 function validateLanguageTag(value, path, errors) {
   if (typeof value !== 'string' || !/^[A-Za-z]{2,8}(-[A-Za-z0-9]{1,8})*$/.test(value)) {
     errors.push(`${path} must be a BCP47-style language tag`);
+  }
+}
+
+const IDENTITY_KEY_RULE_VERSION_V1 = 'lb.identity.key.v1';
+
+function fnv1a64Hex(input) {
+  let hash = 0xcbf29ce484222325n;
+  for (const byte of Buffer.from(input, 'utf8')) {
+    hash ^= BigInt(byte);
+    hash = (hash * 0x100000001b3n) & 0xffffffffffffffffn;
+  }
+  return hash.toString(16).padStart(16, '0');
+}
+
+function identityKeyBasis(value) {
+  if (!isObject(value)) {
+    return {};
+  }
+  const basis = {};
+  for (const key of ['type', 'createdAt', 'body', 'contexts', 'relations', 'status', 'lineage', 'attachments', 'labels']) {
+    if (key in value) {
+      basis[key] = sortKeys(value[key]);
+    }
+  }
+  return basis;
+}
+
+export function deriveIdentityKey(value) {
+  const basis = identityKeyBasis(value);
+  return `lb:key:${IDENTITY_KEY_RULE_VERSION_V1}:fnv1a64:${fnv1a64Hex(JSON.stringify(sortKeys(basis)))}`;
+}
+
+function canonicalPublishRequestPayload(value) {
+  const cloned = structuredClone(value);
+  if (isObject(cloned.publisher)) {
+    delete cloned.publisher.signature;
+  }
+  return JSON.stringify(sortKeys(cloned));
+}
+
+function verifyPublishRequestSignature(value) {
+  if (!isObject(value) || !isObject(value.publisher)) {
+    return null;
+  }
+  const { publicKey, signature } = value.publisher;
+  if (typeof publicKey !== 'string' || typeof signature !== 'string') {
+    return null;
+  }
+  if (!/^[0-9a-f]{64}$/.test(publicKey) || !/^[0-9a-f]{128}$/.test(signature)) {
+    return null;
+  }
+  try {
+    const publicKeyObject = createPublicKey({
+      key: {
+        kty: 'OKP',
+        crv: 'Ed25519',
+        x: Buffer.from(publicKey, 'hex').toString('base64url'),
+      },
+      format: 'jwk',
+    });
+    const payload = canonicalPublishRequestPayload(value);
+    const ok = verifySignature(null, Buffer.from(payload, 'utf8'), publicKeyObject, Buffer.from(signature, 'hex'));
+    if (!ok) {
+      return 'publisher.signature does not verify the canonical request payload';
+    }
+    return null;
+  } catch (error) {
+    return `publisher.signature verification failed: ${error.message}`;
   }
 }
 
@@ -126,6 +195,28 @@ export function validateKnowledgeObject(value) {
     }
   }
 
+  const expectedIdentityKey = deriveIdentityKey(value);
+  const expectedCanonicalId = typeof value.id === 'string' ? value.id : null;
+  if (Array.isArray(value.identityClaims)) {
+    for (const [index, claim] of value.identityClaims.entries()) {
+      if (!isObject(claim)) {
+        errors.push(`identityClaims[${index}] must be an object`);
+        continue;
+      }
+      if (claim.ruleVersion !== IDENTITY_KEY_RULE_VERSION_V1) {
+        errors.push(`identityClaims[${index}].ruleVersion must be ${IDENTITY_KEY_RULE_VERSION_V1}`);
+      }
+      if (typeof claim.canonicalId === 'string' && expectedCanonicalId && claim.canonicalId !== expectedCanonicalId) {
+        errors.push(`identityClaims[${index}].canonicalId must match the enclosing object id`);
+      }
+      if (typeof claim.identityKey === 'string' && claim.identityKey !== expectedIdentityKey) {
+        errors.push(`identityClaims[${index}].identityKey must match the derived identity key`);
+      }
+    }
+  } else if ('identityClaims' in value && value.identityClaims !== undefined) {
+    errors.push('identityClaims must be an array');
+  }
+
   const allowedRoot = new Set([
     'id',
     'schemaVersion',
@@ -171,13 +262,18 @@ export function validatePublishRequest(value) {
     if (typeof value.publisher.publicKey !== 'string' || !/^[0-9a-f]{64}$/.test(value.publisher.publicKey)) {
       errors.push('publisher.publicKey must be a 64-character lowercase hex string');
     }
-    if (typeof value.publisher.signature !== 'string' || value.publisher.signature.length < 1) {
-      errors.push('publisher.signature must be a non-empty string');
+    if (typeof value.publisher.signature !== 'string' || !/^[0-9a-f]{128}$/.test(value.publisher.signature)) {
+      errors.push('publisher.signature must be a 128-character lowercase hex string');
     }
     const allowed = ['publicKey', 'signature'];
     if (Object.keys(value.publisher).some((key) => !allowed.includes(key))) {
       errors.push('publisher must not contain additional properties');
     }
+  }
+
+  const signatureError = verifyPublishRequestSignature(value);
+  if (signatureError) {
+    errors.push(signatureError);
   }
 
   const allowedRoot = new Set(['object', 'publisher']);
@@ -208,6 +304,7 @@ export function finalizeKnowledgeObject(object) {
   const normalized = normalizeKnowledgeObject(object);
   return {
     canonicalId: normalized.id,
+    identityKey: deriveIdentityKey(normalized),
     object: normalized,
   };
 }

@@ -5,8 +5,12 @@
 ## 文書で使うもの
 
 - [knowledge-object/minimal-wire-object.json](./knowledge-object/minimal-wire-object.json)
+- [knowledge-object/with-identity-claim.json](./knowledge-object/with-identity-claim.json)
+- [knowledge-object/invalid-identity-claim-mismatch.json](./knowledge-object/invalid-identity-claim-mismatch.json)
 - [knowledge-object/invalid-missing-rawref.json](./knowledge-object/invalid-missing-rawref.json)
 - [http-publish-request/minimal-request.json](./http-publish-request/minimal-request.json)
+- [http-publish-request/with-identity-claim.json](./http-publish-request/with-identity-claim.json)
+- [http-publish-request/invalid-identity-claim-mismatch.json](./http-publish-request/invalid-identity-claim-mismatch.json)
 - [http-publish-request/invalid-missing-signature.json](./http-publish-request/invalid-missing-signature.json)
 
 ## Validation の進め方
@@ -18,16 +22,23 @@ Phase 1 では、fixture を次の順で回して validate の土台を確認し
 3. `fixtures/http-publish-request/minimal-request.json` を publish request として validate する
 4. `fixtures/http-publish-request/invalid-missing-signature.json` を不正例として reject する
 
+Phase 3 では、identity claim を含む fixture も追加して、identity key と canonical id の対応を確認します。
+
 CLI で確認する場合は、リポジトリルートから次のように実行します。
 
 ```bash
 node packages/cli/lingonberry.mjs validate fixtures/knowledge-object/minimal-wire-object.json
 node packages/cli/lingonberry.mjs validate fixtures/knowledge-object/invalid-missing-rawref.json
+node packages/cli/lingonberry.mjs validate fixtures/knowledge-object/with-identity-claim.json
+node packages/cli/lingonberry.mjs validate fixtures/knowledge-object/invalid-identity-claim-mismatch.json
 node packages/cli/lingonberry.mjs validate fixtures/http-publish-request/minimal-request.json
 node packages/cli/lingonberry.mjs validate fixtures/http-publish-request/invalid-missing-signature.json
+node packages/cli/lingonberry.mjs validate fixtures/http-publish-request/with-identity-claim.json
+node packages/cli/lingonberry.mjs validate fixtures/http-publish-request/invalid-identity-claim-mismatch.json
 node packages/cli/lingonberry.mjs publish fixtures/http-publish-request/minimal-request.json
 node packages/cli/lingonberry.mjs get lb:obj:example-0001
 node packages/cli/lingonberry.mjs list
+node packages/cli/lingonberry.mjs identity-key fixtures/knowledge-object/with-identity-claim.json
 ```
 
 publish の最小スキャフォールドは、`http-publish-request` を入力として受け取り、`object` を canonical 化した結果を返す形で進めます。
@@ -41,11 +52,16 @@ Phase 1 の動作確認は、リポジトリルートから次の順で行えま
 rm -rf .lingonberry
 node packages/cli/lingonberry.mjs validate fixtures/knowledge-object/minimal-wire-object.json
 node packages/cli/lingonberry.mjs validate fixtures/knowledge-object/invalid-missing-rawref.json
+node packages/cli/lingonberry.mjs validate fixtures/knowledge-object/with-identity-claim.json
+node packages/cli/lingonberry.mjs validate fixtures/knowledge-object/invalid-identity-claim-mismatch.json
 node packages/cli/lingonberry.mjs validate fixtures/http-publish-request/minimal-request.json
 node packages/cli/lingonberry.mjs validate fixtures/http-publish-request/invalid-missing-signature.json
+node packages/cli/lingonberry.mjs validate fixtures/http-publish-request/with-identity-claim.json
+node packages/cli/lingonberry.mjs validate fixtures/http-publish-request/invalid-identity-claim-mismatch.json
 node packages/cli/lingonberry.mjs publish fixtures/http-publish-request/minimal-request.json
 node packages/cli/lingonberry.mjs get lb:obj:example-0001
 node packages/cli/lingonberry.mjs list
+node packages/cli/lingonberry.mjs identity-key fixtures/knowledge-object/with-identity-claim.json
 node packages/cli/lingonberry.mjs publish fixtures/http-publish-request/minimal-request.json
 ```
 
@@ -56,6 +72,9 @@ node packages/cli/lingonberry.mjs publish fixtures/http-publish-request/minimal-
 - publish 後に `get` で canonical view を再取得できる
 - `list` で保存済み ID を確認できる
 - 同一内容の再 publish は idempotent に扱われる
+- identity claim を含む fixture が validate できる
+- identity key を CLI で導出できる
+- mismatch の identity claim が reject される
 
 ## Conflict の確認
 

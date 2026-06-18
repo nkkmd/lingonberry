@@ -150,6 +150,7 @@ HTTP から始めると、後から `carrier capability`、`content negotiation`
 - `object` に protocol-native な `knowledge object` を入れる
 - `publisher.publicKey` で publish 主体を識別する
 - `publisher.signature` で request の真正性を検証する
+- `publisher.signature` は Ed25519 の 64-byte 署名を lowercase hex で表現する
 - `publisher.publicKey` は canonical には hex で扱う
 - HTTP 側で semantic adapter を挟まない
 - 受け取る object は `id`, `schemaVersion`, `type`, `createdAt`, `body`, `provenance`, `rawRef` を満たす

@@ -7,6 +7,7 @@ Phase 0 と Phase 1 は、仕様固定と単一オブジェクト publish 経路
 Phase 2 では relay / storage node の分離を起点に、本命実装へ移行します。
 Phase 4 は完了済みで、`packages/indexer/` を起点に canonical store から派生 index を組み立てています。
 Phase 6 も完了済みで、HTTP carrier、archive carrier、capability negotiation、access / retention、migration / schema versioning の正本と最小実装を整えています。
+運用準備の本命ロードマップは別文書として切り出す前提で、ひな形を追加しました。
 
 ## 実行の入口
 
@@ -22,3 +23,5 @@ Phase 6 も完了済みで、HTTP carrier、archive carrier、capability negotia
 
 - [実装ロードマップ](./IMPLEMENTATION_ROADMAP.md)
 - [実装バックログ](./IMPLEMENTATION_BACKLOG.md)
+- [運用準備ロードマップ](./OPERATIONAL_READINESS_ROADMAP.md)
+- [運用準備バックログ](./OPERATIONAL_READINESS_BACKLOG.md)

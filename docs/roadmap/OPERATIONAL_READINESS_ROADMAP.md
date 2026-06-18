@@ -1,0 +1,359 @@
+# 運用準備ロードマップ
+
+**Status: draft** | **Last updated: 2026-06-18**
+
+## 目的
+
+この文書は、Lingonberry を実運用可能な状態へ持っていくためのロードマップのひな形です。
+
+このロードマップでは、次の到達点を段階的に固めます。
+
+- `relay` を独立して立てられる
+- `storage node` を独立して立てられる
+- `knowledge object` を継続運用できる
+- 障害時の復旧と再構成ができる
+- 複数ノード構成へ拡張できる
+
+## 前提
+
+- core protocol と application profile は分けて考える
+- `wire` と `canonical` は同じ protocol object の別表現として扱う
+- `carrier` は protocol object を運ぶ正規の実装として扱う
+- 運用機能は、仕様文書・operations 文書・roadmap の三層で整理する
+
+## 現在の到達点
+
+ここには、作成時点で既に終わっているものを短く記録します。
+
+- 仕様の固定点
+- 単一オブジェクトの publish 経路
+- relay / storage の分離方針
+- archive / capability / access / migration 系の運用文書
+
+## 実運用化の原則
+
+- まず最小の単独運用を成立させる
+- その後に複数ノード運用を足す
+- relay は semantic truth を決めない
+- storage node は長期保管と再構成を担う
+- 運用上の判断は、core 仕様に押し込まず profile / policy に分ける
+
+## 目標状態
+
+このロードマップの最終目標を、ここに 1 文で書きます。
+
+例:
+
+- 小規模な public deployment を安全に立てられる
+- publish / replay / export / import / migration が運用手順として回る
+- 障害・退役・再投入の手順が文書化されている
+
+## フェーズ 0: 運用前提の固定
+
+### 目的
+
+運用に入る前に、責務境界と前提条件を固定します。
+
+### ここで決めること
+
+- `relay` と `storage node` の責務分離
+- public / private の扱い
+- 監視対象としないもの
+- どこまでを core、どこからを profile とするか
+
+### 完了条件
+
+- 運用前提を読めば、何を core に入れないか説明できる
+- 以後のフェーズがこの前提に依存して書ける
+
+## フェーズ 1: relay と storage の完全分離
+
+### 目的
+
+`relay` を単独の入口として動かし、`storage node` を別責務として切り出します。
+
+### ここで決めること
+
+- `relay` は ingress / validation / routing に寄せる
+- `storage node` は persistence / replay / export に寄せる
+- 同一リポジトリ内で別 binary として切るか
+- 共有する最小 API は何か
+- raw log と canonical store の境界
+- relay 側が持たない責務を明示する
+
+### やること
+
+1. relay と storage の責務境界を 1 枚の図か箇条書きで固定する
+2. relay から永続化の実装詳細を切り離す
+3. storage 側に append / replay / retrieve の最小面を残す
+4. ローカル開発時の接続先を明示する
+5. 既存の HTTP publish 経路がどちらに属するかを固定する
+
+### 最初の着手順
+
+- `packages/relay/` と `packages/core/` の責務境界を見直す
+- relay が storage の内部構造を直接参照している箇所を洗い出す
+- storage が relay の HTTP / carrier 実装を参照している箇所を洗い出す
+- 最小の疎結合インターフェースを文書化する
+
+### 完了条件
+
+- relay だけで受け口として成立する
+- storage node だけで保存責務を持てる
+- 相互依存を最小化できる
+- どちらかを差し替えても、他方の責務が崩れない
+
+## フェーズ 2: `storage node` の独立バイナリ化
+
+### 目的
+
+`storage node` を個別デプロイ可能な単位にします。
+
+### ここで決めること
+
+- 起動コマンドの形
+- 設定ファイルの場所
+- 永続化先のレイアウト
+- `relay` からの接続方法
+- 退役時の扱い
+- export / import をここで公開するか
+
+### やること
+
+1. storage node の binary 名を決める
+2. 起動時に必要な設定を列挙する
+3. データディレクトリとバックアップ先を分ける
+4. 最低限の health / status 出力を用意する
+5. relay とは別プロセスで動くことを確認する
+
+### 最初の着手順
+
+- `storage node` の起動引数を先に決める
+- その引数に合わせて設定ファイルを切る
+- 永続化先ディレクトリを固定する
+- `relay` から `storage node` へ向ける接続面を最小化する
+
+### 完了条件
+
+- storage node を単体起動できる
+- relay と別プロセスで運用できる
+- 置き換え手順がある
+- storage node の運用に relay の同梱起動を前提としない
+
+## フェーズ 3: 起動・停止・再起動の運用整備
+
+### 目的
+
+日常運用で必要な lifecycle を整えます。
+
+### ここで決めること
+
+- systemd / container / 手動起動のどれを優先するか
+- graceful shutdown の合図
+- 再起動時の整合性確認
+- readiness / liveness の扱い
+- 起動失敗時の戻り方
+
+### やること
+
+1. relay と storage node それぞれの起動手順を分ける
+2. 終了シグナル受信時の安全停止を決める
+3. 再起動後に確認する最小チェックを定義する
+4. 起動失敗時のログと exit code を揃える
+5. 運用手順を 1 つの実行例として書く
+
+### 最初の着手順
+
+- まず手動起動の手順を固定する
+- 次に systemd か container のどちらを primary にするか決める
+- 最後に readiness / liveness の判定条件を入れる
+
+### 完了条件
+
+- 起動と停止の手順が再現できる
+- 再起動後に壊れない
+- 失敗時に何を確認すればよいかが分かる
+
+## フェーズ 4: 設定・環境変数・シークレット管理
+
+### 目的
+
+運用時の設定を、コードと切り離して扱えるようにします。
+
+### ここで決めること
+
+- 設定ファイル形式
+- 環境変数の責務
+- secret の保管方法
+- profile ごとの差分
+
+### 完了条件
+
+- 設定の置き場所が一貫している
+- secret を平文前提にしない
+
+## フェーズ 5: 監視・ログ・メトリクス
+
+### 目的
+
+障害検知と原因追跡を可能にします。
+
+### ここで決めること
+
+- 構造化ログの形式
+- メトリクスの種類
+- alert の閾値
+- 最低限の観測項目
+
+### 完了条件
+
+- 異常時にどこを見るかが分かる
+- 運用中の劣化を把握できる
+
+## フェーズ 6: バックアップ・リストア・退役手順
+
+### 目的
+
+障害復旧とノード退役を手順化します。
+
+### ここで決めること
+
+- backup の単位
+- restore の手順
+- 退役時に残すもの
+- 再投入時の整合性
+
+### 完了条件
+
+- restore が定義されている
+- 退役が安全にできる
+
+## フェーズ 7: HTTP carrier の公開運用
+
+### 目的
+
+HTTP carrier を公開運用できる形に整えます。
+
+### ここで決めること
+
+- 公開 endpoint
+- 認証 / 認可
+- rate limit
+- 公開時の contract
+
+### 完了条件
+
+- 公開運用に必要な前提が文書化されている
+
+## フェーズ 8: archive export / import の運用化
+
+### 目的
+
+移送・退避・再投入を運用手順にします。
+
+### ここで決めること
+
+- export の粒度
+- import の検証手順
+- archive version の扱い
+- 差分移送の要否
+
+### 完了条件
+
+- export / import を運用手順として説明できる
+
+## フェーズ 9: migration / schema versioning の運用化
+
+### 目的
+
+schema 変更を運用しながら進められるようにします。
+
+### ここで決めること
+
+- version bump の規則
+- backward compatibility の範囲
+- migration の責務
+- rollback の可否
+
+### 完了条件
+
+- schema 変更時の手順がある
+
+## フェーズ 10: access / retention policy の運用化
+
+### 目的
+
+公開範囲と保持期間を運用レベルで制御します。
+
+### ここで決めること
+
+- access scope
+- retention hint
+- policy の適用点
+- 監査時の確認事項
+
+### 完了条件
+
+- 保持と公開のルールが一貫している
+
+## フェーズ 11: 複数ノード運用
+
+### 目的
+
+単一ノード前提から、複数ノード前提へ移行します。
+
+### ここで決めること
+
+- ノード間同期
+- 競合解決
+- discoverability
+- capacity 分散
+
+### 完了条件
+
+- 複数ノードで同じ object 群を扱える
+
+## フェーズ 12: 追加 carrier への拡張準備
+
+### 目的
+
+HTTP 以外の carrier を足せるようにします。
+
+### ここで決めること
+
+- carrier capability negotiation
+- carrier ごとの制約
+- 共通化する validation
+- profile 側で差し替える点
+
+### 完了条件
+
+- 新 carrier の追加手順が説明できる
+
+## 完了条件
+
+このロードマップ全体の完了条件を、ここに最終版としてまとめます。
+
+- 実運用に必要な経路が揃っている
+- 障害復旧が手順化されている
+- profile 追加や carrier 追加の道筋がある
+
+## 未決事項
+
+未確定事項を列挙します。
+
+- 独立 binary の配置
+- デプロイ方式
+- 監視基盤の選定
+- 運用責任の境界
+
+## 参照文書
+
+- [実装ロードマップ](./IMPLEMENTATION_ROADMAP.md)
+- [実装バックログ](./IMPLEMENTATION_BACKLOG.md)
+- [DISTRIBUTED_KNOWLEDGE_COMMONS_ARCHITECTURE](../architecture/DISTRIBUTED_KNOWLEDGE_COMMONS_ARCHITECTURE.md)
+- [HTTP carrier contract](../operations/HTTP_CARRIER_CONTRACT.md)
+- [FILE archive carrier contract](../operations/FILE_ARCHIVE_CARRIER_CONTRACT.md)
+- [carrier capability negotiation](../operations/CARRIER_CAPABILITY_NEGOTIATION.md)
+- [access / retention policy](../operations/ACCESS_RETENTION_POLICY.md)
+- [migration / schema versioning](../operations/MIGRATION_AND_SCHEMA_VERSIONING.md)

@@ -1,0 +1,7 @@
+[workspace]
+members = [
+  "packages/protocol",
+  "packages/core",
+  "packages/relay",
+]
+resolver = "2"

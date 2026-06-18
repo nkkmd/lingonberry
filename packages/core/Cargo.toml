@@ -1,0 +1,12 @@
+[package]
+name = "lingonberry-core"
+version = "0.1.0"
+edition = "2021"
+build = "build.rs"
+
+[lib]
+name = "lingonberry_core"
+path = "src/lib.rs"
+
+[dependencies]
+lingonberry-protocol = { path = "../protocol" }

@@ -15,3 +15,6 @@ Thumbs.db
 
 # Lingonberry local storage
 .lingonberry/
+
+# Rust build artifacts
+target/

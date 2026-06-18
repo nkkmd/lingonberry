@@ -140,7 +140,7 @@ canonical view の組み立ては `packages/api/` に置き、`get` の返却形
 - `fixtures/` に検証手順を追加
 - `.lingonberry/` をローカル保存先として無視対象に追加
 
-## フェーズ 2: relay と storage node を分離して成立させる
+## フェーズ 2: relay と storage node を分離して成立させる（完了済み）
 
 ### 着手条件
 
@@ -209,6 +209,7 @@ Phase 2 では、次の順で切り出すと進めやすいです。
 - publish した object が relay に保存される
 - relay の log から state を再構成できる
 - storage node を独立に立てても replay が壊れない
+- duplicate detection の最小形がある
 
 ## フェーズ 3: identity と provenance を実用化する
 

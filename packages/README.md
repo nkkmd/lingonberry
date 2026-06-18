@@ -4,10 +4,14 @@
 
 ## 現在の配置
 
+- `packages/protocol/`
+  - Rust 版の protocol object parser / validator / canonicalizer
 - `packages/codecs/`
   - protocol object の validate / normalize / finalize
 - `packages/core/`
-  - 単一ノード保存と再取得の最小データアクセス
+  - Rust 版の append-only storage と replay / retrieval
+- `packages/relay/`
+  - Rust 版の relay バイナリ
 - `packages/api/`
   - canonical view の組み立て
 - `packages/cli/`
@@ -16,4 +20,4 @@
 ## 進め方
 
 実装が増えても、責務ごとに分けたままこの配下へ追加していきます。
-Phase 1 では、まず CLI と codec と core と api の最小構成で進めます。
+Phase 1 の JavaScript 実装は検証用ブートストラップとして残しつつ、Phase 2 では Rust の protocol / core / relay を追加していきます。

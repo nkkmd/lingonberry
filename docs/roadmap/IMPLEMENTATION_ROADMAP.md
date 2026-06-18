@@ -24,6 +24,11 @@ Phase 1 で進めている JavaScript 実装は、その本命実装に移行す
 - `canonical id` は opaque に保つ
 - `identity key` は deterministic / content-rule-derived にする
 - `relay` は semantic truth を決めない
+- `relay` の validation は schema / framing / carrier identity までに留め、semantic validation は canonicalization に寄せる
+- public relay は署名と形式が正しい public object を受け入れるが、内容の真偽は保証しない
+- 多言語の正本は 1 object 1 language とし、translation は別 object + relation で表す
+- `carrier capability` と `application profile` は完全分散を前提にする
+- 最初の正規 carrier は HTTP publish API とする
 - `index` は派生構造であり、semantic source にはしない
 - `append-only` と `replayable` を壊さない
 - publish 時の author identity は password ではなく公開鍵署名ベースで扱う
@@ -51,10 +56,17 @@ Phase 0 は仕様固定のための文書作業として完了しています。
 Phase 0 では、core の固定点を次のように扱います。
 
 - 最小必須フィールドは `id`, `schemaVersion`, `type`, `createdAt`, `body`, `provenance`, `rawRef`
+- `delete` は tombstone 化のみとし、履歴を残したまま可視状態を変える
+- `private / encrypted object` は初期版に含めず、core は public object 前提で固める
 - `identityClaims` は core では任意で、Phase 3 で実用化する
+- 後から profile / policy で必須化できる余地を残す
 - `contexts`, `relations`, `status`, `lineage`, `attachments`, `labels`, `meta` は拡張可能な任意フィールド
 - `rawRef` は provenance と別責務で、carrier 上の raw object / payload への参照として扱う
-- `relation` は意味的なつながり、`lineage` は派生・修正の履歴として扱う
+- `relation` は statement object として正規化し、`edge` は index / projection 側の派生構造として扱う
+- `lineage` は派生・修正の履歴として扱う
+- `body.language` は正本の言語タグで、1 object は 1 言語を表す
+- 多言語の正本は別 object + relation で表す
+- `carrier capability` と `application profile` は中央 registry を前提にせず、完全分散で配布・参照する
 - `validate / normalize / finalize` は別プロトコル変換ではなく、同じ protocol object を canonical object として確定する手順として扱う
 
 ### 成果物
@@ -151,6 +163,9 @@ Phase 2 は、次の前提がそろった時点で着手できます。
 - 本命実装は `Rust + SQLite` で進める方針が確定している
 - relay / storage の責務分離を先に進める方針が確定している
 - carrier の第一候補は未確定でも、Phase 2 の開始自体は妨げない
+- relay の最小 validation 範囲が schema / framing / carrier identity までであることが明確である
+- public relay の最小 trust model が署名と形式の妥当性に限定されることが明確である
+- carrier capability と application profile の管理方式が完全分散であることが明確である
 
 ### Rust + SQLite の着手点
 

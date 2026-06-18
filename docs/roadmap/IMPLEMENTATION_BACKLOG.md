@@ -50,6 +50,7 @@ Phase 0 の各 issue は、文書上の固定点として完了済みです。
   - identity claim が identity 用であることが明確
   - provenance が origin / history 用であることが明確
   - identity claim が Phase 0 / 1 では任意であることが明確
+  - 後から profile / policy で必須化できる余地があることが明確
 
 ### Issue 0.3: rawRef の役割を固定する（完了済み）
 
@@ -64,7 +65,8 @@ Phase 0 の各 issue は、文書上の固定点として完了済みです。
 - 目的: semantic relation と派生履歴を混同しない
 - 依存: なし
 - 完了条件:
-  - relation の用途が明確
+  - relation を statement object として扱う方針が明確
+  - edge は index / projection 側の派生構造であることが明確
   - lineage の用途が明確
 
 ### Issue 0.5: validate / normalize / finalize の境界を定義する（完了済み）
@@ -83,6 +85,78 @@ Phase 0 の各 issue は、文書上の固定点として完了済みです。
   - publish 主体が public key で識別される前提が明確
   - author / actor の同定が provenance に記録されることが明確
   - identity claim との役割分担が説明できる
+
+### Issue 0.7: delete を tombstone 限定にする（完了済み）
+
+- 目的: append-only と replayable を壊さずに削除相当の操作を扱う
+- 依存: 0.4, 0.5
+- 完了条件:
+  - `delete` は tombstone 化として扱う方針が明確
+  - 履歴を残したまま可視状態を変えることが明確
+  - 物理削除や scrub は protocol core の責務ではないことが明確
+
+### Issue 0.8: private / encrypted object を初期版に含めない（完了済み）
+
+- 目的: core を public object 前提で固め、秘密性を profile / policy に分離する
+- 依存: 0.1, 0.3, 0.5
+- 完了条件:
+  - `private / encrypted object` は初期版に含めない方針が明確
+  - core は public object 前提で設計することが明確
+  - 必要時は application profile または policy 拡張で扱うことが明確
+
+### Issue 0.9: relation を statement object に固定する（完了済み）
+
+- 目的: relation の semantic source を決定し、edge と役割分離する
+- 依存: 0.4, 0.5
+- 完了条件:
+  - relation の正規表現が statement object であることが明確
+  - edge は検索・traverse 用の派生構造であることが明確
+  - triple は内部実装や簡易表現としてのみ扱うことが明確
+
+### Issue 0.10: relay の最小 validation 範囲を固定する（完了済み）
+
+- 目的: relay と canonicalization の責務境界を薄く保つ
+- 依存: 0.5, 1.2
+- 完了条件:
+  - relay の validation は schema / framing / carrier identity までであることが明確
+  - semantic validation は canonicalization 層に寄せることが明確
+  - relay は domain truth を決めないことが明確
+
+### Issue 0.11: public relay の trust model を固定する（完了済み）
+
+- 目的: public relay が何を保証し、何を保証しないかを明確にする
+- 依存: 0.6, 0.10
+- 完了条件:
+  - public relay は署名と形式が正しい public object を受け入れることが明確
+  - public relay は内容の真偽を保証しないことが明確
+  - 運用ポリシーによる受け入れ制限は protocol semantic ではないことが明確
+
+### Issue 0.12: 多言語の正本表現を 1 object 1 language に固定する（完了済み）
+
+- 目的: 正本の言語責務を単純化し、translation を別 object として扱う
+- 依存: 0.4, 0.9
+- 完了条件:
+  - `body.language` は正本の言語タグであることが明確
+  - 1 object は 1 言語を表すことが明確
+  - 多言語の正本は別 object + `translation` / `translates` relation で表すことが明確
+
+### Issue 0.13: carrier capability と application profile を完全分散に固定する（完了済み）
+
+- 目的: 中央 registry に依存せず、profile と capability を独立に配布・参照できるようにする
+- 依存: 0.10, 0.12
+- 完了条件:
+  - carrier capability は完全分散で扱う方針が明確
+  - application profile は完全分散で扱う方針が明確
+  - 署名付き manifest や discovery の補助手段はあっても、中央 registry を前提にしないことが明確
+
+### Issue 0.14: 最初の正規 carrier を HTTP publish API に固定する（完了済み）
+
+- 目的: 最初の wire semantics を最小の入口で固定する
+- 依存: 0.10, 0.11
+- 完了条件:
+  - 最初の正規 carrier が HTTP publish API であることが明確
+  - relay-based pub/sub は後続の拡張であることが明確
+  - file/archive ingest は後続の拡張であることが明確
 
 ## Epic 1: 単一オブジェクト publish（完了済み）
 

@@ -1,5 +1,7 @@
 # Operations
 
+**Status: active** | **Last updated: 2026-06-18**
+
 このディレクトリには、Lingonberry の技術決定と carrier 決定の正本を置きます。
 
 ## 文書

@@ -26,6 +26,7 @@
 - `docs/operations/`: 技術選定、ADR、carrier / storage の決定メモ
 - `docs/roadmap/`: 実装ロードマップと backlog
 - `docs/protocols/`: protocol-native な wire format などの仕様
+- `docs/profiles/`: application profile の定義
 - `schemas/`: protocol-native な JSON Schema
 - `fixtures/`: サンプル JSON と検証用データ
 
@@ -42,9 +43,11 @@
 - `docs/concepts/GLOSSARY.md`
 - `docs/concepts/CONCEPT_MODEL.md`
 - `docs/concepts/CARRIER.md`
+- `docs/profiles/TOITOI_APPLICATION_PROFILE.md`
 - protocol / wire format を変更するとき: `docs/protocols/PROTOCOL_NATIVE_WIRE_FORMAT.md`
 - schema を変更するとき: `schemas/README.md` と該当する schema ファイル
 - 実装計画を確認するとき: `docs/roadmap/IMPLEMENTATION_ROADMAP.md` と `docs/roadmap/IMPLEMENTATION_BACKLOG.md`
+- operational readiness を確認するとき: `docs/roadmap/OPERATIONAL_READINESS_ROADMAP.md` と `docs/roadmap/OPERATIONAL_READINESS_BACKLOG.md`
 - 技術選定や carrier / storage 方針を確認するとき: `docs/operations/README.md`
 - Toitoi との対応関係を確認するとき: `docs/architecture/TOITOI_REFERENCE_CHECKLIST.md`
 - アーキテクチャ全体に触れるとき: `docs/architecture/DISTRIBUTED_KNOWLEDGE_COMMONS_ARCHITECTURE.md`
@@ -65,6 +68,7 @@
 - 検索は `rg` と `rg --files` を使う
 - ファイル編集は `apply_patch` を優先する
 - 文書を更新するときは関連文書も同時に見直す
+- 文書を更新するときは、見出しの `Status` と `Last updated` を合わせて更新する
 - `.gitignore` の対象にした方がよい生成物やローカル一時ファイルを新しく作る場合は、同時に `.gitignore` へ追記する
 - 動作や仕様の意味を変えるなら、近い位置の概念文書、protocol 文書、schema も整合させる
 - JSON Schema を変更するときは、概念文書と protocol 文書の用語とずれていないか確認する

@@ -1,5 +1,7 @@
 # Profiles
 
+**Status: active** | **Last updated: 2026-06-18**
+
 このディレクトリには、Lingonberry core の上に載る application profile を置きます。
 
 ## 文書

@@ -1,5 +1,7 @@
 # 概念
 
+**Status: active** | **Last updated: 2026-06-18**
+
 このディレクトリには、Lingonberry の中核概念をまとめます。
 
 ## 文書

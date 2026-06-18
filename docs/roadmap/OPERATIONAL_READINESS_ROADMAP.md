@@ -40,13 +40,45 @@
 
 ## 目標状態
 
-このロードマップの最終目標を、ここに 1 文で書きます。
+このロードマップの最終目標を、ここに 1 文で確定します。
 
-例:
+## 確定版にするために直すべき箇所一覧
 
-- 小規模な public deployment を安全に立てられる
-- publish / replay / export / import / migration が運用手順として回る
-- 障害・退役・再投入の手順が文書化されている
+- 最終目標の 1 文を確定する
+- このロードマップの対象範囲を確定する
+  - Phase 0 から Phase 12 までを全部含めるか
+  - どこまでを「運用開始に必要な最小範囲」とするか
+  - どこからを「将来拡張」として切り分けるか
+- `storage node` の独立単位を確定する
+  - 別 binary にするか
+  - 同一 binary のサブコマンドにするか
+  - `packages/` 配下での配置方針をどうするか
+- デプロイ方式の既定を確定する
+  - `systemd`
+  - `container`
+  - `手動起動`
+  - どれを primary にするか
+- 監視の最小構成を確定する
+  - health
+  - status
+  - logs
+  - metrics
+  - どの粒度を必須にするか
+- `relay` と `storage node` の責務境界を最終化する
+  - どの責務を relay に残すか
+  - どの責務を storage に移すか
+  - どの責務を運用ポリシー側に寄せるか
+- Phase 7 以降をこの文書に含めるかを確定する
+  - `migration / schema versioning`
+  - `access / retention policy`
+  - `複数ノード運用`
+  - `追加 carrier への拡張`
+- `status` と `Last updated` を最終版に合わせてそろえる
+- 参照先の運用文書と重複する記述を整理する
+  - `HTTP carrier`
+  - `file / archive carrier`
+  - `migration / schema versioning`
+  - `access / retention policy`
 
 ## フェーズ 0: 運用前提の固定
 

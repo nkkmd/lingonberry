@@ -164,10 +164,31 @@ Phase 0 の各 issue は、文書上の固定点として完了済みです。
 
 ## Epic 2: relay と storage node の分離
 
+この Epic が `Rust + SQLite` の本命実装の起点です。  
+Phase 1 の JavaScript 実装で固定した validate / normalize / finalize の境界を引き継ぎつつ、relay と storage node を Rust で実装し、SQLite を canonical catalog の最初の storage backend として使います。
+
+実行順の目安は次の通りです。
+
+1. Issue 2.1
+2. Issue 2.2
+3. Issue 2.3
+4. Issue 2.5
+5. Issue 2.4
+
+Issue 2.4 は identity 側の前提が要るので、Epic 3 の進捗に合わせて後ろへ寄せます。
+
 ### Issue 2.1: relay の append-only log を実装する
 
 - 目的: relay を保存ノードとして成立させる
 - 依存: 1.5
+- 実装メモ:
+  - Rust の relay runtime で wire object を追記する
+  - raw log は filesystem に、canonical catalog は SQLite に寄せる
+- 最初の切り出し:
+  - Rust の relay バイナリ骨格を立てる
+  - wire object の受信と append-only 書き込みをつなぐ
+  - 最小の log 形式を固定する
+  - 追記成功時の再読み込みを確認する
 - 完了条件:
   - wire object の追記ログがある
   - 上書きではなく追記になる
@@ -176,6 +197,14 @@ Phase 0 の各 issue は、文書上の固定点として完了済みです。
 
 - 目的: storage 実装を差し替え可能にする
 - 依存: 2.1
+- 実装メモ:
+  - storage backend の初期実装は SQLite を基準にする
+  - raw log / canonical catalog / replay metadata の境界を分ける
+- 最初の切り出し:
+  - storage backend の interface を定義する
+  - SQLite catalog の最小 schema を切る
+  - raw log と catalog を別テーブルまたは別ファイルとして分離する
+  - 保存と再読込の最小経路を確認する
 - 完了条件:
   - 実装差し替えの境界がある
   - replay に必要なデータが失われない
@@ -184,6 +213,10 @@ Phase 0 の各 issue は、文書上の固定点として完了済みです。
 
 - 目的: log から state を再構成できるようにする
 - 依存: 2.1, 2.2
+- 最初の切り出し:
+  - log を先頭から順に読む経路を作る
+  - canonical state を再構築する pure な関数を作る
+  - replay 結果と保存済み state の一致を確認する
 - 完了条件:
   - 保存済み object を再構築できる
   - canonical state の再現ができる

@@ -142,17 +142,47 @@ canonical view の組み立ては `packages/api/` に置き、`get` の返却形
 
 ## フェーズ 2: relay と storage node を分離して成立させる
 
+### 着手条件
+
+Phase 2 は、次の前提がそろった時点で着手できます。
+
+- Phase 0 と Phase 1 の仕様境界が固定済みである
+- JS ブートストラップで validate / normalize / finalize の挙動が確認済みである
+- 本命実装は `Rust + SQLite` で進める方針が確定している
+- relay / storage の責務分離を先に進める方針が確定している
+- carrier の第一候補は未確定でも、Phase 2 の開始自体は妨げない
+
+### Rust + SQLite の着手点
+
+ここが本命実装の開始点です。  
+Phase 1 の JavaScript 実装は挙動確認用のブートストラップとしてここまでで役割を終え、Phase 2 から `Rust + SQLite` による本実装へ移行します。
+
+最初に着手するのは、relay / storage の分離境界です。  
+具体的には、`packages/core/` の永続化を SQLite 前提で組み直しつつ、`packages/relay/` を Rust で立ち上げ、raw log と canonical catalog を分けた最小構成を作ります。
+
 ### 目的
 
 「publish できる」だけでなく、「relay を立てられる」「storage node を立てられる」を別責務として実装します。
 
 ### やること
 
-- relay の append-only log を実装する
-- storage backend を抽象化する
-- replay を実装する
+- relay の append-only log を Rust で実装する
+- storage backend を SQLite 前提で抽象化する
+- replay を Rust で実装する
 - duplicate detection を carrier identity / identity key で扱う
 - subscription の最小形を実装する
+
+### 最初の着手順
+
+Phase 2 では、次の順で切り出すと進めやすいです。
+
+1. Rust の workspace と `packages/relay/` の最小バイナリ骨格を立てる
+2. wire object の append-only 保存経路を作る
+3. raw log と SQLite catalog を分けて保存する
+4. replay/export の最小経路を作る
+5. subscription の最小形を足す
+
+この順で進めると、最初の 3 issue だけで relay の骨格、保存経路、storage 分離までがひと通り揃います。
 
 ### relay の責務
 
@@ -166,6 +196,7 @@ canonical view の組み立ては `packages/api/` に置き、`get` の返却形
 - 長期保管
 - replay 可能性の維持
 - 取り込み済み object の検索補助
+- raw log と canonical catalog を分離して持つ
 
 ### 成果物
 

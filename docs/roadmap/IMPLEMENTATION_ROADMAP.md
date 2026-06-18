@@ -14,6 +14,9 @@
 このロードマップは、core protocol を Toitoi に寄せすぎないことを前提にします。  
 Toitoi は最初の重要な application profile ですが、core の設計は分野非依存のまま保ちます。
 
+実装の本命は [技術決定 ADR](../operations/TECH_DECISION_ADR.md) に合わせて **Rust + SQLite** です。
+Phase 1 で進めている JavaScript 実装は、その本命実装に移行する前の検証用ブートストラップとして扱います。
+
 ## 実装の前提
 
 - `wire` と `canonical` は別プロトコルではなく、同じ protocol object の別表現として扱う
@@ -120,6 +123,7 @@ Phase 1 の最初のスキャフォールドは、依存を増やさずに fixtu
 CLI 実装は、推奨リポジトリ構成に合わせて `packages/cli/` に置き、validate / normalize / finalize の共通処理は `packages/codecs/` に寄せます。
 単一ノード保存と再取得は `packages/core/` に置き、CLI から `publish` と `get` で触れる最小形から始めます。
 canonical view の組み立ては `packages/api/` に置き、`get` の返却形をそこへ寄せます。
+この JavaScript 実装は、Rust 版へ移植するための挙動確認・境界固定の段階であることを前提にします。
 
 ### 完了条件
 

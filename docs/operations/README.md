@@ -2,7 +2,7 @@
 
 **Status: active** | **Last updated: 2026-06-19**
 
-このディレクトリには、Lingonberry の技術決定と carrier 決定の正本を置きます。
+このディレクトリには、Lingonberry の技術決定と運用正本を置きます。
 
 ## 文書
 
@@ -14,6 +14,7 @@
 - [Carrier Capability Negotiation](./CARRIER_CAPABILITY_NEGOTIATION.md)
 - [Access and Retention Policy](./ACCESS_RETENTION_POLICY.md)
 - [Secret Management](./SECRET_MANAGEMENT.md)
+- [Observability](./OBSERVABILITY.md)
 - [storage node runtime](./STORAGE_NODE_RUNTIME.md)
 - [relay / storage separation](./RELAY_STORAGE_SEPARATION.md)
 - [Node Lifecycle Runbook](./NODE_LIFECYCLE_RUNBOOK.md)

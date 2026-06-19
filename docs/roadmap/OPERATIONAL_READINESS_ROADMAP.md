@@ -251,7 +251,7 @@
 - 設定の置き場所が一貫している
 - secret を平文前提にしない
 
-## フェーズ 5: 監視・ログ・メトリクス
+## フェーズ 5: 監視・ログ・メトリクス（完了済み）
 
 ### 目的
 
@@ -264,10 +264,31 @@
 - alert の閾値
 - 最低限の観測項目
 
+### 関連文書
+
+- [Observability](../operations/OBSERVABILITY.md)
+- [Node Lifecycle Runbook](../operations/NODE_LIFECYCLE_RUNBOOK.md)
+- [storage node runtime](../operations/STORAGE_NODE_RUNTIME.md)
+- [運用前提メモ](../operations/OPERATIONAL_PREMISES_MEMO.md)
+
+### 最初の着手順
+
+1. `relay` と `storage node` の共通ログ field を固定する
+2. 最低限のメトリクスを counter / gauge / histogram に分ける
+3. alert の起点になる failure pattern を 3 つ程度に絞る
+4. runbook から見に行く順番を 1 本にする
+5. 既存の `ready` / `run` / carrier contract と矛盾がないか確認する
+
 ### 完了条件
 
 - 異常時にどこを見るかが分かる
 - 運用中の劣化を把握できる
+
+### 完了メモ
+
+- 構造化ログ、メトリクス、alert、調査順は [Observability](../operations/OBSERVABILITY.md) に集約した
+- 障害時の最小確認順は [Node Lifecycle Runbook](../operations/NODE_LIFECYCLE_RUNBOOK.md) に反映した
+- `relay` と `storage node` の観測境界は、Phase 0 の責務分離と整合する形で固定した
 
 ## フェーズ 6: バックアップ・リストア・退役手順
 

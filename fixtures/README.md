@@ -15,14 +15,14 @@
 
 ## Validation の進め方
 
-Phase 1 では、fixture を次の順で回して validate の土台を確認します。
+最初の validate 段階では、fixture を次の順で回して土台を確認します。
 
 1. `fixtures/knowledge-object/minimal-wire-object.json` を knowledge object として validate する
 2. `fixtures/knowledge-object/invalid-missing-rawref.json` を不正例として reject する
 3. `fixtures/http-publish-request/minimal-request.json` を publish request として validate する
 4. `fixtures/http-publish-request/invalid-missing-signature.json` を不正例として reject する
 
-Phase 3 では、identity claim を含む fixture も追加して、identity key と canonical id の対応を確認します。
+identity 実用化の段階では、identity claim を含む fixture も追加して、identity key と canonical id の対応を確認します。
 
 CLI で確認する場合は、リポジトリルートから次のように実行します。
 
@@ -44,9 +44,9 @@ node packages/cli/lingonberry.mjs identity-key fixtures/knowledge-object/with-id
 publish の最小スキャフォールドは、`http-publish-request` を入力として受け取り、`object` を canonical 化した結果を返す形で進めます。
 同一 `id` で内容が同じ場合は idempotent、内容が異なる場合は conflict として扱います。
 
-## Phase 1 の手動テスト
+## 最初の手動テスト
 
-Phase 1 の動作確認は、リポジトリルートから次の順で行えます。
+最初の動作確認は、リポジトリルートから次の順で行えます。
 
 ```bash
 rm -rf .lingonberry

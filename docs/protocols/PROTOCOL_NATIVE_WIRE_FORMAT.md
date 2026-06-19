@@ -1,6 +1,6 @@
 # Protocol-Native Wire Format
 
-**Status: draft** | **Last updated: 2026-06-17**
+**Status: draft** | **Last updated: 2026-06-19**
 
 ## 目的
 
@@ -48,7 +48,7 @@ wire object は、追加の意味変換を前提にしません。
 
 ### Identity key と identity claim
 
-Phase 3 では、identity key を versioned な導出規則で決定的に計算し、その対応を identity claim で表します。
+identity 実用化の段階では、identity key を versioned な導出規則で決定的に計算し、その対応を identity claim で表します。
 
 詳細は [Identity and Provenance](./IDENTITY_AND_PROVENANCE.md) を参照してください。
 
@@ -56,7 +56,7 @@ identity claim を含む具体例は [fixtures/knowledge-object/with-identity-cl
 
 ### 最小例
 
-次は、Phase 0 で想定する最小の wire object 例です。
+次は、最小の wire object 例です。
 
 具体例は [fixtures/knowledge-object/minimal-wire-object.json](../../fixtures/knowledge-object/minimal-wire-object.json) に切り出しています。
 
@@ -121,7 +121,7 @@ wire object を canonical knowledge object として確定します。
 - identityClaims があれば canonical id との対応を保持する
 - deterministic な object 表現を得る
 
-Phase 1 では canonical id の新規発番ロジックを増やしません。
+この段階では canonical id の新規発番ロジックを増やしません。
 validate 済み object が持つ `id` を canonical id の参照軸として保持し、以後の保存・再取得で安定して扱えるようにします。
 
 ## ルール

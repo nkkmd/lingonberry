@@ -1,6 +1,6 @@
 # 用語集
 
-**Status: draft** | **Last updated: 2026-06-16**
+**Status: draft** | **Last updated: 2026-06-19**
 
 この文書は、Lingonberry で頻出する概念の意味をそろえるための共通辞書です。
 
@@ -12,7 +12,7 @@
 - provenance と raw reference を保持します。
 - 特定分野に依存しない、再利用可能な意味単位です。
 - carrier 上では protocol object として表現されます。
-- Phase 0 の最小必須構造は `id`, `schemaVersion`, `type`, `createdAt`, `body`, `provenance`, `rawRef` です。
+- 初期仕様の最小必須構造は `id`, `schemaVersion`, `type`, `createdAt`, `body`, `provenance`, `rawRef` です。
 
 ## canonical identity
 
@@ -48,7 +48,7 @@
 
 - identity key と canonical identity の対応を示す検証可能な主張です。
 - 第三者が検証できることを目指します。
-- core では必須に固定せず、Phase 3 で実用化します。
+- core では必須に固定せず、identity 実用化の段階で扱います。
 
 ## provenance
 

@@ -1,6 +1,6 @@
 # Identity and Provenance
 
-**Status: draft** | **Last updated: 2026-06-18**
+**Status: draft** | **Last updated: 2026-06-19**
 
 ## 目的
 
@@ -12,7 +12,7 @@
 
 ### 1.1 Rule version
 
-Phase 3 の初期実装では、`lb.identity.key.v1` を使います。
+初期の identity 実装では、`lb.identity.key.v1` を使います。
 
 ### 1.2 Derived basis
 

@@ -37,6 +37,7 @@
 - relay は semantic truth を決めない
 - storage node は長期保管と再構成を担う
 - 運用上の判断は、core 仕様に押し込まず profile / policy に分ける
+- readiness は `ready` コマンドまたは readiness endpoint で確認できる形に寄せる
 
 ## 目標状態
 
@@ -168,7 +169,7 @@
 - `lingonberry-storage` は `capabilities` / `config` / `run` を出せる
 - `relay` と `storage node` は、それぞれ独立に起動確認できる
 
-## フェーズ 3: 起動・停止・再起動の運用整備
+## フェーズ 3: 起動・停止・再起動の運用整備（完了済み）
 
 ### 目的
 
@@ -176,7 +177,7 @@
 
 ### ここで決めること
 
-- systemd / container / 手動起動のどれを優先するか
+- container を primary にし、systemd を併設するか
 - graceful shutdown の合図
 - 再起動時の整合性確認
 - readiness / liveness の扱い
@@ -190,10 +191,17 @@
 4. 起動失敗時のログと exit code を揃える
 5. 運用手順を 1 つの実行例として書く
 
+### 関連文書
+
+- [運用前提メモ](../operations/OPERATIONAL_PREMISES_MEMO.md)
+- [storage node runtime](../operations/STORAGE_NODE_RUNTIME.md)
+- [relay / storage separation](../operations/RELAY_STORAGE_SEPARATION.md)
+- [Node Lifecycle Runbook](../operations/NODE_LIFECYCLE_RUNBOOK.md)
+
 ### 最初の着手順
 
 - まず手動起動の手順を固定する
-- 次に systemd か container のどちらを primary にするか決める
+- 次に container を primary とする運用手順を固め、systemd の併設方針を明示する
 - 最後に readiness / liveness の判定条件を入れる
 
 ### 完了条件
@@ -201,6 +209,14 @@
 - 起動と停止の手順が再現できる
 - 再起動後に壊れない
 - 失敗時に何を確認すればよいかが分かる
+
+### 完了メモ
+
+- 手動起動、container 実行、systemd unit の入口を分離した
+- `ready` / `capabilities` / `config` / `replay` / `list` の確認手順を runbook に揃えた
+- 失敗時の exit code と切り分け手順を runbook に反映した
+- container / systemd の具体例はテンプレート文書に分けた
+- `Issue 3.4` の container-first 方針を primary として固定した
 
 ## フェーズ 4: 設定・環境変数・シークレット管理
 

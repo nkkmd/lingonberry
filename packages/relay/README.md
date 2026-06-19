@@ -27,6 +27,12 @@ Phase 2 の最初の切り出しは、ここから始めます。
 cargo run -p lingonberry-relay -- capabilities
 ```
 
+### readiness を確認する
+
+```bash
+cargo run -p lingonberry-relay -- ready
+```
+
 ### HTTP carrier を起動する
 
 ```bash
@@ -75,6 +81,7 @@ cargo run -p lingonberry-relay -- import-archive /tmp/lingonberry-archive
 
 ```bash
 cargo run -p lingonberry-storage -- capabilities
+cargo run -p lingonberry-storage -- ready
 cargo run -p lingonberry-storage -- run
 ```
 

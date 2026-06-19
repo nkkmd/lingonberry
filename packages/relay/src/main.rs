@@ -17,13 +17,13 @@ use std::process;
 fn main() {
     if let Err(error) = run(env::args().skip(1).collect()) {
         eprintln!("{}", error);
-        process::exit(1);
+        process::exit(exit_code_for_error(&error));
     }
 }
 
 fn run(args: Vec<String>) -> Result<(), String> {
     let Some(command) = args.first().map(String::as_str) else {
-        return Err("usage: lingonberry <validate|publish|identity-key|get|raw|list|subscribe|replay|rebuild-index|relation-graph|lineage-graph|provenance-graph|capabilities|export-archive|import-archive|serve-http> <json-file|id|type|archive-dir|addr>".to_string());
+        return Err("usage: lingonberry <validate|publish|identity-key|get|raw|list|subscribe|replay|rebuild-index|relation-graph|lineage-graph|provenance-graph|capabilities|ready|export-archive|import-archive|serve-http> <json-file|id|type|archive-dir|addr>".to_string());
     };
     let backend = build_runtime_storage_backend();
 
@@ -66,6 +66,7 @@ fn run(args: Vec<String>) -> Result<(), String> {
             handle_provenance_graph(protocol, source_id, &backend)
         }
         "capabilities" => handle_capabilities(),
+        "ready" => handle_ready(),
         "export-archive" => {
             let archive_dir = args.get(1).ok_or_else(|| "usage: lingonberry export-archive <archive-dir>".to_string())?;
             handle_export_archive(archive_dir, &backend)
@@ -338,6 +339,15 @@ fn handle_capabilities() -> Result<(), String> {
     Ok(())
 }
 
+fn handle_ready() -> Result<(), String> {
+    let output = json_object(vec![
+        ("status", JsonValue::String("ok".to_string())),
+        ("service", JsonValue::String("relay".to_string())),
+    ]);
+    println!("{}", to_canonical_json(&output));
+    Ok(())
+}
+
 fn handle_serve_http(addr: &str, backend: &impl StorageBackend) -> Result<(), String> {
     let listener = TcpListener::bind(addr).map_err(|error| format!("failed to bind {}: {}", addr, error))?;
     eprintln!("listening on http://{}", addr);
@@ -401,6 +411,14 @@ fn route_http_request(
     backend: &impl StorageBackend,
 ) -> Result<(u16, &'static str, JsonValue), String> {
     match (method, path) {
+        ("GET", "/v1/ready") => Ok((
+            200,
+            "OK",
+            json_object(vec![
+                ("status", JsonValue::String("ok".to_string())),
+                ("service", JsonValue::String("relay".to_string())),
+            ]),
+        )),
         ("GET", "/v1/capabilities") => Ok((
             200,
             "OK",
@@ -573,6 +591,22 @@ fn format_validation_error(message: &str, errors: &[String]) -> String {
         format!("\n- {}", errors.join("\n- "))
     };
     format!("{}{}", message, suffix)
+}
+
+fn exit_code_for_error(error: &str) -> i32 {
+    if error.starts_with("usage:") {
+        64
+    } else if error.contains("not found") {
+        66
+    } else if error.contains("failed to bind") {
+        78
+    } else if error.contains("validation failed") {
+        65
+    } else if error.contains("LB_") {
+        70
+    } else {
+        1
+    }
 }
 
 fn json_object(entries: Vec<(&str, JsonValue)>) -> JsonValue {

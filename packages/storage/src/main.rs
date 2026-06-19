@@ -13,13 +13,13 @@ use std::process;
 fn main() {
     if let Err(error) = run(env::args().skip(1).collect()) {
         eprintln!("{}", error);
-        process::exit(1);
+        process::exit(exit_code_for_error(&error));
     }
 }
 
 fn run(args: Vec<String>) -> Result<(), String> {
     let Some(command) = args.first().map(String::as_str) else {
-        return Err("usage: lingonberry-storage <capabilities|config|run|append|retrieve|replay|list> <json-file|canonical-id>".to_string());
+        return Err("usage: lingonberry-storage <capabilities|config|ready|run|append|retrieve|replay|list> <json-file|canonical-id>".to_string());
     };
 
     let config = runtime_storage_config()?;
@@ -38,6 +38,8 @@ fn run(args: Vec<String>) -> Result<(), String> {
                         JsonValue::String("replay".to_string()),
                         JsonValue::String("list".to_string()),
                         JsonValue::String("config".to_string()),
+                        JsonValue::String("ready".to_string()),
+                        JsonValue::String("run".to_string()),
                     ]),
                 ),
             ])));
@@ -45,6 +47,10 @@ fn run(args: Vec<String>) -> Result<(), String> {
         }
         "config" => {
             print_config(&config);
+            Ok(())
+        }
+        "ready" => {
+            print_runtime_status(&config);
             Ok(())
         }
         "run" => {
@@ -190,5 +196,21 @@ fn path_value(path: Option<&std::path::PathBuf>) -> JsonValue {
     match path {
         Some(path) => JsonValue::String(path.to_string_lossy().to_string()),
         None => JsonValue::Null,
+    }
+}
+
+fn exit_code_for_error(error: &str) -> i32 {
+    if error.starts_with("usage:") {
+        64
+    } else if error.contains("not found") {
+        66
+    } else if error.contains("config") || error.contains("failed to bind") {
+        78
+    } else if error.contains("validation failed") {
+        65
+    } else if error.contains("LB_") {
+        70
+    } else {
+        1
     }
 }

@@ -5,7 +5,8 @@
 この文書は、[運用準備ロードマップ](./OPERATIONAL_READINESS_ROADMAP.md) のうち、フェーズ 1 から 3 を issue 単位に分解したものです。  
 フェーズ 0 は [運用前提メモ](../operations/OPERATIONAL_PREMISES_MEMO.md) に集約し、この backlog では issue 化しません。  
 実作業では、依存の薄い issue から並行に進めても構いません。  
-Phase 2 は完了済みのため、現在の優先順位は **フェーズ 3** です。
+Phase 2 と Phase 3 は完了済みです。  
+この backlog は、Phase 1 から 3 の完了記録として残します。
 
 ## Phase 0 完了確認
 
@@ -42,9 +43,10 @@ Phase 1 は、既存の `relay` 実装に残っていた保存責務を棚卸し
 9. Issue 2.5: relay と storage を別プロセスで運用できることを確認する
 10. Issue 3.1: 手動起動の runbook を作る
 11. Issue 3.2: graceful shutdown を定義する
-12. Issue 3.4: 起動方式を決める
-13. Issue 3.3: 再起動後の整合性確認を定義する
-14. Issue 3.5: readiness / liveness と失敗時の戻り方を揃える
+12. Issue 3.3: 再起動後の整合性確認を定義する
+13. Issue 3.5: readiness / liveness と失敗時の戻り方を揃える
+
+Issue 3.4 は完了済みで、container を primary、systemd を併設とする方針が確定しています。
 
 ## ラベル案
 
@@ -152,9 +154,9 @@ Phase 1 は、既存の `relay` 実装に残っていた保存責務を棚卸し
   - 同梱起動を前提としない運用メモがある
   - [relay / storage separation](../operations/RELAY_STORAGE_SEPARATION.md) に正本がある
 
-## Epic 3: 起動・停止・再起動の運用整備
+## Epic 3: 起動・停止・再起動の運用整備（完了済み）
 
-### Issue 3.1: 手動起動の runbook を作る
+### Issue 3.1: 手動起動の runbook を作る（完了済み）
 
 - 目的: 最初に再現可能な運用手順を固定する
 - 依存: 2.1, 2.2
@@ -162,8 +164,9 @@ Phase 1 は、既存の `relay` 実装に残っていた保存責務を棚卸し
   - relay の起動手順がある
   - storage node の起動手順がある
   - 確認コマンドがある
+  - 正本 runbook が [Node Lifecycle Runbook](../operations/NODE_LIFECYCLE_RUNBOOK.md) にある
 
-### Issue 3.2: graceful shutdown を定義する
+### Issue 3.2: graceful shutdown を定義する（完了済み）
 
 - 目的: 終了時の安全停止を決める
 - 依存: 2.1, 2.3
@@ -171,26 +174,33 @@ Phase 1 は、既存の `relay` 実装に残っていた保存責務を棚卸し
   - 終了シグナル受信時の動作が決まっている
   - 保存途中データの扱いが決まっている
   - 強制終了時のリスクが説明できる
+  - graceful shutdown の正本が runbook に反映されている
 
 ### Issue 3.4: 起動方式を決める（完了済み）
 
-- 目的: どのデプロイ方式を primary にするかを固定する
+- 目的: container を primary にし、systemd を併設する方針を固定する
 - 依存: 3.1, 3.2
 - 完了条件:
-  - systemd / container / 手動起動の優先順位が決まっている
+  - container が primary である
+  - systemd は併設手段として定義されている
+  - 手動起動は確認・検証用として位置づけられている
   - 運用環境ごとの差分が説明できる
-  - 既定の起動方式が 1 つ決まっている
+  - 既定の起動方式が container である
+  - 既定方針が runbook と一致している
 
-### Issue 3.3: 再起動後の整合性確認を定義する
+### Issue 3.3: 再起動後の整合性確認を定義する（完了済み）
 
 - 目的: 再起動後に壊れていないことを機械的に確認する
 - 依存: 3.2
 - 完了条件:
-  - 再起動後の最小チェックがある
-  - 失敗時の切り分け手順がある
-  - replay と保存状態の確認観点がある
+  - `storage node` の `ready` または `run` を確認できる
+  - `storage node` の `config`、`replay`、`list` を使った確認順がある
+  - `relay` の `ready` と `capabilities` を確認できる
+  - HTTP carrier の `GET /v1/ready` と `GET /v1/capabilities` を確認できる
+  - 失敗時の切り分け手順が runbook にある
+  - 再起動後チェックが runbook で参照できる
 
-### Issue 3.5: readiness / liveness と失敗時の戻り方を揃える
+### Issue 3.5: readiness / liveness と失敗時の戻り方を揃える（完了済み）
 
 - 目的: 起動失敗や異常時の扱いを統一する
 - 依存: 3.3, 3.4
@@ -198,6 +208,9 @@ Phase 1 は、既存の `relay` 実装に残っていた保存責務を棚卸し
   - readiness / liveness の判定条件がある
   - 起動失敗時の exit code またはエラー分類がある
   - ログの見方が手順に含まれている
+  - readiness / liveness の正本が runbook に反映されている
+  - `ready` コマンドまたは readiness endpoint が利用できる
+  - `storage node` と `relay` の失敗時メッセージが識別できる
 
 ## 参照文書
 

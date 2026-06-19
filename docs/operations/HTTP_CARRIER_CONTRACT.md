@@ -1,6 +1,6 @@
 # HTTP Carrier Contract
 
-**Status: draft** | **Last updated: 2026-06-18**
+**Status: draft** | **Last updated: 2026-06-19**
 
 ## 目的
 
@@ -114,6 +114,15 @@ request body は `http-publish-request` envelope とします。
 - validation / finalize constraints
 - supported access scopes
 - supported retention hints
+
+### Readiness
+
+- `GET /v1/ready`
+
+### 返すべき情報
+
+- `status: ok`
+- `service: relay`
 
 ## 4. Response model
 

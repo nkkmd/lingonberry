@@ -15,4 +15,7 @@
 - [Access and Retention Policy](./ACCESS_RETENTION_POLICY.md)
 - [storage node runtime](./STORAGE_NODE_RUNTIME.md)
 - [relay / storage separation](./RELAY_STORAGE_SEPARATION.md)
+- [Node Lifecycle Runbook](./NODE_LIFECYCLE_RUNBOOK.md)
+- [Container Execution Templates](./CONTAINER_EXECUTION_TEMPLATES.md)
+- [Systemd Unit Templates](./SYSTEMD_UNIT_TEMPLATES.md)
 - [Migration and Schema Versioning](./MIGRATION_AND_SCHEMA_VERSIONING.md)

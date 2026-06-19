@@ -28,6 +28,7 @@
 ```bash
 cargo run -p lingonberry-storage -- capabilities
 cargo run -p lingonberry-storage -- config
+cargo run -p lingonberry-storage -- ready
 cargo run -p lingonberry-storage -- run
 cargo run -p lingonberry-storage -- append fixtures/http-publish-request/minimal-request.json
 cargo run -p lingonberry-storage -- retrieve lb:obj:example-0001

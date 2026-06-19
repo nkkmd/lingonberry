@@ -84,7 +84,7 @@
 - 運用前提を読めば、何を core に入れないか説明できる
 - 以後のフェーズがこの前提に依存して書ける
 
-## フェーズ 1: relay と storage の完全分離
+## フェーズ 1: relay と storage の完全分離（完了済み）
 
 ### 目的
 
@@ -109,7 +109,10 @@
 
 ### 最初の着手順
 
-- `packages/relay/` と `packages/core/` の責務境界を見直す
+- `packages/relay/src/main.rs` の `StorageBackend` 依存を洗い出す
+- `packages/core/src/lib.rs` と `packages/core/src/sqlite.rs` の保存責務を洗い出す
+- `packages/storage/src/lib.rs` と `packages/storage/src/main.rs` の runtime 入口を確認する
+- `packages/relay/README.md`、`packages/storage/README.md`、`packages/core/README.md` の責務記述を照合する
 - relay が storage の内部構造を直接参照している箇所を洗い出す
 - storage が relay の HTTP / carrier 実装を参照している箇所を洗い出す
 - 最小の疎結合インターフェースを文書化する

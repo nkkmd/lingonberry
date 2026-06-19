@@ -1,6 +1,6 @@
 use lingonberry_core::{
-    build_runtime_capability_manifest, default_state_dir, export_archive, import_archive,
-    SqliteStorageBackend, StorageBackend,
+    build_runtime_capability_manifest, build_runtime_storage_backend, export_archive,
+    import_archive, StorageBackend,
 };
 use lingonberry_indexer::IndexSnapshot;
 use lingonberry_protocol::{
@@ -25,7 +25,7 @@ fn run(args: Vec<String>) -> Result<(), String> {
     let Some(command) = args.first().map(String::as_str) else {
         return Err("usage: lingonberry <validate|publish|identity-key|get|raw|list|subscribe|replay|rebuild-index|relation-graph|lineage-graph|provenance-graph|capabilities|export-archive|import-archive|serve-http> <json-file|id|type|archive-dir|addr>".to_string());
     };
-    let backend = SqliteStorageBackend::new(default_state_dir());
+    let backend = build_runtime_storage_backend();
 
     match command {
         "validate" => {

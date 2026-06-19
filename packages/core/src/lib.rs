@@ -4,6 +4,7 @@ use lingonberry_protocol::{
     DEFAULT_ACCESS_SCOPE, DEFAULT_RETENTION_HINT, HTTP_PUBLISH_REQUEST_SCHEMA_VERSION,
     KNOWLEDGE_OBJECT_SCHEMA_VERSION, PROTOCOL_VERSION,
 };
+use std::env;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::fs::{self, OpenOptions};
@@ -145,6 +146,16 @@ impl StorageBackend for FileStorageBackend {
 
 pub fn default_state_dir() -> PathBuf {
     PathBuf::from(".lingonberry")
+}
+
+pub fn runtime_state_dir() -> PathBuf {
+    env::var_os("LINGONBERRY_STATE_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(default_state_dir)
+}
+
+pub fn build_runtime_storage_backend() -> SqliteStorageBackend {
+    SqliteStorageBackend::new(runtime_state_dir())
 }
 
 pub fn build_runtime_capability_manifest() -> JsonValue {

@@ -12,6 +12,10 @@
   - carrier capabilities の出力
   - archive export / import
 
+`relay` は runtime の入口として backend を受け取り、永続化の具体実装は `core` の runtime helper に寄せています。
+
+ローカル開発では、`LINGONBERRY_STATE_DIR` を `relay` と `storage` で合わせると、同じ保存先を見ながら別プロセスを立てられます。
+
 Phase 2 の最初の切り出しは、ここから始めます。
 
 ## 実行手順

@@ -3,6 +3,10 @@ name = "lingonberry-storage"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+name = "lingonberry_storage"
+path = "src/lib.rs"
+
 [dependencies]
 lingonberry-core = { path = "../core" }
-
+lingonberry-protocol = { path = "../protocol" }

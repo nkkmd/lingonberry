@@ -92,6 +92,7 @@ raw log、canonical store、derived index を分けやすく、初期の publish
 - `packages/core/`
 - `packages/codecs/`
 - `packages/relay/`
+- `packages/storage/`
 - `packages/indexer/`
 - `packages/api/`
 - `packages/cli/`

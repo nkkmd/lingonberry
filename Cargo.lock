@@ -29,3 +29,10 @@ dependencies = [
  "lingonberry-indexer",
  "lingonberry-protocol",
 ]
+
+[[package]]
+name = "lingonberry-storage"
+version = "0.1.0"
+dependencies = [
+ "lingonberry-core",
+]

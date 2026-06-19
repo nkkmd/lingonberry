@@ -1,6 +1,6 @@
 # 運用準備バックログ
 
-**Status: draft** | **Last updated: 2026-06-18**
+**Status: active** | **Last updated: 2026-06-19**
 
 この文書は、[運用準備ロードマップ](./OPERATIONAL_READINESS_ROADMAP.md) のうち、フェーズ 1 から 3 を issue 単位に分解したものです。  
 実作業では、依存の薄い issue から並行に進めても構いません。  
@@ -38,7 +38,7 @@
 
 ## Epic 1: relay と storage の完全分離
 
-### Issue 1.1: relay / storage の責務境界を固定する
+### Issue 1.1: relay / storage の責務境界を固定する（完了済み）
 
 - 目的: どの責務を relay に残し、どの責務を storage node に移すかを明確にする
 - 依存: なし
@@ -48,7 +48,7 @@
   - 既存の HTTP publish 経路の所属が説明できる
   - どちらに持たせない責務が明示されている
 
-### Issue 1.3: storage node の最小 API を定義する
+### Issue 1.3: storage node の最小 API を定義する（完了済み）
 
 - 目的: storage node に必要な最小の操作面を固定する
 - 依存: 1.1
@@ -78,7 +78,7 @@
 
 ## Epic 2: `storage node` の独立バイナリ化
 
-### Issue 2.1: storage node の binary と entrypoint を決める
+### Issue 2.1: storage node の binary と entrypoint を決める（完了済み）
 
 - 目的: `storage node` を個別デプロイ可能な単位として切り出す
 - 依存: 1.1
@@ -105,7 +105,7 @@
   - raw log と canonical store の扱いが分かる
   - 退役時に残すものが説明できる
 
-### Issue 2.4: storage node の health / status 出力を用意する
+### Issue 2.4: storage node の health / status 出力を用意する（完了済み）
 
 - 目的: 起動確認と最低限の状態確認を可能にする
 - 依存: 2.1, 2.3
@@ -143,7 +143,7 @@
   - 保存途中データの扱いが決まっている
   - 強制終了時のリスクが説明できる
 
-### Issue 3.4: 起動方式を決める
+### Issue 3.4: 起動方式を決める（完了済み）
 
 - 目的: どのデプロイ方式を primary にするかを固定する
 - 依存: 3.1, 3.2

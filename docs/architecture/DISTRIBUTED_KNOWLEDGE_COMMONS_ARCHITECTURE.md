@@ -747,6 +747,7 @@ lingonberry/
 │  ├─ codecs/
 │  ├─ core/
 │  ├─ relay/
+│  ├─ storage/
 │  ├─ api/
 │  └─ cli/
 ├─ schemas/
@@ -791,6 +792,8 @@ lingonberry/
   - validate / normalize / finalize の共通処理
 - `packages/core/`
   - append-only storage と replay / retrieval
+- `packages/storage/`
+  - storage node runtime
 - `packages/indexer/`
   - canonical store から派生する search / graph / view index
 - `packages/relay/`

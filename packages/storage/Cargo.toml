@@ -1,0 +1,8 @@
+[package]
+name = "lingonberry-storage"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+lingonberry-core = { path = "../core" }
+

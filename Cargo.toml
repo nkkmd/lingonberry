@@ -4,5 +4,6 @@ members = [
   "packages/core",
   "packages/indexer",
   "packages/relay",
+  "packages/storage",
 ]
 resolver = "2"

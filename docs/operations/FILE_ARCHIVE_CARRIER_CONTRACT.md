@@ -67,6 +67,8 @@ archive からの replay は次の順で行います。
 ### Export
 
 - relay / storage の保存内容から archive を生成する
+- `storage node` の backup 単位は `dataDir` を起点とし、そこから `manifest.json` と `wire-log.jsonl` に相当する情報を固める
+- replay metadata を含める場合は `replay-metadata.json` として扱う
 - raw log と provenance を失わない
 - 再構築に必要な情報を落とさない
 - export 時に scrub が必要なら operator policy に従う
@@ -101,3 +103,4 @@ archive carrier は、少なくとも次を満たします。
 - [Carrier Decision Memo](./CARRIER_DECISION_MEMO.md)
 - [Protocol-Native Wire Format](../protocols/PROTOCOL_NATIVE_WIRE_FORMAT.md)
 - [Technical Decision ADR](./TECH_DECISION_ADR.md)
+- [storage node runtime](./STORAGE_NODE_RUNTIME.md)

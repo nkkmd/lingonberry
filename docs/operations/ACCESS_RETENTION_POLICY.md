@@ -1,6 +1,6 @@
 # Access and Retention Policy
 
-**Status: draft** | **Last updated: 2026-06-18**
+**Status: draft** | **Last updated: 2026-06-19**
 
 ## 目的
 
@@ -80,6 +80,18 @@ storage node や relay を退役させる場合は、次を満たすようにし
 - export で archive を作れる
 - archive から replay できる
 - retention に基づく削除と、operator の都合による退役を区別する
+- 退役時は少なくとも `manifest.json`、`wire-log.jsonl`、`canonical-catalog.sqlite3`、`replay-metadata.json`、`resolved-config.json` を保持する
+- `tempDir` 配下の一時ファイルや再生成可能なキャッシュは retention ではなく operator policy で削除できる
+
+### 2.6 backup と restore
+
+- backup は、restore 可能性を失わない保存単位として扱う
+- backup の中核は raw log、canonical catalog、replay metadata、archive manifest です
+- backup bundle では、`manifest.json`、`wire-log.jsonl`、`canonical-catalog.sqlite3`、`replay-metadata.json` を基本要素として扱う
+- restore では、backup の内容を上書き修正せず、再構成のための入力として扱う
+- backup と archive は別概念だが、運用上は archive を backup の運搬形式として使える
+- backup の保持期間は retention policy に従い、operator policy で短縮してもよいが、replay 可能性は壊さない
+- backup の作成中に一時生成した退避物は、完了後に `backupDir` へまとめる
 
 ## 3. Authentication / Authorization
 
@@ -108,6 +120,7 @@ Authentication / authorization は、必要なら運用層で定義します。
 - 長期保存を前提に retention を設定する
 - replay のための情報を残す
 - 退役時も export 可能性を考える
+- backup / restore の実行時は、archive manifest と raw log の整合性を優先する
 
 ## 5. 判定ルール
 
@@ -150,6 +163,7 @@ Authentication / authorization は、必要なら運用層で定義します。
 3. export 時の scrub 方針
 4. authn/authz をどこまで共通化するか
 5. public / curated / private の具体的な carrier 既定値
+6. backup / restore の運用上の既定値
 
 ## 関連
 

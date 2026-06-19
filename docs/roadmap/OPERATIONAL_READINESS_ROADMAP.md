@@ -290,7 +290,7 @@
 - 障害時の最小確認順は [Node Lifecycle Runbook](../operations/NODE_LIFECYCLE_RUNBOOK.md) に反映した
 - `relay` と `storage node` の観測境界は、Phase 0 の責務分離と整合する形で固定した
 
-## フェーズ 6: バックアップ・リストア・退役手順
+## フェーズ 6: バックアップ・リストア・退役手順（完了済み）
 
 ### 目的
 
@@ -303,10 +303,45 @@
 - 退役時に残すもの
 - 再投入時の整合性
 
+### やること
+
+1. backup の単位を `storage node` の保存レイアウトに合わせて固定する
+2. restore の入力と確認順を定義する
+3. 退役時に残すものと消すものを policy に寄せて固定する
+4. 再投入時の整合性確認を runbook に接続する
+5. archive を使う場合の manifest / wire-log 前提を明文化する
+
+### 関連文書
+
+- [File / Archive Carrier Contract](../operations/FILE_ARCHIVE_CARRIER_CONTRACT.md)
+- [storage node runtime](../operations/STORAGE_NODE_RUNTIME.md)
+- [Node Lifecycle Runbook](../operations/NODE_LIFECYCLE_RUNBOOK.md)
+- [Access and Retention Policy](../operations/ACCESS_RETENTION_POLICY.md)
+- [Migration and Schema Versioning](../operations/MIGRATION_AND_SCHEMA_VERSIONING.md)
+- [relay / storage separation](../operations/RELAY_STORAGE_SEPARATION.md)
+
+### 最初の着手順
+
+1. backup の単位を `storage node runtime` の保存レイアウトに合わせて固定する
+2. restore の入口を archive / export の正本と衝突しない形で書く
+3. 退役時に残すものと消すものを access / retention policy に寄せる
+4. 再投入時の確認手順を Node Lifecycle Runbook に繋ぐ
+5. 必要なら archive carrier の manifest / wire-log 前提を明文化する
+
 ### 完了条件
 
 - restore が定義されている
 - 退役が安全にできる
+- backup の単位と再投入時の検証条件が説明できる
+- backup / restore / retirement の入口が関連文書から辿れる
+
+### 完了メモ
+
+- backup / restore / retirement の手順は [Node Lifecycle Runbook](../operations/NODE_LIFECYCLE_RUNBOOK.md) に集約した
+- `storage node runtime` で `dataDir`、`backupDir`、`tempDir` の役割を固定した
+- `Access and Retention Policy` で退役時の保持対象と削除対象を固定した
+- `File / Archive Carrier Contract` で archive と backup の関係を固定した
+- Phase 6 の再投入確認と runbook 反映を backlog の完了条件に接続した
 
 ## フェーズ 7: HTTP carrier の公開運用
 

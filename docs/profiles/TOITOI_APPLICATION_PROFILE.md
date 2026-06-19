@@ -1,6 +1,6 @@
 # Toitoi Application Profile
 
-**Status: draft** | **Last updated: 2026-06-18**
+**Status: draft** | **Last updated: 2026-06-19**
 
 ## 目的
 
@@ -36,6 +36,8 @@ Toitoi 固有の意味は profile 側で定義します。
 - curation rule
 - display / query priority
 - Toitoi 向け API の返却形
+- profile 固有の設定値と既定値
+- profile 固有の運用差分
 
 ### 1.3 Core に入れないもの
 
@@ -46,6 +48,8 @@ Toitoi 固有の意味は profile 側で定義します。
 - Toitoi 専用 lifecycle 名
 - profile 固有の trust rule
 - profile 固有の query shortcut
+- profile 固有の設定ファイル形式
+- profile 固有の secret 取り扱い
 
 ## 2. 最小 object set
 
@@ -230,3 +234,29 @@ Toitoi profile の最小境界は、次のようにまとめられます。
 - [用語集](../concepts/GLOSSARY.md)
 - [アーキテクチャ草案](../architecture/DISTRIBUTED_KNOWLEDGE_COMMONS_ARCHITECTURE.md)
 - [Toitoi 参照チェックリスト](../architecture/TOITOI_REFERENCE_CHECKLIST.md)
+
+## 9. プロファイル差分の置き場
+
+Toitoi のような application profile の差分は、core の設定や core schema に入れず、profile 文書と profile 専用の運用メモに分けて置きます。
+
+### 9.1 この文書に置くもの
+
+- 必須 object / relation
+- context vocabulary
+- profile validation
+- profile が返す API の最小契約
+- profile が core から追加で要求する前提
+
+### 9.2 併設してよいもの
+
+- profile 固有の起動時設定
+- profile 固有の curation / routing 規則
+- profile 固有の secret や deployment 差分
+- profile 固有の runtime メモ
+
+### 9.3 置かないもの
+
+- core の必須フィールド
+- core の carrier 契約
+- core の設定ファイル形式
+- core の secret 取り扱い

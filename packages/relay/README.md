@@ -16,6 +16,7 @@
 
 `relay` は `storage node` とは別 binary として起動します。
 ローカル開発では、`LINGONBERRY_STATE_DIR` を使って個別に起動し、必要なら運用メモに従って保存先を分けます。
+`relay` は現時点で `LINGONBERRY_STATE_DIR` を共通の実行ルートとして使い、storage 固有の設定ファイル変数は持ちません。
 
 Phase 2 の最初の切り出しは、ここから始めます。
 

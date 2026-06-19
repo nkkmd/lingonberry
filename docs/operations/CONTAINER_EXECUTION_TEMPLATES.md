@@ -28,7 +28,8 @@ docker run --rm \
 ## 3. 使い方
 
 - `storage node` と `relay` は別コンテナとして扱う
-- `LINGONBERRY_STATE_DIR` は手動起動と合わせる
+- `LINGONBERRY_STATE_DIR` は手動起動と合わせる共通の実行ルートとして使う
+- `LINGONBERRY_STORAGE_CONFIG` は storage node の設定位置を明示するときだけ使う
 - `ready` は起動確認用、`capabilities` は機能確認用として使う
 - volume mount は state を失わない場所に向ける
 

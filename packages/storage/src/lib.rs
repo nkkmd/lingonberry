@@ -40,11 +40,24 @@ pub fn runtime_storage_config() -> Result<StorageRuntimeConfig, String> {
         backup_dir: state_dir.join("backup"),
         temp_dir: state_dir.join("tmp"),
     };
+    let mut overrides = StorageConfigOverrides::default();
     if config_path.exists() {
         let loaded = read_json_file(&config_path)?;
-        apply_storage_config(&mut config, &loaded.value)?;
+        overrides = apply_storage_config(&mut config, &loaded.value)?;
     } else if explicit_config_path.is_some() {
         return Err(format!("storage config file not found: {}", config_path.display()));
+    }
+    if !overrides.state_dir {
+        config.state_dir = state_dir;
+    }
+    if !overrides.data_dir {
+        config.data_dir = config.state_dir.clone();
+    }
+    if !overrides.backup_dir {
+        config.backup_dir = config.state_dir.join("backup");
+    }
+    if !overrides.temp_dir {
+        config.temp_dir = config.state_dir.join("tmp");
     }
     Ok(config)
 }
@@ -56,23 +69,39 @@ pub fn runtime_storage_layout(config: &StorageRuntimeConfig) -> StorageRuntimeLa
     }
 }
 
-fn apply_storage_config(config: &mut StorageRuntimeConfig, value: &JsonValue) -> Result<(), String> {
+#[derive(Debug, Default, Clone, Copy)]
+struct StorageConfigOverrides {
+    state_dir: bool,
+    data_dir: bool,
+    backup_dir: bool,
+    temp_dir: bool,
+}
+
+fn apply_storage_config(
+    config: &mut StorageRuntimeConfig,
+    value: &JsonValue,
+) -> Result<StorageConfigOverrides, String> {
     let Some(map) = as_object(value) else {
         return Err("storage config must be an object".to_string());
     };
+    let mut overrides = StorageConfigOverrides::default();
     if let Some(path) = map.get("stateDir").and_then(as_string) {
         config.state_dir = PathBuf::from(path);
+        overrides.state_dir = true;
     }
     if let Some(path) = map.get("dataDir").and_then(as_string) {
         config.data_dir = PathBuf::from(path);
+        overrides.data_dir = true;
     }
     if let Some(path) = map.get("backupDir").and_then(as_string) {
         config.backup_dir = PathBuf::from(path);
+        overrides.backup_dir = true;
     }
     if let Some(path) = map.get("tempDir").and_then(as_string) {
         config.temp_dir = PathBuf::from(path);
+        overrides.temp_dir = true;
     }
-    Ok(())
+    Ok(overrides)
 }
 
 fn as_object(value: &JsonValue) -> Option<&BTreeMap<String, JsonValue>> {

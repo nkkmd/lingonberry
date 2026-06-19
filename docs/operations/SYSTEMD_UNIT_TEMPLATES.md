@@ -45,6 +45,8 @@ WantedBy=multi-user.target
 - `KillSignal` は `SIGTERM` を基本とする
 - `Restart` は `on-failure` を基本とする
 - unit は `storage` と `relay` で分ける
+- `LINGONBERRY_STATE_DIR` は共通の実行ルートとして使う
+- `LINGONBERRY_STORAGE_CONFIG` は storage node の設定位置を明示するときだけ使う
 
 ## 参照
 

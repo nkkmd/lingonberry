@@ -88,6 +88,7 @@ Authentication / authorization は、必要なら運用層で定義します。
 - protocol core では必須要素にしない
 - HTTP carrier では将来の拡張点として扱える
 - carrier ごとの差分は policy と capability に閉じる
+- secret の保管と注入は [Secret Management](./SECRET_MANAGEMENT.md) に分離する
 
 ## 4. 運用モデル
 
@@ -156,3 +157,4 @@ Authentication / authorization は、必要なら運用層で定義します。
 - [File / Archive Carrier Contract](./FILE_ARCHIVE_CARRIER_CONTRACT.md)
 - [Carrier Capability Negotiation](./CARRIER_CAPABILITY_NEGOTIATION.md)
 - [Carrier Decision Memo](./CARRIER_DECISION_MEMO.md)
+- [Secret Management](./SECRET_MANAGEMENT.md)

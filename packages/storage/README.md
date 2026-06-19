@@ -21,7 +21,10 @@
 
 - `LINGONBERRY_STATE_DIR` を使って relay と同じ state dir を明示できる
 - `LINGONBERRY_STORAGE_CONFIG` で設定ファイルを明示できる
-- 既定値は `".lingonberry"` で、`config` / `run` が解決済みの state / data / backup / temp を表示する
+- 設定ファイルの既定位置は `"$LINGONBERRY_STATE_DIR/storage-config.json"` で、なければ既定値に戻る
+- `config` / `run` は解決済みの `stateDir`、`dataDir`、`backupDir`、`tempDir` を表示する
+- `stateDir` を設定ファイルで上書きした場合、未指定の `dataDir`、`backupDir`、`tempDir` は新しい `stateDir` を基準に再計算される
+- `LINGONBERRY_STATE_DIR` は relay と共有できる共通の実行ルート、`LINGONBERRY_STORAGE_CONFIG` は storage 固有の設定位置として扱う
 
 ## 実行例
 

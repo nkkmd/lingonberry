@@ -218,7 +218,7 @@
 - container / systemd の具体例はテンプレート文書に分けた
 - `Issue 3.4` の container-first 方針を primary として固定した
 
-## フェーズ 4: 設定・環境変数・シークレット管理
+## フェーズ 4: 設定・環境変数・シークレット管理（完了済み）
 
 ### 目的
 
@@ -230,6 +230,21 @@
 - 環境変数の責務
 - secret の保管方法
 - profile ごとの差分
+
+### 関連文書
+
+- [運用前提メモ](../operations/OPERATIONAL_PREMISES_MEMO.md)
+- [storage node runtime](../operations/STORAGE_NODE_RUNTIME.md)
+- [Secret Management](../operations/SECRET_MANAGEMENT.md)
+- [Access and Retention Policy](../operations/ACCESS_RETENTION_POLICY.md)
+- [Toitoi Application Profile](../profiles/TOITOI_APPLICATION_PROFILE.md)
+
+### 最初の着手順
+
+- まず `storage node runtime` にある設定解決順と設定ファイル形式を、運用上の正本として再確認する
+- 次に `relay` と `storage node` で環境変数の責務を分け、override と secret を混ぜない形にする
+- そのうえで secret の保管・注入方法を決め、profile ごとの差分を policy / profile 側へ逃がす
+- 最後に runbook と CLI の説明へ反映し、どこに何を置くかを一貫させる
 
 ### 完了条件
 

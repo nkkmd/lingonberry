@@ -14,6 +14,7 @@
 - `carrier` は protocol object を wire 上で運ぶ正規の実装とする
 - `relay` と `storage node` は責務を分離する
 - core protocol は分野中立を保ち、分野固有の語彙や運用差分は profile / policy 側に寄せる
+- secret は設定ファイルに平文で置かず、deployment 側の secret store や注入経路で扱う
 
 ## 1. relay と storage node の責務境界
 
@@ -70,6 +71,7 @@ private / encrypted object の扱いは、core へ持ち込まず、application 
 
 - core は公開可能な知識オブジェクトの共通面に集中する
 - secret の扱いは profile / policy の責務に分ける
+- secret は profile / policy / deployment の責務に分ける
 - carrier 固有の公開範囲は protocol semantic にしない
 
 ## 3. 監視対象としないもの
@@ -155,3 +157,4 @@ Phase 0 の時点では、配置を新しく増やしません。
 - [技術決定 ADR](./TECH_DECISION_ADR.md)
 - [概念モデル](../concepts/CONCEPT_MODEL.md)
 - [Carrier](../concepts/CARRIER.md)
+- [Secret Management](./SECRET_MANAGEMENT.md)

@@ -14,7 +14,8 @@
 
 `relay` は runtime の入口として backend を受け取り、永続化の具体実装は `core` の runtime helper に寄せています。
 
-ローカル開発では、`LINGONBERRY_STATE_DIR` を `relay` と `storage` で合わせると、同じ保存先を見ながら別プロセスを立てられます。
+`relay` は `storage node` とは別 binary として起動します。
+ローカル開発では、`LINGONBERRY_STATE_DIR` を使って個別に起動し、必要なら運用メモに従って保存先を分けます。
 
 Phase 2 の最初の切り出しは、ここから始めます。
 
@@ -69,3 +70,12 @@ cargo run -p lingonberry-relay -- export-archive /tmp/lingonberry-archive
 ```bash
 cargo run -p lingonberry-relay -- import-archive /tmp/lingonberry-archive
 ```
+
+### 別プロセス運用の確認
+
+```bash
+cargo run -p lingonberry-storage -- capabilities
+cargo run -p lingonberry-storage -- run
+```
+
+詳細は [relay / storage separation](../../docs/operations/RELAY_STORAGE_SEPARATION.md) を参照してください。

@@ -3,7 +3,9 @@ use lingonberry_protocol::{
     finalize_knowledge_object, read_json_file, to_canonical_json, validate_knowledge_object,
     validate_publish_request, JsonValue,
 };
-use lingonberry_storage::build_storage_backend;
+use lingonberry_storage::{
+    build_storage_backend_at, runtime_storage_config, runtime_storage_layout, StorageRuntimeConfig,
+};
 use std::collections::BTreeMap;
 use std::env;
 use std::process;
@@ -17,10 +19,11 @@ fn main() {
 
 fn run(args: Vec<String>) -> Result<(), String> {
     let Some(command) = args.first().map(String::as_str) else {
-        return Err("usage: lingonberry-storage <capabilities|run|append|retrieve|replay|list> <json-file|canonical-id>".to_string());
+        return Err("usage: lingonberry-storage <capabilities|config|run|append|retrieve|replay|list> <json-file|canonical-id>".to_string());
     };
 
-    let backend = build_storage_backend();
+    let config = runtime_storage_config()?;
+    let backend = build_storage_backend_at(&config.data_dir);
 
     match command {
         "capabilities" => {
@@ -34,20 +37,18 @@ fn run(args: Vec<String>) -> Result<(), String> {
                         JsonValue::String("retrieve".to_string()),
                         JsonValue::String("replay".to_string()),
                         JsonValue::String("list".to_string()),
+                        JsonValue::String("config".to_string()),
                     ]),
                 ),
             ])));
             Ok(())
         }
+        "config" => {
+            print_config(&config);
+            Ok(())
+        }
         "run" => {
-            println!("{}", to_canonical_json(&json_object(vec![
-                ("status", JsonValue::String("ok".to_string())),
-                ("service", JsonValue::String("storage".to_string())),
-                (
-                    "stateDir",
-                    JsonValue::String(backend.paths().state_dir.to_string_lossy().to_string()),
-                ),
-            ])));
+            print_runtime_status(&config);
             Ok(())
         }
         "append" => {
@@ -155,4 +156,39 @@ fn json_object(entries: Vec<(&str, JsonValue)>) -> JsonValue {
         map.insert(key.to_string(), value);
     }
     JsonValue::Object(map)
+}
+
+fn print_config(config: &StorageRuntimeConfig) {
+    let layout = runtime_storage_layout(config);
+    println!("{}", to_canonical_json(&json_object(vec![
+        ("configPath", path_value(config.config_path.as_ref())),
+        ("stateDir", JsonValue::String(config.state_dir.to_string_lossy().to_string())),
+        ("dataDir", JsonValue::String(config.data_dir.to_string_lossy().to_string())),
+        ("backupDir", JsonValue::String(config.backup_dir.to_string_lossy().to_string())),
+        ("tempDir", JsonValue::String(config.temp_dir.to_string_lossy().to_string())),
+        ("rawLogPath", JsonValue::String(layout.raw_log_path.to_string_lossy().to_string())),
+        ("catalogPath", JsonValue::String(layout.catalog_path.to_string_lossy().to_string())),
+    ])));
+}
+
+fn print_runtime_status(config: &StorageRuntimeConfig) {
+    let layout = runtime_storage_layout(config);
+    println!("{}", to_canonical_json(&json_object(vec![
+        ("status", JsonValue::String("ok".to_string())),
+        ("service", JsonValue::String("storage".to_string())),
+        ("configPath", path_value(config.config_path.as_ref())),
+        ("stateDir", JsonValue::String(config.state_dir.to_string_lossy().to_string())),
+        ("dataDir", JsonValue::String(config.data_dir.to_string_lossy().to_string())),
+        ("backupDir", JsonValue::String(config.backup_dir.to_string_lossy().to_string())),
+        ("tempDir", JsonValue::String(config.temp_dir.to_string_lossy().to_string())),
+        ("rawLogPath", JsonValue::String(layout.raw_log_path.to_string_lossy().to_string())),
+        ("catalogPath", JsonValue::String(layout.catalog_path.to_string_lossy().to_string())),
+    ])));
+}
+
+fn path_value(path: Option<&std::path::PathBuf>) -> JsonValue {
+    match path {
+        Some(path) => JsonValue::String(path.to_string_lossy().to_string()),
+        None => JsonValue::Null,
+    }
 }

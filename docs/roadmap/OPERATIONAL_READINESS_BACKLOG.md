@@ -5,7 +5,7 @@
 この文書は、[運用準備ロードマップ](./OPERATIONAL_READINESS_ROADMAP.md) のうち、フェーズ 1 から 3 を issue 単位に分解したものです。  
 フェーズ 0 は [運用前提メモ](../operations/OPERATIONAL_PREMISES_MEMO.md) に集約し、この backlog では issue 化しません。  
 実作業では、依存の薄い issue から並行に進めても構いません。  
-ただし、最初の優先順位は **フェーズ 1 と 2** です。
+Phase 2 は完了済みのため、現在の優先順位は **フェーズ 3** です。
 
 ## Phase 0 完了確認
 
@@ -120,6 +120,7 @@ Phase 1 は、既存の `relay` 実装に残っていた保存責務を棚卸し
   - 設定ファイルの形式が決まっている
   - 環境変数に寄せる項目が決まっている
   - データディレクトリとバックアップ先の役割が分かれている
+  - [storage node runtime](../operations/STORAGE_NODE_RUNTIME.md) に正本がある
 
 ### Issue 2.3: storage node の永続化レイアウトを固定する
 
@@ -127,8 +128,10 @@ Phase 1 は、既存の `relay` 実装に残っていた保存責務を棚卸し
 - 依存: 2.1, 2.2
 - 完了条件:
   - data / backup / temp のような領域分離が説明できる
+  - raw log と canonical catalog の実パスが説明できる
   - raw log と canonical store の扱いが分かる
   - 退役時に残すものが説明できる
+  - [storage node runtime](../operations/STORAGE_NODE_RUNTIME.md) に保存レイアウトの正本がある
 
 ### Issue 2.4: storage node の health / status 出力を用意する（完了済み）
 
@@ -139,7 +142,7 @@ Phase 1 は、既存の `relay` 実装に残っていた保存責務を棚卸し
   - status の出力項目がある
   - 障害時に見ればよい最小情報がある
 
-### Issue 2.5: relay と storage を別プロセスで運用できることを確認する
+### Issue 2.5: relay と storage を別プロセスで運用できることを確認する（完了済み）
 
 - 目的: 同梱起動前提をなくす
 - 依存: 2.2, 2.4
@@ -147,6 +150,7 @@ Phase 1 は、既存の `relay` 実装に残っていた保存責務を棚卸し
   - relay と storage node を別プロセスで起動できる
   - 片方を差し替えてももう片方の運用が壊れない
   - 同梱起動を前提としない運用メモがある
+  - [relay / storage separation](../operations/RELAY_STORAGE_SEPARATION.md) に正本がある
 
 ## Epic 3: 起動・停止・再起動の運用整備
 

@@ -124,7 +124,7 @@
 - 相互依存を最小化できる
 - どちらかを差し替えても、他方の責務が崩れない
 
-## フェーズ 2: `storage node` の独立バイナリ化
+## フェーズ 2: `storage node` の独立バイナリ化（完了済み）
 
 ### 目的
 
@@ -160,6 +160,13 @@
 - relay と別プロセスで運用できる
 - 置き換え手順がある
 - storage node の運用に relay の同梱起動を前提としない
+
+### 完了メモ
+
+- `storage node` の設定と保存レイアウトは [storage node runtime](../operations/STORAGE_NODE_RUNTIME.md) に集約した
+- `relay` と `storage node` の別プロセス運用は [relay / storage separation](../operations/RELAY_STORAGE_SEPARATION.md) に集約した
+- `lingonberry-storage` は `capabilities` / `config` / `run` を出せる
+- `relay` と `storage node` は、それぞれ独立に起動確認できる
 
 ## フェーズ 3: 起動・停止・再起動の運用整備
 

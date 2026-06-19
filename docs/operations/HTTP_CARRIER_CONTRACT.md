@@ -133,6 +133,7 @@ HTTP carrier の response は、次の 3 種類に寄せます。
 ```json
 {
   "status": "ok",
+  "requestId": "req_01HZX...",
   "data": {}
 }
 ```
@@ -142,8 +143,10 @@ HTTP carrier の response は、次の 3 種類に寄せます。
 ```json
 {
   "status": "error",
+  "requestId": "req_01HZX...",
   "error": {
     "type": "validation_error",
+    "code": "HTTP_VALIDATION_FAILED",
     "message": "..."
   }
 }
@@ -154,12 +157,38 @@ HTTP carrier の response は、次の 3 種類に寄せます。
 ```json
 {
   "status": "error",
+  "requestId": "req_01HZX...",
   "error": {
     "type": "not_found",
+    "code": "HTTP_NOT_FOUND",
     "message": "..."
   }
 }
 ```
+
+### Rate limited
+
+```json
+{
+  "status": "error",
+  "requestId": "req_01HZX...",
+  "error": {
+    "type": "rate_limited",
+    "code": "HTTP_RATE_LIMITED",
+    "message": "..."
+  }
+}
+```
+
+### HTTP status
+
+- success は 200 系で返す
+- validation error は 400 系で返す
+- not found は 404 で返す
+- unavailable は 503 で返す
+- rate limited は 429 で返す
+- body の `status` は protocol object の response classification として扱い、HTTP status は carrier の transport result として扱う
+- `requestId` は response body と observability の両方で同じ値を使う
 
 ## 5. 実装境界
 
@@ -176,7 +205,6 @@ HTTP carrier の response は、次の 3 種類に寄せます。
 1. publish 成功時の返却形式の細部
 2. error model の拡張
 3. authentication / authorization を初期版に含めるか
-4. response code と `status` の主従
 5. access / retention hint の wire 表現
 
 ## 関連

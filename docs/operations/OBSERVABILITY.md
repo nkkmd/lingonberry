@@ -61,6 +61,7 @@ Phase 5 では、障害検知と原因追跡に必要な最小セットを先に
 - replay_completed
 - retrieve_completed
 - validation_failed
+- rate_limited
 - runtime_error
 - shutdown_requested
 - shutdown_completed
@@ -74,6 +75,7 @@ Phase 5 では、障害検知と原因追跡に必要な最小セットを先に
 - `readiness_checked`
 - `publish_received`
 - `validation_failed`
+- `rate_limited`
 - `shutdown_requested`
 - `shutdown_completed`
 
@@ -175,6 +177,19 @@ Phase 5 では、障害検知と原因追跡に必要な最小セットを先に
 - `errorType`
 - `errorCode`
 
+#### `rate_limited`
+
+- `service`
+- `component`
+- `event`
+- `status`
+- `message`
+- `requestId`
+- `carrier`
+- `errorType`
+- `errorCode`
+- `durationMs`
+
 #### `runtime_error`
 
 - `service`
@@ -255,6 +270,7 @@ Phase 5 では、障害検知と原因追跡に必要な最小セットを先に
 - `readiness_checked` で listener の状態が分かる
 - `publish_received` で carrier と対象 object の追跡ができる
 - `validation_failed` で request 側の問題か runtime 側の問題かを区別できる
+- `rate_limited` で過負荷や abuse による拒否を追える
 - `shutdown_requested` と `shutdown_completed` で停止経路が追える
 
 #### `storage node`
@@ -307,6 +323,7 @@ Phase 5 では、障害検知と原因追跡に必要な最小セットを先に
 - `lingonberry_readiness_failure_total` `counter`
 - `lingonberry_publish_total` `counter`
 - `lingonberry_publish_failure_total` `counter`
+- `lingonberry_rate_limited_total` `counter`
 - `lingonberry_append_total` `counter`
 - `lingonberry_append_failure_total` `counter`
 - `lingonberry_replay_total` `counter`
@@ -327,6 +344,7 @@ Phase 5 では、障害検知と原因追跡に必要な最小セットを先に
 - `lingonberry_readiness_checked_total`
 - `lingonberry_publish_total`
 - `lingonberry_publish_failure_total`
+- `lingonberry_rate_limited_total`
 - `lingonberry_validation_failure_total`
 - `lingonberry_runtime_error_total`
 - `lingonberry_operation_duration_ms`
@@ -368,6 +386,7 @@ Phase 5 では、障害検知と原因追跡に必要な最小セットを先に
 - 起動失敗が連続する
 - readiness が継続して失敗する
 - publish 失敗率が高い
+- rate limit の拒否が急増する
 - replay 失敗が続く
 - storage 由来の runtime error が継続する
 
@@ -376,6 +395,7 @@ Phase 5 では、障害検知と原因追跡に必要な最小セットを先に
 - 起動失敗: 直近 3 回連続で失敗
 - readiness 失敗: 5 分以上継続
 - publish 失敗率: 15 分窓で 5% 超
+- rate limit 拒否: 15 分窓で通常時の 2 倍超、または継続増加
 - replay 失敗: 連続失敗が 2 回以上
 - runtime error: 10 分窓で継続増加
 
@@ -398,6 +418,7 @@ Phase 5 では、障害検知と原因追跡に必要な最小セットを先に
 
 - `startup` と `readiness_checked` の問題は起動や設定解決を疑う
 - `publish` と `validation_failed` の問題は request 側か carrier 側を疑う
+- `rate_limited` の問題は公開面の閾値、対象 carrier、アクセス集中を疑う
 - `append_completed`、`replay_completed`、`retrieve_completed` の問題は保存層を疑う
 - `runtime_error` の問題は保存層か周辺処理を疑う
 - `shutdown` 関連は停止経路や運用手順の問題として扱う
@@ -421,6 +442,7 @@ Phase 5 では、障害検知と原因追跡に必要な最小セットを先に
 - `readiness_checked`
 - `publish_received`
 - `validation_failed`
+- `rate_limited`
 - `shutdown_requested`
 - `shutdown_completed`
 - `runtime_error`

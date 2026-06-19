@@ -343,7 +343,7 @@
 - `File / Archive Carrier Contract` で archive と backup の関係を固定した
 - Phase 6 の再投入確認と runbook 反映を backlog の完了条件に接続した
 
-## フェーズ 7: HTTP carrier の公開運用
+## フェーズ 7: HTTP carrier の公開運用（完了済み）
 
 ### 目的
 
@@ -355,6 +355,22 @@ HTTP carrier を公開運用できる形に整えます。
 - 認証 / 認可
 - rate limit
 - 公開時の contract
+
+### 関連文書
+
+- [HTTP Carrier Contract](../operations/HTTP_CARRIER_CONTRACT.md)
+- [Carrier Capability Negotiation](../operations/CARRIER_CAPABILITY_NEGOTIATION.md)
+- [Access and Retention Policy](../operations/ACCESS_RETENTION_POLICY.md)
+- [Observability](../operations/OBSERVABILITY.md)
+- [Carrier Decision Memo](../operations/CARRIER_DECISION_MEMO.md)
+
+### 最初の着手順
+
+1. HTTP carrier の公開 endpoint を `publish` / `retrieve` / `capabilities` / `ready` の 4 面で確認する
+2. `authn/authz` を protocol semantic から切り離し、policy と capability のどちらで表すかを固定する
+3. rate limit と abuse control を公開運用の policy として切り出す
+4. response model と observability の event / error code を runbook に接続する
+5. 必要なら Node Lifecycle Runbook に公開運用の確認順を追記する
 
 ### 完了条件
 

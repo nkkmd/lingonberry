@@ -3,8 +3,20 @@
 **Status: active** | **Last updated: 2026-06-19**
 
 この文書は、[運用準備ロードマップ](./OPERATIONAL_READINESS_ROADMAP.md) のうち、フェーズ 1 から 3 を issue 単位に分解したものです。  
+フェーズ 0 は [運用前提メモ](../operations/OPERATIONAL_PREMISES_MEMO.md) に集約し、この backlog では issue 化しません。  
 実作業では、依存の薄い issue から並行に進めても構いません。  
 ただし、最初の優先順位は **フェーズ 1 と 2** です。
+
+## Phase 0 完了確認
+
+Phase 0 は完了済みですが、Phase 1 へ進む前に次の確認を通しておきます。
+
+- [ ] 責務境界が一致しているか
+- [ ] storage node の責務が固定されているか
+- [ ] public / private の扱いが core から外れているか
+- [ ] 監視対象外が明文化されているか
+- [ ] core に入れないものが説明できるか
+- [ ] Phase 1 に流用できるか
 
 ## 推奨実装順
 

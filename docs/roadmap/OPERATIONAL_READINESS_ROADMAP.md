@@ -42,7 +42,7 @@
 
 バージョン 0.1.0 として OSS 公開・配布し、だれでも `relay` と `storage node` を独立に立てて運用できる状態にする。
 
-## フェーズ 0: 運用前提の固定
+## フェーズ 0: 運用前提の固定（完了済み）
 
 ### 目的
 
@@ -54,6 +54,30 @@
 - public / private の扱い
 - 監視対象としないもの
 - どこまでを core、どこからを profile とするか
+
+### 決定済み前提
+
+- [運用前提メモ](../operations/OPERATIONAL_PREMISES_MEMO.md) に Phase 0 の決定を集約する
+- `relay` と `storage node` の責務境界を、core 文書と operations 文書の両方で同じ言葉にそろえる
+- public / private の扱いを core から外し、profile / policy 側に寄せる
+- 監視対象としないものを明記して、後続フェーズの観測範囲を絞る
+- Phase 1 以降の前提として再利用できる形に固定する
+
+### レビュー観点
+
+- [ ] 責務境界が明確か
+- [ ] public / private の扱いが core から外れているか
+- [ ] 監視対象外が明示されているか
+- [ ] core と profile の境界が説明できるか
+- [ ] Phase 1 で再利用できるか
+
+### 関連文書
+
+- [運用前提メモ](../operations/OPERATIONAL_PREMISES_MEMO.md)
+- [技術決定 ADR](../operations/TECH_DECISION_ADR.md)
+- [Carrier Decision Memo](../operations/CARRIER_DECISION_MEMO.md)
+- [概念モデル](../concepts/CONCEPT_MODEL.md)
+- [Carrier](../concepts/CARRIER.md)
 
 ### 完了条件
 

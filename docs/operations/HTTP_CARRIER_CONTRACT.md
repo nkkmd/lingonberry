@@ -115,6 +115,50 @@ request body は `http-publish-request` envelope とします。
 - supported access scopes
 - supported retention hints
 
+### 返却例
+
+`supported schema versions` は、[Carrier Capability Negotiation](./CARRIER_CAPABILITY_NEGOTIATION.md) の語彙に合わせて、schema ごとに分けて返します。
+
+capabilities の response body は、少なくとも次の 3 層で読むと分かりやすくなります。
+
+- `status`: transport ではなく応答分類
+- `capabilities`: contract の本体
+- `capabilities.supportedSchemaVersions`: schema ごとの互換境界
+
+```json
+{
+  "status": "ok",
+  "capabilities": {
+    "carrierKind": "http",
+    "protocolVersion": "0.1.0",
+    "supportedObjectTypes": ["inquiry", "observation", "evidence"],
+    "supportedAuthModes": ["public-key-signature"],
+    "supportedContentTypes": ["application/json"],
+    "validationConstraints": ["required-fields", "identity-consistency"],
+    "finalizeConstraints": ["canonical-id-resolution", "rawref-preservation"],
+    "supportedSchemaVersions": [
+      {
+        "schema": "knowledge-object",
+        "versions": ["0.1.0"],
+        "preferred": "0.1.0",
+        "breaking": false
+      },
+      {
+        "schema": "http-publish-request",
+        "versions": ["0.1.0"],
+        "preferred": "0.1.0",
+        "breaking": false
+      }
+    ],
+    "supportedAccessScopes": ["public"],
+    "supportedRetentionHints": ["long-lived", "long-term", "ephemeral"]
+  }
+}
+```
+
+返却例は最小形です。実装では必要に応じて `carrierKind`、`validationConstraints`、`finalizeConstraints`、`supportedAuthModes`、`supportedContentTypes`、`supportedAccessScopes`、`supportedRetentionHints` を同じ構造に載せます。  
+`supportedSchemaVersions` が出せない場合は、schema 互換境界が説明できていないとして扱います。
+
 ### Readiness
 
 - `GET /v1/ready`

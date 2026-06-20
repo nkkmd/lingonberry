@@ -772,6 +772,25 @@ mod tests {
         let map = as_object(&manifest).expect("manifest must be an object");
         assert_eq!(map.get("carrierKind").and_then(as_string), Some("relay"));
         assert_eq!(map.get("protocolVersion").and_then(as_string), Some(PROTOCOL_VERSION));
+        let schema_versions = match map.get("supportedSchemaVersions") {
+            Some(JsonValue::Array(values)) => values,
+            other => panic!("unexpected supportedSchemaVersions: {:?}", other),
+        };
+        assert_eq!(schema_versions.len(), 2);
+        let validation_constraints = match map.get("validationConstraints") {
+            Some(JsonValue::Array(values)) => values,
+            other => panic!("unexpected validationConstraints: {:?}", other),
+        };
+        assert!(validation_constraints
+            .iter()
+            .any(|value| as_string(value) == Some("schema-version-match")));
+        let finalize_constraints = match map.get("finalizeConstraints") {
+            Some(JsonValue::Array(values)) => values,
+            other => panic!("unexpected finalizeConstraints: {:?}", other),
+        };
+        assert!(finalize_constraints
+            .iter()
+            .any(|value| as_string(value) == Some("rawref-preservation")));
         let defaults = as_object(map.get("defaults").expect("manifest defaults")).expect("defaults object");
         assert_eq!(defaults.get("accessScope").and_then(as_string), Some(DEFAULT_ACCESS_SCOPE));
         assert_eq!(defaults.get("retentionHint").and_then(as_string), Some(DEFAULT_RETENTION_HINT));

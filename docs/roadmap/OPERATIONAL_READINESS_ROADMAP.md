@@ -433,7 +433,7 @@ HTTP carrier を公開運用できる形に整えます。
 - backup / restore / retirement と archive export / import の責務分担を runbook で分けた
 - `cargo run -p lingonberry-relay -- publish`、`export-archive`、`import-archive` の一連の CLI round-trip を一時 state で確認した
 
-## フェーズ 9: migration / schema versioning の運用化
+## フェーズ 9: migration / schema versioning の運用化（完了済み）
 
 ### 目的
 
@@ -446,9 +446,34 @@ schema 変更を運用しながら進められるようにします。
 - migration の責務
 - rollback の可否
 
+### 関連文書
+
+- [Migration and Schema Versioning](../operations/MIGRATION_AND_SCHEMA_VERSIONING.md)
+- [schemas README](../../schemas/README.md)
+- [Protocol-Native Wire Format](../protocols/PROTOCOL_NATIVE_WIRE_FORMAT.md)
+- [Identity and Provenance](../protocols/IDENTITY_AND_PROVENANCE.md)
+- [Knowledge Object schema](../../schemas/knowledge-object.schema.json)
+- [HTTP Publish Request schema](../../schemas/http-publish-request.schema.json)
+
+### 最初の着手順
+
+1. schema version と protocol version の責務を切り分ける
+2. backward compatibility の受け入れ範囲を明文化する
+3. migration の適用点を wire / storage / archive で分ける
+4. rollback 可否と非互換切替の条件を決める
+5. runbook と fixture に確認手順を反映する
+
 ### 完了条件
 
 - schema 変更時の手順がある
+
+### 完了メモ
+
+- `schemaVersion` の baseline と照合項目を [Migration and Schema Versioning](../operations/MIGRATION_AND_SCHEMA_VERSIONING.md) に集約した
+- `GET /v1/capabilities` の返却例と `supported schema versions` の語彙を [Carrier Capability Negotiation](../operations/CARRIER_CAPABILITY_NEGOTIATION.md) と [HTTP Carrier Contract](../operations/HTTP_CARRIER_CONTRACT.md) でそろえた
+- `validationConstraints` と `finalizeConstraints` を capability 側で明示した
+- `schema version` mismatch の不正例を fixtures に追加し、validate で落とす前提を runbook に反映した
+- `deprecated schema` の終了条件を migration / runbook 両方に反映した
 
 ## フェーズ 10: access / retention policy の運用化
 

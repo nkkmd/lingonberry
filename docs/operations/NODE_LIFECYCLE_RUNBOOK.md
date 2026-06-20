@@ -331,6 +331,27 @@ archive 実行時の確認は次の順で行います。
 4. retention policy と operator policy の記録を残す
 5. 必要なら archive から replay できることを確認してから、退役を完了する
 
+### 10.5 schema version 変更時
+
+schema 変更を入れたときは、[Migration and Schema Versioning](./MIGRATION_AND_SCHEMA_VERSIONING.md) を正本として次の順で確認します。
+
+1. `schemaVersion` の変更点が backward-compatible か breaking かを確認する
+2. `knowledge-object.schema.json` と `http-publish-request.schema.json` の両方に影響がないか確認する
+3. `fixtures/knowledge-object/minimal-wire-object.json` と `fixtures/http-publish-request/minimal-request.json` が現行 baseline と一致するか確認する
+4. `fixtures/knowledge-object/invalid-schema-version.json` と `fixtures/http-publish-request/invalid-schema-version.json` で version mismatch を reject できるか確認する
+5. 変更がある場合は、`config`、`run`、`replay`、`list` の確認順に加えて、publish / retrieve の round-trip を確認する
+6. `GET /v1/capabilities` の `supported schema versions`、`validationConstraints`、`finalizeConstraints` が schema 変更後の運用と一致するか確認する
+
+schema 変更時に見るものは次の通りです。
+
+| 段階 | 確認 |
+| --- | --- |
+| 実行前 | `schemaVersion`、`$id`、fixture の baseline、互換境界 |
+| 実行中 | validate 結果、normalize 結果、identity / provenance の保持 |
+| 実行後 | publish / retrieve の round-trip、`capabilities` との整合、deprecated schema の終了条件 |
+
+deprecated schema を実際に外すかどうかは、[Migration and Schema Versioning](./MIGRATION_AND_SCHEMA_VERSIONING.md) の終了条件と capability の両方で確認します。
+
 ## 参照
 
 - [運用準備ロードマップ](../roadmap/OPERATIONAL_READINESS_ROADMAP.md)

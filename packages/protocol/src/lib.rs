@@ -262,15 +262,32 @@ pub fn supported_knowledge_types() -> &'static [&'static str] {
 }
 
 pub fn build_capability_manifest(carrier_kind: &str, default_access: &str, default_retention: &str) -> JsonValue {
-    let mut supported_schema_versions = BTreeMap::new();
-    supported_schema_versions.insert(
-        "knowledgeObject".to_string(),
-        JsonValue::String(KNOWLEDGE_OBJECT_SCHEMA_VERSION.to_string()),
-    );
-    supported_schema_versions.insert(
-        "httpPublishRequest".to_string(),
-        JsonValue::String(HTTP_PUBLISH_REQUEST_SCHEMA_VERSION.to_string()),
-    );
+    let supported_schema_versions = JsonValue::Array(vec![
+        JsonValue::Object(BTreeMap::from([
+            ("schema".to_string(), JsonValue::String("knowledge-object".to_string())),
+            (
+                "versions".to_string(),
+                JsonValue::Array(vec![JsonValue::String(KNOWLEDGE_OBJECT_SCHEMA_VERSION.to_string())]),
+            ),
+            (
+                "preferred".to_string(),
+                JsonValue::String(KNOWLEDGE_OBJECT_SCHEMA_VERSION.to_string()),
+            ),
+            ("breaking".to_string(), JsonValue::Bool(false)),
+        ])),
+        JsonValue::Object(BTreeMap::from([
+            ("schema".to_string(), JsonValue::String("http-publish-request".to_string())),
+            (
+                "versions".to_string(),
+                JsonValue::Array(vec![JsonValue::String(HTTP_PUBLISH_REQUEST_SCHEMA_VERSION.to_string())]),
+            ),
+            (
+                "preferred".to_string(),
+                JsonValue::String(HTTP_PUBLISH_REQUEST_SCHEMA_VERSION.to_string()),
+            ),
+            ("breaking".to_string(), JsonValue::Bool(false)),
+        ])),
+    ]);
 
     let supported_object_types = JsonValue::Array(
         supported_knowledge_types()
@@ -291,7 +308,7 @@ pub fn build_capability_manifest(carrier_kind: &str, default_access: &str, defau
                 JsonValue::String(CARRIER_KIND_RELAY.to_string()),
             ]),
         ),
-        ("supportedSchemaVersions".to_string(), JsonValue::Object(supported_schema_versions)),
+        ("supportedSchemaVersions".to_string(), supported_schema_versions),
         ("supportedObjectTypes".to_string(), supported_object_types),
         (
             "supportedContentTypes".to_string(),
@@ -299,7 +316,26 @@ pub fn build_capability_manifest(carrier_kind: &str, default_access: &str, defau
         ),
         (
             "supportedAuthModes".to_string(),
-            JsonValue::Array(vec![JsonValue::String("signature".to_string()), JsonValue::String("none".to_string())]),
+            JsonValue::Array(vec![
+                JsonValue::String("public-key-signature".to_string()),
+                JsonValue::String("relay-trusted-signature".to_string()),
+            ]),
+        ),
+        (
+            "validationConstraints".to_string(),
+            JsonValue::Array(vec![
+                JsonValue::String("required-fields".to_string()),
+                JsonValue::String("schema-version-match".to_string()),
+                JsonValue::String("identity-consistency".to_string()),
+            ]),
+        ),
+        (
+            "finalizeConstraints".to_string(),
+            JsonValue::Array(vec![
+                JsonValue::String("canonical-id-resolution".to_string()),
+                JsonValue::String("rawref-preservation".to_string()),
+                JsonValue::String("provenance-preservation".to_string()),
+            ]),
         ),
         (
             "supportedAccessScopes".to_string(),
@@ -313,8 +349,8 @@ pub fn build_capability_manifest(carrier_kind: &str, default_access: &str, defau
             "supportedRetentionHints".to_string(),
             JsonValue::Array(vec![
                 JsonValue::String(default_retention.to_string()),
-                JsonValue::String("curated-short-lived".to_string()),
-                JsonValue::String("archive-long-lived".to_string()),
+                JsonValue::String("long-term".to_string()),
+                JsonValue::String("ephemeral".to_string()),
             ]),
         ),
         (
@@ -1307,11 +1343,27 @@ mod tests {
     }
 
     #[test]
+    fn rejects_schema_version_mismatch_fixture() {
+        let raw = include_str!("../../../fixtures/knowledge-object/invalid-schema-version.json");
+        let value = parse_json(raw).expect("fixture must parse");
+        let errors = validate_knowledge_object(&value);
+        assert!(errors.iter().any(|error| error.contains("schemaVersion must be 0.1.0")));
+    }
+
+    #[test]
     fn validates_minimal_publish_request_fixture() {
         let raw = include_str!("../../../fixtures/http-publish-request/minimal-request.json");
         let value = parse_json(raw).expect("fixture must parse");
         assert_eq!(detect_shape(&value), "publish-request");
         assert!(validate_publish_request(&value).is_empty());
+    }
+
+    #[test]
+    fn rejects_publish_request_schema_version_mismatch_fixture() {
+        let raw = include_str!("../../../fixtures/http-publish-request/invalid-schema-version.json");
+        let value = parse_json(raw).expect("fixture must parse");
+        let errors = validate_publish_request(&value);
+        assert!(errors.iter().any(|error| error.contains("object.schemaVersion must be 0.1.0")));
     }
 
     #[test]
@@ -1328,5 +1380,42 @@ mod tests {
         let value = parse_json(raw).expect("fixture must parse");
         let errors = validate_knowledge_object(&value);
         assert!(errors.iter().any(|error| error.contains("enclosing object id")));
+    }
+
+    #[test]
+    fn capability_manifest_exposes_schema_and_validation_constraints() {
+        let manifest = build_capability_manifest("http", "public", "long-term");
+        let map = as_object(&manifest).expect("manifest must be an object");
+        assert_eq!(map.get("carrierKind").and_then(as_string), Some("http"));
+        assert_eq!(map.get("protocolVersion").and_then(as_string), Some(PROTOCOL_VERSION));
+
+        let schema_versions = match map.get("supportedSchemaVersions") {
+            Some(JsonValue::Array(values)) => values,
+            other => panic!("unexpected supportedSchemaVersions: {:?}", other),
+        };
+        assert_eq!(schema_versions.len(), 2);
+
+        let first = as_object(&schema_versions[0]).expect("first schema version entry");
+        assert_eq!(first.get("schema").and_then(as_string), Some("knowledge-object"));
+        assert_eq!(first.get("preferred").and_then(as_string), Some(KNOWLEDGE_OBJECT_SCHEMA_VERSION));
+        assert_eq!(first.get("breaking"), Some(&JsonValue::Bool(false)));
+
+        let auth_modes = match map.get("supportedAuthModes") {
+            Some(JsonValue::Array(values)) => values,
+            other => panic!("unexpected supportedAuthModes: {:?}", other),
+        };
+        assert!(auth_modes.iter().any(|value| as_string(value) == Some("public-key-signature")));
+
+        let validation_constraints = match map.get("validationConstraints") {
+            Some(JsonValue::Array(values)) => values,
+            other => panic!("unexpected validationConstraints: {:?}", other),
+        };
+        assert!(validation_constraints.iter().any(|value| as_string(value) == Some("schema-version-match")));
+
+        let finalize_constraints = match map.get("finalizeConstraints") {
+            Some(JsonValue::Array(values)) => values,
+            other => panic!("unexpected finalizeConstraints: {:?}", other),
+        };
+        assert!(finalize_constraints.iter().any(|value| as_string(value) == Some("rawref-preservation")));
     }
 }

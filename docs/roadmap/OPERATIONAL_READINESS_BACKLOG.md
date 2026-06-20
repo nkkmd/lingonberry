@@ -2,7 +2,7 @@
 
 **Status: active** | **Last updated: 2026-06-20**
 
-この文書は、[運用準備ロードマップ](./OPERATIONAL_READINESS_ROADMAP.md) のうち、フェーズ 1 から 8 を issue 単位に分解したものです。  
+この文書は、[運用準備ロードマップ](./OPERATIONAL_READINESS_ROADMAP.md) のうち、フェーズ 1 から 9 を issue 単位に分解したものです。  
 フェーズ 0 は [運用前提メモ](../operations/OPERATIONAL_PREMISES_MEMO.md) に集約し、この backlog では issue 化しません。  
 実作業では、依存の薄い issue から並行に進めても構いません。  
 Phase 2 と Phase 3 は完了済みです。  
@@ -10,7 +10,8 @@ Phase 4 も完了済みで、設定・環境変数・シークレット管理の
 Phase 5 も完了済みで、観測の正本は [Observability](../operations/OBSERVABILITY.md) にあります。
 Phase 6 も完了済みで、backup / restore / retirement の正本は [Node Lifecycle Runbook](../operations/NODE_LIFECYCLE_RUNBOOK.md) にあります。  
 Phase 7 は完了済みで、HTTP carrier の公開運用に関する前提を固めました。  
-Phase 8 は archive export / import の運用化として、新しい issue 群を切る対象です。
+Phase 8 は archive export / import の運用化として完了済みです。  
+Phase 9 も migration / schema versioning の運用化として完了済みです。
 
 
 ## Phase 0 完了確認
@@ -50,9 +51,15 @@ Phase 1 は、既存の `relay` 実装に残っていた保存責務を棚卸し
 11. Issue 3.2: graceful shutdown を定義する
 12. Issue 3.3: 再起動後の整合性確認を定義する
 13. Issue 3.5: readiness / liveness と失敗時の戻り方を揃える
+14. Issue 9.1: schema version bump の規則を固定する
+15. Issue 9.2: backward compatibility と deprecated schema の扱いを決める
+16. Issue 9.3: migration の適用点を wire / storage / archive で分ける
+17. Issue 9.4: rollback 可否と切り戻し手順を決める
+18. Issue 9.5: runbook と fixtures へ反映する
 
 Issue 3.4 は完了済みで、container を primary、systemd を併設とする方針が確定しています。
 Issue 6 系は backup / restore / retirement の運用化が完了済みです。
+Phase 9 は migration / schema versioning の運用化として、新しい issue 群を切る対象です。
 
 ## ラベル案
 
@@ -547,6 +554,67 @@ HTTP carrier contract、capability negotiation、access / retention policy、obs
 - full export を既定とし、差分移送は必要な場合にのみ運用層で採用する方針を固定した
 - backup / restore / retirement と archive export / import の責務分担を runbook で分けた
 - `cargo run -p lingonberry-relay -- publish`、`export-archive`、`import-archive` の CLI round-trip を一時 state で確認した
+
+## Epic 9: migration / schema versioning の運用化（完了済み）
+
+### Issue 9.1: schema version bump の規則を固定する（完了済み）
+
+- 目的: schema の変更単位と version の上げ方を明確にする
+- 依存: なし
+- 完了条件:
+  - `schema version` と `protocol version` の違いが説明できる
+  - version bump の単位が説明できる
+  - `knowledge-object` と `http-publish-request` の version contract が説明できる
+  - [Migration and Schema Versioning](../operations/MIGRATION_AND_SCHEMA_VERSIONING.md) に正本がある
+
+### Issue 9.2: backward compatibility と deprecated schema の扱いを決める（完了済み）
+
+- 目的: 古い schema をどこまで受けるかを決める
+- 依存: 9.1
+- 完了条件:
+  - backward compatibility の範囲が説明できる
+  - deprecated schema の受け入れ終了条件がある
+  - `fail closed` にする条件が説明できる
+  - capability と整合している
+
+### Issue 9.3: migration の適用点を wire / storage / archive で分ける（完了済み）
+
+- 目的: 変換責務を運用上の層ごとに分離する
+- 依存: 9.1, 9.2
+- 完了条件:
+  - wire object の migration 方針がある
+  - storage migration の対象が説明できる
+  - archive migration の対象が説明できる
+  - canonicalization と replay を壊さない方針がある
+
+### Issue 9.4: rollback 可否と切り戻し手順を決める（完了済み）
+
+- 目的: 失敗時に戻せるかを明確にする
+- 依存: 9.2, 9.3
+- 完了条件:
+  - rollback 可能 / 不可 の条件が説明できる
+  - 切り戻し手順がある
+  - 失敗時の切り分け順がある
+  - rawRef と provenance を失わない方針がある
+
+### Issue 9.5: runbook と fixtures へ反映する（完了済み）
+
+- 目的: schema 変更時の確認順を運用文書に落とす
+- 依存: 9.1, 9.2, 9.3, 9.4
+- 完了条件:
+  - runbook に schema 変更時の確認順がある
+  - fixtures に正例と不正例がある
+  - 変更時の確認箇所が README / operations から辿れる
+  - [Node Lifecycle Runbook](../operations/NODE_LIFECYCLE_RUNBOOK.md) から関連箇所へ辿れる
+
+### Phase 9 完了メモ
+
+- schema version の baseline と照合項目を [Migration and Schema Versioning](../operations/MIGRATION_AND_SCHEMA_VERSIONING.md) に集約した
+- `supported schema versions`、`validationConstraints`、`finalizeConstraints` を capability 側で明示した
+- `HTTP Carrier Contract` に capabilities の返却例を載せた
+- `schemaVersion` mismatch の不正例を fixtures に追加した
+- schema 変更時の確認順を [Node Lifecycle Runbook](../operations/NODE_LIFECYCLE_RUNBOOK.md) に反映した
+- `deprecated schema` の終了条件を migration と runbook に反映した
 
 ## 参照文書
 

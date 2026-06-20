@@ -46,13 +46,91 @@ archive carrier の論理 layout と replay contract の version を表します
 
 validate 可能な schema version の一覧です。
 
+返却時は、少なくとも schema ごとに分けて示します。
+
+- schema 名
+- 受け入れ可能な version の範囲
+- 現行の推奨 version
+- 破壊的変更の有無
+
+例:
+
+```json
+{
+  "supportedSchemaVersions": [
+    {
+      "schema": "knowledge-object",
+      "versions": ["0.1.0"],
+      "preferred": "0.1.0",
+      "breaking": false
+    },
+    {
+      "schema": "http-publish-request",
+      "versions": ["0.1.0"],
+      "preferred": "0.1.0",
+      "breaking": false
+    }
+  ]
+}
+```
+
 ### supported auth modes
 
 publish / retrieve に使える認証方式です。
 
+HTTP の場合は、たとえば次のような値を返せます。
+
+- `public-key-signature`
+- `relay-trusted-signature`
+
 ### supported content types
 
 受け入れ可能な media type や framing です。
+
+HTTP の場合は、たとえば次のような値を返せます。
+
+- `application/json`
+- `application/jose`
+
+### validation constraints
+
+validate 時に確認できる制約です。
+
+HTTP の場合は、たとえば次のような値を返せます。
+
+- `required-fields`
+- `schema-version-match`
+- `identity-consistency`
+
+### finalize constraints
+
+finalize 時に確認できる制約です。
+
+HTTP の場合は、たとえば次のような値を返せます。
+
+- `canonical-id-resolution`
+- `rawref-preservation`
+- `provenance-preservation`
+
+### supported access scopes
+
+公開範囲や参照範囲の制約です。
+
+HTTP の場合は、たとえば次のような値を返せます。
+
+- `public`
+- `curated`
+- `private`
+
+### supported retention hints
+
+保持方針のヒントです。
+
+HTTP の場合は、たとえば次のような値を返せます。
+
+- `long-lived`
+- `long-term`
+- `ephemeral`
 
 ### replay support
 
@@ -77,6 +155,7 @@ archive や relay log から再構成可能かどうかを表します。
 - replay が必要な場面で replay support がない場合は拒否する
 - 必須 archive version がない場合は拒否する
 - 互換性が曖昧な場合は、semantic translation ではなく拒否を優先する
+- `supported schema versions` は、schema ごとに version 範囲を明示できない場合は fail closed にする
 
 ## 期待する性質
 

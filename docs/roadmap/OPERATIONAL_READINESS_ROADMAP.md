@@ -475,7 +475,7 @@ schema 変更を運用しながら進められるようにします。
 - `schema version` mismatch の不正例を fixtures に追加し、validate で落とす前提を runbook に反映した
 - `deprecated schema` の終了条件を migration / runbook 両方に反映した
 
-## フェーズ 10: access / retention policy の運用化
+## フェーズ 10: access / retention policy の運用化（完了済み）
 
 ### 目的
 
@@ -491,6 +491,15 @@ schema 変更を運用しながら進められるようにします。
 ### 完了条件
 
 - 保持と公開のルールが一貫している
+
+### 完了メモ
+
+- `Access and Retention Policy` を運用正本として整理し、carrier ごとの既定値を明示した
+- `HTTP Carrier Contract` と `Carrier Capability Negotiation` で `supportedAccessScopes` と `supportedRetentionHints` の語彙を policy に接続した
+- `File / Archive Carrier Contract` で export / import と scrub の扱いを policy に接続した
+- `Node Lifecycle Runbook` に access / retention policy 変更時の確認手順を追加した
+- 監査用の [Access and Retention Audit Checklist](../operations/ACCESS_RETENTION_AUDIT_CHECKLIST.md) を追加した
+- `public / curated / private` の扱いを protocol semantic から切り離し、運用ポリシーとして固定した
 
 ## フェーズ 11: 複数ノード運用
 

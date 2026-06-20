@@ -1,6 +1,6 @@
 # HTTP Carrier Contract
 
-**Status: draft** | **Last updated: 2026-06-19**
+**Status: draft** | **Last updated: 2026-06-20**
 
 ## 目的
 
@@ -241,6 +241,7 @@ HTTP carrier の response は、次の 3 種類に寄せます。
 - profile 側は domain-specific routing や curation rule を持つ
 - access / retention の既定値は protocol semantic ではなく運用ポリシーに従う
 - HTTP では public を既定、curated は任意、private は初期版では無効を基本とする
+- access scope と retention hint の最終的な既定値は [Access and Retention Policy](./ACCESS_RETENTION_POLICY.md) に従う
 
 ## 6. 未決事項
 

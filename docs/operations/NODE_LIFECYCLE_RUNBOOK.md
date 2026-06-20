@@ -352,6 +352,24 @@ schema 変更時に見るものは次の通りです。
 
 deprecated schema を実際に外すかどうかは、[Migration and Schema Versioning](./MIGRATION_AND_SCHEMA_VERSIONING.md) の終了条件と capability の両方で確認します。
 
+### 10.6 access / retention policy 変更時
+
+access / retention policy を変えるときは、carrier contract と runbook を同時に確認します。
+
+1. [Access and Retention Audit Checklist](./ACCESS_RETENTION_AUDIT_CHECKLIST.md) で実行項目を確認する
+2. [Access and Retention Policy](./ACCESS_RETENTION_POLICY.md) で access scope と retention hint の既定値を確認する
+3. [HTTP Carrier Contract](./HTTP_CARRIER_CONTRACT.md) の `supportedAccessScopes` と `supportedRetentionHints` が policy と一致するか確認する
+4. [File / Archive Carrier Contract](./FILE_ARCHIVE_CARRIER_CONTRACT.md) の export / import と scrub の扱いが policy と一致するか確認する
+5. backup / restore / retirement で残すものと消すものが retention policy と矛盾しないか確認する
+6. authn/authz を追加する場合は [Secret Management](./SECRET_MANAGEMENT.md) と分離された注入経路を使う
+7. 変更後に `ready`、`capabilities`、`config` を見て、公開範囲と保持期間が運用上の想定に収まるか確認する
+
+| 段階 | 確認 |
+| --- | --- |
+| 実行前 | checklist、policy の差分、carrier capability、runbook の確認箇所 |
+| 実行中 | `supportedAccessScopes`、`supportedRetentionHints`、scrub の扱い |
+| 実行後 | `ready`、`capabilities`、`config`、backup / restore / retirement の整合 |
+
 ## 参照
 
 - [運用準備ロードマップ](../roadmap/OPERATIONAL_READINESS_ROADMAP.md)

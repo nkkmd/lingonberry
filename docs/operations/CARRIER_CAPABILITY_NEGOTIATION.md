@@ -122,6 +122,8 @@ HTTP の場合は、たとえば次のような値を返せます。
 - `curated`
 - `private`
 
+access scope は protocol semantic ではなく、[Access and Retention Policy](./ACCESS_RETENTION_POLICY.md) に従う運用語彙として扱います。
+
 ### supported retention hints
 
 保持方針のヒントです。
@@ -131,6 +133,8 @@ HTTP の場合は、たとえば次のような値を返せます。
 - `long-lived`
 - `long-term`
 - `ephemeral`
+
+retention hint も protocol semantic ではなく、[Access and Retention Policy](./ACCESS_RETENTION_POLICY.md) と整合させる運用語彙として扱います。
 
 ### replay support
 

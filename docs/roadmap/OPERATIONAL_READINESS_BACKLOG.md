@@ -2,7 +2,7 @@
 
 **Status: active** | **Last updated: 2026-06-20**
 
-この文書は、[運用準備ロードマップ](./OPERATIONAL_READINESS_ROADMAP.md) のうち、フェーズ 1 から 9 を issue 単位に分解したものです。  
+この文書は、[運用準備ロードマップ](./OPERATIONAL_READINESS_ROADMAP.md) のうち、フェーズ 1 から 10 を issue 単位に分解したものです。  
 フェーズ 0 は [運用前提メモ](../operations/OPERATIONAL_PREMISES_MEMO.md) に集約し、この backlog では issue 化しません。  
 実作業では、依存の薄い issue から並行に進めても構いません。  
 Phase 2 と Phase 3 は完了済みです。  
@@ -12,6 +12,7 @@ Phase 6 も完了済みで、backup / restore / retirement の正本は [Node Li
 Phase 7 は完了済みで、HTTP carrier の公開運用に関する前提を固めました。  
 Phase 8 は archive export / import の運用化として完了済みです。  
 Phase 9 も migration / schema versioning の運用化として完了済みです。
+Phase 10 は access / retention policy の運用化として、これから issue 化します。
 
 
 ## Phase 0 完了確認
@@ -56,10 +57,15 @@ Phase 1 は、既存の `relay` 実装に残っていた保存責務を棚卸し
 16. Issue 9.3: migration の適用点を wire / storage / archive で分ける
 17. Issue 9.4: rollback 可否と切り戻し手順を決める
 18. Issue 9.5: runbook と fixtures へ反映する
+19. Issue 10.1: access scope と carrier 既定値を固定する
+20. Issue 10.2: retention hint と保持対象を固定する
+21. Issue 10.3: scrub と export / import の責務境界を決める
+22. Issue 10.4: 監査観点と runbook 反映を行う（完了済み）
 
 Issue 3.4 は完了済みで、container を primary、systemd を併設とする方針が確定しています。
 Issue 6 系は backup / restore / retirement の運用化が完了済みです。
 Phase 9 は migration / schema versioning の運用化として、新しい issue 群を切る対象です。
+Phase 10 は access / retention policy の運用化として、新しい issue 群を切る対象です。
 
 ## ラベル案
 
@@ -615,6 +621,79 @@ HTTP carrier contract、capability negotiation、access / retention policy、obs
 - `schemaVersion` mismatch の不正例を fixtures に追加した
 - schema 変更時の確認順を [Node Lifecycle Runbook](../operations/NODE_LIFECYCLE_RUNBOOK.md) に反映した
 - `deprecated schema` の終了条件を migration と runbook に反映した
+
+## Epic 10: access / retention policy の運用化（完了済み）
+
+### Issue 10.1: access scope と carrier 既定値を固定する
+
+- 目的: `public / curated / private` の運用境界と carrier ごとの既定値を揃える
+- 依存: 6.3, 6.4
+- 参照:
+  - [Access and Retention Policy](../operations/ACCESS_RETENTION_POLICY.md)
+  - [HTTP Carrier Contract](../operations/HTTP_CARRIER_CONTRACT.md)
+  - [Carrier Capability Negotiation](../operations/CARRIER_CAPABILITY_NEGOTIATION.md)
+  - [File / Archive Carrier Contract](../operations/FILE_ARCHIVE_CARRIER_CONTRACT.md)
+- 完了条件:
+  - access scope の語彙が carrier ごとに説明できる
+  - carrier ごとの default access が説明できる
+  - `public / curated / private` が protocol semantic ではない
+  - capability と policy に同じ語彙が載っている
+
+### Issue 10.2: retention hint と保持対象を固定する
+
+- 目的: retention hint を運用判断として扱い、保存対象を一貫させる
+- 依存: 10.1
+- 参照:
+  - [Access and Retention Policy](../operations/ACCESS_RETENTION_POLICY.md)
+  - [Carrier Capability Negotiation](../operations/CARRIER_CAPABILITY_NEGOTIATION.md)
+  - [Node Lifecycle Runbook](../operations/NODE_LIFECYCLE_RUNBOOK.md)
+- 完了条件:
+  - `long-lived`、`long-term`、`ephemeral` の意味が説明できる
+  - raw log、canonical catalog、replay metadata、archive manifest の扱いが説明できる
+  - carrier ごとの default retention が説明できる
+  - replay 可能性を壊さない方針がある
+
+### Issue 10.3: scrub と export / import の責務境界を決める
+
+- 目的: export 時の scrub や受け入れ可否を policy と capability に閉じる
+- 依存: 10.1, 10.2
+- 参照:
+  - [Access and Retention Policy](../operations/ACCESS_RETENTION_POLICY.md)
+  - [File / Archive Carrier Contract](../operations/FILE_ARCHIVE_CARRIER_CONTRACT.md)
+  - [Node Lifecycle Runbook](../operations/NODE_LIFECYCLE_RUNBOOK.md)
+- 完了条件:
+  - scrub が protocol core の semantic ではない
+  - export / import の受け入れ可否が policy と capability で説明できる
+  - backup / restore / retirement と archive export / import の責務が混ざらない
+  - scrub 方針を manifest か別 policy 参照で明示できる
+
+### Issue 10.4: 監査観点と runbook 反映を行う（完了済み）
+
+- 目的: 運用時に確認する項目を 1 つの実行例にまとめる
+- 依存: 10.1, 10.2, 10.3
+- 参照:
+  - [Access and Retention Policy](../operations/ACCESS_RETENTION_POLICY.md)
+  - [Node Lifecycle Runbook](../operations/NODE_LIFECYCLE_RUNBOOK.md)
+  - [HTTP Carrier Contract](../operations/HTTP_CARRIER_CONTRACT.md)
+- 完了条件:
+  - 監査時の確認事項がある
+  - policy 変更時の確認順が runbook から辿れる
+  - authn/authz の扱いが access / retention と混ざらない
+  - access / retention の変更時に見る文書が揃っている
+
+### Phase 10 着手メモ
+
+1. まず `Access and Retention Policy` の語彙を carrier 既定値まで含めて固定する
+2. 次に `HTTP Carrier Contract` と `Carrier Capability Negotiation` へ同じ語彙を反映する
+3. その後で `File / Archive Carrier Contract` と `Node Lifecycle Runbook` の scrub / export / import / audit をそろえる
+4. 最後に監査観点を runbook か checklist に落として、変更時の確認順を 1 本化する
+
+### Phase 10 完了メモ
+
+- 監査用の [Access and Retention Audit Checklist](../operations/ACCESS_RETENTION_AUDIT_CHECKLIST.md) を追加した
+- 監査の参照順を [Access and Retention Policy](../operations/ACCESS_RETENTION_POLICY.md) に集約した
+- `Node Lifecycle Runbook` に access / retention policy 変更時の確認手順を反映した
+- `HTTP Carrier Contract`、`Carrier Capability Negotiation`、`File / Archive Carrier Contract` の語彙を policy と揃えた
 
 ## 参照文書
 

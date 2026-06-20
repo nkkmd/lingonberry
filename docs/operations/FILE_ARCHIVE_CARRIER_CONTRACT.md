@@ -99,6 +99,7 @@ archive carrier は、少なくとも次を満たします。
 - retention は storage / operator policy の責務として切る
 - archive 形式の変更は versioned に扱う
 - export 時の scrub 方針は manifest か別 policy 参照で明示できるようにする
+- private / curated object の扱いは [Access and Retention Policy](./ACCESS_RETENTION_POLICY.md) の運用境界に従う
 
 ## 関連
 

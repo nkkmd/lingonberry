@@ -1,6 +1,6 @@
 # 運用準備ロードマップ
 
-**Status: active** | **Last updated: 2026-06-19**
+**Status: active** | **Last updated: 2026-06-20**
 
 ## 目的
 
@@ -376,11 +376,11 @@ HTTP carrier を公開運用できる形に整えます。
 
 - 公開運用に必要な前提が文書化されている
 
-## フェーズ 8: archive export / import の運用化
+## フェーズ 8: archive export / import の運用化（完了済み）
 
 ### 目的
 
-移送・退避・再投入を運用手順にします。
+`archive` を使った移送・退避・再投入を、運用手順として固定します。
 
 ### ここで決めること
 
@@ -389,9 +389,49 @@ HTTP carrier を公開運用できる形に整えます。
 - archive version の扱い
 - 差分移送の要否
 
+### 関連文書
+
+- [File / Archive Carrier Contract](../operations/FILE_ARCHIVE_CARRIER_CONTRACT.md)
+- [storage node runtime](../operations/STORAGE_NODE_RUNTIME.md)
+- [Node Lifecycle Runbook](../operations/NODE_LIFECYCLE_RUNBOOK.md)
+- [Access and Retention Policy](../operations/ACCESS_RETENTION_POLICY.md)
+- [Migration and Schema Versioning](../operations/MIGRATION_AND_SCHEMA_VERSIONING.md)
+- [Carrier Capability Negotiation](../operations/CARRIER_CAPABILITY_NEGOTIATION.md)
+
 ### 完了条件
 
-- export / import を運用手順として説明できる
+- export / import を、archive carrier と backup / restore の差を含めて説明できる
+- import の検証順と失敗時の切り分けが runbook で辿れる
+- archive version と protocol / schema の互換境界が説明できる
+- 差分移送の要否と採用条件が説明できる
+- retention / scrub / migration と矛盾しない
+
+### 最初の着手順
+
+1. `storage node runtime` と `File / Archive Carrier Contract` を突き合わせて、export の粒度と bundle の境界を固定する
+2. `Node Lifecycle Runbook` にある backup / restore / retirement の流れと、archive import / export の役割分担を分ける
+3. `Access and Retention Policy` と `Migration and Schema Versioning` を参照し、scrub / retention / version 互換の扱いを整理する
+4. 必要なら `Carrier Capability Negotiation` に supported archive versions と import capability を反映する
+5. runbook に export / import の確認順と失敗時の切り分けを追記する
+
+### 参照文書
+
+- [運用準備バックログ](./OPERATIONAL_READINESS_BACKLOG.md)
+- [File / Archive Carrier Contract](../operations/FILE_ARCHIVE_CARRIER_CONTRACT.md)
+- [storage node runtime](../operations/STORAGE_NODE_RUNTIME.md)
+- [Node Lifecycle Runbook](../operations/NODE_LIFECYCLE_RUNBOOK.md)
+- [Access and Retention Policy](../operations/ACCESS_RETENTION_POLICY.md)
+- [Migration and Schema Versioning](../operations/MIGRATION_AND_SCHEMA_VERSIONING.md)
+- [Carrier Capability Negotiation](../operations/CARRIER_CAPABILITY_NEGOTIATION.md)
+
+### 完了メモ
+
+- archive export / import の正本は [Node Lifecycle Runbook](../operations/NODE_LIFECYCLE_RUNBOOK.md) に集約した
+- archive bundle の論理構成と replay 手順は [File / Archive Carrier Contract](../operations/FILE_ARCHIVE_CARRIER_CONTRACT.md) で固定した
+- archive version と supported archive versions は [Carrier Capability Negotiation](../operations/CARRIER_CAPABILITY_NEGOTIATION.md) と [Migration and Schema Versioning](../operations/MIGRATION_AND_SCHEMA_VERSIONING.md) に接続した
+- full export を既定とし、差分移送は必要な場合にのみ採用する方針を固定した
+- backup / restore / retirement と archive export / import の責務分担を runbook で分けた
+- `cargo run -p lingonberry-relay -- publish`、`export-archive`、`import-archive` の一連の CLI round-trip を一時 state で確認した
 
 ## フェーズ 9: migration / schema versioning の運用化
 
@@ -477,5 +517,7 @@ HTTP 以外の carrier を足せるようにします。
 - [HTTP carrier contract](../operations/HTTP_CARRIER_CONTRACT.md)
 - [FILE archive carrier contract](../operations/FILE_ARCHIVE_CARRIER_CONTRACT.md)
 - [carrier capability negotiation](../operations/CARRIER_CAPABILITY_NEGOTIATION.md)
+- [storage node runtime](../operations/STORAGE_NODE_RUNTIME.md)
+- [Node Lifecycle Runbook](../operations/NODE_LIFECYCLE_RUNBOOK.md)
 - [access / retention policy](../operations/ACCESS_RETENTION_POLICY.md)
 - [migration / schema versioning](../operations/MIGRATION_AND_SCHEMA_VERSIONING.md)

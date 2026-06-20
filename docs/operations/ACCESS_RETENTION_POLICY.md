@@ -1,6 +1,6 @@
 # Access and Retention Policy
 
-**Status: draft** | **Last updated: 2026-06-19**
+**Status: draft** | **Last updated: 2026-06-20**
 
 ## 目的
 
@@ -145,6 +145,7 @@ Authentication / authorization は、必要なら運用層で定義します。
 - private: policy / carrier 側で別扱いにする
 - default retention: archive 自体は長期保管を前提にする
 - scrub: export 時に operator policy で適用可
+- differential export は既定ではなく、必要な場合にのみ operator policy で採用する
 
 ### 6.3 relay / storage carrier
 

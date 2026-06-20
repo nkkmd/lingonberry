@@ -1,15 +1,16 @@
 # 運用準備バックログ
 
-**Status: active** | **Last updated: 2026-06-19**
+**Status: active** | **Last updated: 2026-06-20**
 
-この文書は、[運用準備ロードマップ](./OPERATIONAL_READINESS_ROADMAP.md) のうち、フェーズ 1 から 7 を issue 単位に分解したものです。  
+この文書は、[運用準備ロードマップ](./OPERATIONAL_READINESS_ROADMAP.md) のうち、フェーズ 1 から 8 を issue 単位に分解したものです。  
 フェーズ 0 は [運用前提メモ](../operations/OPERATIONAL_PREMISES_MEMO.md) に集約し、この backlog では issue 化しません。  
 実作業では、依存の薄い issue から並行に進めても構いません。  
 Phase 2 と Phase 3 は完了済みです。  
 Phase 4 も完了済みで、設定・環境変数・シークレット管理の完了記録として残します。
 Phase 5 も完了済みで、観測の正本は [Observability](../operations/OBSERVABILITY.md) にあります。
 Phase 6 も完了済みで、backup / restore / retirement の正本は [Node Lifecycle Runbook](../operations/NODE_LIFECYCLE_RUNBOOK.md) にあります。  
-Phase 7 は完了済みで、HTTP carrier の公開運用に関する前提を固めました。
+Phase 7 は完了済みで、HTTP carrier の公開運用に関する前提を固めました。  
+Phase 8 は archive export / import の運用化として、新しい issue 群を切る対象です。
 
 
 ## Phase 0 完了確認
@@ -443,6 +444,109 @@ HTTP carrier contract、capability negotiation、access / retention policy、obs
 - 認証 / 認可は [Access and Retention Policy](../operations/ACCESS_RETENTION_POLICY.md) と [Carrier Capability Negotiation](../operations/CARRIER_CAPABILITY_NEGOTIATION.md) で扱う
 - rate limit と abuse control は protocol core ではなく運用層の制御として扱う
 - response model と observability は [Observability](../operations/OBSERVABILITY.md) と [Node Lifecycle Runbook](../operations/NODE_LIFECYCLE_RUNBOOK.md) に反映する
+
+## Epic 8: archive export / import の運用化
+
+### Issue 8.1: export の粒度と archive bundle の構成を固定する
+
+- 目的: 何を 1 つの archive として持ち運ぶかを決める
+- 依存: 6.1, 6.2, 6.5, 7.1
+- 関連文書:
+  - [File / Archive Carrier Contract](../operations/FILE_ARCHIVE_CARRIER_CONTRACT.md)
+  - [storage node runtime](../operations/STORAGE_NODE_RUNTIME.md)
+  - [Access and Retention Policy](../operations/ACCESS_RETENTION_POLICY.md)
+- 完了条件:
+  - export の出力単位が 1 つの archive bundle として説明できる
+  - archive bundle の論理要素として `manifest.json`、`wire-log.jsonl`、`canonical-catalog.jsonl`、必要なら `replay-metadata.json` と `resolved-config.json` が整理されている
+  - `manifest.json` に `archive version`、`protocol version`、`carrier kind`、`createdAt`、`item count`、`wire log` の所在が載ることが説明できる
+  - `wire-log.jsonl` を replay の一次入力として扱う方針が説明できる
+  - canonical projection は再生成可能な補助であり semantic source にしないことが説明できる
+  - archive carrier と backup の違いが説明できる
+  - scrub が operator policy に閉じている
+  - public object を基本形にしつつ、private / curated の扱いは policy と capability に委ねる方針が説明できる
+  - [File / Archive Carrier Contract](../operations/FILE_ARCHIVE_CARRIER_CONTRACT.md) に正本がある
+
+### Issue 8.2: import の検証順と失敗時の切り分けを定義する
+
+- 目的: archive を再投入するときの安全確認を固定する
+- 依存: 8.1, 6.2, 5.4
+- 関連文書:
+  - [File / Archive Carrier Contract](../operations/FILE_ARCHIVE_CARRIER_CONTRACT.md)
+  - [Node Lifecycle Runbook](../operations/NODE_LIFECYCLE_RUNBOOK.md)
+  - [storage node runtime](../operations/STORAGE_NODE_RUNTIME.md)
+- 完了条件:
+  - import 前に `archive version`、`protocol version`、`carrier kind`、`item count`、`manifest.json`、`wire-log.jsonl`、`canonical-catalog.jsonl`、`replay-metadata.json`、`resolved-config.json` を確認する順がある
+  - `tempDir` を分けてから import する前提が説明できる
+  - replay で canonical state を再構成する順が説明できる
+  - 失敗時に `manifest.json`、`wire-log.jsonl`、`canonical-catalog.jsonl`、`replay-metadata.json` のどこから切り分けるかが説明できる
+  - import 後に `config`、`run`、`replay`、`list` を確認する順がある
+  - [Node Lifecycle Runbook](../operations/NODE_LIFECYCLE_RUNBOOK.md) に正本がある
+
+### Issue 8.3: archive version と互換境界を固定する
+
+- 目的: どの archive が受け入れ可能かを version で説明できるようにする
+- 依存: 8.1, 7.1
+- 関連文書:
+  - [Migration and Schema Versioning](../operations/MIGRATION_AND_SCHEMA_VERSIONING.md)
+  - [Carrier Capability Negotiation](../operations/CARRIER_CAPABILITY_NEGOTIATION.md)
+  - [File / Archive Carrier Contract](../operations/FILE_ARCHIVE_CARRIER_CONTRACT.md)
+- 完了条件:
+  - `archive version`、`supported archive versions`、`protocol version`、`supported protocol version` の役割が説明できる
+  - archive manifest の version が capability と migration の両方で参照できる
+  - protocol / schema 互換と archive 互換の違いが説明できる
+  - 非互換を capability に出す考え方がある
+  - 古い archive から canonical state を再構成できる前提が説明できる
+  - [Migration and Schema Versioning](../operations/MIGRATION_AND_SCHEMA_VERSIONING.md) と整合している
+  - [Carrier Capability Negotiation](../operations/CARRIER_CAPABILITY_NEGOTIATION.md) に正本がある
+
+### Issue 8.4: 差分移送の要否と運用境界を決める
+
+- 目的: full export か differential export かを運用上で決める
+- 依存: 8.1, 8.2
+- 関連文書:
+  - [File / Archive Carrier Contract](../operations/FILE_ARCHIVE_CARRIER_CONTRACT.md)
+  - [Access and Retention Policy](../operations/ACCESS_RETENTION_POLICY.md)
+  - [Node Lifecycle Runbook](../operations/NODE_LIFECYCLE_RUNBOOK.md)
+- 完了条件:
+  - differential export を既定にしない方針が説明できる
+  - 差分移送を採用する条件と非採用の条件が説明できる
+  - 採用する場合に、full export と同じ replay / provenance の検証を満たすことが説明できる
+  - 差分 bundle が `manifest.json`、`wire-log.jsonl`、`canonical-catalog.jsonl`、必要なら `replay-metadata.json` を壊さないことが説明できる
+  - 差分が retention / replay 可能性を壊さない
+  - archive manifest か別 policy 参照で differential であることを明示できる
+  - [File / Archive Carrier Contract](../operations/FILE_ARCHIVE_CARRIER_CONTRACT.md) と矛盾しない
+
+### Issue 8.5: export / import の runbook 反映を行う（完了済み）
+
+- 目的: archive の運用手順を 1 本の実行例にまとめる
+- 依存: 8.1, 8.2, 8.3, 8.4
+- 関連文書:
+  - [Node Lifecycle Runbook](../operations/NODE_LIFECYCLE_RUNBOOK.md)
+  - [File / Archive Carrier Contract](../operations/FILE_ARCHIVE_CARRIER_CONTRACT.md)
+  - [storage node runtime](../operations/STORAGE_NODE_RUNTIME.md)
+- 完了条件:
+  - archive export / import の確認順が runbook にある
+  - backup / restore / retirement との違いが runbook 上で説明できる
+  - 失敗時の切り分け順が参照できる
+  - 返却・保管・再投入の運用責務が説明できる
+  - Node Lifecycle Runbook から辿れる
+
+### Phase 8 着手メモ
+
+1. まず `File / Archive Carrier Contract` と `storage node runtime` の境界を合わせる
+2. 次に import の確認順と失敗時の切り分けを runbook に落とす
+3. その後で archive version と supported path を整理する
+4. 最後に差分移送の要否を policy と operational cost の観点で決める
+5. 仕上げとして runbook と README の導線を整える
+
+### Phase 8 完了メモ
+
+- archive export / import の正本は [Node Lifecycle Runbook](../operations/NODE_LIFECYCLE_RUNBOOK.md) に集約した
+- archive bundle の構成と replay 前提は [File / Archive Carrier Contract](../operations/FILE_ARCHIVE_CARRIER_CONTRACT.md) で固定した
+- archive version と supported archive versions は [Carrier Capability Negotiation](../operations/CARRIER_CAPABILITY_NEGOTIATION.md) と [Migration and Schema Versioning](../operations/MIGRATION_AND_SCHEMA_VERSIONING.md) に接続した
+- full export を既定とし、差分移送は必要な場合にのみ運用層で採用する方針を固定した
+- backup / restore / retirement と archive export / import の責務分担を runbook で分けた
+- `cargo run -p lingonberry-relay -- publish`、`export-archive`、`import-archive` の CLI round-trip を一時 state で確認した
 
 ## 参照文書
 

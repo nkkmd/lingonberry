@@ -1,6 +1,6 @@
 # File / Archive Carrier Contract
 
-**Status: draft** | **Last updated: 2026-06-18**
+**Status: draft** | **Last updated: 2026-06-20**
 
 ## 目的
 
@@ -68,9 +68,11 @@ archive からの replay は次の順で行います。
 
 - relay / storage の保存内容から archive を生成する
 - `storage node` の backup 単位は `dataDir` を起点とし、そこから `manifest.json` と `wire-log.jsonl` に相当する情報を固める
+- export は原則として full bundle を基本とし、差分 bundle は必要な場合にのみ運用層で採用する
 - replay metadata を含める場合は `replay-metadata.json` として扱う
 - raw log と provenance を失わない
 - 再構築に必要な情報を落とさない
+- differential export を使う場合でも、manifest で差分種別と基準点を明示する
 - export 時に scrub が必要なら operator policy に従う
 - scrub は archive の semantic ではなく、運用上の変換として扱う
 - public object を前提にした export を基本形にする

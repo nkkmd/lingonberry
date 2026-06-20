@@ -1,6 +1,6 @@
 # Migration and Schema Versioning
 
-**Status: draft** | **Last updated: 2026-06-18**
+**Status: draft** | **Last updated: 2026-06-20**
 
 ## 目的
 
@@ -43,6 +43,14 @@ carrier 固有の framing や response contract の version です。
 - HTTP request / response contract
 - archive layout
 - discovery payload
+
+### 1.4 Archive version
+
+archive carrier の version です。
+
+- archive manifest の contract
+- archive layout の contract
+- replay 互換の境界
 
 ## 2. Migration policy
 
@@ -102,6 +110,7 @@ carrier capability は、利用可能な version と migration 境界を公開�
 - supported schema versions
 - supported archive versions
 - supported migration path
+- archive version に対する互換境界
 
 ## 6. 運用手順
 

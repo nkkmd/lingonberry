@@ -1,6 +1,6 @@
 # Carrier Capability Negotiation
 
-**Status: draft** | **Last updated: 2026-06-18**
+**Status: draft** | **Last updated: 2026-06-20**
 
 ## 目的
 
@@ -30,6 +30,10 @@ capability は、次の場所から取得できる想定です。
 
 protocol の互換境界を表します。
 
+### archive version
+
+archive carrier の論理 layout と replay contract の version を表します。
+
 ### carrier kind
 
 `http`、`archive`、`relay` のような carrier 種別を表します。
@@ -54,6 +58,10 @@ publish / retrieve に使える認証方式です。
 
 archive や relay log から再構成可能かどうかを表します。
 
+### supported archive versions
+
+受け入れ可能な archive version の範囲です。
+
 ## Negotiation の進め方
 
 1. client は自分の必須条件を列挙する
@@ -67,6 +75,7 @@ archive や relay log から再構成可能かどうかを表します。
 - major protocol version が合わない場合は原則拒否する
 - 必須 object type がない場合は拒否する
 - replay が必要な場面で replay support がない場合は拒否する
+- 必須 archive version がない場合は拒否する
 - 互換性が曖昧な場合は、semantic translation ではなく拒否を優先する
 
 ## 期待する性質

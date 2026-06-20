@@ -1,6 +1,6 @@
 # Node Lifecycle Runbook
 
-**Status: active** | **Last updated: 2026-06-19**
+**Status: active** | **Last updated: 2026-06-20**
 
 ## 目的
 
@@ -252,6 +252,41 @@ retirement 実行時の確認は次の順で行います。
 - そのうえで、raw log の欠落、catalog の不整合、設定差分の順で切り分ける
 - 再投入後は、`storage node` と `relay` を別々に再確認する
 
+### 9.5 archive export / import
+
+- archive export は、持ち運び用の `archive bundle` を作る操作として扱う
+- archive import は、`archive bundle` から canonical state を再構成する操作として扱う
+- archive は backup と別概念で、持ち運び・再投入・共有を主目的にする
+- 既定は full export とし、差分移送は必要な場合にのみ採用する
+- archive export の前に、`manifest.json`、`wire-log.jsonl`、`canonical-catalog.jsonl`、必要なら `replay-metadata.json` と `resolved-config.json` の整合を確認する
+- archive import の前に、`archive version`、`protocol version`、`item count`、`carrier kind` を確認する
+- archive import の後に、`config`、`run`、`replay`、`list` の順で確認する
+- import 中に不整合が見つかった場合は、`manifest.json`、`wire-log.jsonl`、`canonical-catalog.jsonl`、`replay-metadata.json` の順で切り分ける
+- archive export / import の scrub や受け入れ可否は policy と capability で決める
+- archive 形式の変更は versioned に扱う
+
+archive 実行時の確認は次の順で行います。
+
+1. export する対象の `stateDir`、`dataDir`、`backupDir` を確認する
+2. `manifest.json`、`wire-log.jsonl`、`canonical-catalog.jsonl`、必要なら `replay-metadata.json` と `resolved-config.json` を bundle にまとめる
+3. `archive version`、`protocol version`、`carrier kind`、`item count` を manifest で確認する
+4. import 先の `tempDir` を分ける
+5. import 後に `config`、`run`、`replay`、`list` を順に実行する
+6. 必要なら `relay` と `storage node` を別々に再確認する
+
+差分移送を採る場合は、次の追加確認を入れます。
+
+1. 差分の基準点が manifest で説明できるか確認する
+2. 差分 bundle が full replay と同じ検証を満たすか確認する
+3. 差分で欠落する情報がないか確認する
+4. 差分を再適用できない場合は full export に戻す
+
+| 段階 | 確認 |
+| --- | --- |
+| 実行前 | `stateDir`、`dataDir`、`backupDir`、`archive version`、`protocol version`、`carrier kind` |
+| 実行中 | `manifest.json`、`wire-log.jsonl`、`canonical-catalog.jsonl`、`replay-metadata.json`、`resolved-config.json`、差分の基準点 |
+| 実行後 | `config`、`run`、`replay`、`list`、canonical state の再構成結果 |
+
 ## 10. 運用例
 
 ### 10.1 通常運用
@@ -271,7 +306,24 @@ retirement 実行時の確認は次の順で行います。
 5. `relay` を再起動し、`capabilities` と `ready` を確認する
 6. 必要なら対象 object を `retrieve` して、再構成後の canonical state を確認する
 
-### 10.3 退役
+### 10.3 archive export / import
+
+1. export 対象の `stateDir` と `dataDir` を確認する
+2. `manifest.json`、`wire-log.jsonl`、`canonical-catalog.jsonl`、必要なら `replay-metadata.json` と `resolved-config.json` を bundle としてまとめる
+3. `archive version`、`protocol version`、`carrier kind`、`item count` を確認する
+4. import 先の `tempDir` を分けてから、archive を再投入する
+5. `storage node` の `config`、`run`、`replay`、`list` を順に確認する
+6. `relay` の `capabilities` と `ready` を確認する
+7. 必要なら対象 object を `retrieve` して、再構成後の canonical state を確認する
+
+実地確認メモ:
+
+- `cargo run -p lingonberry-relay -- publish fixtures/http-publish-request/minimal-request.json`
+- `cargo run -p lingonberry-relay -- export-archive /tmp/lingonberry-archive`
+- `cargo run -p lingonberry-relay -- import-archive /tmp/lingonberry-archive`
+- これらは一時 `stateDir` で通して、`recordCount: 1` と `duplicateCount: 0` を確認済みです
+
+### 10.4 退役
 
 1. 退役対象の `storage node` または `relay` について、必要な archive を作成する
 2. `manifest.json`、`wire-log.jsonl`、`canonical-catalog.sqlite3`、`replay-metadata.json`、`resolved-config.json` を退役保管に残す

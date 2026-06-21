@@ -1,6 +1,6 @@
 # Toitoi Application Profile
 
-**Status: draft** | **Last updated: 2026-06-19**
+**Status: draft** | **Last updated: 2026-06-22**
 
 ## 目的
 
@@ -39,7 +39,17 @@ Toitoi 固有の意味は profile 側で定義します。
 - profile 固有の設定値と既定値
 - profile 固有の運用差分
 
-### 1.3 Core に入れないもの
+### 1.3 Carrier から受け取る前提
+
+Toitoi profile は carrier の違いを semantic model に持ち込みません。  
+HTTP などの carrier から受け取るのは、受信・検証・公開のための制約であり、profile の意味論そのものではありません。
+
+- carrier が変わっても `inquiry`、`observation`、`evidence` の意味は変えない
+- carrier ごとの差分は `supported content types`、`supported auth modes`、`supported access scopes` などの capability に閉じる
+- profile validation は carrier 固有の framing ではなく canonical view に対する追加制約として定義する
+- `GET /objects/:id` などの API 返却形は carrier ではなく profile 契約として扱う
+
+### 1.4 Core に入れないもの
 
 次は core に入れません。
 
@@ -258,5 +268,17 @@ Toitoi のような application profile の差分は、core の設定や core sc
 
 - core の必須フィールド
 - core の carrier 契約
+
+### 9.4 carrier 差し替え時の見方
+
+carrier を差し替えるときは、次の順で確認します。
+
+1. `knowledge object` の意味が carrier によって変わっていないか
+2. `supported schema versions` と `validation / finalize constraints` が profile の期待と一致しているか
+3. `supported auth modes`、`supported content types`、`supported access scopes`、`supported retention hints` が profile の運用に足りるか
+4. Toitoi 固有の `relation vocabulary` と `context vocabulary` が carrier 側へ漏れていないか
+5. `GET /objects/:id`、`GET /objects?type=...`、`GET /objects/:id/relations`、`GET /objects/:id/lineage`、`GET /objects/:id/provenance` の返却形が変わっていないか
+
+carrier が変わっても、profile 側の差分は API 契約と curation / routing / query priority に閉じます。
 - core の設定ファイル形式
 - core の secret 取り扱い

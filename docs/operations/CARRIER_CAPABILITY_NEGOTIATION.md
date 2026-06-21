@@ -1,6 +1,6 @@
 # Carrier Capability Negotiation
 
-**Status: draft** | **Last updated: 2026-06-20**
+**Status: draft** | **Last updated: 2026-06-22**
 
 ## 目的
 
@@ -160,6 +160,35 @@ archive や relay log から再構成可能かどうかを表します。
 - 必須 archive version がない場合は拒否する
 - 互換性が曖昧な場合は、semantic translation ではなく拒否を優先する
 - `supported schema versions` は、schema ごとに version 範囲を明示できない場合は fail closed にする
+
+## 新 carrier の追加時
+
+新しい carrier を追加するときは、carrier 固有の都合を semantic model に持ち込まないように、次の順で確認します。
+
+1. carrier kind を決める
+2. その carrier が公開する capability の取得面を決める
+3. supported object types と supported schema versions を決める
+4. supported auth modes と supported content types を決める
+5. validation constraints と finalize constraints を決める
+6. supported access scopes と supported retention hints を policy と突き合わせる
+7. replay support と supported archive versions を必要に応じて明示する
+8. capability が欠ける場合に fail closed にする条件を決める
+9. 追加 carrier に対する追加 validation を、semantic translation ではなく framing / option の差として説明する
+10. [Node Lifecycle Runbook](./NODE_LIFECYCLE_RUNBOOK.md) から確認順に辿れるようにする
+
+このとき、次のどれかが曖昧なら追加 carrier はまだ受け入れません。
+
+- protocol version
+- supported schema versions
+- supported object types
+- supported auth modes
+- supported content types
+- supported access scopes
+- supported retention hints
+- replay support
+- supported archive versions
+
+追加 carrier の受け入れ判断は、capability の不足を semantic translation で埋めず、互換境界を明示して fail closed にすることを優先します。
 
 ## 期待する性質
 

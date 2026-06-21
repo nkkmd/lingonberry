@@ -396,6 +396,38 @@ Phase 11 で参照する正本は次です。
 - [Multi-node Conflict Policy](./MULTI_NODE_CONFLICT_POLICY.md)
 - [Multi-node Capacity and Placement Policy](./MULTI_NODE_CAPACITY_AND_PLACEMENT_POLICY.md)
 
+### 10.8 Phase 12: 追加 carrier への拡張準備
+
+追加 carrier を導入するときは、まず capability と policy の整合から確認します。
+
+1. [Carrier Capability Negotiation](./CARRIER_CAPABILITY_NEGOTIATION.md) で `carrier kind`、`protocol version`、`supported schema versions` を確認する
+2. [HTTP Carrier Contract](./HTTP_CARRIER_CONTRACT.md) または [File / Archive Carrier Contract](./FILE_ARCHIVE_CARRIER_CONTRACT.md) で、共通 validation と carrier 固有制約の境界を確認する
+3. [Access and Retention Policy](./ACCESS_RETENTION_POLICY.md) で `supported access scopes` と `supported retention hints` が運用と一致するか確認する
+4. [Migration and Schema Versioning](./MIGRATION_AND_SCHEMA_VERSIONING.md) で schema 互換と replay 互換を確認する
+5. [Toitoi Application Profile](../profiles/TOITOI_APPLICATION_PROFILE.md) のような profile 文書で、差し替え点と返却形を確認する
+6. 必要なら `ready`、`capabilities`、`config` を見て、追加 carrier が既存運用に影響しないか確認する
+
+Phase 12 で見る順番は次の通りです。
+
+- まず carrier kind と capability を見る
+- 次に policy との整合を見る
+- その後に profile への影響を見る
+- 最後に runbook に新 carrier の追加手順を残す
+
+追加 carrier の受け入れ判断は、以下のどれかが曖昧なら保留します。
+
+- protocol version
+- supported schema versions
+- supported object types
+- supported auth modes
+- supported content types
+- supported access scopes
+- supported retention hints
+- replay support
+- supported archive versions
+
+この段階では、semantic translation で穴埋めせず、fail closed を優先します。
+
 ## 参照
 
 - [運用準備ロードマップ](../roadmap/OPERATIONAL_READINESS_ROADMAP.md)

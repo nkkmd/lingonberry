@@ -1,6 +1,6 @@
 # HTTP Carrier Contract
 
-**Status: draft** | **Last updated: 2026-06-20**
+**Status: draft** | **Last updated: 2026-06-22**
 
 ## 目的
 
@@ -48,6 +48,8 @@ request body は `http-publish-request` envelope とします。
 - `publisher.publicKey` は canonical には lowercase hex で扱う
 - `publisher.signature` は request payload あるいは carrier が定義する canonicalized subset を覆う
 - 受信後は `validate -> normalize -> finalize` に渡す
+- validate は共通の必須項目、schema version、carrier identity を確認する
+- carrier 固有の framing や option は、semantic adapter ではなく request envelope 側の責務として扱う
 
 ### 期待する性質
 
@@ -114,6 +116,7 @@ request body は `http-publish-request` envelope とします。
 - validation / finalize constraints
 - supported access scopes
 - supported retention hints
+- validation / finalize constraints は、共通 validation と carrier 固有制約を区別できる粒度で返す
 
 ### 返却例
 
@@ -242,6 +245,8 @@ HTTP carrier の response は、次の 3 種類に寄せます。
 - access / retention の既定値は protocol semantic ではなく運用ポリシーに従う
 - HTTP では public を既定、curated は任意、private は初期版では無効を基本とする
 - access scope と retention hint の最終的な既定値は [Access and Retention Policy](./ACCESS_RETENTION_POLICY.md) に従う
+- HTTP carrier の validation は、必須 field、schema version、carrier identity、publisher metadata の一貫性までに留める
+- body 内容の semantic truth は HTTP carrier では決めない
 
 ## 6. 未決事項
 

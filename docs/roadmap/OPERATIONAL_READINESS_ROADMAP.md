@@ -1,6 +1,6 @@
 # 運用準備ロードマップ
 
-**Status: active** | **Last updated: 2026-06-21**
+**Status: active** | **Last updated: 2026-06-22**
 
 ## 目的
 
@@ -29,6 +29,17 @@
 - 単一オブジェクトの publish 経路
 - relay / storage の分離方針
 - archive / capability / access / migration 系の運用文書
+- Phase 12 の文書整理完了
+- Phase 12 実装未完了の追跡用 checklist
+
+## 現在の状態
+
+Phase 12 は、文書上は整理済みですが、実装と運用確認はまだ完了していません。
+
+- 文書面: 完了
+- 実装面: 未完了
+- 運用確認: 未完了
+- 実装完了条件: [Phase 12 Implementation Checklist](./OPERATIONAL_READINESS_PHASE_12_IMPLEMENTATION_CHECKLIST.md) で追跡中
 
 ## 実運用化の原則
 
@@ -539,10 +550,40 @@ HTTP 以外の carrier を足せるようにします。
 - carrier ごとの制約
 - 共通化する validation
 - profile 側で差し替える点
+- 新 carrier の追加手順
+
+### 関連文書
+
+- [Carrier Capability Negotiation](../operations/CARRIER_CAPABILITY_NEGOTIATION.md)
+- [HTTP Carrier Contract](../operations/HTTP_CARRIER_CONTRACT.md)
+- [File / Archive Carrier Contract](../operations/FILE_ARCHIVE_CARRIER_CONTRACT.md)
+- [Phase 12 Implementation Checklist](./OPERATIONAL_READINESS_PHASE_12_IMPLEMENTATION_CHECKLIST.md)
+- [Carrier Decision Memo](../operations/CARRIER_DECISION_MEMO.md)
+- [Migration and Schema Versioning](../operations/MIGRATION_AND_SCHEMA_VERSIONING.md)
+- [Access and Retention Policy](../operations/ACCESS_RETENTION_POLICY.md)
+- [Distributed Knowledge Commons Architecture](../architecture/DISTRIBUTED_KNOWLEDGE_COMMONS_ARCHITECTURE.md)
+- [Toitoi Application Profile](../profiles/TOITOI_APPLICATION_PROFILE.md)
+- [Node Lifecycle Runbook](../operations/NODE_LIFECYCLE_RUNBOOK.md)
+
+### 着手順
+
+1. 既存 carrier の capability 語彙を並べ、HTTP / archive / relay で共通に読める項目を固定する
+2. 共通 validation と carrier 固有制約の境界を明文化する
+3. profile 側で差し替える設定、語彙、既定値を切り分ける
+4. 新 carrier の追加手順を runbook に落とし、fail closed の判定順を明示する
 
 ### 完了条件
 
 - 新 carrier の追加手順が説明できる
+
+### フェーズ 12 文書整理完了メモ
+
+- [Carrier Capability Negotiation](../operations/CARRIER_CAPABILITY_NEGOTIATION.md) に新 carrier の追加時の確認順を追加した
+- [HTTP Carrier Contract](../operations/HTTP_CARRIER_CONTRACT.md) に共通 validation の境界を明示した
+- [Toitoi Application Profile](../profiles/TOITOI_APPLICATION_PROFILE.md) に carrier 差し替え時の見方を追加した
+- [Node Lifecycle Runbook](../operations/NODE_LIFECYCLE_RUNBOOK.md) に Phase 12 の確認順を追加した
+- Phase 12 の確認順は、carrier kind、capability、policy、profile の順で見る方針にそろえた
+- 追加 carrier の受け入れは semantic translation で穴埋めせず、fail closed を優先する方針を固定した
 
 ## 完了条件
 

@@ -2,7 +2,7 @@
 
 **Status: active** | **Last updated: 2026-06-22**
 
-この文書は、[運用準備ロードマップ](./OPERATIONAL_READINESS_ROADMAP.md) のうち、フェーズ 1 から 11 を issue 単位に分解したものです。  
+この文書は、[運用準備ロードマップ](./OPERATIONAL_READINESS_ROADMAP.md) のうち、フェーズ 1 から 12 を issue 単位に分解したものです。  
 フェーズ 0 は [運用前提メモ](../operations/OPERATIONAL_PREMISES_MEMO.md) に集約し、この backlog では issue 化しません。  
 実作業では、依存の薄い issue から並行に進めても構いません。  
 Phase 2 と Phase 3 は完了済みです。  
@@ -14,7 +14,8 @@ Phase 8 は archive export / import の運用化として完了済みです。
 Phase 9 も migration / schema versioning の運用化として完了済みです。
 Phase 10 は access / retention policy の運用化として、これから issue 化します。  
 Phase 11 は複数ノード運用の運用化として完了済みです。  
-この文書では Phase 11 の issue 群を完了記録として残します。
+Phase 12 は追加 carrier への拡張準備として、これから issue 化します。  
+この文書では Phase 11 の issue 群を完了記録として残しつつ、Phase 12 の着手分を追加します。
 
 
 ## Phase 0 完了確認
@@ -77,6 +78,7 @@ Phase 11 は複数ノード運用の運用化として完了済みです。
 - `phase-3`
 - `phase-4`
 - `phase-11`
+- `phase-12`
 - `relay`
 - `storage`
 - `ops`
@@ -831,6 +833,100 @@ HTTP carrier contract、capability negotiation、access / retention policy、obs
 2. 次に relay 間 / storage node 間 / archive との同期契約を決め、`subscription`、`replay`、`export / import` の役割を分ける
 3. その後、競合解決と重複扱いを `canonical identity`、`provenance`、`lineage` に沿って決める
 4. 最後に capacity 分散と配置ポリシーを runbook と observability に落とす
+
+## Epic 12: 追加 carrier への拡張準備
+
+### Issue 12.1: carrier capability negotiation の共通語彙を固定する（完了済み）
+
+- 目的: HTTP 以外の carrier でも、何が互換境界かを同じ見方で判定できるようにする
+- 依存: 7.1, 8.3, 9.2, 10.1
+- 参照:
+  - [Carrier Capability Negotiation](../operations/CARRIER_CAPABILITY_NEGOTIATION.md)
+  - [HTTP Carrier Contract](../operations/HTTP_CARRIER_CONTRACT.md)
+  - [File / Archive Carrier Contract](../operations/FILE_ARCHIVE_CARRIER_CONTRACT.md)
+  - [Migration and Schema Versioning](../operations/MIGRATION_AND_SCHEMA_VERSIONING.md)
+  - [Access and Retention Policy](../operations/ACCESS_RETENTION_POLICY.md)
+- 完了条件:
+  - `carrier kind`、`protocol version`、`supported object types`、`supported schema versions` の役割が説明できる
+  - `supported auth modes`、`supported content types`、`supported access scopes`、`supported retention hints` が policy と整合している
+  - `supported archive versions` や replay support を carrier ごとに説明できる
+  - capability は advisory で、semantic source of truth ではないことが説明できる
+  - 足りない capability は fail closed で扱う方針が説明できる
+
+### Issue 12.2: 共通 validation と carrier 固有制約の境界を固定する（完了済み）
+
+- 目的: validate / normalize / finalize の共通部分と、carrier 固有の framing / serialization / routing を分離する
+- 依存: 0.10, 0.11, 9.1, 12.1
+- 参照:
+  - [Distributed Knowledge Commons Architecture](../architecture/DISTRIBUTED_KNOWLEDGE_COMMONS_ARCHITECTURE.md)
+  - [Carrier Capability Negotiation](../operations/CARRIER_CAPABILITY_NEGOTIATION.md)
+  - [HTTP Carrier Contract](../operations/HTTP_CARRIER_CONTRACT.md)
+  - [File / Archive Carrier Contract](../operations/FILE_ARCHIVE_CARRIER_CONTRACT.md)
+  - [Migration and Schema Versioning](../operations/MIGRATION_AND_SCHEMA_VERSIONING.md)
+- 完了条件:
+  - 共通 validation に含める項目と carrier 固有の制約が分かれている
+  - semantic adapter を carrier 側に入れない方針が説明できる
+  - validate / normalize / finalize の責務が carrier ごとに崩れない
+  - schema version や content type の違いを carrier 固有の framing で吸収しすぎない
+  - carrier ごとの failure を validation / capability / runtime のどこで返すか説明できる
+
+### Issue 12.3: profile 側で差し替える点を整理する（完了済み）
+
+- 目的: application profile が carrier を選び、carrier が profile semantics を決めないようにする
+- 依存: 7.2, 10.1, 11.1, 11.2
+- 参照:
+  - [Toitoi Application Profile](../profiles/TOITOI_APPLICATION_PROFILE.md)
+  - [Access and Retention Policy](../operations/ACCESS_RETENTION_POLICY.md)
+  - [Carrier Capability Negotiation](../operations/CARRIER_CAPABILITY_NEGOTIATION.md)
+  - [HTTP Carrier Contract](../operations/HTTP_CARRIER_CONTRACT.md)
+  - [Distributed Knowledge Commons Architecture](../architecture/DISTRIBUTED_KNOWLEDGE_COMMONS_ARCHITECTURE.md)
+- 完了条件:
+  - profile 固有の vocabulary と core carrier の語彙が混ざらない
+  - profile が carrier の既定値を上書きする場合の前提が説明できる
+  - Toitoi のような application profile の差分を core に持ち込まない方針が説明できる
+  - profile 側で差し替える設定、query priority、curation rule の置き場が説明できる
+  - carrier 追加時に profile 変更が必須か任意かを説明できる
+
+### Issue 12.4: 新 carrier の追加手順を runbook に落とす（完了済み）
+
+- 目的: carrier を増やすときの確認順と fail closed の判断順を 1 本化する
+- 依存: 12.1, 12.2, 12.3
+- 参照:
+  - [Node Lifecycle Runbook](../operations/NODE_LIFECYCLE_RUNBOOK.md)
+  - [Carrier Capability Negotiation](../operations/CARRIER_CAPABILITY_NEGOTIATION.md)
+  - [HTTP Carrier Contract](../operations/HTTP_CARRIER_CONTRACT.md)
+  - [File / Archive Carrier Contract](../operations/FILE_ARCHIVE_CARRIER_CONTRACT.md)
+  - [運用準備ロードマップ](./OPERATIONAL_READINESS_ROADMAP.md)
+- 完了条件:
+  - 新 carrier の選定、capability 照合、profile 影響確認、runbook 反映の順がある
+  - 追加時に見る文書が 1 本で辿れる
+  - 受け入れ可否を capability と policy から判定する手順がある
+  - 失敗時に semantic translation ではなく拒否を優先する方針がある
+  - 既存 carrier と同じ確認軸で比較できる
+
+### Issue 12.1 完了メモ
+
+- [Carrier Capability Negotiation](../operations/CARRIER_CAPABILITY_NEGOTIATION.md) に新 carrier の追加時の確認順を追加した
+- `protocol version`、`supported schema versions`、`supported object types`、`supported auth modes`、`supported content types`、`supported access scopes`、`supported retention hints`、`replay support`、`supported archive versions` を fail closed の判定軸として揃えた
+- capability は advisory であり、semantic source of truth ではない方針を文書に明示した
+
+### Issue 12.2 完了メモ
+
+- [HTTP Carrier Contract](../operations/HTTP_CARRIER_CONTRACT.md) に共通 validation の境界を明示した
+- validate は必須 field、schema version、carrier identity、publisher metadata の一貫性までに留める方針を明示した
+- validation / finalize constraints を carrier 固有の framing と混同しないように整理した
+
+### Issue 12.3 完了メモ
+
+- [Toitoi Application Profile](../profiles/TOITOI_APPLICATION_PROFILE.md) に carrier 差し替え時の見方を追加した
+- carrier ごとの差分を capability に閉じ、profile validation は canonical view に対する追加制約として扱う方針を明示した
+- profile 側で差し替える API 返却形、query priority、curation rule の置き場を整理した
+
+### Issue 12.4 完了メモ
+
+- [Node Lifecycle Runbook](../operations/NODE_LIFECYCLE_RUNBOOK.md) に Phase 12 の確認順を追加した
+- carrier kind、capability、policy、profile の順で確認する導線を runbook へ反映した
+- 新 carrier の受け入れ時に、semantic translation ではなく fail closed を優先する運用順を明文化した
 
 ## 参照文書
 

@@ -1,6 +1,6 @@
 # Operations
 
-**Status: active** | **Last updated: 2026-06-20**
+**Status: active** | **Last updated: 2026-06-22**
 
 このディレクトリには、Lingonberry の技術決定と運用正本を置きます。
 
@@ -12,6 +12,10 @@
 - [HTTP Carrier Contract](./HTTP_CARRIER_CONTRACT.md)
 - [File / Archive Carrier Contract](./FILE_ARCHIVE_CARRIER_CONTRACT.md)
 - [Carrier Capability Negotiation](./CARRIER_CAPABILITY_NEGOTIATION.md)
+- [Multi-node Discovery and Topology](./MULTI_NODE_DISCOVERY_AND_TOPOLOGY.md)
+- [Multi-node Sync Contract](./MULTI_NODE_SYNC_CONTRACT.md)
+- [Multi-node Conflict Policy](./MULTI_NODE_CONFLICT_POLICY.md)
+- [Multi-node Capacity and Placement Policy](./MULTI_NODE_CAPACITY_AND_PLACEMENT_POLICY.md)
 - [Access and Retention Policy](./ACCESS_RETENTION_POLICY.md)
 - [Access and Retention Audit Checklist](./ACCESS_RETENTION_AUDIT_CHECKLIST.md)
 - [Secret Management](./SECRET_MANAGEMENT.md)

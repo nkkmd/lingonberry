@@ -16,6 +16,7 @@
   - relay と storage binary から共有する backend 構築の入口
 - `src/main.rs`
   - `capabilities`、`config`、`run` の最小 runtime 入口
+  - `capabilities` には multi-node discovery / sync / conflict / capacity の policy manifest を含める
 
 ## ローカル開発
 

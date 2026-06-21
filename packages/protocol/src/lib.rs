@@ -353,11 +353,95 @@ pub fn build_capability_manifest(carrier_kind: &str, default_access: &str, defau
                 JsonValue::String("ephemeral".to_string()),
             ]),
         ),
+        ("multiNode".to_string(), build_multi_node_policy_manifest()),
         (
             "defaults".to_string(),
             JsonValue::Object(BTreeMap::from([
                 ("accessScope".to_string(), JsonValue::String(default_access.to_string())),
                 ("retentionHint".to_string(), JsonValue::String(default_retention.to_string())),
+            ])),
+        ),
+    ]))
+}
+
+pub fn build_multi_node_policy_manifest() -> JsonValue {
+    JsonValue::Object(BTreeMap::from([
+        (
+            "supportedNodeRoles".to_string(),
+            JsonValue::Array(vec![
+                JsonValue::String("public relay".to_string()),
+                JsonValue::String("curated relay".to_string()),
+                JsonValue::String("archive relay".to_string()),
+                JsonValue::String("gateway relay".to_string()),
+                JsonValue::String("storage node".to_string()),
+                JsonValue::String("archive node".to_string()),
+            ]),
+        ),
+        (
+            "discovery".to_string(),
+            JsonValue::Object(BTreeMap::from([
+                ("registryFree".to_string(), JsonValue::Bool(true)),
+                (
+                    "helperSurfaces".to_string(),
+                    JsonValue::Array(vec![
+                        JsonValue::String("signed-manifest".to_string()),
+                        JsonValue::String("capability-endpoint".to_string()),
+                        JsonValue::String("relay-discovery".to_string()),
+                        JsonValue::String("indexer-cache".to_string()),
+                    ]),
+                ),
+            ])),
+        ),
+        (
+            "sync".to_string(),
+            JsonValue::Object(BTreeMap::from([
+                ("relay".to_string(), JsonValue::String("subscription".to_string())),
+                (
+                    "storageNode".to_string(),
+                    JsonValue::Array(vec![
+                        JsonValue::String("replay".to_string()),
+                        JsonValue::String("export/import".to_string()),
+                    ]),
+                ),
+                (
+                    "archive".to_string(),
+                    JsonValue::Array(vec![JsonValue::String("export/import".to_string())]),
+                ),
+                ("semanticTranslation".to_string(), JsonValue::Bool(false)),
+            ])),
+        ),
+        (
+            "conflict".to_string(),
+            JsonValue::Object(BTreeMap::from([
+                ("exactDuplicate".to_string(), JsonValue::String("idempotent".to_string())),
+                ("conflictingRePublish".to_string(), JsonValue::String("reject-or-quarantine".to_string())),
+                ("identityCollision".to_string(), JsonValue::String("keep-both".to_string())),
+                ("revision".to_string(), JsonValue::String("lineage".to_string())),
+            ])),
+        ),
+        (
+            "capacity".to_string(),
+            JsonValue::Object(BTreeMap::from([
+                (
+                    "placementOrder".to_string(),
+                    JsonValue::Array(vec![
+                        JsonValue::String("role-requirements".to_string()),
+                        JsonValue::String("availability".to_string()),
+                        JsonValue::String("storage".to_string()),
+                        JsonValue::String("replay".to_string()),
+                        JsonValue::String("connectivity".to_string()),
+                    ]),
+                ),
+                (
+                    "pressurePriority".to_string(),
+                    JsonValue::Array(vec![
+                        JsonValue::String("replay-possible".to_string()),
+                        JsonValue::String("provenance-retained".to_string()),
+                        JsonValue::String("public-entry-point".to_string()),
+                        JsonValue::String("storage-reconstruction".to_string()),
+                        JsonValue::String("archive-spool".to_string()),
+                    ]),
+                ),
             ])),
         ),
     ]))
@@ -1417,5 +1501,26 @@ mod tests {
             other => panic!("unexpected finalizeConstraints: {:?}", other),
         };
         assert!(finalize_constraints.iter().any(|value| as_string(value) == Some("rawref-preservation")));
+
+        let multi_node = as_object(map.get("multiNode").expect("multiNode manifest")).expect("multiNode must be an object");
+        let discovery = as_object(multi_node.get("discovery").expect("discovery")).expect("discovery must be an object");
+        assert_eq!(discovery.get("registryFree"), Some(&JsonValue::Bool(true)));
+        let helper_surfaces = match discovery.get("helperSurfaces") {
+            Some(JsonValue::Array(values)) => values,
+            other => panic!("unexpected helperSurfaces: {:?}", other),
+        };
+        assert!(helper_surfaces.iter().any(|value| as_string(value) == Some("capability-endpoint")));
+
+        let sync = as_object(multi_node.get("sync").expect("sync")).expect("sync must be an object");
+        assert_eq!(sync.get("relay").and_then(as_string), Some("subscription"));
+        let storage_node = match sync.get("storageNode") {
+            Some(JsonValue::Array(values)) => values,
+            other => panic!("unexpected storageNode: {:?}", other),
+        };
+        assert!(storage_node.iter().any(|value| as_string(value) == Some("replay")));
+
+        let conflict = as_object(multi_node.get("conflict").expect("conflict")).expect("conflict must be an object");
+        assert_eq!(conflict.get("exactDuplicate").and_then(as_string), Some("idempotent"));
+        assert_eq!(conflict.get("revision").and_then(as_string), Some("lineage"));
     }
 }

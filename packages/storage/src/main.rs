@@ -1,7 +1,7 @@
 use lingonberry_core::StorageBackend;
 use lingonberry_protocol::{
-    finalize_knowledge_object, read_json_file, to_canonical_json, validate_knowledge_object,
-    validate_publish_request, JsonValue,
+    build_multi_node_policy_manifest, finalize_knowledge_object, read_json_file, to_canonical_json,
+    validate_knowledge_object, validate_publish_request, JsonValue,
 };
 use lingonberry_storage::{
     build_storage_backend_at, runtime_storage_config, runtime_storage_layout, StorageRuntimeConfig,
@@ -42,6 +42,7 @@ fn run(args: Vec<String>) -> Result<(), String> {
                         JsonValue::String("run".to_string()),
                     ]),
                 ),
+                ("multiNode", build_multi_node_policy_manifest()),
             ])));
             Ok(())
         }

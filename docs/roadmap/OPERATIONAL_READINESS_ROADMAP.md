@@ -1,6 +1,6 @@
 # 運用準備ロードマップ
 
-**Status: active** | **Last updated: 2026-06-20**
+**Status: active** | **Last updated: 2026-06-21**
 
 ## 目的
 
@@ -501,7 +501,7 @@ schema 変更を運用しながら進められるようにします。
 - 監査用の [Access and Retention Audit Checklist](../operations/ACCESS_RETENTION_AUDIT_CHECKLIST.md) を追加した
 - `public / curated / private` の扱いを protocol semantic から切り離し、運用ポリシーとして固定した
 
-## フェーズ 11: 複数ノード運用
+## フェーズ 11: 複数ノード運用（完了済み）
 
 ### 目的
 
@@ -517,6 +517,15 @@ schema 変更を運用しながら進められるようにします。
 ### 完了条件
 
 - 複数ノードで同じ object 群を扱える
+
+### フェーズ 11 完了メモ
+
+- node discovery と topology は [Multi-node Discovery and Topology](../operations/MULTI_NODE_DISCOVERY_AND_TOPOLOGY.md) に集約した
+- relay 間 / storage node 間 / archive との同期契約は [Multi-node Sync Contract](../operations/MULTI_NODE_SYNC_CONTRACT.md) に集約した
+- 競合解決と重複扱いは [Multi-node Conflict Policy](../operations/MULTI_NODE_CONFLICT_POLICY.md) に集約した
+- capacity 分散と配置ポリシーは [Multi-node Capacity and Placement Policy](../operations/MULTI_NODE_CAPACITY_AND_PLACEMENT_POLICY.md) に集約した
+- その確認順と切り分け順は [Node Lifecycle Runbook](../operations/NODE_LIFECYCLE_RUNBOOK.md) に反映した
+- runtime の capability manifest には Phase 11 の policy bundle を含めた
 
 ## フェーズ 12: 追加 carrier への拡張準備
 

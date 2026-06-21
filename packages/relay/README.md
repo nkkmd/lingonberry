@@ -10,6 +10,7 @@
   - SQLite catalog を使う replay / get / list の最小入口
   - `serve-http` による HTTP carrier の最小実装
   - carrier capabilities の出力
+  - multi-node discovery / sync / conflict / capacity の policy manifest を capability に含める
   - archive export / import
 
 `relay` は runtime の入口として backend を受け取り、永続化の具体実装は `core` の runtime helper に寄せています。

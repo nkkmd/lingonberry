@@ -4,8 +4,8 @@ use lingonberry_protocol::{
     DEFAULT_ACCESS_SCOPE, DEFAULT_RETENTION_HINT, HTTP_PUBLISH_REQUEST_SCHEMA_VERSION,
     KNOWLEDGE_OBJECT_SCHEMA_VERSION, PROTOCOL_VERSION,
 };
-use std::env;
 use std::collections::{BTreeMap, BTreeSet};
+use std::env;
 use std::fmt;
 use std::fs::{self, OpenOptions};
 use std::io::{BufRead, BufReader, Write};
@@ -70,7 +70,11 @@ impl fmt::Display for StoreError {
 impl std::error::Error for StoreError {}
 
 pub trait StorageBackend {
-    fn append_publish_request(&self, request_json: &str, finalized: &FinalizedKnowledgeObject) -> Result<AppendOutcome, StoreError>;
+    fn append_publish_request(
+        &self,
+        request_json: &str,
+        finalized: &FinalizedKnowledgeObject,
+    ) -> Result<AppendOutcome, StoreError>;
     fn get(&self, canonical_id: &str) -> Result<Option<StoredCatalogRecord>, StoreError>;
     fn get_raw_request(&self, canonical_id: &str) -> Result<Option<RawRequestRecord>, StoreError>;
     fn list_ids(&self) -> Result<Vec<String>, StoreError>;
@@ -119,7 +123,11 @@ impl FileStorageBackend {
 }
 
 impl StorageBackend for FileStorageBackend {
-    fn append_publish_request(&self, request_json: &str, finalized: &FinalizedKnowledgeObject) -> Result<AppendOutcome, StoreError> {
+    fn append_publish_request(
+        &self,
+        request_json: &str,
+        finalized: &FinalizedKnowledgeObject,
+    ) -> Result<AppendOutcome, StoreError> {
         append_publish_request(&self.paths, request_json, finalized)
     }
 
@@ -159,12 +167,20 @@ pub fn build_runtime_storage_backend() -> SqliteStorageBackend {
 }
 
 pub fn build_runtime_capability_manifest() -> JsonValue {
-    build_capability_manifest(lingonberry_protocol::CARRIER_KIND_RELAY, DEFAULT_ACCESS_SCOPE, DEFAULT_RETENTION_HINT)
+    build_capability_manifest(
+        lingonberry_protocol::CARRIER_KIND_RELAY,
+        DEFAULT_ACCESS_SCOPE,
+        DEFAULT_RETENTION_HINT,
+    )
 }
 
-pub fn export_archive(backend: &impl StorageBackend, archive_dir: impl AsRef<Path>) -> Result<ArchiveExportReport, StoreError> {
+pub fn export_archive(
+    backend: &impl StorageBackend,
+    archive_dir: impl AsRef<Path>,
+) -> Result<ArchiveExportReport, StoreError> {
     let archive_dir = archive_dir.as_ref().to_path_buf();
-    fs::create_dir_all(&archive_dir).map_err(|error| store_error("LB_IO_ERROR", error.to_string()))?;
+    fs::create_dir_all(&archive_dir)
+        .map_err(|error| store_error("LB_IO_ERROR", error.to_string()))?;
     let manifest_path = archive_dir.join("manifest.json");
     let wire_log_path = archive_dir.join("wire-log.jsonl");
     let catalog_path = archive_dir.join("canonical-catalog.jsonl");
@@ -174,23 +190,35 @@ pub fn export_archive(backend: &impl StorageBackend, archive_dir: impl AsRef<Pat
     let mut catalog_lines = Vec::new();
 
     for canonical_id in &ids {
-        let raw_request = backend
-            .get_raw_request(canonical_id)?
-            .ok_or_else(|| store_error("LB_ARCHIVE_EXPORT", format!("raw request not found for {}", canonical_id)))?;
+        let raw_request = backend.get_raw_request(canonical_id)?.ok_or_else(|| {
+            store_error(
+                "LB_ARCHIVE_EXPORT",
+                format!("raw request not found for {}", canonical_id),
+            )
+        })?;
         wire_log_lines.push(json_object(vec![
             ("storedAt", JsonValue::String(raw_request.stored_at)),
             ("canonicalId", JsonValue::String(raw_request.canonical_id)),
-            ("carrierIdentity", JsonValue::String(raw_request.carrier_identity)),
+            (
+                "carrierIdentity",
+                JsonValue::String(raw_request.carrier_identity),
+            ),
             ("requestJson", JsonValue::String(raw_request.request_json)),
         ]));
 
-        let record = backend
-            .get(canonical_id)?
-            .ok_or_else(|| store_error("LB_ARCHIVE_EXPORT", format!("catalog record not found for {}", canonical_id)))?;
+        let record = backend.get(canonical_id)?.ok_or_else(|| {
+            store_error(
+                "LB_ARCHIVE_EXPORT",
+                format!("catalog record not found for {}", canonical_id),
+            )
+        })?;
         catalog_lines.push(json_object(vec![
             ("storedAt", JsonValue::String(record.stored_at)),
             ("canonicalId", JsonValue::String(record.canonical_id)),
-            ("carrierIdentity", JsonValue::String(record.carrier_identity)),
+            (
+                "carrierIdentity",
+                JsonValue::String(record.carrier_identity),
+            ),
             ("object", record.object),
         ]));
     }
@@ -199,7 +227,10 @@ pub fn export_archive(backend: &impl StorageBackend, archive_dir: impl AsRef<Pat
     write_jsonl(&catalog_path, &catalog_lines)?;
 
     let manifest = archive_manifest(ids.len());
-    write_text_file(&manifest_path, &format!("{}\n", to_canonical_json(&manifest)))?;
+    write_text_file(
+        &manifest_path,
+        &format!("{}\n", to_canonical_json(&manifest)),
+    )?;
 
     Ok(ArchiveExportReport {
         archive_dir,
@@ -210,31 +241,50 @@ pub fn export_archive(backend: &impl StorageBackend, archive_dir: impl AsRef<Pat
     })
 }
 
-pub fn import_archive(backend: &impl StorageBackend, archive_dir: impl AsRef<Path>) -> Result<ArchiveImportReport, StoreError> {
+pub fn import_archive(
+    backend: &impl StorageBackend,
+    archive_dir: impl AsRef<Path>,
+) -> Result<ArchiveImportReport, StoreError> {
     let archive_dir = archive_dir.as_ref().to_path_buf();
     let manifest_path = archive_dir.join("manifest.json");
     let wire_log_path = archive_dir.join("wire-log.jsonl");
-    let manifest_raw = fs::read_to_string(&manifest_path).map_err(|error| store_error("LB_IO_ERROR", error.to_string()))?;
-    let manifest_value = parse_json(&manifest_raw).map_err(|error| store_error("LB_ARCHIVE_IMPORT", error.to_string()))?;
+    let manifest_raw = fs::read_to_string(&manifest_path)
+        .map_err(|error| store_error("LB_IO_ERROR", error.to_string()))?;
+    let manifest_value = parse_json(&manifest_raw)
+        .map_err(|error| store_error("LB_ARCHIVE_IMPORT", error.to_string()))?;
     validate_archive_manifest(&manifest_value)?;
 
     let lines = read_lines(&wire_log_path)?;
     let mut imported = 0usize;
     let mut duplicates = 0usize;
     for line in lines {
-        let value = parse_json(&line).map_err(|error| store_error("LB_ARCHIVE_IMPORT", error.to_string()))?;
+        let value = parse_json(&line)
+            .map_err(|error| store_error("LB_ARCHIVE_IMPORT", error.to_string()))?;
         let Some(map) = as_object(&value) else {
-            return Err(store_error("LB_ARCHIVE_IMPORT", "wire-log record must be an object"));
+            return Err(store_error(
+                "LB_ARCHIVE_IMPORT",
+                "wire-log record must be an object",
+            ));
         };
         let Some(request_json) = map.get("requestJson").and_then(as_string) else {
-            return Err(store_error("LB_ARCHIVE_IMPORT", "wire-log record missing requestJson"));
+            return Err(store_error(
+                "LB_ARCHIVE_IMPORT",
+                "wire-log record missing requestJson",
+            ));
         };
-        let request_value = parse_json(request_json).map_err(|error| store_error("LB_ARCHIVE_IMPORT", error.to_string()))?;
+        let request_value = parse_json(request_json)
+            .map_err(|error| store_error("LB_ARCHIVE_IMPORT", error.to_string()))?;
         let Some(request_map) = as_object(&request_value) else {
-            return Err(store_error("LB_ARCHIVE_IMPORT", "requestJson is not a publish request"));
+            return Err(store_error(
+                "LB_ARCHIVE_IMPORT",
+                "requestJson is not a publish request",
+            ));
         };
         let Some(object_value) = request_map.get("object") else {
-            return Err(store_error("LB_ARCHIVE_IMPORT", "publish request missing object"));
+            return Err(store_error(
+                "LB_ARCHIVE_IMPORT",
+                "publish request missing object",
+            ));
         };
         let finalized = finalize_knowledge_object(object_value)
             .map_err(|errors| store_error("LB_ARCHIVE_IMPORT", errors.join("; ")))?;
@@ -255,26 +305,53 @@ pub fn import_archive(backend: &impl StorageBackend, archive_dir: impl AsRef<Pat
 
 fn archive_manifest(record_count: usize) -> JsonValue {
     json_object(vec![
-        ("archiveVersion", JsonValue::String(ARCHIVE_VERSION.to_string())),
-        ("capabilityVersion", JsonValue::String(CAPABILITY_VERSION.to_string())),
-        ("protocolVersion", JsonValue::String(PROTOCOL_VERSION.to_string())),
-        ("carrierKind", JsonValue::String(CARRIER_KIND_ARCHIVE.to_string())),
+        (
+            "archiveVersion",
+            JsonValue::String(ARCHIVE_VERSION.to_string()),
+        ),
+        (
+            "capabilityVersion",
+            JsonValue::String(CAPABILITY_VERSION.to_string()),
+        ),
+        (
+            "protocolVersion",
+            JsonValue::String(PROTOCOL_VERSION.to_string()),
+        ),
+        (
+            "carrierKind",
+            JsonValue::String(CARRIER_KIND_ARCHIVE.to_string()),
+        ),
         ("createdAt", JsonValue::String(now_utc_rfc3339())),
         ("itemCount", JsonValue::Number(record_count.to_string())),
         (
             "schemaVersions",
             json_object(vec![
-                ("knowledgeObject", JsonValue::String(KNOWLEDGE_OBJECT_SCHEMA_VERSION.to_string())),
-                ("httpPublishRequest", JsonValue::String(HTTP_PUBLISH_REQUEST_SCHEMA_VERSION.to_string())),
+                (
+                    "knowledgeObject",
+                    JsonValue::String(KNOWLEDGE_OBJECT_SCHEMA_VERSION.to_string()),
+                ),
+                (
+                    "httpPublishRequest",
+                    JsonValue::String(HTTP_PUBLISH_REQUEST_SCHEMA_VERSION.to_string()),
+                ),
             ]),
         ),
         (
             "policy",
             json_object(vec![
-                ("defaultAccess", JsonValue::String(DEFAULT_ACCESS_SCOPE.to_string())),
-                ("defaultRetention", JsonValue::String(DEFAULT_RETENTION_HINT.to_string())),
+                (
+                    "defaultAccess",
+                    JsonValue::String(DEFAULT_ACCESS_SCOPE.to_string()),
+                ),
+                (
+                    "defaultRetention",
+                    JsonValue::String(DEFAULT_RETENTION_HINT.to_string()),
+                ),
                 ("privateEnabled", JsonValue::Bool(false)),
-                ("scrubMode", JsonValue::String("operator-controlled".to_string())),
+                (
+                    "scrubMode",
+                    JsonValue::String("operator-controlled".to_string()),
+                ),
             ]),
         ),
         (
@@ -282,7 +359,10 @@ fn archive_manifest(record_count: usize) -> JsonValue {
             json_object(vec![
                 ("manifest", JsonValue::String("manifest.json".to_string())),
                 ("wireLog", JsonValue::String("wire-log.jsonl".to_string())),
-                ("catalog", JsonValue::String("canonical-catalog.jsonl".to_string())),
+                (
+                    "catalog",
+                    JsonValue::String("canonical-catalog.jsonl".to_string()),
+                ),
             ]),
         ),
     ])
@@ -290,22 +370,46 @@ fn archive_manifest(record_count: usize) -> JsonValue {
 
 fn validate_archive_manifest(value: &JsonValue) -> Result<(), StoreError> {
     let Some(map) = as_object(value) else {
-        return Err(store_error("LB_ARCHIVE_IMPORT", "archive manifest must be an object"));
+        return Err(store_error(
+            "LB_ARCHIVE_IMPORT",
+            "archive manifest must be an object",
+        ));
     };
     match map.get("archiveVersion") {
         Some(JsonValue::String(value)) if value == ARCHIVE_VERSION => {}
-        Some(JsonValue::String(_)) => return Err(store_error("LB_ARCHIVE_IMPORT", "archiveVersion mismatch")),
-        _ => return Err(store_error("LB_ARCHIVE_IMPORT", "archive manifest missing archiveVersion")),
+        Some(JsonValue::String(_)) => {
+            return Err(store_error("LB_ARCHIVE_IMPORT", "archiveVersion mismatch"))
+        }
+        _ => {
+            return Err(store_error(
+                "LB_ARCHIVE_IMPORT",
+                "archive manifest missing archiveVersion",
+            ))
+        }
     }
     match map.get("protocolVersion") {
         Some(JsonValue::String(value)) if value == PROTOCOL_VERSION => {}
-        Some(JsonValue::String(_)) => return Err(store_error("LB_ARCHIVE_IMPORT", "protocolVersion mismatch")),
-        _ => return Err(store_error("LB_ARCHIVE_IMPORT", "archive manifest missing protocolVersion")),
+        Some(JsonValue::String(_)) => {
+            return Err(store_error("LB_ARCHIVE_IMPORT", "protocolVersion mismatch"))
+        }
+        _ => {
+            return Err(store_error(
+                "LB_ARCHIVE_IMPORT",
+                "archive manifest missing protocolVersion",
+            ))
+        }
     }
     match map.get("carrierKind") {
         Some(JsonValue::String(value)) if value == CARRIER_KIND_ARCHIVE => {}
-        Some(JsonValue::String(_)) => return Err(store_error("LB_ARCHIVE_IMPORT", "carrierKind mismatch")),
-        _ => return Err(store_error("LB_ARCHIVE_IMPORT", "archive manifest missing carrierKind")),
+        Some(JsonValue::String(_)) => {
+            return Err(store_error("LB_ARCHIVE_IMPORT", "carrierKind mismatch"))
+        }
+        _ => {
+            return Err(store_error(
+                "LB_ARCHIVE_IMPORT",
+                "archive manifest missing carrierKind",
+            ))
+        }
     }
     Ok(())
 }
@@ -334,7 +438,11 @@ pub fn get_store_paths(base_dir: impl AsRef<Path>) -> StorePaths {
     }
 }
 
-pub fn append_publish_request(paths: &StorePaths, request_json: &str, finalized: &FinalizedKnowledgeObject) -> Result<AppendOutcome, StoreError> {
+pub fn append_publish_request(
+    paths: &StorePaths,
+    request_json: &str,
+    finalized: &FinalizedKnowledgeObject,
+) -> Result<AppendOutcome, StoreError> {
     let carrier_identity = carrier_identity_for_request(request_json)?;
     ensure_parent(&paths.raw_log_path)?;
     ensure_parent(&paths.catalog_path)?;
@@ -344,7 +452,10 @@ pub fn append_publish_request(paths: &StorePaths, request_json: &str, finalized:
         if existing_json != finalized.canonical_json {
             return Err(StoreError {
                 code: "LB_OBJECT_CONFLICT",
-                message: format!("carrier identity already exists with different content: {}", carrier_identity),
+                message: format!(
+                    "carrier identity already exists with different content: {}",
+                    carrier_identity
+                ),
             });
         }
         return Ok(AppendOutcome {
@@ -361,7 +472,10 @@ pub fn append_publish_request(paths: &StorePaths, request_json: &str, finalized:
         if existing_json != finalized.canonical_json {
             return Err(StoreError {
                 code: "LB_OBJECT_CONFLICT",
-                message: format!("object already exists with different content: {}", finalized.canonical_id),
+                message: format!(
+                    "object already exists with different content: {}",
+                    finalized.canonical_id
+                ),
             });
         }
         return Ok(AppendOutcome {
@@ -376,14 +490,26 @@ pub fn append_publish_request(paths: &StorePaths, request_json: &str, finalized:
     let stored_at = now_utc_rfc3339();
     let raw_record = json_object(vec![
         ("storedAt", JsonValue::String(stored_at.clone())),
-        ("canonicalId", JsonValue::String(finalized.canonical_id.clone())),
-        ("carrierIdentity", JsonValue::String(carrier_identity.clone())),
+        (
+            "canonicalId",
+            JsonValue::String(finalized.canonical_id.clone()),
+        ),
+        (
+            "carrierIdentity",
+            JsonValue::String(carrier_identity.clone()),
+        ),
         ("requestJson", JsonValue::String(request_json.to_string())),
     ]);
     let catalog_record = json_object(vec![
         ("storedAt", JsonValue::String(stored_at.clone())),
-        ("canonicalId", JsonValue::String(finalized.canonical_id.clone())),
-        ("carrierIdentity", JsonValue::String(carrier_identity.clone())),
+        (
+            "canonicalId",
+            JsonValue::String(finalized.canonical_id.clone()),
+        ),
+        (
+            "carrierIdentity",
+            JsonValue::String(carrier_identity.clone()),
+        ),
         ("object", finalized.object.clone()),
     ]);
 
@@ -399,20 +525,31 @@ pub fn append_publish_request(paths: &StorePaths, request_json: &str, finalized:
     })
 }
 
-pub fn get_record(paths: &StorePaths, canonical_id: &str) -> Result<Option<StoredCatalogRecord>, StoreError> {
+pub fn get_record(
+    paths: &StorePaths,
+    canonical_id: &str,
+) -> Result<Option<StoredCatalogRecord>, StoreError> {
     let lines = read_lines(&paths.catalog_path)?;
     for line in lines.into_iter().rev() {
-        let value = parse_json(&line).map_err(|error| store_error("LB_INVALID_CATALOG", error.to_string()))?;
+        let value = parse_json(&line)
+            .map_err(|error| store_error("LB_INVALID_CATALOG", error.to_string()))?;
         let Some(map) = as_object(&value) else {
             continue;
         };
         if map.get("canonicalId").and_then(as_string) == Some(canonical_id) {
-            let stored_at = map.get("storedAt").and_then(as_string).unwrap_or_default().to_string();
-            let carrier_identity = map.get("carrierIdentity").and_then(as_string).unwrap_or_default().to_string();
-            let object = map
-                .get("object")
-                .cloned()
-                .ok_or_else(|| store_error("LB_INVALID_CATALOG", "catalog record missing object"))?;
+            let stored_at = map
+                .get("storedAt")
+                .and_then(as_string)
+                .unwrap_or_default()
+                .to_string();
+            let carrier_identity = map
+                .get("carrierIdentity")
+                .and_then(as_string)
+                .unwrap_or_default()
+                .to_string();
+            let object = map.get("object").cloned().ok_or_else(|| {
+                store_error("LB_INVALID_CATALOG", "catalog record missing object")
+            })?;
             return Ok(Some(StoredCatalogRecord {
                 stored_at,
                 canonical_id: canonical_id.to_string(),
@@ -424,22 +561,44 @@ pub fn get_record(paths: &StorePaths, canonical_id: &str) -> Result<Option<Store
     Ok(None)
 }
 
-pub fn get_record_by_carrier_identity(paths: &StorePaths, carrier_identity: &str) -> Result<Option<StoredCatalogRecord>, StoreError> {
+pub fn get_record_by_carrier_identity(
+    paths: &StorePaths,
+    carrier_identity: &str,
+) -> Result<Option<StoredCatalogRecord>, StoreError> {
     let records = list_records(paths)?;
-    Ok(records.into_iter().rev().find(|record| record.carrier_identity == carrier_identity))
+    Ok(records
+        .into_iter()
+        .rev()
+        .find(|record| record.carrier_identity == carrier_identity))
 }
 
-pub fn get_raw_request(paths: &StorePaths, canonical_id: &str) -> Result<Option<RawRequestRecord>, StoreError> {
+pub fn get_raw_request(
+    paths: &StorePaths,
+    canonical_id: &str,
+) -> Result<Option<RawRequestRecord>, StoreError> {
     let lines = read_lines(&paths.raw_log_path)?;
     for line in lines.into_iter().rev() {
-        let value = parse_json(&line).map_err(|error| store_error("LB_INVALID_LOG", error.to_string()))?;
+        let value =
+            parse_json(&line).map_err(|error| store_error("LB_INVALID_LOG", error.to_string()))?;
         let Some(map) = as_object(&value) else {
             continue;
         };
         if map.get("canonicalId").and_then(as_string) == Some(canonical_id) {
-            let stored_at = map.get("storedAt").and_then(as_string).unwrap_or_default().to_string();
-            let carrier_identity = map.get("carrierIdentity").and_then(as_string).unwrap_or_default().to_string();
-            let request_json = map.get("requestJson").and_then(as_string).unwrap_or_default().to_string();
+            let stored_at = map
+                .get("storedAt")
+                .and_then(as_string)
+                .unwrap_or_default()
+                .to_string();
+            let carrier_identity = map
+                .get("carrierIdentity")
+                .and_then(as_string)
+                .unwrap_or_default()
+                .to_string();
+            let request_json = map
+                .get("requestJson")
+                .and_then(as_string)
+                .unwrap_or_default()
+                .to_string();
             return Ok(Some(RawRequestRecord {
                 stored_at,
                 canonical_id: canonical_id.to_string(),
@@ -463,7 +622,10 @@ pub fn list_ids(paths: &StorePaths) -> Result<Vec<String>, StoreError> {
     Ok(ids)
 }
 
-pub fn subscribe(paths: &StorePaths, object_type: Option<&str>) -> Result<Vec<StoredCatalogRecord>, StoreError> {
+pub fn subscribe(
+    paths: &StorePaths,
+    object_type: Option<&str>,
+) -> Result<Vec<StoredCatalogRecord>, StoreError> {
     let records = list_records(paths)?;
     Ok(filter_records_by_type(records, object_type))
 }
@@ -472,7 +634,8 @@ pub fn list_records(paths: &StorePaths) -> Result<Vec<StoredCatalogRecord>, Stor
     let lines = read_lines(&paths.catalog_path)?;
     let mut records = Vec::new();
     for line in lines {
-        let value = parse_json(&line).map_err(|error| store_error("LB_INVALID_CATALOG", error.to_string()))?;
+        let value = parse_json(&line)
+            .map_err(|error| store_error("LB_INVALID_CATALOG", error.to_string()))?;
         let Some(map) = as_object(&value) else {
             continue;
         };
@@ -481,8 +644,16 @@ pub fn list_records(paths: &StorePaths) -> Result<Vec<StoredCatalogRecord>, Stor
             .and_then(as_string)
             .ok_or_else(|| store_error("LB_INVALID_CATALOG", "catalog record missing canonicalId"))?
             .to_string();
-        let carrier_identity = map.get("carrierIdentity").and_then(as_string).unwrap_or_default().to_string();
-        let stored_at = map.get("storedAt").and_then(as_string).unwrap_or_default().to_string();
+        let carrier_identity = map
+            .get("carrierIdentity")
+            .and_then(as_string)
+            .unwrap_or_default()
+            .to_string();
+        let stored_at = map
+            .get("storedAt")
+            .and_then(as_string)
+            .unwrap_or_default()
+            .to_string();
         let object = map
             .get("object")
             .cloned()
@@ -497,7 +668,10 @@ pub fn list_records(paths: &StorePaths) -> Result<Vec<StoredCatalogRecord>, Stor
     Ok(records)
 }
 
-pub fn filter_records_by_type(records: Vec<StoredCatalogRecord>, object_type: Option<&str>) -> Vec<StoredCatalogRecord> {
+pub fn filter_records_by_type(
+    records: Vec<StoredCatalogRecord>,
+    object_type: Option<&str>,
+) -> Vec<StoredCatalogRecord> {
     match object_type {
         Some(expected) => records
             .into_iter()
@@ -511,27 +685,53 @@ pub fn replay(paths: &StorePaths) -> Result<Vec<StoredReplayRecord>, StoreError>
     let lines = read_lines(&paths.raw_log_path)?;
     let mut replayed = Vec::new();
     for line in lines {
-        let value = parse_json(&line).map_err(|error| store_error("LB_INVALID_LOG", error.to_string()))?;
+        let value =
+            parse_json(&line).map_err(|error| store_error("LB_INVALID_LOG", error.to_string()))?;
         let Some(map) = as_object(&value) else {
             continue;
         };
-        let stored_at = map.get("storedAt").and_then(as_string).unwrap_or_default().to_string();
-        let canonical_id = map.get("canonicalId").and_then(as_string).unwrap_or_default().to_string();
-        let carrier_identity = map.get("carrierIdentity").and_then(as_string).unwrap_or_default().to_string();
+        let stored_at = map
+            .get("storedAt")
+            .and_then(as_string)
+            .unwrap_or_default()
+            .to_string();
+        let canonical_id = map
+            .get("canonicalId")
+            .and_then(as_string)
+            .unwrap_or_default()
+            .to_string();
+        let carrier_identity = map
+            .get("carrierIdentity")
+            .and_then(as_string)
+            .unwrap_or_default()
+            .to_string();
         let Some(request_json) = map.get("requestJson").and_then(as_string) else {
-            return Err(store_error("LB_INVALID_LOG", "log record missing requestJson"));
+            return Err(store_error(
+                "LB_INVALID_LOG",
+                "log record missing requestJson",
+            ));
         };
-        let request_value = parse_json(request_json).map_err(|error| store_error("LB_INVALID_LOG", error.to_string()))?;
+        let request_value = parse_json(request_json)
+            .map_err(|error| store_error("LB_INVALID_LOG", error.to_string()))?;
         let Some(request_map) = as_object(&request_value) else {
-            return Err(store_error("LB_INVALID_LOG", "requestJson is not a publish request"));
+            return Err(store_error(
+                "LB_INVALID_LOG",
+                "requestJson is not a publish request",
+            ));
         };
         let Some(object_value) = request_map.get("object") else {
-            return Err(store_error("LB_INVALID_LOG", "publish request missing object"));
+            return Err(store_error(
+                "LB_INVALID_LOG",
+                "publish request missing object",
+            ));
         };
         let finalized = finalize_knowledge_object(object_value)
             .map_err(|errors| store_error("LB_INVALID_LOG", errors.join("; ")))?;
         if !canonical_id.is_empty() && canonical_id != finalized.canonical_id {
-            return Err(store_error("LB_INVALID_LOG", "log canonicalId does not match restored object"));
+            return Err(store_error(
+                "LB_INVALID_LOG",
+                "log canonicalId does not match restored object",
+            ));
         }
         replayed.push(StoredReplayRecord {
             stored_at,
@@ -552,7 +752,8 @@ fn object_type_of(value: &JsonValue) -> Option<String> {
 }
 
 fn carrier_identity_for_request(request_json: &str) -> Result<String, StoreError> {
-    let value = parse_json(request_json).map_err(|error| store_error("LB_INVALID_LOG", error.to_string()))?;
+    let value = parse_json(request_json)
+        .map_err(|error| store_error("LB_INVALID_LOG", error.to_string()))?;
     let normalized = normalize_carrier_request(value)?;
     let fingerprint = fnv1a64_hex(&to_canonical_json(&normalized));
     Ok(format!("lb:carrier:{}", fingerprint))
@@ -560,7 +761,10 @@ fn carrier_identity_for_request(request_json: &str) -> Result<String, StoreError
 
 fn normalize_carrier_request(value: JsonValue) -> Result<JsonValue, StoreError> {
     let Some(map) = as_object(&value) else {
-        return Err(store_error("LB_INVALID_LOG", "publish request is not an object"));
+        return Err(store_error(
+            "LB_INVALID_LOG",
+            "publish request is not an object",
+        ));
     };
     let mut normalized = map.clone();
     if let Some(JsonValue::Object(publisher)) = normalized.get_mut("publisher") {
@@ -589,7 +793,10 @@ fn read_lines(path: &Path) -> Result<Vec<String>, StoreError> {
     for line in BufReader::new(file).lines() {
         lines.push(line.map_err(|error| store_error("LB_IO_ERROR", error.to_string()))?);
     }
-    Ok(lines.into_iter().filter(|line| !line.trim().is_empty()).collect())
+    Ok(lines
+        .into_iter()
+        .filter(|line| !line.trim().is_empty())
+        .collect())
 }
 
 fn append_line(path: &Path, line: &str) -> Result<(), StoreError> {
@@ -603,7 +810,8 @@ fn append_line(path: &Path, line: &str) -> Result<(), StoreError> {
 
 fn ensure_parent(path: &Path) -> Result<(), StoreError> {
     if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(|error| store_error("LB_IO_ERROR", error.to_string()))?;
+        fs::create_dir_all(parent)
+            .map_err(|error| store_error("LB_IO_ERROR", error.to_string()))?;
     }
     Ok(())
 }
@@ -638,10 +846,15 @@ fn as_string(value: &JsonValue) -> Option<&str> {
 }
 
 fn now_utc_rfc3339() -> String {
-    let duration = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default();
+    let duration = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default();
     let seconds = duration.as_secs() as i64;
     let (year, month, day, hour, minute, second) = unix_seconds_to_utc(seconds);
-    format!("{:04}-{:02}-{:02}T{:02}:{:02}:{:02}Z", year, month, day, hour, minute, second)
+    format!(
+        "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}Z",
+        year, month, day, hour, minute, second
+    )
 }
 
 #[cfg(test)]
@@ -677,21 +890,29 @@ fn unix_seconds_to_utc(seconds: i64) -> (i32, u32, u32, u32, u32, u32) {
     let month = mp + if mp < 10 { 3 } else { -9 };
     let year = y + if month <= 2 { 1 } else { 0 };
 
-    (year as i32, month as u32, day_of_month as u32, hour, minute, second)
+    (
+        year as i32,
+        month as u32,
+        day_of_month as u32,
+        hour,
+        minute,
+        second,
+    )
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use lingonberry_protocol::{
-        parse_json, validate_publish_request, validate_knowledge_object,
-    };
+    use lingonberry_protocol::{parse_json, validate_knowledge_object, validate_publish_request};
 
     #[test]
     fn append_duplicate_is_idempotent() {
         let paths_dir = temp_store_dir("append-duplicate");
         let backend = FileStorageBackend::new(&paths_dir);
-        let request = parse_json(include_str!("../../../fixtures/http-publish-request/minimal-request.json")).unwrap();
+        let request = parse_json(include_str!(
+            "../../../fixtures/http-publish-request/minimal-request.json"
+        ))
+        .unwrap();
         assert!(validate_publish_request(&request).is_empty());
         let object = as_object(&request).unwrap().get("object").unwrap().clone();
         assert!(validate_knowledge_object(&object).is_empty());
@@ -702,9 +923,15 @@ mod tests {
         assert!(!first.duplicate);
         let second = backend.append_publish_request(raw, &finalized).unwrap();
         assert!(second.duplicate);
-        assert_eq!(backend.list_ids().unwrap(), vec!["lb:obj:example-0001".to_string()]);
+        assert_eq!(
+            backend.list_ids().unwrap(),
+            vec!["lb:obj:example-0001".to_string()]
+        );
         assert!(backend.get("lb:obj:example-0001").unwrap().is_some());
-        let raw_request = backend.get_raw_request("lb:obj:example-0001").unwrap().unwrap();
+        let raw_request = backend
+            .get_raw_request("lb:obj:example-0001")
+            .unwrap()
+            .unwrap();
         assert!(raw_request.request_json.contains("\"publisher\""));
     }
 
@@ -712,11 +939,17 @@ mod tests {
     fn append_conflict_is_rejected() {
         let paths_dir = temp_store_dir("append-conflict");
         let backend = FileStorageBackend::new(&paths_dir);
-        let request = parse_json(include_str!("../../../fixtures/http-publish-request/minimal-request.json")).unwrap();
+        let request = parse_json(include_str!(
+            "../../../fixtures/http-publish-request/minimal-request.json"
+        ))
+        .unwrap();
         let object = as_object(&request).unwrap().get("object").unwrap().clone();
         let finalized = lingonberry_protocol::finalize_knowledge_object(&object).unwrap();
         backend
-            .append_publish_request(include_str!("../../../fixtures/http-publish-request/minimal-request.json"), &finalized)
+            .append_publish_request(
+                include_str!("../../../fixtures/http-publish-request/minimal-request.json"),
+                &finalized,
+            )
             .unwrap();
 
         let altered = if let JsonValue::Object(mut map) = object.clone() {
@@ -724,7 +957,10 @@ mod tests {
                 "body".to_string(),
                 JsonValue::Object({
                     let mut body = BTreeMap::new();
-                    body.insert("text".to_string(), JsonValue::String("Different content".to_string()));
+                    body.insert(
+                        "text".to_string(),
+                        JsonValue::String("Different content".to_string()),
+                    );
                     body.insert("language".to_string(), JsonValue::String("en".to_string()));
                     body
                 }),
@@ -735,7 +971,10 @@ mod tests {
         };
         let altered_finalized = lingonberry_protocol::finalize_knowledge_object(&altered).unwrap();
         let error = backend
-            .append_publish_request(include_str!("../../../fixtures/http-publish-request/minimal-request.json"), &altered_finalized)
+            .append_publish_request(
+                include_str!("../../../fixtures/http-publish-request/minimal-request.json"),
+                &altered_finalized,
+            )
             .expect_err("must conflict");
         assert_eq!(error.code, "LB_OBJECT_CONFLICT");
     }
@@ -744,11 +983,17 @@ mod tests {
     fn export_and_import_archive_round_trip() {
         let source_dir = temp_store_dir("archive-source");
         let backend = FileStorageBackend::new(&source_dir);
-        let request = parse_json(include_str!("../../../fixtures/http-publish-request/minimal-request.json")).unwrap();
+        let request = parse_json(include_str!(
+            "../../../fixtures/http-publish-request/minimal-request.json"
+        ))
+        .unwrap();
         let object = as_object(&request).unwrap().get("object").unwrap().clone();
         let finalized = lingonberry_protocol::finalize_knowledge_object(&object).unwrap();
         backend
-            .append_publish_request(include_str!("../../../fixtures/http-publish-request/minimal-request.json"), &finalized)
+            .append_publish_request(
+                include_str!("../../../fixtures/http-publish-request/minimal-request.json"),
+                &finalized,
+            )
             .unwrap();
 
         let archive_dir = temp_store_dir("archive-export");
@@ -760,10 +1005,14 @@ mod tests {
 
         let import_dir = temp_store_dir("archive-import");
         let import_backend = FileStorageBackend::new(&import_dir);
-        let import_report = import_archive(&import_backend, &archive_dir).expect("must import archive");
+        let import_report =
+            import_archive(&import_backend, &archive_dir).expect("must import archive");
         assert_eq!(import_report.record_count, 1);
         assert_eq!(import_report.duplicate_count, 0);
-        assert_eq!(import_backend.list_ids().unwrap(), vec!["lb:obj:example-0001".to_string()]);
+        assert_eq!(
+            import_backend.list_ids().unwrap(),
+            vec!["lb:obj:example-0001".to_string()]
+        );
     }
 
     #[test]
@@ -771,7 +1020,10 @@ mod tests {
         let manifest = build_runtime_capability_manifest();
         let map = as_object(&manifest).expect("manifest must be an object");
         assert_eq!(map.get("carrierKind").and_then(as_string), Some("relay"));
-        assert_eq!(map.get("protocolVersion").and_then(as_string), Some(PROTOCOL_VERSION));
+        assert_eq!(
+            map.get("protocolVersion").and_then(as_string),
+            Some(PROTOCOL_VERSION)
+        );
         let schema_versions = match map.get("supportedSchemaVersions") {
             Some(JsonValue::Array(values)) => values,
             other => panic!("unexpected supportedSchemaVersions: {:?}", other),
@@ -791,8 +1043,15 @@ mod tests {
         assert!(finalize_constraints
             .iter()
             .any(|value| as_string(value) == Some("rawref-preservation")));
-        let defaults = as_object(map.get("defaults").expect("manifest defaults")).expect("defaults object");
-        assert_eq!(defaults.get("accessScope").and_then(as_string), Some(DEFAULT_ACCESS_SCOPE));
-        assert_eq!(defaults.get("retentionHint").and_then(as_string), Some(DEFAULT_RETENTION_HINT));
+        let defaults =
+            as_object(map.get("defaults").expect("manifest defaults")).expect("defaults object");
+        assert_eq!(
+            defaults.get("accessScope").and_then(as_string),
+            Some(DEFAULT_ACCESS_SCOPE)
+        );
+        assert_eq!(
+            defaults.get("retentionHint").and_then(as_string),
+            Some(DEFAULT_RETENTION_HINT)
+        );
     }
 }

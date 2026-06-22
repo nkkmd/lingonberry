@@ -1,4 +1,4 @@
-use lingonberry_core::{StorageBackend, StoredCatalogRecord, StoreError};
+use lingonberry_core::{StorageBackend, StoreError, StoredCatalogRecord};
 use lingonberry_protocol::JsonValue;
 use std::collections::BTreeMap;
 
@@ -118,7 +118,10 @@ impl IndexSnapshot {
     }
 
     pub fn ids_for_type(&self, object_type: &str) -> Vec<String> {
-        self.type_index.get(object_type).cloned().unwrap_or_default()
+        self.type_index
+            .get(object_type)
+            .cloned()
+            .unwrap_or_default()
     }
 
     pub fn records_for_type(&self, object_type: &str) -> Vec<&IndexedRecord> {
@@ -207,7 +210,11 @@ impl IndexSnapshot {
         self.provenance_index.len()
     }
 
-    pub fn provenance_graph(&self, protocol: &str, source_id: &str) -> Option<ProvenanceGraphFragment> {
+    pub fn provenance_graph(
+        &self,
+        protocol: &str,
+        source_id: &str,
+    ) -> Option<ProvenanceGraphFragment> {
         let canonical_ids = self.provenance_ids_for_source(protocol, source_id);
         if canonical_ids.is_empty() {
             return None;
@@ -281,7 +288,10 @@ impl IndexSnapshot {
         };
 
         if let Some(object_type) = object_type {
-            push_unique(&mut self.type_index.entry(object_type).or_default(), canonical_id.clone());
+            push_unique(
+                &mut self.type_index.entry(object_type).or_default(),
+                canonical_id.clone(),
+            );
         }
 
         for edge in relation_edges(&indexed_record.object, &canonical_id) {
@@ -292,7 +302,12 @@ impl IndexSnapshot {
         }
         for provenance_source in provenance_sources(&indexed_record.object).unwrap_or_default() {
             push_unique(
-                self.provenance_index.entry(provenance_key(&provenance_source.protocol, &provenance_source.source_id)).or_default(),
+                self.provenance_index
+                    .entry(provenance_key(
+                        &provenance_source.protocol,
+                        &provenance_source.source_id,
+                    ))
+                    .or_default(),
                 canonical_id.clone(),
             );
         }
@@ -348,7 +363,10 @@ fn lineage_edges(value: &JsonValue, canonical_id: &str) -> Vec<LineageEdge> {
 }
 
 fn provenance_sources(value: &JsonValue) -> Result<Vec<ProvenanceSourceEntry>, ()> {
-    let Some(provenance_map) = object_map(value).and_then(|map| map.get("provenance")).and_then(object_map) else {
+    let Some(provenance_map) = object_map(value)
+        .and_then(|map| map.get("provenance"))
+        .and_then(object_map)
+    else {
         return Ok(Vec::new());
     };
     let Some(entries) = array_field(provenance_map, "sources") else {
@@ -412,13 +430,18 @@ fn push_unique(values: &mut Vec<String>, value: String) {
 mod tests {
     use super::*;
     use lingonberry_core::SqliteStorageBackend;
-    use lingonberry_protocol::{finalize_knowledge_object, parse_json, validate_knowledge_object, validate_publish_request};
+    use lingonberry_protocol::{
+        finalize_knowledge_object, parse_json, validate_knowledge_object, validate_publish_request,
+    };
     use std::collections::BTreeMap;
     use std::env;
     use std::time::{SystemTime, UNIX_EPOCH};
 
     fn temp_dir(name: &str) -> std::path::PathBuf {
-        let unique = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
         env::temp_dir().join(format!("lingonberry-{}-{}", name, unique))
     }
 
@@ -435,18 +458,27 @@ mod tests {
     #[test]
     fn builds_type_index_from_canonical_store() {
         let backend = SqliteStorageBackend::new(temp_dir("type-index"));
-        let inquiry = publish_fixture(&backend, include_str!("../../../fixtures/http-publish-request/minimal-request.json"));
+        let inquiry = publish_fixture(
+            &backend,
+            include_str!("../../../fixtures/http-publish-request/minimal-request.json"),
+        );
 
         let claim = {
             let mut object = inquiry.object.clone();
             if let JsonValue::Object(map) = &mut object {
-                map.insert("id".to_string(), JsonValue::String("lb:obj:example-0002".to_string()));
+                map.insert(
+                    "id".to_string(),
+                    JsonValue::String("lb:obj:example-0002".to_string()),
+                );
                 map.insert("type".to_string(), JsonValue::String("claim".to_string()));
                 map.insert(
                     "body".to_string(),
                     JsonValue::Object({
                         let mut body = BTreeMap::new();
-                        body.insert("text".to_string(), JsonValue::String("This is a claim".to_string()));
+                        body.insert(
+                            "text".to_string(),
+                            JsonValue::String("This is a claim".to_string()),
+                        );
                         body.insert("language".to_string(), JsonValue::String("en".to_string()));
                         body
                     }),
@@ -454,46 +486,87 @@ mod tests {
                 if let Some(JsonValue::Object(provenance)) = map.get_mut("provenance") {
                     if let Some(JsonValue::Array(sources)) = provenance.get_mut("sources") {
                         if let Some(JsonValue::Object(source)) = sources.first_mut() {
-                            source.insert("sourceId".to_string(), JsonValue::String("draft:example-0002".to_string()));
-                            source.insert("observedAt".to_string(), JsonValue::String("2026-06-17T00:00:00Z".to_string()));
+                            source.insert(
+                                "sourceId".to_string(),
+                                JsonValue::String("draft:example-0002".to_string()),
+                            );
+                            source.insert(
+                                "observedAt".to_string(),
+                                JsonValue::String("2026-06-17T00:00:00Z".to_string()),
+                            );
                         }
                     }
                 }
                 if let Some(JsonValue::Object(raw_ref)) = map.get_mut("rawRef") {
-                    raw_ref.insert("sourceId".to_string(), JsonValue::String("draft:example-0002".to_string()));
+                    raw_ref.insert(
+                        "sourceId".to_string(),
+                        JsonValue::String("draft:example-0002".to_string()),
+                    );
                 }
             }
             let finalized = finalize_knowledge_object(&object).unwrap();
             let request = JsonValue::Object({
                 let mut publisher = BTreeMap::new();
-                publisher.insert("publicKey".to_string(), JsonValue::String("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef".to_string()));
-                publisher.insert("signature".to_string(), JsonValue::String("sig:example-0002".to_string()));
+                publisher.insert(
+                    "publicKey".to_string(),
+                    JsonValue::String(
+                        "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+                            .to_string(),
+                    ),
+                );
+                publisher.insert(
+                    "signature".to_string(),
+                    JsonValue::String("sig:example-0002".to_string()),
+                );
 
                 let mut request = BTreeMap::new();
                 request.insert("object".to_string(), object.clone());
                 request.insert("publisher".to_string(), JsonValue::Object(publisher));
                 request
             });
-            backend.append_publish_request(&lingonberry_protocol::to_canonical_json(&request), &finalized).unwrap();
+            backend
+                .append_publish_request(
+                    &lingonberry_protocol::to_canonical_json(&request),
+                    &finalized,
+                )
+                .unwrap();
             backend.get(&finalized.canonical_id).unwrap().unwrap()
         };
 
         let snapshot = IndexSnapshot::from_backend(&backend).unwrap();
-        assert_eq!(snapshot.list_types(), vec!["claim".to_string(), "inquiry".to_string()]);
-        assert_eq!(snapshot.ids_for_type("inquiry"), vec![inquiry.canonical_id.clone()]);
-        assert_eq!(snapshot.ids_for_type("claim"), vec![claim.canonical_id.clone()]);
+        assert_eq!(
+            snapshot.list_types(),
+            vec!["claim".to_string(), "inquiry".to_string()]
+        );
+        assert_eq!(
+            snapshot.ids_for_type("inquiry"),
+            vec![inquiry.canonical_id.clone()]
+        );
+        assert_eq!(
+            snapshot.ids_for_type("claim"),
+            vec![claim.canonical_id.clone()]
+        );
     }
 
     #[test]
     fn builds_graph_fragments_from_relations_lineage_and_provenance() {
-        let mut object = parse_json(include_str!("../../../fixtures/knowledge-object/minimal-wire-object.json")).unwrap();
+        let mut object = parse_json(include_str!(
+            "../../../fixtures/knowledge-object/minimal-wire-object.json"
+        ))
+        .unwrap();
         if let JsonValue::Object(map) = &mut object {
             map.insert(
                 "relations".to_string(),
                 JsonValue::Array(vec![JsonValue::Object({
                     let mut relation = BTreeMap::new();
-                    relation.insert("source".to_string(), JsonValue::String("lb:obj:example-0001".to_string()));
-                    relation.insert("target".to_string(), JsonValue::String("lb:obj:example-0002".to_string()));
+                    relation.insert(
+                        "source".to_string(),
+                        JsonValue::String("lb:obj:example-0001".to_string()),
+                    );
+                    relation.insert(
+                        "target".to_string(),
+                        JsonValue::String("lb:obj:example-0002".to_string()),
+                    );
                     relation.insert("kind".to_string(), JsonValue::String("cites".to_string()));
                     relation
                 })]),
@@ -502,49 +575,76 @@ mod tests {
                 "lineage".to_string(),
                 JsonValue::Array(vec![JsonValue::Object({
                     let mut edge = BTreeMap::new();
-                    edge.insert("type".to_string(), JsonValue::String("derived_from".to_string()));
-                    edge.insert("target".to_string(), JsonValue::String("lb:obj:example-0000".to_string()));
+                    edge.insert(
+                        "type".to_string(),
+                        JsonValue::String("derived_from".to_string()),
+                    );
+                    edge.insert(
+                        "target".to_string(),
+                        JsonValue::String("lb:obj:example-0000".to_string()),
+                    );
                     edge
                 })]),
             );
         }
         let finalized = finalize_knowledge_object(&object).unwrap();
-        let snapshot = IndexSnapshot::from_records(vec![StoredCatalogRecord {
-            stored_at: "2026-06-17T00:00:00Z".to_string(),
-            canonical_id: finalized.canonical_id.clone(),
-            carrier_identity: "carrier:example".to_string(),
-            object: finalized.object.clone(),
-        }, StoredCatalogRecord {
-            stored_at: "2026-06-17T00:00:01Z".to_string(),
-            canonical_id: "lb:obj:example-0003".to_string(),
-            carrier_identity: "carrier:example-2".to_string(),
-            object: {
-                let mut inbound_object = finalized.object.clone();
-                if let JsonValue::Object(map) = &mut inbound_object {
-                    map.insert("id".to_string(), JsonValue::String("lb:obj:example-0003".to_string()));
-                    map.insert(
-                        "lineage".to_string(),
-                        JsonValue::Array(vec![JsonValue::Object({
-                            let mut edge = BTreeMap::new();
-                            edge.insert("type".to_string(), JsonValue::String("revises".to_string()));
-                            edge.insert("target".to_string(), JsonValue::String(finalized.canonical_id.clone()));
-                            edge
-                        })]),
-                    );
-                }
-                inbound_object
+        let snapshot = IndexSnapshot::from_records(vec![
+            StoredCatalogRecord {
+                stored_at: "2026-06-17T00:00:00Z".to_string(),
+                canonical_id: finalized.canonical_id.clone(),
+                carrier_identity: "carrier:example".to_string(),
+                object: finalized.object.clone(),
             },
-        }]);
+            StoredCatalogRecord {
+                stored_at: "2026-06-17T00:00:01Z".to_string(),
+                canonical_id: "lb:obj:example-0003".to_string(),
+                carrier_identity: "carrier:example-2".to_string(),
+                object: {
+                    let mut inbound_object = finalized.object.clone();
+                    if let JsonValue::Object(map) = &mut inbound_object {
+                        map.insert(
+                            "id".to_string(),
+                            JsonValue::String("lb:obj:example-0003".to_string()),
+                        );
+                        map.insert(
+                            "lineage".to_string(),
+                            JsonValue::Array(vec![JsonValue::Object({
+                                let mut edge = BTreeMap::new();
+                                edge.insert(
+                                    "type".to_string(),
+                                    JsonValue::String("revises".to_string()),
+                                );
+                                edge.insert(
+                                    "target".to_string(),
+                                    JsonValue::String(finalized.canonical_id.clone()),
+                                );
+                                edge
+                            })]),
+                        );
+                    }
+                    inbound_object
+                },
+            },
+        ]);
 
         let relation_graph = snapshot.relation_graph(&finalized.canonical_id).unwrap();
         assert_eq!(relation_graph.outbound.len(), 1);
         assert_eq!(relation_graph.inbound.len(), 0);
-        assert_eq!(relation_graph.related_ids, vec!["lb:obj:example-0002".to_string()]);
+        assert_eq!(
+            relation_graph.related_ids,
+            vec!["lb:obj:example-0002".to_string()]
+        );
 
         let lineage_graph = snapshot.lineage_graph(&finalized.canonical_id).unwrap();
         assert_eq!(lineage_graph.outbound.len(), 1);
         assert_eq!(lineage_graph.inbound.len(), 1);
-        assert_eq!(lineage_graph.related_ids, vec!["lb:obj:example-0000".to_string(), "lb:obj:example-0003".to_string()]);
+        assert_eq!(
+            lineage_graph.related_ids,
+            vec![
+                "lb:obj:example-0000".to_string(),
+                "lb:obj:example-0003".to_string()
+            ]
+        );
 
         let fragment = snapshot.graph_fragment(&finalized.canonical_id).unwrap();
         assert_eq!(fragment.relations_outbound.len(), 1);
@@ -552,21 +652,33 @@ mod tests {
         assert_eq!(fragment.provenance_sources.len(), 1);
         assert_eq!(
             snapshot.provenance_ids_for_source("lingonberry", "draft:example-0001"),
-            vec![finalized.canonical_id.clone(), "lb:obj:example-0003".to_string()]
+            vec![
+                finalized.canonical_id.clone(),
+                "lb:obj:example-0003".to_string()
+            ]
         );
     }
 
     #[test]
     fn builds_provenance_graph_from_source_key() {
-        let base = parse_json(include_str!("../../../fixtures/knowledge-object/minimal-wire-object.json")).unwrap();
+        let base = parse_json(include_str!(
+            "../../../fixtures/knowledge-object/minimal-wire-object.json"
+        ))
+        .unwrap();
         let mut second = base.clone();
         if let JsonValue::Object(map) = &mut second {
-            map.insert("id".to_string(), JsonValue::String("lb:obj:example-0004".to_string()));
+            map.insert(
+                "id".to_string(),
+                JsonValue::String("lb:obj:example-0004".to_string()),
+            );
             if let Some(JsonValue::Object(provenance)) = map.get_mut("provenance") {
                 if let Some(JsonValue::Array(sources)) = provenance.get_mut("sources") {
                     if let Some(JsonValue::Object(source)) = sources.first_mut() {
                         source.insert("authorId".to_string(), JsonValue::String("bob".to_string()));
-                        source.insert("observedAt".to_string(), JsonValue::String("2026-06-17T01:00:00Z".to_string()));
+                        source.insert(
+                            "observedAt".to_string(),
+                            JsonValue::String("2026-06-17T01:00:00Z".to_string()),
+                        );
                     }
                 }
             }
@@ -589,24 +701,35 @@ mod tests {
             },
         ]);
 
-        let fragment = snapshot.provenance_graph("lingonberry", "draft:example-0001").unwrap();
+        let fragment = snapshot
+            .provenance_graph("lingonberry", "draft:example-0001")
+            .unwrap();
         assert_eq!(
             fragment.canonical_ids,
             vec![first.canonical_id.clone(), second.canonical_id.clone()]
         );
         assert_eq!(fragment.entries.len(), 2);
         assert_eq!(fragment.entries[1].author_id.as_deref(), Some("bob"));
-        assert_eq!(fragment.entries[1].observed_at.as_deref(), Some("2026-06-17T01:00:00Z"));
+        assert_eq!(
+            fragment.entries[1].observed_at.as_deref(),
+            Some("2026-06-17T01:00:00Z")
+        );
     }
 
     #[test]
     fn rebuild_from_backend_preserves_query_results() {
         let backend = SqliteStorageBackend::new(temp_dir("rebuild-index"));
-        let first = publish_fixture(&backend, include_str!("../../../fixtures/http-publish-request/minimal-request.json"));
+        let first = publish_fixture(
+            &backend,
+            include_str!("../../../fixtures/http-publish-request/minimal-request.json"),
+        );
         let snapshot = IndexSnapshot::rebuild_from_backend(&backend).unwrap();
         assert_eq!(snapshot.record_count(), 1);
         assert_eq!(snapshot.list_types(), vec!["inquiry".to_string()]);
-        assert_eq!(snapshot.ids_for_type("inquiry"), vec![first.canonical_id.clone()]);
+        assert_eq!(
+            snapshot.ids_for_type("inquiry"),
+            vec![first.canonical_id.clone()]
+        );
         assert_eq!(snapshot.relation_edges().len(), 0);
         assert_eq!(snapshot.lineage_edges().len(), 0);
         assert_eq!(snapshot.provenance_source_count(), 1);

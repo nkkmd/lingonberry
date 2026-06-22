@@ -45,7 +45,10 @@ pub fn runtime_storage_config() -> Result<StorageRuntimeConfig, String> {
         let loaded = read_json_file(&config_path)?;
         overrides = apply_storage_config(&mut config, &loaded.value)?;
     } else if explicit_config_path.is_some() {
-        return Err(format!("storage config file not found: {}", config_path.display()));
+        return Err(format!(
+            "storage config file not found: {}",
+            config_path.display()
+        ));
     }
     if !overrides.state_dir {
         config.state_dir = state_dir;

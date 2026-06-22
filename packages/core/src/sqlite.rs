@@ -1,8 +1,9 @@
 use crate::{
     append_line, as_object, as_string, carrier_identity_for_request, ensure_parent,
-    filter_records_by_type, finalize_knowledge_object, get_raw_request, json_object, now_utc_rfc3339,
-    read_lines, store_error, to_canonical_json, AppendOutcome, FinalizedKnowledgeObject, JsonValue,
-    RawRequestRecord, StoreError, StorePaths, StoredCatalogRecord, StoredReplayRecord, StorageBackend,
+    filter_records_by_type, finalize_knowledge_object, get_raw_request, json_object,
+    now_utc_rfc3339, read_lines, store_error, to_canonical_json, AppendOutcome,
+    FinalizedKnowledgeObject, JsonValue, RawRequestRecord, StorageBackend, StoreError, StorePaths,
+    StoredCatalogRecord, StoredReplayRecord,
 };
 use lingonberry_protocol::{parse_json, to_canonical_json as protocol_to_canonical_json};
 use std::collections::BTreeSet;
@@ -27,13 +28,20 @@ const SQLITE_OPEN_FULLMUTEX: c_int = 0x0001_0000;
 
 #[link(name = "sqlite3")]
 extern "C" {
-    fn sqlite3_open_v2(filename: *const c_char, pp_db: *mut *mut sqlite3, flags: c_int, z_vfs: *const c_char) -> c_int;
+    fn sqlite3_open_v2(
+        filename: *const c_char,
+        pp_db: *mut *mut sqlite3,
+        flags: c_int,
+        z_vfs: *const c_char,
+    ) -> c_int;
     fn sqlite3_close(db: *mut sqlite3) -> c_int;
     fn sqlite3_errmsg(db: *mut sqlite3) -> *const c_char;
     fn sqlite3_exec(
         db: *mut sqlite3,
         sql: *const c_char,
-        callback: Option<unsafe extern "C" fn(*mut c_void, c_int, *mut *mut c_char, *mut *mut c_char) -> c_int>,
+        callback: Option<
+            unsafe extern "C" fn(*mut c_void, c_int, *mut *mut c_char, *mut *mut c_char) -> c_int,
+        >,
         arg: *mut c_void,
         errmsg: *mut *mut c_char,
     ) -> c_int;
@@ -46,7 +54,13 @@ extern "C" {
     ) -> c_int;
     fn sqlite3_step(stmt: *mut sqlite3_stmt) -> c_int;
     fn sqlite3_finalize(stmt: *mut sqlite3_stmt) -> c_int;
-    fn sqlite3_bind_text(stmt: *mut sqlite3_stmt, idx: c_int, value: *const c_char, n: c_int, destructor: sqlite3_destructor_type) -> c_int;
+    fn sqlite3_bind_text(
+        stmt: *mut sqlite3_stmt,
+        idx: c_int,
+        value: *const c_char,
+        n: c_int,
+        destructor: sqlite3_destructor_type,
+    ) -> c_int;
     fn sqlite3_column_text(stmt: *mut sqlite3_stmt, i_col: c_int) -> *const u8;
 }
 
@@ -89,7 +103,11 @@ impl SqliteStorageBackend {
 }
 
 impl StorageBackend for SqliteStorageBackend {
-    fn append_publish_request(&self, request_json: &str, finalized: &FinalizedKnowledgeObject) -> Result<AppendOutcome, StoreError> {
+    fn append_publish_request(
+        &self,
+        request_json: &str,
+        finalized: &FinalizedKnowledgeObject,
+    ) -> Result<AppendOutcome, StoreError> {
         ensure_parent(&self.paths.raw_log_path)?;
         let carrier_identity = carrier_identity_for_request(request_json)?;
         let db = self.open_db()?;
@@ -98,7 +116,10 @@ impl StorageBackend for SqliteStorageBackend {
             if existing_json != finalized.canonical_json {
                 return Err(StoreError {
                     code: "LB_OBJECT_CONFLICT",
-                    message: format!("carrier identity already exists with different content: {}", existing.carrier_identity),
+                    message: format!(
+                        "carrier identity already exists with different content: {}",
+                        existing.carrier_identity
+                    ),
                 });
             }
             return Ok(AppendOutcome {
@@ -114,7 +135,10 @@ impl StorageBackend for SqliteStorageBackend {
             if existing_json != finalized.canonical_json {
                 return Err(StoreError {
                     code: "LB_OBJECT_CONFLICT",
-                    message: format!("object already exists with different content: {}", finalized.canonical_id),
+                    message: format!(
+                        "object already exists with different content: {}",
+                        finalized.canonical_id
+                    ),
                 });
             }
             return Ok(AppendOutcome {
@@ -131,12 +155,23 @@ impl StorageBackend for SqliteStorageBackend {
             &self.paths.raw_log_path,
             &to_canonical_json(&json_object(vec![
                 ("storedAt", JsonValue::String(stored_at.clone())),
-                ("canonicalId", JsonValue::String(finalized.canonical_id.clone())),
-                ("carrierIdentity", JsonValue::String(carrier_identity.clone())),
+                (
+                    "canonicalId",
+                    JsonValue::String(finalized.canonical_id.clone()),
+                ),
+                (
+                    "carrierIdentity",
+                    JsonValue::String(carrier_identity.clone()),
+                ),
                 ("requestJson", JsonValue::String(request_json.to_string())),
             ])),
         )?;
-        db.insert_object(&finalized.canonical_id, &carrier_identity, &stored_at, &finalized.object)?;
+        db.insert_object(
+            &finalized.canonical_id,
+            &carrier_identity,
+            &stored_at,
+            &finalized.object,
+        )?;
         Ok(AppendOutcome {
             stored_at: Some(stored_at),
             canonical_id: finalized.canonical_id.clone(),
@@ -172,27 +207,53 @@ pub fn replay(paths: &StorePaths) -> Result<Vec<StoredReplayRecord>, StoreError>
     let lines = read_lines(&paths.raw_log_path)?;
     let mut replayed = Vec::new();
     for line in lines {
-        let value = parse_json(&line).map_err(|error| store_error("LB_INVALID_LOG", error.to_string()))?;
+        let value =
+            parse_json(&line).map_err(|error| store_error("LB_INVALID_LOG", error.to_string()))?;
         let Some(map) = as_object(&value) else {
             continue;
         };
-        let stored_at = map.get("storedAt").and_then(as_string).unwrap_or_default().to_string();
-        let canonical_id = map.get("canonicalId").and_then(as_string).unwrap_or_default().to_string();
-        let carrier_identity = map.get("carrierIdentity").and_then(as_string).unwrap_or_default().to_string();
+        let stored_at = map
+            .get("storedAt")
+            .and_then(as_string)
+            .unwrap_or_default()
+            .to_string();
+        let canonical_id = map
+            .get("canonicalId")
+            .and_then(as_string)
+            .unwrap_or_default()
+            .to_string();
+        let carrier_identity = map
+            .get("carrierIdentity")
+            .and_then(as_string)
+            .unwrap_or_default()
+            .to_string();
         let Some(request_json) = map.get("requestJson").and_then(as_string) else {
-            return Err(store_error("LB_INVALID_LOG", "log record missing requestJson"));
+            return Err(store_error(
+                "LB_INVALID_LOG",
+                "log record missing requestJson",
+            ));
         };
-        let request_value = parse_json(request_json).map_err(|error| store_error("LB_INVALID_LOG", error.to_string()))?;
+        let request_value = parse_json(request_json)
+            .map_err(|error| store_error("LB_INVALID_LOG", error.to_string()))?;
         let Some(request_map) = as_object(&request_value) else {
-            return Err(store_error("LB_INVALID_LOG", "requestJson is not a publish request"));
+            return Err(store_error(
+                "LB_INVALID_LOG",
+                "requestJson is not a publish request",
+            ));
         };
         let Some(object_value) = request_map.get("object") else {
-            return Err(store_error("LB_INVALID_LOG", "publish request missing object"));
+            return Err(store_error(
+                "LB_INVALID_LOG",
+                "publish request missing object",
+            ));
         };
         let finalized = finalize_knowledge_object(object_value)
             .map_err(|errors| store_error("LB_INVALID_LOG", errors.join("; ")))?;
         if !canonical_id.is_empty() && canonical_id != finalized.canonical_id {
-            return Err(store_error("LB_INVALID_LOG", "log canonicalId does not match restored object"));
+            return Err(store_error(
+                "LB_INVALID_LOG",
+                "log canonicalId does not match restored object",
+            ));
         }
         replayed.push(StoredReplayRecord {
             stored_at,
@@ -210,8 +271,13 @@ struct SqliteDb {
 
 impl SqliteDb {
     fn open(path: &Path) -> Result<Self, StoreError> {
-        let c_path = CString::new(path.as_os_str().to_string_lossy().as_bytes().to_vec())
-            .map_err(|_| store_error("LB_SQLITE_OPEN", "database path contains interior null byte"))?;
+        let c_path =
+            CString::new(path.as_os_str().to_string_lossy().as_bytes().to_vec()).map_err(|_| {
+                store_error(
+                    "LB_SQLITE_OPEN",
+                    "database path contains interior null byte",
+                )
+            })?;
         let mut db = ptr::null_mut();
         let rc = unsafe {
             sqlite3_open_v2(
@@ -234,7 +300,8 @@ impl SqliteDb {
     }
 
     fn exec_batch(&self, sql: &str) -> Result<(), StoreError> {
-        let c_sql = CString::new(sql).map_err(|_| store_error("LB_SQLITE_EXEC", "SQL contains interior null byte"))?;
+        let c_sql = CString::new(sql)
+            .map_err(|_| store_error("LB_SQLITE_EXEC", "SQL contains interior null byte"))?;
         let rc = unsafe {
             sqlite3_exec(
                 self.db,
@@ -245,7 +312,9 @@ impl SqliteDb {
             )
         };
         if rc != SQLITE_OK {
-            return Err(store_error("LB_SQLITE_EXEC", unsafe { sqlite_error_message(self.db) }));
+            return Err(store_error("LB_SQLITE_EXEC", unsafe {
+                sqlite_error_message(self.db)
+            }));
         }
         Ok(())
     }
@@ -271,14 +340,22 @@ impl SqliteDb {
                     })
                 }
                 SQLITE_DONE => None,
-                _ => return Err(store_error("LB_SQLITE_SELECT", sqlite_error_message(self.db))),
+                _ => {
+                    return Err(store_error(
+                        "LB_SQLITE_SELECT",
+                        sqlite_error_message(self.db),
+                    ))
+                }
             }
         };
         finalize(stmt)?;
         Ok(result)
     }
 
-    fn get_object_by_carrier_identity(&self, carrier_identity: &str) -> Result<Option<StoredCatalogRecord>, StoreError> {
+    fn get_object_by_carrier_identity(
+        &self,
+        carrier_identity: &str,
+    ) -> Result<Option<StoredCatalogRecord>, StoreError> {
         let stmt = self.prepare(
             "SELECT canonical_id, carrier_identity, stored_at, object_json FROM canonical_objects WHERE carrier_identity = ?1 LIMIT 1",
         )?;
@@ -300,7 +377,12 @@ impl SqliteDb {
                     })
                 }
                 SQLITE_DONE => None,
-                _ => return Err(store_error("LB_SQLITE_SELECT", sqlite_error_message(self.db))),
+                _ => {
+                    return Err(store_error(
+                        "LB_SQLITE_SELECT",
+                        sqlite_error_message(self.db),
+                    ))
+                }
             }
         };
         finalize(stmt)?;
@@ -323,7 +405,9 @@ impl SqliteDb {
                 SQLITE_DONE => break,
                 _ => {
                     finalize(stmt)?;
-                    return Err(store_error("LB_SQLITE_SELECT", unsafe { sqlite_error_message(self.db) }));
+                    return Err(store_error("LB_SQLITE_SELECT", unsafe {
+                        sqlite_error_message(self.db)
+                    }));
                 }
             }
         }
@@ -356,7 +440,9 @@ impl SqliteDb {
                 SQLITE_DONE => break,
                 _ => {
                     finalize(stmt)?;
-                    return Err(store_error("LB_SQLITE_SELECT", unsafe { sqlite_error_message(self.db) }));
+                    return Err(store_error("LB_SQLITE_SELECT", unsafe {
+                        sqlite_error_message(self.db)
+                    }));
                 }
             }
         }
@@ -364,7 +450,13 @@ impl SqliteDb {
         Ok(records)
     }
 
-    fn insert_object(&self, canonical_id: &str, carrier_identity: &str, stored_at: &str, object: &JsonValue) -> Result<(), StoreError> {
+    fn insert_object(
+        &self,
+        canonical_id: &str,
+        carrier_identity: &str,
+        stored_at: &str,
+        object: &JsonValue,
+    ) -> Result<(), StoreError> {
         let object_json = protocol_to_canonical_json(object);
         let stmt = self.prepare(
             "INSERT INTO canonical_objects (canonical_id, carrier_identity, stored_at, object_json) VALUES (?1, ?2, ?3, ?4)",
@@ -376,18 +468,24 @@ impl SqliteDb {
         let rc = unsafe { sqlite3_step(stmt) };
         if rc != SQLITE_DONE {
             finalize(stmt)?;
-            return Err(store_error("LB_SQLITE_INSERT", unsafe { sqlite_error_message(self.db) }));
+            return Err(store_error("LB_SQLITE_INSERT", unsafe {
+                sqlite_error_message(self.db)
+            }));
         }
         finalize(stmt)?;
         Ok(())
     }
 
     fn prepare(&self, sql: &str) -> Result<*mut sqlite3_stmt, StoreError> {
-        let c_sql = CString::new(sql).map_err(|_| store_error("LB_SQLITE_PREPARE", "SQL contains interior null byte"))?;
+        let c_sql = CString::new(sql)
+            .map_err(|_| store_error("LB_SQLITE_PREPARE", "SQL contains interior null byte"))?;
         let mut stmt = ptr::null_mut();
-        let rc = unsafe { sqlite3_prepare_v2(self.db, c_sql.as_ptr(), -1, &mut stmt, ptr::null_mut()) };
+        let rc =
+            unsafe { sqlite3_prepare_v2(self.db, c_sql.as_ptr(), -1, &mut stmt, ptr::null_mut()) };
         if rc != SQLITE_OK {
-            return Err(store_error("LB_SQLITE_PREPARE", unsafe { sqlite_error_message(self.db) }));
+            return Err(store_error("LB_SQLITE_PREPARE", unsafe {
+                sqlite_error_message(self.db)
+            }));
         }
         Ok(stmt)
     }
@@ -406,16 +504,23 @@ impl Drop for SqliteDb {
 fn finalize(stmt: *mut sqlite3_stmt) -> Result<(), StoreError> {
     let rc = unsafe { sqlite3_finalize(stmt) };
     if rc != SQLITE_OK {
-        return Err(store_error("LB_SQLITE_FINALIZE", "failed to finalize sqlite statement"));
+        return Err(store_error(
+            "LB_SQLITE_FINALIZE",
+            "failed to finalize sqlite statement",
+        ));
     }
     Ok(())
 }
 
 fn bind_text(stmt: *mut sqlite3_stmt, idx: c_int, value: &str) -> Result<(), StoreError> {
-    let c_value = CString::new(value).map_err(|_| store_error("LB_SQLITE_BIND", "value contains interior null byte"))?;
+    let c_value = CString::new(value)
+        .map_err(|_| store_error("LB_SQLITE_BIND", "value contains interior null byte"))?;
     let rc = unsafe { sqlite3_bind_text(stmt, idx, c_value.as_ptr(), -1, sqlite_transient()) };
     if rc != SQLITE_OK {
-        return Err(store_error("LB_SQLITE_BIND", "failed to bind sqlite parameter"));
+        return Err(store_error(
+            "LB_SQLITE_BIND",
+            "failed to bind sqlite parameter",
+        ));
     }
     Ok(())
 }
@@ -426,7 +531,9 @@ fn column_text(stmt: *mut sqlite3_stmt, index: c_int) -> String {
         if ptr.is_null() {
             return String::new();
         }
-        CStr::from_ptr(ptr as *const c_char).to_string_lossy().into_owned()
+        CStr::from_ptr(ptr as *const c_char)
+            .to_string_lossy()
+            .into_owned()
     }
 }
 
@@ -454,7 +561,10 @@ mod tests {
     #[test]
     fn sqlite_backend_round_trip() {
         let backend = SqliteStorageBackend::new(crate::temp_store_dir("sqlite-round-trip"));
-        let request = parse_json(include_str!("../../../fixtures/http-publish-request/minimal-request.json")).unwrap();
+        let request = parse_json(include_str!(
+            "../../../fixtures/http-publish-request/minimal-request.json"
+        ))
+        .unwrap();
         assert!(validate_publish_request(&request).is_empty());
         let object = as_object(&request).unwrap().get("object").unwrap().clone();
         assert!(validate_knowledge_object(&object).is_empty());
@@ -468,14 +578,20 @@ mod tests {
 
         let record = backend.get("lb:obj:example-0001").unwrap().unwrap();
         assert_eq!(record.stored_at, first.stored_at.unwrap());
-        assert_eq!(backend.list_ids().unwrap(), vec!["lb:obj:example-0001".to_string()]);
+        assert_eq!(
+            backend.list_ids().unwrap(),
+            vec!["lb:obj:example-0001".to_string()]
+        );
         assert_eq!(backend.replay().unwrap().len(), 1);
     }
 
     #[test]
     fn sqlite_backend_subscription_filters_by_type() {
         let backend = SqliteStorageBackend::new(crate::temp_store_dir("sqlite-subscribe"));
-        let request = parse_json(include_str!("../../../fixtures/http-publish-request/minimal-request.json")).unwrap();
+        let request = parse_json(include_str!(
+            "../../../fixtures/http-publish-request/minimal-request.json"
+        ))
+        .unwrap();
         let inquiry = as_object(&request).unwrap().get("object").unwrap().clone();
         let inquiry_finalized = finalize_knowledge_object(&inquiry).unwrap();
         backend
@@ -486,13 +602,19 @@ mod tests {
             .unwrap();
 
         let claim = if let JsonValue::Object(mut map) = inquiry.clone() {
-            map.insert("id".to_string(), JsonValue::String("lb:obj:example-0002".to_string()));
+            map.insert(
+                "id".to_string(),
+                JsonValue::String("lb:obj:example-0002".to_string()),
+            );
             map.insert("type".to_string(), JsonValue::String("claim".to_string()));
             map.insert(
                 "body".to_string(),
                 JsonValue::Object({
                     let mut body = BTreeMap::new();
-                    body.insert("text".to_string(), JsonValue::String("This is a claim".to_string()));
+                    body.insert(
+                        "text".to_string(),
+                        JsonValue::String("This is a claim".to_string()),
+                    );
                     body.insert("language".to_string(), JsonValue::String("en".to_string()));
                     body
                 }),
@@ -500,13 +622,22 @@ mod tests {
             if let Some(JsonValue::Object(provenance)) = map.get_mut("provenance") {
                 if let Some(JsonValue::Array(sources)) = provenance.get_mut("sources") {
                     if let Some(JsonValue::Object(source)) = sources.first_mut() {
-                        source.insert("sourceId".to_string(), JsonValue::String("draft:example-0002".to_string()));
-                        source.insert("observedAt".to_string(), JsonValue::String("2026-06-17T00:00:00Z".to_string()));
+                        source.insert(
+                            "sourceId".to_string(),
+                            JsonValue::String("draft:example-0002".to_string()),
+                        );
+                        source.insert(
+                            "observedAt".to_string(),
+                            JsonValue::String("2026-06-17T00:00:00Z".to_string()),
+                        );
                     }
                 }
             }
             if let Some(JsonValue::Object(raw_ref)) = map.get_mut("rawRef") {
-                raw_ref.insert("sourceId".to_string(), JsonValue::String("draft:example-0002".to_string()));
+                raw_ref.insert(
+                    "sourceId".to_string(),
+                    JsonValue::String("draft:example-0002".to_string()),
+                );
             }
             JsonValue::Object(map)
         } else {
@@ -514,8 +645,16 @@ mod tests {
         };
         let claim_request = JsonValue::Object({
             let mut publisher = BTreeMap::new();
-            publisher.insert("publicKey".to_string(), JsonValue::String("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef".to_string()));
-            publisher.insert("signature".to_string(), JsonValue::String("sig:example-0002".to_string()));
+            publisher.insert(
+                "publicKey".to_string(),
+                JsonValue::String(
+                    "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef".to_string(),
+                ),
+            );
+            publisher.insert(
+                "signature".to_string(),
+                JsonValue::String("sig:example-0002".to_string()),
+            );
 
             let mut request = BTreeMap::new();
             request.insert("object".to_string(), claim.clone());

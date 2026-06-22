@@ -27,23 +27,26 @@ fn run(args: Vec<String>) -> Result<(), String> {
 
     match command {
         "capabilities" => {
-            println!("{}", to_canonical_json(&json_object(vec![
-                ("status", JsonValue::String("ok".to_string())),
-                ("service", JsonValue::String("storage".to_string())),
-                (
-                    "operations",
-                    JsonValue::Array(vec![
-                        JsonValue::String("append".to_string()),
-                        JsonValue::String("retrieve".to_string()),
-                        JsonValue::String("replay".to_string()),
-                        JsonValue::String("list".to_string()),
-                        JsonValue::String("config".to_string()),
-                        JsonValue::String("ready".to_string()),
-                        JsonValue::String("run".to_string()),
-                    ]),
-                ),
-                ("multiNode", build_multi_node_policy_manifest()),
-            ])));
+            println!(
+                "{}",
+                to_canonical_json(&json_object(vec![
+                    ("status", JsonValue::String("ok".to_string())),
+                    ("service", JsonValue::String("storage".to_string())),
+                    (
+                        "operations",
+                        JsonValue::Array(vec![
+                            JsonValue::String("append".to_string()),
+                            JsonValue::String("retrieve".to_string()),
+                            JsonValue::String("replay".to_string()),
+                            JsonValue::String("list".to_string()),
+                            JsonValue::String("config".to_string()),
+                            JsonValue::String("ready".to_string()),
+                            JsonValue::String("run".to_string()),
+                        ]),
+                    ),
+                    ("multiNode", build_multi_node_policy_manifest()),
+                ]))
+            );
             Ok(())
         }
         "config" => {
@@ -59,19 +62,19 @@ fn run(args: Vec<String>) -> Result<(), String> {
             Ok(())
         }
         "append" => {
-            let pathname = args.get(1).ok_or_else(|| "usage: lingonberry-storage append <json-file>".to_string())?;
+            let pathname = args
+                .get(1)
+                .ok_or_else(|| "usage: lingonberry-storage append <json-file>".to_string())?;
             handle_append(pathname, &backend)
         }
         "retrieve" => {
-            let canonical_id = args.get(1).ok_or_else(|| "usage: lingonberry-storage retrieve <canonical-id>".to_string())?;
+            let canonical_id = args
+                .get(1)
+                .ok_or_else(|| "usage: lingonberry-storage retrieve <canonical-id>".to_string())?;
             handle_retrieve(canonical_id, &backend)
         }
-        "replay" => {
-            handle_replay(&backend)
-        }
-        "list" => {
-            handle_list(&backend)
-        }
+        "replay" => handle_replay(&backend),
+        "list" => handle_list(&backend),
         _ => Err(format!("unknown command: {}", command)),
     }
 }
@@ -93,20 +96,28 @@ fn handle_append(pathname: &str, backend: &impl StorageBackend) -> Result<(), St
         return Err(object_errors.join("; "));
     }
     let finalized = finalize_knowledge_object(object).map_err(|errors| errors.join("; "))?;
-    let outcome = backend.append_publish_request(&loaded.raw, &finalized).map_err(|error| error.to_string())?;
-    println!("{}", to_canonical_json(&json_object(vec![
-        ("canonicalId", JsonValue::String(outcome.canonical_id)),
-        ("carrierIdentity", JsonValue::String(outcome.carrier_identity)),
-        ("duplicate", JsonValue::Bool(outcome.duplicate)),
-        (
-            "storedAt",
-            match outcome.stored_at {
-                Some(value) => JsonValue::String(value),
-                None => JsonValue::Null,
-            },
-        ),
-        ("object", outcome.object),
-    ])));
+    let outcome = backend
+        .append_publish_request(&loaded.raw, &finalized)
+        .map_err(|error| error.to_string())?;
+    println!(
+        "{}",
+        to_canonical_json(&json_object(vec![
+            ("canonicalId", JsonValue::String(outcome.canonical_id)),
+            (
+                "carrierIdentity",
+                JsonValue::String(outcome.carrier_identity)
+            ),
+            ("duplicate", JsonValue::Bool(outcome.duplicate)),
+            (
+                "storedAt",
+                match outcome.stored_at {
+                    Some(value) => JsonValue::String(value),
+                    None => JsonValue::Null,
+                },
+            ),
+            ("object", outcome.object),
+        ]))
+    );
     Ok(())
 }
 
@@ -115,12 +126,18 @@ fn handle_retrieve(canonical_id: &str, backend: &impl StorageBackend) -> Result<
         .get(canonical_id)
         .map_err(|error| error.to_string())?
         .ok_or_else(|| format!("object not found: {}", canonical_id))?;
-    println!("{}", to_canonical_json(&json_object(vec![
-        ("canonicalId", JsonValue::String(record.canonical_id)),
-        ("carrierIdentity", JsonValue::String(record.carrier_identity)),
-        ("storedAt", JsonValue::String(record.stored_at)),
-        ("object", record.object),
-    ])));
+    println!(
+        "{}",
+        to_canonical_json(&json_object(vec![
+            ("canonicalId", JsonValue::String(record.canonical_id)),
+            (
+                "carrierIdentity",
+                JsonValue::String(record.carrier_identity)
+            ),
+            ("storedAt", JsonValue::String(record.stored_at)),
+            ("object", record.object),
+        ]))
+    );
     Ok(())
 }
 
@@ -128,25 +145,37 @@ fn handle_replay(backend: &impl StorageBackend) -> Result<(), String> {
     let records = backend.replay().map_err(|error| error.to_string())?;
     let objects: Vec<JsonValue> = records
         .into_iter()
-        .map(|record| json_object(vec![
-            ("canonicalId", JsonValue::String(record.canonical_id)),
-            ("carrierIdentity", JsonValue::String(record.carrier_identity)),
-            ("storedAt", JsonValue::String(record.stored_at)),
-            ("object", record.object),
-        ]))
+        .map(|record| {
+            json_object(vec![
+                ("canonicalId", JsonValue::String(record.canonical_id)),
+                (
+                    "carrierIdentity",
+                    JsonValue::String(record.carrier_identity),
+                ),
+                ("storedAt", JsonValue::String(record.stored_at)),
+                ("object", record.object),
+            ])
+        })
         .collect();
-    println!("{}", to_canonical_json(&json_object(vec![
-        ("count", JsonValue::Number(objects.len().to_string())),
-        ("objects", JsonValue::Array(objects)),
-    ])));
+    println!(
+        "{}",
+        to_canonical_json(&json_object(vec![
+            ("count", JsonValue::Number(objects.len().to_string())),
+            ("objects", JsonValue::Array(objects)),
+        ]))
+    );
     Ok(())
 }
 
 fn handle_list(backend: &impl StorageBackend) -> Result<(), String> {
     let ids = backend.list_ids().map_err(|error| error.to_string())?;
-    println!("{}", to_canonical_json(&json_object(vec![
-        ("ids", JsonValue::Array(ids.into_iter().map(JsonValue::String).collect())),
-    ])));
+    println!(
+        "{}",
+        to_canonical_json(&json_object(vec![(
+            "ids",
+            JsonValue::Array(ids.into_iter().map(JsonValue::String).collect())
+        ),]))
+    );
     Ok(())
 }
 
@@ -167,30 +196,72 @@ fn json_object(entries: Vec<(&str, JsonValue)>) -> JsonValue {
 
 fn print_config(config: &StorageRuntimeConfig) {
     let layout = runtime_storage_layout(config);
-    println!("{}", to_canonical_json(&json_object(vec![
-        ("configPath", path_value(config.config_path.as_ref())),
-        ("stateDir", JsonValue::String(config.state_dir.to_string_lossy().to_string())),
-        ("dataDir", JsonValue::String(config.data_dir.to_string_lossy().to_string())),
-        ("backupDir", JsonValue::String(config.backup_dir.to_string_lossy().to_string())),
-        ("tempDir", JsonValue::String(config.temp_dir.to_string_lossy().to_string())),
-        ("rawLogPath", JsonValue::String(layout.raw_log_path.to_string_lossy().to_string())),
-        ("catalogPath", JsonValue::String(layout.catalog_path.to_string_lossy().to_string())),
-    ])));
+    println!(
+        "{}",
+        to_canonical_json(&json_object(vec![
+            ("configPath", path_value(config.config_path.as_ref())),
+            (
+                "stateDir",
+                JsonValue::String(config.state_dir.to_string_lossy().to_string())
+            ),
+            (
+                "dataDir",
+                JsonValue::String(config.data_dir.to_string_lossy().to_string())
+            ),
+            (
+                "backupDir",
+                JsonValue::String(config.backup_dir.to_string_lossy().to_string())
+            ),
+            (
+                "tempDir",
+                JsonValue::String(config.temp_dir.to_string_lossy().to_string())
+            ),
+            (
+                "rawLogPath",
+                JsonValue::String(layout.raw_log_path.to_string_lossy().to_string())
+            ),
+            (
+                "catalogPath",
+                JsonValue::String(layout.catalog_path.to_string_lossy().to_string())
+            ),
+        ]))
+    );
 }
 
 fn print_runtime_status(config: &StorageRuntimeConfig) {
     let layout = runtime_storage_layout(config);
-    println!("{}", to_canonical_json(&json_object(vec![
-        ("status", JsonValue::String("ok".to_string())),
-        ("service", JsonValue::String("storage".to_string())),
-        ("configPath", path_value(config.config_path.as_ref())),
-        ("stateDir", JsonValue::String(config.state_dir.to_string_lossy().to_string())),
-        ("dataDir", JsonValue::String(config.data_dir.to_string_lossy().to_string())),
-        ("backupDir", JsonValue::String(config.backup_dir.to_string_lossy().to_string())),
-        ("tempDir", JsonValue::String(config.temp_dir.to_string_lossy().to_string())),
-        ("rawLogPath", JsonValue::String(layout.raw_log_path.to_string_lossy().to_string())),
-        ("catalogPath", JsonValue::String(layout.catalog_path.to_string_lossy().to_string())),
-    ])));
+    println!(
+        "{}",
+        to_canonical_json(&json_object(vec![
+            ("status", JsonValue::String("ok".to_string())),
+            ("service", JsonValue::String("storage".to_string())),
+            ("configPath", path_value(config.config_path.as_ref())),
+            (
+                "stateDir",
+                JsonValue::String(config.state_dir.to_string_lossy().to_string())
+            ),
+            (
+                "dataDir",
+                JsonValue::String(config.data_dir.to_string_lossy().to_string())
+            ),
+            (
+                "backupDir",
+                JsonValue::String(config.backup_dir.to_string_lossy().to_string())
+            ),
+            (
+                "tempDir",
+                JsonValue::String(config.temp_dir.to_string_lossy().to_string())
+            ),
+            (
+                "rawLogPath",
+                JsonValue::String(layout.raw_log_path.to_string_lossy().to_string())
+            ),
+            (
+                "catalogPath",
+                JsonValue::String(layout.catalog_path.to_string_lossy().to_string())
+            ),
+        ]))
+    );
 }
 
 fn path_value(path: Option<&std::path::PathBuf>) -> JsonValue {

@@ -55,14 +55,22 @@ pub struct ReadJsonFile {
 }
 
 pub fn read_json_file(path: impl AsRef<Path>) -> Result<ReadJsonFile, String> {
-    let raw = fs::read_to_string(path.as_ref())
-        .map_err(|error| format!("failed to read JSON file {}: {}", path.as_ref().display(), error))?;
+    let raw = fs::read_to_string(path.as_ref()).map_err(|error| {
+        format!(
+            "failed to read JSON file {}: {}",
+            path.as_ref().display(),
+            error
+        )
+    })?;
     let value = parse_json(&raw).map_err(|error| error.to_string())?;
     Ok(ReadJsonFile { raw, value })
 }
 
 pub fn parse_json(input: &str) -> Result<JsonValue, JsonError> {
-    let mut parser = Parser { input: input.as_bytes(), position: 0 };
+    let mut parser = Parser {
+        input: input.as_bytes(),
+        position: 0,
+    };
     let value = parser.parse_value()?;
     parser.skip_whitespace();
     if !parser.is_eof() {
@@ -73,7 +81,9 @@ pub fn parse_json(input: &str) -> Result<JsonValue, JsonError> {
 
 pub fn normalize_json(value: JsonValue) -> JsonValue {
     match value {
-        JsonValue::Array(items) => JsonValue::Array(items.into_iter().map(normalize_json).collect()),
+        JsonValue::Array(items) => {
+            JsonValue::Array(items.into_iter().map(normalize_json).collect())
+        }
         JsonValue::Object(entries) => {
             let mut normalized = BTreeMap::new();
             for (key, value) in entries {
@@ -106,7 +116,15 @@ pub fn validate_knowledge_object(value: &JsonValue) -> Vec<String> {
         return vec!["knowledge object must be an object".to_string()];
     };
 
-    for key in ["id", "schemaVersion", "type", "createdAt", "body", "provenance", "rawRef"] {
+    for key in [
+        "id",
+        "schemaVersion",
+        "type",
+        "createdAt",
+        "body",
+        "provenance",
+        "rawRef",
+    ] {
         if !map.contains_key(key) {
             errors.push(format!("missing required field: {}", key));
         }
@@ -116,11 +134,16 @@ pub fn validate_knowledge_object(value: &JsonValue) -> Vec<String> {
         errors.push("id must match ^lb:obj:[^\\s]+$".to_string());
     }
 
-    if !matches!(map.get("schemaVersion"), Some(JsonValue::String(value)) if value == KNOWLEDGE_OBJECT_SCHEMA_VERSION) {
-        errors.push(format!("schemaVersion must be {}", KNOWLEDGE_OBJECT_SCHEMA_VERSION));
+    if !matches!(map.get("schemaVersion"), Some(JsonValue::String(value)) if value == KNOWLEDGE_OBJECT_SCHEMA_VERSION)
+    {
+        errors.push(format!(
+            "schemaVersion must be {}",
+            KNOWLEDGE_OBJECT_SCHEMA_VERSION
+        ));
     }
 
-    if !matches!(map.get("type"), Some(JsonValue::String(value)) if supported_knowledge_types().contains(&value.as_str())) {
+    if !matches!(map.get("type"), Some(JsonValue::String(value)) if supported_knowledge_types().contains(&value.as_str()))
+    {
         errors.push("type must be one of the supported knowledge object types".to_string());
     }
 
@@ -175,7 +198,11 @@ pub fn validate_publish_request(value: &JsonValue) -> Vec<String> {
     };
 
     if let Some(object) = map.get("object") {
-        errors.extend(validate_knowledge_object(object).into_iter().map(|error| format!("object.{}", error)));
+        errors.extend(
+            validate_knowledge_object(object)
+                .into_iter()
+                .map(|error| format!("object.{}", error)),
+        );
     } else {
         errors.push("missing required field: object".to_string());
     }
@@ -184,11 +211,15 @@ pub fn validate_publish_request(value: &JsonValue) -> Vec<String> {
         Some(JsonValue::Object(publisher)) => {
             match publisher.get("publicKey") {
                 Some(JsonValue::String(value)) if is_lower_hex(value) && value.len() == 64 => {}
-                _ => errors.push("publisher.publicKey must be a 64-character lowercase hex string".to_string()),
+                _ => errors.push(
+                    "publisher.publicKey must be a 64-character lowercase hex string".to_string(),
+                ),
             }
             match publisher.get("signature") {
                 Some(JsonValue::String(value)) if is_lower_hex(value) && value.len() == 128 => {}
-                _ => errors.push("publisher.signature must be a 128-character lowercase hex string".to_string()),
+                _ => errors.push(
+                    "publisher.signature must be a 128-character lowercase hex string".to_string(),
+                ),
             }
             let allowed = ["publicKey", "signature"];
             for key in publisher.keys() {
@@ -215,7 +246,9 @@ pub fn validate_publish_request(value: &JsonValue) -> Vec<String> {
     errors
 }
 
-pub fn finalize_knowledge_object(value: &JsonValue) -> Result<FinalizedKnowledgeObject, Vec<String>> {
+pub fn finalize_knowledge_object(
+    value: &JsonValue,
+) -> Result<FinalizedKnowledgeObject, Vec<String>> {
     let errors = validate_knowledge_object(value);
     if !errors.is_empty() {
         return Err(errors);
@@ -240,7 +273,10 @@ pub fn derive_identity_key(value: &JsonValue) -> String {
     let basis = identity_key_basis(value);
     let canonical_json = to_canonical_json(&basis);
     let fingerprint = fnv1a64_hex(&canonical_json);
-    format!("lb:key:{}:fnv1a64:{}", IDENTITY_KEY_RULE_VERSION_V1, fingerprint)
+    format!(
+        "lb:key:{}:fnv1a64:{}",
+        IDENTITY_KEY_RULE_VERSION_V1, fingerprint
+    )
 }
 
 pub fn is_lb_object_id(value: &str) -> bool {
@@ -261,13 +297,22 @@ pub fn supported_knowledge_types() -> &'static [&'static str] {
     ]
 }
 
-pub fn build_capability_manifest(carrier_kind: &str, default_access: &str, default_retention: &str) -> JsonValue {
+pub fn build_capability_manifest(
+    carrier_kind: &str,
+    default_access: &str,
+    default_retention: &str,
+) -> JsonValue {
     let supported_schema_versions = JsonValue::Array(vec![
         JsonValue::Object(BTreeMap::from([
-            ("schema".to_string(), JsonValue::String("knowledge-object".to_string())),
+            (
+                "schema".to_string(),
+                JsonValue::String("knowledge-object".to_string()),
+            ),
             (
                 "versions".to_string(),
-                JsonValue::Array(vec![JsonValue::String(KNOWLEDGE_OBJECT_SCHEMA_VERSION.to_string())]),
+                JsonValue::Array(vec![JsonValue::String(
+                    KNOWLEDGE_OBJECT_SCHEMA_VERSION.to_string(),
+                )]),
             ),
             (
                 "preferred".to_string(),
@@ -276,10 +321,15 @@ pub fn build_capability_manifest(carrier_kind: &str, default_access: &str, defau
             ("breaking".to_string(), JsonValue::Bool(false)),
         ])),
         JsonValue::Object(BTreeMap::from([
-            ("schema".to_string(), JsonValue::String("http-publish-request".to_string())),
+            (
+                "schema".to_string(),
+                JsonValue::String("http-publish-request".to_string()),
+            ),
             (
                 "versions".to_string(),
-                JsonValue::Array(vec![JsonValue::String(HTTP_PUBLISH_REQUEST_SCHEMA_VERSION.to_string())]),
+                JsonValue::Array(vec![JsonValue::String(
+                    HTTP_PUBLISH_REQUEST_SCHEMA_VERSION.to_string(),
+                )]),
             ),
             (
                 "preferred".to_string(),
@@ -297,9 +347,18 @@ pub fn build_capability_manifest(carrier_kind: &str, default_access: &str, defau
     );
 
     JsonValue::Object(BTreeMap::from([
-        ("capabilityVersion".to_string(), JsonValue::String(CAPABILITY_VERSION.to_string())),
-        ("protocolVersion".to_string(), JsonValue::String(PROTOCOL_VERSION.to_string())),
-        ("carrierKind".to_string(), JsonValue::String(carrier_kind.to_string())),
+        (
+            "capabilityVersion".to_string(),
+            JsonValue::String(CAPABILITY_VERSION.to_string()),
+        ),
+        (
+            "protocolVersion".to_string(),
+            JsonValue::String(PROTOCOL_VERSION.to_string()),
+        ),
+        (
+            "carrierKind".to_string(),
+            JsonValue::String(carrier_kind.to_string()),
+        ),
         (
             "supportedCarrierKinds".to_string(),
             JsonValue::Array(vec![
@@ -308,7 +367,10 @@ pub fn build_capability_manifest(carrier_kind: &str, default_access: &str, defau
                 JsonValue::String(CARRIER_KIND_RELAY.to_string()),
             ]),
         ),
-        ("supportedSchemaVersions".to_string(), supported_schema_versions),
+        (
+            "supportedSchemaVersions".to_string(),
+            supported_schema_versions,
+        ),
         ("supportedObjectTypes".to_string(), supported_object_types),
         (
             "supportedContentTypes".to_string(),
@@ -357,8 +419,14 @@ pub fn build_capability_manifest(carrier_kind: &str, default_access: &str, defau
         (
             "defaults".to_string(),
             JsonValue::Object(BTreeMap::from([
-                ("accessScope".to_string(), JsonValue::String(default_access.to_string())),
-                ("retentionHint".to_string(), JsonValue::String(default_retention.to_string())),
+                (
+                    "accessScope".to_string(),
+                    JsonValue::String(default_access.to_string()),
+                ),
+                (
+                    "retentionHint".to_string(),
+                    JsonValue::String(default_retention.to_string()),
+                ),
             ])),
         ),
     ]))
@@ -395,7 +463,10 @@ pub fn build_multi_node_policy_manifest() -> JsonValue {
         (
             "sync".to_string(),
             JsonValue::Object(BTreeMap::from([
-                ("relay".to_string(), JsonValue::String("subscription".to_string())),
+                (
+                    "relay".to_string(),
+                    JsonValue::String("subscription".to_string()),
+                ),
                 (
                     "storageNode".to_string(),
                     JsonValue::Array(vec![
@@ -413,10 +484,22 @@ pub fn build_multi_node_policy_manifest() -> JsonValue {
         (
             "conflict".to_string(),
             JsonValue::Object(BTreeMap::from([
-                ("exactDuplicate".to_string(), JsonValue::String("idempotent".to_string())),
-                ("conflictingRePublish".to_string(), JsonValue::String("reject-or-quarantine".to_string())),
-                ("identityCollision".to_string(), JsonValue::String("keep-both".to_string())),
-                ("revision".to_string(), JsonValue::String("lineage".to_string())),
+                (
+                    "exactDuplicate".to_string(),
+                    JsonValue::String("idempotent".to_string()),
+                ),
+                (
+                    "conflictingRePublish".to_string(),
+                    JsonValue::String("reject-or-quarantine".to_string()),
+                ),
+                (
+                    "identityCollision".to_string(),
+                    JsonValue::String("keep-both".to_string()),
+                ),
+                (
+                    "revision".to_string(),
+                    JsonValue::String("lineage".to_string()),
+                ),
             ])),
         ),
         (
@@ -494,23 +577,38 @@ fn validate_relations(value: Option<&JsonValue>, errors: &mut Vec<String>) {
         };
         match map.get("source") {
             Some(JsonValue::String(value)) if !value.is_empty() => {}
-            _ => errors.push(format!("relations[{}].source must be a non-empty string", index)),
+            _ => errors.push(format!(
+                "relations[{}].source must be a non-empty string",
+                index
+            )),
         }
         match map.get("target") {
             Some(JsonValue::String(value)) if !value.is_empty() => {}
-            _ => errors.push(format!("relations[{}].target must be a non-empty string", index)),
+            _ => errors.push(format!(
+                "relations[{}].target must be a non-empty string",
+                index
+            )),
         }
         if let Some(JsonValue::String(value)) = map.get("kind") {
             if value.is_empty() {
-                errors.push(format!("relations[{}].kind must be a non-empty string when present", index));
+                errors.push(format!(
+                    "relations[{}].kind must be a non-empty string when present",
+                    index
+                ));
             }
         } else if map.contains_key("kind") {
-            errors.push(format!("relations[{}].kind must be a non-empty string when present", index));
+            errors.push(format!(
+                "relations[{}].kind must be a non-empty string when present",
+                index
+            ));
         }
         let allowed = ["source", "target", "kind"];
         for key in map.keys() {
             if !allowed.contains(&key.as_str()) {
-                errors.push(format!("relations[{}] must not contain additional properties", index));
+                errors.push(format!(
+                    "relations[{}] must not contain additional properties",
+                    index
+                ));
                 break;
             }
         }
@@ -520,7 +618,9 @@ fn validate_relations(value: Option<&JsonValue>, errors: &mut Vec<String>) {
 fn validate_status(value: Option<&JsonValue>, errors: &mut Vec<String>) {
     if let Some(JsonValue::String(status)) = value {
         if !["draft", "active", "superseded", "deprecated", "archived"].contains(&status.as_str()) {
-            errors.push("status must be one of draft, active, superseded, deprecated, archived".to_string());
+            errors.push(
+                "status must be one of draft, active, superseded, deprecated, archived".to_string(),
+            );
         }
     } else if value.is_some() {
         errors.push("status must be a string".to_string());
@@ -541,17 +641,34 @@ fn validate_lineage(value: Option<&JsonValue>, errors: &mut Vec<String>) {
             continue;
         };
         match map.get("type") {
-            Some(JsonValue::String(value)) if ["derived_from", "revises", "supersedes", "translates", "synthesizes"].contains(&value.as_str()) => {}
-            _ => errors.push(format!("lineage[{}].type must be one of the supported lineage types", index)),
+            Some(JsonValue::String(value))
+                if [
+                    "derived_from",
+                    "revises",
+                    "supersedes",
+                    "translates",
+                    "synthesizes",
+                ]
+                .contains(&value.as_str()) => {}
+            _ => errors.push(format!(
+                "lineage[{}].type must be one of the supported lineage types",
+                index
+            )),
         }
         match map.get("target") {
             Some(JsonValue::String(value)) if !value.is_empty() => {}
-            _ => errors.push(format!("lineage[{}].target must be a non-empty string", index)),
+            _ => errors.push(format!(
+                "lineage[{}].target must be a non-empty string",
+                index
+            )),
         }
         let allowed = ["type", "target"];
         for key in map.keys() {
             if !allowed.contains(&key.as_str()) {
-                errors.push(format!("lineage[{}] must not contain additional properties", index));
+                errors.push(format!(
+                    "lineage[{}] must not contain additional properties",
+                    index
+                ));
                 break;
             }
         }
@@ -573,36 +690,56 @@ fn validate_provenance(value: Option<&JsonValue>, errors: &mut Vec<String>) {
                 };
                 match source.get("protocol") {
                     Some(JsonValue::String(value)) if !value.is_empty() => {}
-                    _ => errors.push(format!("provenance.sources[{}].protocol must be a non-empty string", index)),
+                    _ => errors.push(format!(
+                        "provenance.sources[{}].protocol must be a non-empty string",
+                        index
+                    )),
                 }
                 match source.get("sourceId") {
                     Some(JsonValue::String(value)) if !value.is_empty() => {}
-                    _ => errors.push(format!("provenance.sources[{}].sourceId must be a non-empty string", index)),
+                    _ => errors.push(format!(
+                        "provenance.sources[{}].sourceId must be a non-empty string",
+                        index
+                    )),
                 }
                 if let Some(JsonValue::String(value)) = source.get("authorId") {
                     if value.is_empty() {
                         errors.push(format!("provenance.sources[{}].authorId must be a non-empty string when present", index));
                     }
                 } else if source.contains_key("authorId") {
-                    errors.push(format!("provenance.sources[{}].authorId must be a non-empty string when present", index));
+                    errors.push(format!(
+                        "provenance.sources[{}].authorId must be a non-empty string when present",
+                        index
+                    ));
                 }
                 if let Some(JsonValue::String(value)) = source.get("observedAt") {
                     if !is_rfc3339_datetime(value) {
-                        errors.push(format!("provenance.sources[{}].observedAt must be a valid date-time string", index));
+                        errors.push(format!(
+                            "provenance.sources[{}].observedAt must be a valid date-time string",
+                            index
+                        ));
                     }
                 } else if source.contains_key("observedAt") {
-                    errors.push(format!("provenance.sources[{}].observedAt must be a valid date-time string", index));
+                    errors.push(format!(
+                        "provenance.sources[{}].observedAt must be a valid date-time string",
+                        index
+                    ));
                 }
                 let allowed = ["protocol", "sourceId", "authorId", "observedAt"];
                 for key in source.keys() {
                     if !allowed.contains(&key.as_str()) {
-                        errors.push(format!("provenance.sources[{}] must not contain additional properties", index));
+                        errors.push(format!(
+                            "provenance.sources[{}] must not contain additional properties",
+                            index
+                        ));
                         break;
                     }
                 }
             }
         }
-        Some(JsonValue::Array(_)) => errors.push("provenance.sources must be a non-empty array".to_string()),
+        Some(JsonValue::Array(_)) => {
+            errors.push("provenance.sources must be a non-empty array".to_string())
+        }
         _ => errors.push("provenance.sources must be a non-empty array".to_string()),
     }
 
@@ -652,7 +789,11 @@ fn validate_raw_ref(value: Option<&JsonValue>, errors: &mut Vec<String>) {
     }
 }
 
-fn validate_identity_claims(value: Option<&JsonValue>, object: &BTreeMap<String, JsonValue>, errors: &mut Vec<String>) {
+fn validate_identity_claims(
+    value: Option<&JsonValue>,
+    object: &BTreeMap<String, JsonValue>,
+    errors: &mut Vec<String>,
+) {
     let Some(JsonValue::Array(items)) = value else {
         if value.is_some() {
             errors.push("identityClaims must be an array".to_string());
@@ -661,7 +802,11 @@ fn validate_identity_claims(value: Option<&JsonValue>, object: &BTreeMap<String,
     };
 
     let expected_identity_key = derive_identity_key(&JsonValue::Object(object.clone()));
-    let expected_canonical_id = object.get("id").and_then(as_string).unwrap_or_default().to_string();
+    let expected_canonical_id = object
+        .get("id")
+        .and_then(as_string)
+        .unwrap_or_default()
+        .to_string();
 
     for (index, item) in items.iter().enumerate() {
         let Some(map) = as_object(item) else {
@@ -675,30 +820,52 @@ fn validate_identity_claims(value: Option<&JsonValue>, object: &BTreeMap<String,
         }
         match map.get("claimType") {
             Some(JsonValue::String(value)) if value == "identity" => {}
-            _ => errors.push(format!("identityClaims[{}].claimType must be identity", index)),
+            _ => errors.push(format!(
+                "identityClaims[{}].claimType must be identity",
+                index
+            )),
         }
         match map.get("ruleVersion") {
             Some(JsonValue::String(value)) if value == IDENTITY_KEY_RULE_VERSION_V1 => {}
-            Some(JsonValue::String(_)) => errors.push(format!("identityClaims[{}].ruleVersion must be {}", index, IDENTITY_KEY_RULE_VERSION_V1)),
-            _ => errors.push(format!("identityClaims[{}].ruleVersion must be a non-empty string", index)),
+            Some(JsonValue::String(_)) => errors.push(format!(
+                "identityClaims[{}].ruleVersion must be {}",
+                index, IDENTITY_KEY_RULE_VERSION_V1
+            )),
+            _ => errors.push(format!(
+                "identityClaims[{}].ruleVersion must be a non-empty string",
+                index
+            )),
         }
         match map.get("identityKey") {
-            Some(JsonValue::String(value)) if value.starts_with("lb:key:") && !value.chars().any(char::is_whitespace) => {}
-            _ => errors.push(format!("identityClaims[{}].identityKey must match ^lb:key:[^\\s]+$", index)),
+            Some(JsonValue::String(value))
+                if value.starts_with("lb:key:") && !value.chars().any(char::is_whitespace) => {}
+            _ => errors.push(format!(
+                "identityClaims[{}].identityKey must match ^lb:key:[^\\s]+$",
+                index
+            )),
         }
         match map.get("canonicalId") {
             Some(JsonValue::String(value)) if is_lb_object_id(value) => {}
-            _ => errors.push(format!("identityClaims[{}].canonicalId must match ^lb:obj:[^\\s]+$", index)),
+            _ => errors.push(format!(
+                "identityClaims[{}].canonicalId must match ^lb:obj:[^\\s]+$",
+                index
+            )),
         }
         match map.get("issuer") {
             Some(JsonValue::Object(issuer)) => {
                 match issuer.get("protocol") {
                     Some(JsonValue::String(value)) if !value.is_empty() => {}
-                    _ => errors.push(format!("identityClaims[{}].issuer.protocol must be a non-empty string", index)),
+                    _ => errors.push(format!(
+                        "identityClaims[{}].issuer.protocol must be a non-empty string",
+                        index
+                    )),
                 }
                 match issuer.get("sourceId") {
                     Some(JsonValue::String(value)) if !value.is_empty() => {}
-                    _ => errors.push(format!("identityClaims[{}].issuer.sourceId must be a non-empty string", index)),
+                    _ => errors.push(format!(
+                        "identityClaims[{}].issuer.sourceId must be a non-empty string",
+                        index
+                    )),
                 }
                 if let Some(JsonValue::String(value)) = issuer.get("signerId") {
                     if value.is_empty() {
@@ -710,22 +877,34 @@ fn validate_identity_claims(value: Option<&JsonValue>, object: &BTreeMap<String,
                 let allowed = ["protocol", "sourceId", "signerId"];
                 for key in issuer.keys() {
                     if !allowed.contains(&key.as_str()) {
-                        errors.push(format!("identityClaims[{}].issuer must not contain additional properties", index));
+                        errors.push(format!(
+                            "identityClaims[{}].issuer must not contain additional properties",
+                            index
+                        ));
                         break;
                     }
                 }
             }
-            _ => errors.push(format!("identityClaims[{}].issuer must be an object", index)),
+            _ => errors.push(format!(
+                "identityClaims[{}].issuer must be an object",
+                index
+            )),
         }
         match map.get("issuedAt") {
             Some(JsonValue::String(value)) if is_rfc3339_datetime(value) => {}
-            _ => errors.push(format!("identityClaims[{}].issuedAt must be a valid date-time string", index)),
+            _ => errors.push(format!(
+                "identityClaims[{}].issuedAt must be a valid date-time string",
+                index
+            )),
         }
         match map.get("verification") {
             Some(JsonValue::Object(verification)) => {
                 match verification.get("method") {
                     Some(JsonValue::String(value)) if !value.is_empty() => {}
-                    _ => errors.push(format!("identityClaims[{}].verification.method must be a non-empty string", index)),
+                    _ => errors.push(format!(
+                        "identityClaims[{}].verification.method must be a non-empty string",
+                        index
+                    )),
                 }
                 match verification.get("payloadHash") {
                     Some(JsonValue::String(value)) if is_sha256_hash(value) => {}
@@ -753,17 +932,26 @@ fn validate_identity_claims(value: Option<&JsonValue>, object: &BTreeMap<String,
                     }
                 }
             }
-            _ => errors.push(format!("identityClaims[{}].verification must be an object", index)),
+            _ => errors.push(format!(
+                "identityClaims[{}].verification must be an object",
+                index
+            )),
         }
 
         match map.get("canonicalId") {
             Some(JsonValue::String(value)) if value == &expected_canonical_id => {}
-            Some(JsonValue::String(_)) => errors.push(format!("identityClaims[{}].canonicalId must match the enclosing object id", index)),
+            Some(JsonValue::String(_)) => errors.push(format!(
+                "identityClaims[{}].canonicalId must match the enclosing object id",
+                index
+            )),
             _ => {}
         }
         match map.get("identityKey") {
             Some(JsonValue::String(value)) if value == &expected_identity_key => {}
-            Some(JsonValue::String(_)) => errors.push(format!("identityClaims[{}].identityKey must match the derived identity key", index)),
+            Some(JsonValue::String(_)) => errors.push(format!(
+                "identityClaims[{}].identityKey must match the derived identity key",
+                index
+            )),
             _ => {}
         }
         let allowed = [
@@ -778,7 +966,10 @@ fn validate_identity_claims(value: Option<&JsonValue>, object: &BTreeMap<String,
         ];
         for key in map.keys() {
             if !allowed.contains(&key.as_str()) {
-                errors.push(format!("identityClaims[{}] must not contain additional properties", index));
+                errors.push(format!(
+                    "identityClaims[{}] must not contain additional properties",
+                    index
+                ));
                 break;
             }
         }
@@ -800,30 +991,51 @@ fn validate_attachments(value: Option<&JsonValue>, errors: &mut Vec<String>) {
         };
         match map.get("type") {
             Some(JsonValue::String(value)) if !value.is_empty() => {}
-            _ => errors.push(format!("attachments[{}].type must be a non-empty string", index)),
+            _ => errors.push(format!(
+                "attachments[{}].type must be a non-empty string",
+                index
+            )),
         }
         match map.get("uri") {
             Some(JsonValue::String(value)) if !value.is_empty() => {}
-            _ => errors.push(format!("attachments[{}].uri must be a non-empty string", index)),
+            _ => errors.push(format!(
+                "attachments[{}].uri must be a non-empty string",
+                index
+            )),
         }
         if let Some(JsonValue::String(value)) = map.get("title") {
             if value.is_empty() {
-                errors.push(format!("attachments[{}].title must be a non-empty string when present", index));
+                errors.push(format!(
+                    "attachments[{}].title must be a non-empty string when present",
+                    index
+                ));
             }
         } else if map.contains_key("title") {
-            errors.push(format!("attachments[{}].title must be a non-empty string when present", index));
+            errors.push(format!(
+                "attachments[{}].title must be a non-empty string when present",
+                index
+            ));
         }
         if let Some(JsonValue::String(value)) = map.get("mimeType") {
             if value.is_empty() {
-                errors.push(format!("attachments[{}].mimeType must be a non-empty string when present", index));
+                errors.push(format!(
+                    "attachments[{}].mimeType must be a non-empty string when present",
+                    index
+                ));
             }
         } else if map.contains_key("mimeType") {
-            errors.push(format!("attachments[{}].mimeType must be a non-empty string when present", index));
+            errors.push(format!(
+                "attachments[{}].mimeType must be a non-empty string when present",
+                index
+            ));
         }
         let allowed = ["type", "uri", "title", "mimeType"];
         for key in map.keys() {
             if !allowed.contains(&key.as_str()) {
-                errors.push(format!("attachments[{}] must not contain additional properties", index));
+                errors.push(format!(
+                    "attachments[{}] must not contain additional properties",
+                    index
+                ));
                 break;
             }
         }
@@ -860,10 +1072,9 @@ pub fn verify_publish_request_signature(value: &JsonValue) -> Result<(), String>
     let Some(JsonValue::Object(publisher)) = map.get("publisher") else {
         return Ok(());
     };
-    let (Some(JsonValue::String(public_key_hex)), Some(JsonValue::String(signature_hex))) = (
-        publisher.get("publicKey"),
-        publisher.get("signature"),
-    ) else {
+    let (Some(JsonValue::String(public_key_hex)), Some(JsonValue::String(signature_hex))) =
+        (publisher.get("publicKey"), publisher.get("signature"))
+    else {
         return Ok(());
     };
     if public_key_hex.len() != 64 || !is_lower_hex(public_key_hex) {
@@ -884,7 +1095,11 @@ pub fn verify_publish_request_signature(value: &JsonValue) -> Result<(), String>
     if signature_bytes.len() != 64 {
         return Err("publisher.signature must decode to 64 bytes".to_string());
     }
-    verify_publish_request_signature_with_openssl(payload.as_bytes(), &public_key_bytes, &signature_bytes)?;
+    verify_publish_request_signature_with_openssl(
+        payload.as_bytes(),
+        &public_key_bytes,
+        &signature_bytes,
+    )?;
     Ok(())
 }
 
@@ -918,7 +1133,8 @@ fn verify_publish_request_signature_with_openssl(
             .unwrap_or_default()
             .as_nanos()
     ));
-    fs::create_dir_all(&temp_root).map_err(|error| format!("failed to create temp dir: {}", error))?;
+    fs::create_dir_all(&temp_root)
+        .map_err(|error| format!("failed to create temp dir: {}", error))?;
 
     let key_path = temp_root.join("public-key.der");
     let sig_path = temp_root.join("signature.bin");
@@ -929,7 +1145,8 @@ fn verify_publish_request_signature_with_openssl(
     ];
     der.extend_from_slice(public_key);
     fs::write(&key_path, der).map_err(|error| format!("failed to write public key: {}", error))?;
-    fs::write(&sig_path, signature).map_err(|error| format!("failed to write signature: {}", error))?;
+    fs::write(&sig_path, signature)
+        .map_err(|error| format!("failed to write signature: {}", error))?;
     fs::write(&msg_path, message).map_err(|error| format!("failed to write message: {}", error))?;
 
     let output = Command::new("openssl")
@@ -938,14 +1155,20 @@ fn verify_publish_request_signature_with_openssl(
             "-verify",
             "-pubin",
             "-inkey",
-            key_path.to_str().ok_or_else(|| "temp key path is not valid UTF-8".to_string())?,
+            key_path
+                .to_str()
+                .ok_or_else(|| "temp key path is not valid UTF-8".to_string())?,
             "-keyform",
             "DER",
             "-rawin",
             "-in",
-            msg_path.to_str().ok_or_else(|| "temp message path is not valid UTF-8".to_string())?,
+            msg_path
+                .to_str()
+                .ok_or_else(|| "temp message path is not valid UTF-8".to_string())?,
             "-sigfile",
-            sig_path.to_str().ok_or_else(|| "temp signature path is not valid UTF-8".to_string())?,
+            sig_path
+                .to_str()
+                .ok_or_else(|| "temp signature path is not valid UTF-8".to_string())?,
         ])
         .output()
         .map_err(|error| format!("failed to run openssl: {}", error))?;
@@ -962,7 +1185,17 @@ fn identity_key_basis(value: &JsonValue) -> JsonValue {
         return JsonValue::Object(BTreeMap::new());
     };
     let mut basis = BTreeMap::new();
-    for key in ["type", "createdAt", "body", "contexts", "relations", "status", "lineage", "attachments", "labels"] {
+    for key in [
+        "type",
+        "createdAt",
+        "body",
+        "contexts",
+        "relations",
+        "status",
+        "lineage",
+        "attachments",
+        "labels",
+    ] {
         if let Some(value) = map.get(key) {
             basis.insert(key.to_string(), value.clone());
         }
@@ -1008,11 +1241,16 @@ fn fnv1a64_hex(input: &str) -> String {
 }
 
 fn is_lower_hex(value: &str) -> bool {
-    !value.is_empty() && value.chars().all(|ch| ch.is_ascii_hexdigit() && !ch.is_ascii_uppercase())
+    !value.is_empty()
+        && value
+            .chars()
+            .all(|ch| ch.is_ascii_hexdigit() && !ch.is_ascii_uppercase())
 }
 
 fn is_sha256_hash(value: &str) -> bool {
-    value.starts_with("sha256:") && value.len() == "sha256:".len() + 64 && is_lower_hex(&value["sha256:".len()..])
+    value.starts_with("sha256:")
+        && value.len() == "sha256:".len() + 64
+        && is_lower_hex(&value["sha256:".len()..])
 }
 
 fn is_bcp47_language_tag(value: &str) -> bool {
@@ -1024,7 +1262,9 @@ fn is_bcp47_language_tag(value: &str) -> bool {
         return false;
     }
     for segment in segments {
-        if !(1..=8).contains(&segment.len()) || !segment.chars().all(|ch| ch.is_ascii_alphanumeric()) {
+        if !(1..=8).contains(&segment.len())
+            || !segment.chars().all(|ch| ch.is_ascii_alphanumeric())
+        {
             return false;
         }
     }
@@ -1055,8 +1295,12 @@ fn is_date(value: &str) -> bool {
         && year.chars().all(|ch| ch.is_ascii_digit())
         && month.chars().all(|ch| ch.is_ascii_digit())
         && day.chars().all(|ch| ch.is_ascii_digit())
-        && month.parse::<u32>().map_or(false, |value| (1..=12).contains(&value))
-        && day.parse::<u32>().map_or(false, |value| (1..=31).contains(&value))
+        && month
+            .parse::<u32>()
+            .map_or(false, |value| (1..=12).contains(&value))
+        && day
+            .parse::<u32>()
+            .map_or(false, |value| (1..=31).contains(&value))
 }
 
 fn parse_time_with_zone(value: &str) -> bool {
@@ -1286,7 +1530,9 @@ impl<'a> Parser<'a> {
                         _ => return Err(self.error("unknown escape sequence")),
                     }
                 }
-                byte if byte < 0x20 => return Err(self.error("unescaped control character in string")),
+                byte if byte < 0x20 => {
+                    return Err(self.error("unescaped control character in string"))
+                }
                 _ => {
                     self.position -= 1;
                     let remaining = &self.input[self.position..];
@@ -1412,10 +1658,7 @@ mod tests {
         assert!(validate_knowledge_object(&value).is_empty());
         let finalized = finalize_knowledge_object(&value).expect("fixture must finalize");
         assert_eq!(finalized.canonical_id, "lb:obj:example-0001");
-        assert_eq!(
-            finalized.identity_key,
-            derive_identity_key(&value)
-        );
+        assert_eq!(finalized.identity_key, derive_identity_key(&value));
     }
 
     #[test]
@@ -1423,7 +1666,9 @@ mod tests {
         let raw = include_str!("../../../fixtures/knowledge-object/invalid-missing-rawref.json");
         let value = parse_json(raw).expect("fixture must parse");
         let errors = validate_knowledge_object(&value);
-        assert!(errors.iter().any(|error| error.contains("missing required field: rawRef")));
+        assert!(errors
+            .iter()
+            .any(|error| error.contains("missing required field: rawRef")));
     }
 
     #[test]
@@ -1431,7 +1676,9 @@ mod tests {
         let raw = include_str!("../../../fixtures/knowledge-object/invalid-schema-version.json");
         let value = parse_json(raw).expect("fixture must parse");
         let errors = validate_knowledge_object(&value);
-        assert!(errors.iter().any(|error| error.contains("schemaVersion must be 0.1.0")));
+        assert!(errors
+            .iter()
+            .any(|error| error.contains("schemaVersion must be 0.1.0")));
     }
 
     #[test]
@@ -1444,10 +1691,13 @@ mod tests {
 
     #[test]
     fn rejects_publish_request_schema_version_mismatch_fixture() {
-        let raw = include_str!("../../../fixtures/http-publish-request/invalid-schema-version.json");
+        let raw =
+            include_str!("../../../fixtures/http-publish-request/invalid-schema-version.json");
         let value = parse_json(raw).expect("fixture must parse");
         let errors = validate_publish_request(&value);
-        assert!(errors.iter().any(|error| error.contains("object.schemaVersion must be 0.1.0")));
+        assert!(errors
+            .iter()
+            .any(|error| error.contains("object.schemaVersion must be 0.1.0")));
     }
 
     #[test]
@@ -1460,10 +1710,13 @@ mod tests {
 
     #[test]
     fn rejects_mismatched_identity_claim_fixture() {
-        let raw = include_str!("../../../fixtures/knowledge-object/invalid-identity-claim-mismatch.json");
+        let raw =
+            include_str!("../../../fixtures/knowledge-object/invalid-identity-claim-mismatch.json");
         let value = parse_json(raw).expect("fixture must parse");
         let errors = validate_knowledge_object(&value);
-        assert!(errors.iter().any(|error| error.contains("enclosing object id")));
+        assert!(errors
+            .iter()
+            .any(|error| error.contains("enclosing object id")));
     }
 
     #[test]
@@ -1471,7 +1724,10 @@ mod tests {
         let manifest = build_capability_manifest("http", "public", "long-term");
         let map = as_object(&manifest).expect("manifest must be an object");
         assert_eq!(map.get("carrierKind").and_then(as_string), Some("http"));
-        assert_eq!(map.get("protocolVersion").and_then(as_string), Some(PROTOCOL_VERSION));
+        assert_eq!(
+            map.get("protocolVersion").and_then(as_string),
+            Some(PROTOCOL_VERSION)
+        );
 
         let schema_versions = match map.get("supportedSchemaVersions") {
             Some(JsonValue::Array(values)) => values,
@@ -1480,47 +1736,73 @@ mod tests {
         assert_eq!(schema_versions.len(), 2);
 
         let first = as_object(&schema_versions[0]).expect("first schema version entry");
-        assert_eq!(first.get("schema").and_then(as_string), Some("knowledge-object"));
-        assert_eq!(first.get("preferred").and_then(as_string), Some(KNOWLEDGE_OBJECT_SCHEMA_VERSION));
+        assert_eq!(
+            first.get("schema").and_then(as_string),
+            Some("knowledge-object")
+        );
+        assert_eq!(
+            first.get("preferred").and_then(as_string),
+            Some(KNOWLEDGE_OBJECT_SCHEMA_VERSION)
+        );
         assert_eq!(first.get("breaking"), Some(&JsonValue::Bool(false)));
 
         let auth_modes = match map.get("supportedAuthModes") {
             Some(JsonValue::Array(values)) => values,
             other => panic!("unexpected supportedAuthModes: {:?}", other),
         };
-        assert!(auth_modes.iter().any(|value| as_string(value) == Some("public-key-signature")));
+        assert!(auth_modes
+            .iter()
+            .any(|value| as_string(value) == Some("public-key-signature")));
 
         let validation_constraints = match map.get("validationConstraints") {
             Some(JsonValue::Array(values)) => values,
             other => panic!("unexpected validationConstraints: {:?}", other),
         };
-        assert!(validation_constraints.iter().any(|value| as_string(value) == Some("schema-version-match")));
+        assert!(validation_constraints
+            .iter()
+            .any(|value| as_string(value) == Some("schema-version-match")));
 
         let finalize_constraints = match map.get("finalizeConstraints") {
             Some(JsonValue::Array(values)) => values,
             other => panic!("unexpected finalizeConstraints: {:?}", other),
         };
-        assert!(finalize_constraints.iter().any(|value| as_string(value) == Some("rawref-preservation")));
+        assert!(finalize_constraints
+            .iter()
+            .any(|value| as_string(value) == Some("rawref-preservation")));
 
-        let multi_node = as_object(map.get("multiNode").expect("multiNode manifest")).expect("multiNode must be an object");
-        let discovery = as_object(multi_node.get("discovery").expect("discovery")).expect("discovery must be an object");
+        let multi_node = as_object(map.get("multiNode").expect("multiNode manifest"))
+            .expect("multiNode must be an object");
+        let discovery = as_object(multi_node.get("discovery").expect("discovery"))
+            .expect("discovery must be an object");
         assert_eq!(discovery.get("registryFree"), Some(&JsonValue::Bool(true)));
         let helper_surfaces = match discovery.get("helperSurfaces") {
             Some(JsonValue::Array(values)) => values,
             other => panic!("unexpected helperSurfaces: {:?}", other),
         };
-        assert!(helper_surfaces.iter().any(|value| as_string(value) == Some("capability-endpoint")));
+        assert!(helper_surfaces
+            .iter()
+            .any(|value| as_string(value) == Some("capability-endpoint")));
 
-        let sync = as_object(multi_node.get("sync").expect("sync")).expect("sync must be an object");
+        let sync =
+            as_object(multi_node.get("sync").expect("sync")).expect("sync must be an object");
         assert_eq!(sync.get("relay").and_then(as_string), Some("subscription"));
         let storage_node = match sync.get("storageNode") {
             Some(JsonValue::Array(values)) => values,
             other => panic!("unexpected storageNode: {:?}", other),
         };
-        assert!(storage_node.iter().any(|value| as_string(value) == Some("replay")));
+        assert!(storage_node
+            .iter()
+            .any(|value| as_string(value) == Some("replay")));
 
-        let conflict = as_object(multi_node.get("conflict").expect("conflict")).expect("conflict must be an object");
-        assert_eq!(conflict.get("exactDuplicate").and_then(as_string), Some("idempotent"));
-        assert_eq!(conflict.get("revision").and_then(as_string), Some("lineage"));
+        let conflict = as_object(multi_node.get("conflict").expect("conflict"))
+            .expect("conflict must be an object");
+        assert_eq!(
+            conflict.get("exactDuplicate").and_then(as_string),
+            Some("idempotent")
+        );
+        assert_eq!(
+            conflict.get("revision").and_then(as_string),
+            Some("lineage")
+        );
     }
 }

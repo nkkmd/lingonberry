@@ -30,6 +30,8 @@
 
 ### Policy and Operations
 
+障害時の一次参照先は [Node Lifecycle Runbook](./NODE_LIFECYCLE_RUNBOOK.md) とします。
+
 - [Access and Retention Policy](./ACCESS_RETENTION_POLICY.md)
 - [Access and Retention Audit Checklist](./ACCESS_RETENTION_AUDIT_CHECKLIST.md)
 - [Secret Management](./SECRET_MANAGEMENT.md)

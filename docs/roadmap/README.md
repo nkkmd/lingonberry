@@ -6,6 +6,7 @@
 
 - [実装ロードマップ](./IMPLEMENTATION_ROADMAP.md) と [実装バックログ](./IMPLEMENTATION_BACKLOG.md) は、Lingonberry の core 実装を進めるための文書です。
 - [運用準備ロードマップ](./OPERATIONAL_READINESS_ROADMAP.md) と [運用準備バックログ](./OPERATIONAL_READINESS_BACKLOG.md) は、実装後の運用整備を進めるための文書です。
+- [0.1.0 公開前チェックリスト](./RELEASE_0_1_0_CHECKLIST.md) は、OSS 公開・配布の直前に確認するための文書です。
 
 実装ロードマップ側では、Phase 0 と Phase 1 は仕様固定と単一オブジェクト publish 経路の実装が完了しています。
 実装の本命は ADR にある Rust + SQLite で、現行の Phase 1 JavaScript 実装はその前段の検証用ブートストラップです。

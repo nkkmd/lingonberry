@@ -1,6 +1,6 @@
 # Storage Node Quickstart
 
-**Status: draft** | **Last updated: 2026-06-22**
+**Status: draft** | **Last updated: 2026-06-23**
 
 ## 目的
 
@@ -101,10 +101,14 @@ cargo run -p lingonberry-storage -- list
 
 `storage node` は `relay` と別プロセスで立てる前提です。  
 両方を同じホストで試す場合でも、`stateDir` は分けるのが基本です。
+`Caddy` は `relay` の公開フロントとして使い、`storage node` を直接公開する用途には使いません。
+外部からの確認は `relay` 側の quickstart に寄せ、`storage node` は内部保存と replay の確認に集中します。
+公開面の構成や `Caddy` の設定例は [Caddy Relay Publication](./CADDY_RELAY_PUBLICATION.md) を参照してください。
 
 ## 参照
 
 - [storage node runtime](./STORAGE_NODE_RUNTIME.md)
 - [relay / storage separation](./RELAY_STORAGE_SEPARATION.md)
+- [Caddy Relay Publication](./CADDY_RELAY_PUBLICATION.md)
 - [Node Lifecycle Runbook](./NODE_LIFECYCLE_RUNBOOK.md)
 - [運用準備ロードマップ](../roadmap/OPERATIONAL_READINESS_ROADMAP.md)

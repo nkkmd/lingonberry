@@ -461,6 +461,24 @@ HTTP carrier contract、capability negotiation、access / retention policy、obs
   - `publish_received`、`readiness_checked`、`validation_failed`、`runtime_error` が追える
   - [HTTP Carrier Contract](../operations/HTTP_CARRIER_CONTRACT.md) と [Observability](../operations/OBSERVABILITY.md) に正本がある
 
+### Issue 7.5: Caddy を relay の公開フロントとして運用する
+
+- 目的: HTTP carrier の外向き公開を Caddy に寄せ、relay を内向きの実装として扱えるようにする
+- 依存: 7.1, 7.4, 3.5
+- 関連文書:
+  - [HTTP Carrier Contract](../operations/HTTP_CARRIER_CONTRACT.md)
+  - [relay / storage separation](../operations/RELAY_STORAGE_SEPARATION.md)
+  - [Node Lifecycle Runbook](../operations/NODE_LIFECYCLE_RUNBOOK.md)
+  - [Relay Quickstart](../operations/RELAY_QUICKSTART.md)
+  - [Storage Node Quickstart](../operations/STORAGE_NODE_QUICKSTART.md)
+- 完了条件:
+  - Caddy が relay の前段 reverse proxy として説明できる
+  - TLS 終端や host / path routing の責務が Caddy 側にあると説明できる
+  - relay と storage node の公開面が分離されている
+  - Caddy 経由で `GET /v1/capabilities` と `GET /v1/ready` を確認できる
+  - Caddy の設定や起動手順が operations 側にある
+  - Caddy を protocol semantic ではなく deployment / exposure の責務として扱っている
+
 ### 完了メモ
 
 - Phase 7 の正本は [HTTP Carrier Contract](../operations/HTTP_CARRIER_CONTRACT.md) に集約する

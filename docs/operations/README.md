@@ -1,6 +1,6 @@
 # Operations
 
-**Status: active** | **Last updated: 2026-06-22**
+**Status: active** | **Last updated: 2026-06-23**
 
 このディレクトリには、Lingonberry の技術決定と運用正本を置きます。
 
@@ -34,6 +34,7 @@
 
 - [Access and Retention Policy](./ACCESS_RETENTION_POLICY.md)
 - [Access and Retention Audit Checklist](./ACCESS_RETENTION_AUDIT_CHECKLIST.md)
+- [Caddy Relay Publication](./CADDY_RELAY_PUBLICATION.md)
 - [Secret Management](./SECRET_MANAGEMENT.md)
 - [Observability](./OBSERVABILITY.md)
 - [storage node runtime](./STORAGE_NODE_RUNTIME.md)

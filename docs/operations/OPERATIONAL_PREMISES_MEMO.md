@@ -1,6 +1,6 @@
 # 運用前提メモ
 
-**Status: active** | **Last updated: 2026-06-19**
+**Status: active** | **Last updated: 2026-06-23**
 
 ## 目的
 
@@ -136,11 +136,11 @@ Phase 0 の時点では、配置を新しく増やしません。
 
 ### レビュー観点
 
-- [ ] 責務境界が一貫しているか
-- [ ] core に入れないものが明確か
-- [ ] public / private が profile / policy 側か
-- [ ] 監視対象外が明文化されているか
-- [ ] profile 側の差分が切り出せているか
+- [x] 責務境界が一貫しているか
+- [x] core に入れないものが明確か
+- [x] public / private が profile / policy 側か
+- [x] 監視対象外が明文化されているか
+- [x] profile 側の差分が切り出せているか
 
 ### 再利用する判断
 

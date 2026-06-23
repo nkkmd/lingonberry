@@ -120,7 +120,7 @@ README、仕様文書、schema、fixtures、実装のあいだで、公開して
 - [x] `docs/architecture/`、`docs/concepts/`、`docs/protocols/`、`docs/operations/`、`docs/roadmap/`、`docs/profiles/`、`schemas/`、`fixtures/` の役割が説明できる
 - [x] release note で `0.1.0` の範囲を説明できる
 - [x] 必要な場合は source archive の作成手順を説明できる
-- [ ] `0.1.0` のタグ名と公開名が一致している
+- [x] `0.1.0` のタグ名と公開名が一致している
 
 ### 確認メモ
 

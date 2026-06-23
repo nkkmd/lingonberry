@@ -1,6 +1,6 @@
 # Carrier Decision Memo
 
-**Status: draft** | **Last updated: 2026-06-18**
+**Status: draft** | **Last updated: 2026-06-23**
 
 ## 目的
 
@@ -118,7 +118,7 @@ HTTP から始めると、後から `carrier capability`、`content negotiation`
 
 - HTTP は carrier であり、protocol の外側にある翻訳層ではない
 - request body は protocol-native な knowledge object をそのまま運ぶ
-- publish 主体は password ではなく公開鍵署名ベースで識別する
+- publish 主体は password ではなく公開鍵署名ベースで扱う
 - author / actor の同定は object 本体ではなく request envelope と provenance で扱う
 - publish 主体の public key は canonical には lowercase hex で扱う
 - `npub` 形式は ingress で受けてもよいが、保存前に hex へ正規化する
@@ -148,8 +148,8 @@ HTTP から始めると、後から `carrier capability`、`content negotiation`
 ##### 使い方
 
 - `object` に protocol-native な `knowledge object` を入れる
-- `publisher.publicKey` で publish 主体を識別する
-- `publisher.signature` で request の真正性を検証する
+- `publisher.publicKey` には publisher 側で用意した Ed25519 の公開鍵を入れる
+- `publisher.signature` には `publisher.signature` を除いた canonicalized request payload への署名を入れる
 - `publisher.signature` は Ed25519 の 64-byte 署名を lowercase hex で表現する
 - `publisher.publicKey` は canonical には hex で扱う
 - HTTP 側で semantic adapter を挟まない

@@ -1,6 +1,6 @@
 # Knowledge Object Publish Quickstart
 
-**Status: draft** | **Last updated: 2026-06-22**
+**Status: draft** | **Last updated: 2026-06-23**
 
 ## 目的
 
@@ -61,6 +61,14 @@ cargo metadata --no-deps
 ```bash
 cargo run -p lingonberry-relay -- capabilities
 ```
+
+## 5.1 publish request の署名方法
+
+publish request の `publisher` に入れる鍵は、このリポジトリや relay が発行するものではありません。  
+publisher 側で Ed25519 の鍵ペアを用意し、`publicKey` を request に載せます。`signature` は `publisher.signature` を除いた canonicalized request payload に対して作ります。
+
+relay は秘密鍵を持たずに、受け取った `publicKey` と `signature` の整合性を検証します。  
+`signature` は公開情報なので、公開 API には載せない運用にしても、request 本体や raw log には残ります。
 
 ## 6. まず 1 件 publish する
 

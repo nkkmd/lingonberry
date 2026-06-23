@@ -1,6 +1,6 @@
 # HTTP Carrier Contract
 
-**Status: draft** | **Last updated: 2026-06-22**
+**Status: draft** | **Last updated: 2026-06-23**
 
 ## 目的
 
@@ -45,8 +45,9 @@ request body は `http-publish-request` envelope とします。
 
 - `object` に protocol-native な `knowledge object` を入れる
 - `publisher` は carrier 側メタデータとして扱う
+- `publisher.publicKey` には publisher 側で用意した Ed25519 の公開鍵を入れる
+- `publisher.signature` には `publisher.signature` を除いた canonicalized request payload への署名を入れる
 - `publisher.publicKey` は canonical には lowercase hex で扱う
-- `publisher.signature` は request payload あるいは carrier が定義する canonicalized subset を覆う
 - 受信後は `validate -> normalize -> finalize` に渡す
 - validate は共通の必須項目、schema version、carrier identity を確認する
 - carrier 固有の framing や option は、semantic adapter ではなく request envelope 側の責務として扱う

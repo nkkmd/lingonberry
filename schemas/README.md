@@ -61,7 +61,7 @@
 この schema の主目的は、`knowledge object` 本体に加えて、publish 主体に関する carrier 側メタデータを一緒に運ぶことです。
 
 - `object` に publish 対象の `knowledge object` を入れます
-- `publisher` に `publicKey` と `signature` を入れます
+- `publisher` には publish 主体の公開鍵と署名を入れます
 - `publisher` は wire object 本体の一部ではなく、carrier 側の付帯情報です
 
 つまり、この schema は「知識オブジェクトそのもの」ではなく、「知識オブジェクトを HTTP で送るときの外側の入れ物」を表します。
@@ -70,8 +70,8 @@
 
 - `object`: publish 対象の `knowledge object` 本体です
 - `publisher`: publish 主体の署名付きメタデータです
-- `publisher.publicKey`: publish 主体の公開鍵です
-- `publisher.signature`: request payload に対する署名です
+- `publisher.publicKey`: publisher 側で用意した Ed25519 の公開鍵です
+- `publisher.signature`: `publisher.signature` を除いた canonicalized request payload に対する署名です
 
 `publisher` は object の意味内容ではなく、carrier 側で publish を成立させるための情報です。
 

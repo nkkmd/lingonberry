@@ -18,12 +18,12 @@ Lingonberry `0.1.0` は、core protocol、application profile の境界、HTTP c
 - HTTP carrier と file / archive carrier の正本文書
 - relay / storage node の運用メモと runbook
 
-## 未完了項目
+## 公開直前の確認項目
 
-公開時点で残る確認は、主に次の 2 点です。
+公開直前に確認する項目は、次の 2 点です。
 
-- タグ名と公開名の最終一致確認
-- source release の最終公開手順の確認
+- `0.1.0` tag と release title が一致していること
+- GitHub Release または `git archive` で source archive を取得できること
 
 ## 今後のロードマップ
 

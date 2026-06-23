@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://lingonberry.example/schemas/v1/knowledge-object.schema.json",
+  "$id": "https://lingonberry.cultivationdata.net/schemas/v1/knowledge-object.schema.json",
   "title": "Lingonberry Knowledge Object",
   "description": "Protocol-native knowledge object schema for the Lingonberry protocol.",
   "type": "object",

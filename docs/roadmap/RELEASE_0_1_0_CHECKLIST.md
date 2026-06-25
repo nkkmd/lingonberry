@@ -1,10 +1,10 @@
-# 0.1.0 公開前チェックリスト
+# v0.1.0 公開前チェックリスト
 
-**Status: draft** | **Last updated: 2026-06-22**
+**Status: draft** | **Last updated: 2026-06-25**
 
 ## 目的
 
-この文書は、Lingonberry を `0.1.0` として OSS 公開・配布する前に、最低限確認する項目をまとめるための実務用チェックリストです。
+この文書は、Lingonberry を `v0.1.0` として OSS 公開・配布する前に、最低限確認する項目をまとめるための実務用チェックリストです。
 
 対象は source release を前提にした公開リポジトリです。  
 README、仕様文書、schema、fixtures、実装のあいだで、公開してよい範囲が揃っているかを確認します。
@@ -14,7 +14,7 @@ README、仕様文書、schema、fixtures、実装のあいだで、公開して
 
 ## 公開範囲の確認
 
-- [x] `0.1.0` で公開する範囲を 1 文で説明できる
+- [x] `v0.1.0` で公開する範囲を 1 文で説明できる
 - [x] `core protocol` と `application profile` の境界を説明できる
 - [x] `relay` と `storage node` の責務分離を説明できる
 - [x] `wire` と `canonical` が別プロトコルではなく別表現であると説明できる
@@ -25,7 +25,7 @@ README、仕様文書、schema、fixtures、実装のあいだで、公開して
 
 ### 確認メモ
 
-- `0.1.0` では、core protocol の概念・用語・wire 仕様・JSON Schema・fixture・運用メモ・ロードマップを source release として公開し、Toitoi を含む profile 差分は core から切り分けて扱う
+- `v0.1.0` では、core protocol の概念・用語・wire 仕様・JSON Schema・fixture・運用メモ・ロードマップを source release として公開し、Toitoi を含む profile 差分は core から切り分けて扱う
 - `core protocol` は分野非依存の共通層で、`application profile` はその上に載せる追加ルールとして定義している
 - `relay` は ingress / validation / routing、`storage node` は persistence / replay / export を担う
 - `wire` と `canonical` は同じ protocol object の別表現として説明している
@@ -118,15 +118,15 @@ README、仕様文書、schema、fixtures、実装のあいだで、公開して
 - [x] 公開対象のディレクトリ構成を 1 つの README から辿れる
 - [x] `README.md` から最初の確認先が分かる
 - [x] `docs/architecture/`、`docs/concepts/`、`docs/protocols/`、`docs/operations/`、`docs/roadmap/`、`docs/profiles/`、`schemas/`、`fixtures/` の役割が説明できる
-- [x] release note で `0.1.0` の範囲を説明できる
+- [x] release note で `v0.1.0` の範囲を説明できる
 - [x] 必要な場合は source archive の作成手順を説明できる
-- [x] `0.1.0` のタグ名と公開名が一致している
+- [x] `v0.1.0` のタグ名と公開名が一致している
 
 ### 確認メモ
 
 - `README.md` の「まず読む場所」から、`architecture`、`roadmap`、`operations`、`concepts`、`protocols`、`schemas` へ辿れる
 - `docs/architecture/README.md`、`docs/concepts/README.md`、`docs/protocols/README.md`、`docs/operations/README.md`、`docs/roadmap/README.md`、`docs/profiles/README.md`、`schemas/README.md`、`fixtures/README.md` が、それぞれの役割を説明している
-- release note は [0.1.0 Release Note Draft](./RELEASE_0_1_0_RELEASE_NOTE.md) としてまとめた
+- release note は [v0.1.0 Release Note Draft](./RELEASE_0_1_0_RELEASE_NOTE.md) としてまとめた
 - source archive の作成手順は release note に明記した
 - タグ名と公開名の一致は、まだ実物のタグ作成前なので公開直前に確認する
 
@@ -137,7 +137,7 @@ README、仕様文書、schema、fixtures、実装のあいだで、公開して
 - [x] access / retention の扱いが文書化されている
 - [x] storage path、state dir、backup の考え方が文書化されている
 - [x] readiness の確認方法が `ready` コマンドまたは endpoint で説明できる
-- [x] 0.1.0 でサポートしないものを明示できる
+- [x] v0.1.0 でサポートしないものを明示できる
 - [x] 失敗時に参照すべき文書が 1 本化されている
 
 ### 確認メモ
@@ -147,14 +147,14 @@ README、仕様文書、schema、fixtures、実装のあいだで、公開して
 - access / retention は policy と carrier capability の責務として整理されている
 - storage path、state dir、backup は [storage node runtime](../operations/STORAGE_NODE_RUNTIME.md) と [Node Lifecycle Runbook](../operations/NODE_LIFECYCLE_RUNBOOK.md) にまとまっている
 - readiness の確認は `ready` コマンドと HTTP の readiness endpoint の両方で説明されている
-- `0.1.0` のサポート外項目は release note にも明示した
+- `v0.1.0` のサポート外項目は release note にも明示した
 - 失敗時の一次参照先は [Node Lifecycle Runbook](../operations/NODE_LIFECYCLE_RUNBOOK.md) に一本化した
 
 ## 公開直前の最終確認
 
 - [x] `git status --short` が空、または公開してよい差分だけになっている
 - [x] ルート README が初見の読者にとって入口として機能する
-- [x] 0.1.0 の release note に、公開直前の確認項目と今後のロードマップを分けて書いている
+- [x] v0.1.0 の release note に、公開直前の確認項目と今後のロードマップを分けて書いている
 - [x] 公開後に直したい事項が backlog に落ちている
 
 ## 参照

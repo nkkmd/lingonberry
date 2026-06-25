@@ -1,6 +1,6 @@
 # Relay Quickstart
 
-**Status: draft** | **Last updated: 2026-06-22**
+**Status: draft** | **Last updated: 2026-06-23**
 
 ## 目的
 
@@ -85,7 +85,20 @@ curl -sS http://127.0.0.1:8787/v1/capabilities
 curl -sS http://127.0.0.1:8787/v1/ready
 ```
 
-## 7. 追加で試す
+## 7. Caddy 越しで確認する
+
+`relay` を外部公開するときは、`Caddy` を前段の reverse proxy として置きます。  
+この場合、確認先は `relay` 直ではなく `Caddy` の公開 URL にします。
+
+```bash
+curl -sS https://<public-host>/v1/capabilities
+curl -sS https://<public-host>/v1/ready
+```
+
+`storage node` はここでは直接見せず、公開確認は `relay` の公開面だけで行います。
+`Caddy` の設定例や公開時の注意点は [Caddy Relay Publication](./CADDY_RELAY_PUBLICATION.md) を参照してください。
+
+## 8. 追加で試す
 
 最小の publish まで確認したい場合は、fixture を使います。
 
@@ -100,14 +113,16 @@ cargo run -p lingonberry-relay -- export-archive /tmp/lingonberry-archive
 cargo run -p lingonberry-relay -- import-archive /tmp/lingonberry-archive
 ```
 
-## 8. つまずきやすい点
+## 9. つまずきやすい点
 
 - `cargo` が見つからない場合は、`source "$HOME/.cargo/env"` を実行してから再試行します
 - `serve-http` が bind 失敗する場合は、`127.0.0.1:8787` が他プロセスに使われていないか確認します
 - ビルドが長い場合は、初回だけ依存取得とコンパイルに時間がかかることがあります
+- `Caddy` 経由で見る場合は、`relay` 直ではなく `https://<public-host>` 側の URL と証明書設定を確認します
 
 ## 参照
 
 - [Node Lifecycle Runbook](./NODE_LIFECYCLE_RUNBOOK.md)
 - [relay / storage separation](./RELAY_STORAGE_SEPARATION.md)
+- [Caddy Relay Publication](./CADDY_RELAY_PUBLICATION.md)
 - [運用準備ロードマップ](../roadmap/OPERATIONAL_READINESS_ROADMAP.md)

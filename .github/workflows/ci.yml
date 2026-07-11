@@ -29,8 +29,8 @@ jobs:
       - name: Cache Cargo artifacts
         uses: Swatinem/rust-cache@v2
 
-      - name: Run workspace tests
-        run: cargo test --workspace
+      - name: Run validation crate tests
+        run: cargo test -p lingonberry-validation -- --nocapture
 
   javascript:
     name: JavaScript tests

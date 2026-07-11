@@ -8,8 +8,9 @@ use lingonberry_protocol::{
     to_canonical_json, JsonValue, CARRIER_KIND_HTTP, DEFAULT_ACCESS_SCOPE, DEFAULT_RETENTION_HINT,
 };
 use lingonberry_validation::{
-    finalize_knowledge_object_full, validate_knowledge_object_full, validate_publish_request_full,
-    IdentityValidationStatus, ValidationReport,
+    evaluate_acceptance, finalize_knowledge_object_full, validate_knowledge_object_full,
+    validate_publish_request_full, AcceptanceDecision, AcceptancePolicy, IdentityValidationStatus,
+    ValidationReport,
 };
 use std::collections::BTreeMap;
 use std::env;
@@ -130,11 +131,15 @@ fn handle_validate(pathname: &str) -> Result<(), String> {
 fn handle_publish(pathname: &str, backend: &impl StorageBackend) -> Result<(), String> {
     let loaded = read_json_file(pathname)?;
     let report = validate_publish_request_full(&loaded.value);
-    if !report.is_valid() {
-        return Err(format_validation_error(
-            "validation failed",
-            &report.combined_errors(),
-        ));
+    let policy = AcceptancePolicy::from_env()?;
+    match evaluate_acceptance(&report, &policy) {
+        AcceptanceDecision::Accept => {}
+        AcceptanceDecision::Reject { code, errors } => {
+            return Err(format!("{}: {}", code, errors.join("; ")))
+        }
+        AcceptanceDecision::Defer { code, errors } => {
+            return Err(format!("{}: {}", code, errors.join("; ")))
+        }
     }
 
     let request =
@@ -595,13 +600,38 @@ fn handle_http_publish(
     }
     let value = lingonberry_protocol::parse_json(body).map_err(|error| error.to_string())?;
     let report = validate_publish_request_full(&value);
-    if !report.is_valid() {
-        let (status, text, kind) = validation_http_error(&report);
-        return Ok((
-            status,
-            text,
-            http_error(kind, &report.combined_errors().join("; ")),
-        ));
+    let policy = AcceptancePolicy::from_env()?;
+    match evaluate_acceptance(&report, &policy) {
+        AcceptanceDecision::Accept => {}
+        AcceptanceDecision::Reject { code, errors } => {
+            let kind = match code {
+                "LB_IDENTITY_CLAIM_REQUIRED" => "identity_claim_required",
+                "LB_UNSUPPORTED_IDENTITY_RULE" => "unsupported_identity_rule",
+                _ => "validation_error",
+            };
+            let status = if code == "LB_UNSUPPORTED_IDENTITY_RULE" {
+                422
+            } else {
+                400
+            };
+            let text = if status == 422 {
+                "Unprocessable Entity"
+            } else {
+                "Bad Request"
+            };
+            return Ok((status, text, http_error(kind, &errors.join("; "))));
+        }
+        AcceptanceDecision::Defer { errors, .. } => {
+            return Ok((
+                202,
+                "Accepted",
+                json_object(vec![
+                    ("status", JsonValue::String("deferred".to_string())),
+                    ("reason", JsonValue::String(errors.join("; "))),
+                    ("stored", JsonValue::Bool(false)),
+                ]),
+            ));
+        }
     }
     let Some(request_map) = as_object(&value) else {
         return Ok((

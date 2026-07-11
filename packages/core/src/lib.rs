@@ -4,7 +4,10 @@ use lingonberry_protocol::{
     DEFAULT_ACCESS_SCOPE, DEFAULT_RETENTION_HINT, HTTP_PUBLISH_REQUEST_SCHEMA_VERSION,
     KNOWLEDGE_OBJECT_SCHEMA_VERSION, PROTOCOL_VERSION,
 };
-use lingonberry_validation::{finalize_knowledge_object_full, IdentityValidationStatus};
+use lingonberry_validation::{
+    evaluate_acceptance, finalize_knowledge_object_full, validate_knowledge_object_full,
+    AcceptanceDecision, AcceptancePolicy,
+};
 use std::collections::{BTreeMap, BTreeSet};
 use std::env;
 use std::fmt;
@@ -287,13 +290,20 @@ pub fn import_archive(
                 "publish request missing object",
             ));
         };
+        let report = validate_knowledge_object_full(object_value);
+        let policy = AcceptancePolicy::from_env()
+            .map_err(|error| store_error("LB_ACCEPTANCE_POLICY", error))?;
+        match evaluate_acceptance(&report, &policy) {
+            AcceptanceDecision::Accept => {}
+            AcceptanceDecision::Reject { code, errors } => {
+                return Err(store_error(code, errors.join("; ")))
+            }
+            AcceptanceDecision::Defer { code, errors } => {
+                return Err(store_error(code, errors.join("; ")))
+            }
+        }
         let finalized = finalize_knowledge_object_full(object_value).map_err(|report| {
-            let code = if report.identity_status == IdentityValidationStatus::Unsupported {
-                "LB_UNSUPPORTED_IDENTITY_RULE"
-            } else {
-                "LB_ARCHIVE_IMPORT"
-            };
-            store_error(code, report.combined_errors().join("; "))
+            store_error("LB_ARCHIVE_IMPORT", report.combined_errors().join("; "))
         })?;
         let outcome = backend.append_publish_request(request_json, &finalized)?;
         if outcome.duplicate {

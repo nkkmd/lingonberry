@@ -8,8 +8,18 @@ export const IdentityValidationStatus = Object.freeze({
   NOT_PRESENT: 'not-present',
 });
 
+function isLegacyIdentityRuleError(error) {
+  return (
+    error.startsWith('identityClaims[') &&
+    (error.includes('.ruleVersion must be lb.identity.key.v1') ||
+      error.includes('.identityKey must match the derived identity key'))
+  );
+}
+
 export function validateKnowledgeObjectFull(value) {
-  const schemaErrors = validateKnowledgeObject(value);
+  const schemaErrors = validateKnowledgeObject(value).filter(
+    (error) => !isLegacyIdentityRuleError(error),
+  );
   const identityResults = validateIdentityClaimVersions(value);
   const identityErrors = [];
   const unsupportedIdentityRules = [];

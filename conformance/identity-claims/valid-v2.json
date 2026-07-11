@@ -1,0 +1,43 @@
+{
+  "id": "lb:obj:identity-v2-claim",
+  "schemaVersion": "0.1.0",
+  "type": "inquiry",
+  "createdAt": "2026-07-11T00:00:00Z",
+  "body": {
+    "text": "How should this knowledge be verified?",
+    "language": "en"
+  },
+  "contexts": ["test"],
+  "labels": ["identity-v2"],
+  "provenance": {
+    "sources": [
+      {
+        "protocol": "example",
+        "sourceId": "source-a"
+      }
+    ]
+  },
+  "rawRef": {
+    "protocol": "example",
+    "sourceId": "raw-a"
+  },
+  "identityClaims": [
+    {
+      "schemaVersion": "1",
+      "claimType": "identity",
+      "ruleVersion": "lb.identity.key.v2",
+      "identityKey": "lb:key:lb.identity.key.v2:sha256:e8d5d24b5d19172d655ca99ea505ed4f0f62315f460292e90f34f46c4e9c29bd",
+      "canonicalId": "lb:obj:identity-v2-claim",
+      "issuer": {
+        "protocol": "example",
+        "sourceId": "validator-test"
+      },
+      "issuedAt": "2026-07-11T00:00:00Z",
+      "verification": {
+        "method": "fixture",
+        "payloadHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "status": "verified"
+      }
+    }
+  ]
+}

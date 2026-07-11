@@ -25,8 +25,17 @@ impl ValidationReport {
     }
 }
 
+fn is_legacy_identity_rule_error(error: &str) -> bool {
+    error.starts_with("identityClaims[")
+        && (error.contains(".ruleVersion must be lb.identity.key.v1")
+            || error.contains(".identityKey must match the derived identity key"))
+}
+
 pub fn validate_knowledge_object_full(value: &JsonValue) -> ValidationReport {
-    let schema_errors = validate_knowledge_object(value);
+    let schema_errors = validate_knowledge_object(value)
+        .into_iter()
+        .filter(|error| !is_legacy_identity_rule_error(error))
+        .collect();
     let identity_results = validate_identity_claim_versions(value);
 
     let mut identity_errors = Vec::new();

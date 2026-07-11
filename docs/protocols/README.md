@@ -1,10 +1,11 @@
 # Protocols
 
-**Status: active** | **Last updated: 2026-06-18**
+**Status: active** | **Last updated: 2026-07-11**
 
 このディレクトリには、Lingonberry の protocol-native な wire 仕様を置きます。
 
 ## 文書
 
 - [Protocol-Native Wire Format](./PROTOCOL_NATIVE_WIRE_FORMAT.md)
+- [Canonicalization](./CANONICALIZATION.md)
 - [Identity and Provenance](./IDENTITY_AND_PROVENANCE.md)

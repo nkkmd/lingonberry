@@ -18,7 +18,10 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 mod quarantine;
 mod sqlite;
-pub use quarantine::{quarantine_record_json, QuarantineRecord, QuarantineStore};
+pub use quarantine::{
+    quarantine_record_json, quarantine_resolution_json, QuarantineRecord, QuarantineResolution,
+    QuarantineStore,
+};
 pub use sqlite::SqliteStorageBackend;
 
 #[derive(Debug, Clone)]
@@ -178,6 +181,100 @@ pub fn build_runtime_capability_manifest() -> JsonValue {
         DEFAULT_ACCESS_SCOPE,
         DEFAULT_RETENTION_HINT,
     )
+}
+
+#[derive(Debug, Clone)]
+pub enum QuarantinePromotionOutcome {
+    Promoted {
+        quarantine_id: String,
+        canonical_id: String,
+        duplicate: bool,
+    },
+    AlreadyPromoted {
+        quarantine_id: String,
+        canonical_id: String,
+        duplicate: bool,
+    },
+    StillDeferred {
+        quarantine_id: String,
+        code: &'static str,
+        errors: Vec<String>,
+    },
+    Rejected {
+        quarantine_id: String,
+        code: &'static str,
+        errors: Vec<String>,
+    },
+}
+
+pub fn promote_quarantine_record(
+    quarantine_id: &str,
+    backend: &impl StorageBackend,
+) -> Result<QuarantinePromotionOutcome, StoreError> {
+    let store = QuarantineStore::new(runtime_state_dir());
+    if let Some(resolution) = store.get_resolution(quarantine_id)? {
+        return Ok(QuarantinePromotionOutcome::AlreadyPromoted {
+            quarantine_id: quarantine_id.to_string(),
+            canonical_id: resolution.canonical_id,
+            duplicate: resolution.duplicate,
+        });
+    }
+
+    let record = store.get(quarantine_id)?.ok_or_else(|| {
+        store_error(
+            "LB_QUARANTINE_NOT_FOUND",
+            format!("quarantine record not found: {quarantine_id}"),
+        )
+    })?;
+    let request = parse_json(&record.request_json)
+        .map_err(|error| store_error("LB_QUARANTINE_CORRUPT", error.to_string()))?;
+    let request_map = as_object(&request).ok_or_else(|| {
+        store_error(
+            "LB_QUARANTINE_CORRUPT",
+            "quarantine request is not a publish request",
+        )
+    })?;
+    let object = request_map.get("object").ok_or_else(|| {
+        store_error(
+            "LB_QUARANTINE_CORRUPT",
+            "quarantine publish request missing object",
+        )
+    })?;
+
+    let report = validate_knowledge_object_full(object);
+    let policy =
+        AcceptancePolicy::from_env().map_err(|error| store_error("LB_ACCEPTANCE_POLICY", error))?;
+    match evaluate_acceptance(&report, &policy) {
+        AcceptanceDecision::Reject { code, errors } => {
+            return Ok(QuarantinePromotionOutcome::Rejected {
+                quarantine_id: quarantine_id.to_string(),
+                code,
+                errors,
+            })
+        }
+        AcceptanceDecision::Defer { code, errors } => {
+            return Ok(QuarantinePromotionOutcome::StillDeferred {
+                quarantine_id: quarantine_id.to_string(),
+                code,
+                errors,
+            })
+        }
+        AcceptanceDecision::Accept => {}
+    }
+
+    let finalized = finalize_knowledge_object_full(object).map_err(|report| {
+        store_error(
+            "LB_QUARANTINE_PROMOTION",
+            report.combined_errors().join("; "),
+        )
+    })?;
+    let outcome = backend.append_publish_request(&record.request_json, &finalized)?;
+    store.append_resolution(quarantine_id, &outcome.canonical_id, outcome.duplicate)?;
+    Ok(QuarantinePromotionOutcome::Promoted {
+        quarantine_id: quarantine_id.to_string(),
+        canonical_id: outcome.canonical_id,
+        duplicate: outcome.duplicate,
+    })
 }
 
 pub fn export_archive(

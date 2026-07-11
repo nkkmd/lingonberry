@@ -33,3 +33,22 @@ The default policy preserves existing behavior:
 identity claim required: false
 unsupported identity rule: reject
 ```
+
+
+## Revalidation and promotion
+
+Quarantined records can be revalidated against the current implementation and acceptance policy.
+
+```bash
+lingonberry quarantine-promote <quarantine-id>
+lingonberry quarantine-resolutions
+```
+
+HTTP equivalents:
+
+```text
+POST /v1/quarantine/<quarantine-id>/promote
+GET /v1/quarantine-resolutions
+```
+
+Promotion is allowed only when the record now evaluates to `Accept`. Successful and duplicate promotions are recorded in the append-only `quarantine-resolutions.jsonl` ledger. The original quarantine record is retained for auditability, and repeated promotion requests return the existing resolution instead of writing again.

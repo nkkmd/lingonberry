@@ -1,6 +1,8 @@
 use std::collections::BTreeMap;
 
-use lingonberry_protocol::{derive_identity_key, to_canonical_json, JsonValue, IDENTITY_KEY_RULE_VERSION_V1};
+use lingonberry_protocol::{
+    derive_identity_key, to_canonical_json, JsonValue, IDENTITY_KEY_RULE_VERSION_V1,
+};
 use sha2::{Digest, Sha256};
 
 pub const IDENTITY_KEY_RULE_VERSION_V2: &str = "lb.identity.key.v2";
@@ -43,7 +45,10 @@ pub fn derive_identity_key_v2(value: &JsonValue) -> String {
     )
 }
 
-pub fn derive_identity_key_for_rule(value: &JsonValue, rule_version: &str) -> Result<String, String> {
+pub fn derive_identity_key_for_rule(
+    value: &JsonValue,
+    rule_version: &str,
+) -> Result<String, String> {
     match rule_version {
         IDENTITY_KEY_RULE_VERSION_V1 => Ok(derive_identity_key(value)),
         IDENTITY_KEY_RULE_VERSION_V2 => Ok(derive_identity_key_v2(value)),
@@ -77,14 +82,20 @@ pub fn validate_identity_claim_versions(value: &JsonValue) -> Vec<String> {
         let rule_version = match claim.get("ruleVersion") {
             Some(JsonValue::String(value)) if !value.is_empty() => value.as_str(),
             _ => {
-                errors.push(format!("identityClaims[{}].ruleVersion must be a non-empty string", index));
+                errors.push(format!(
+                    "identityClaims[{}].ruleVersion must be a non-empty string",
+                    index
+                ));
                 continue;
             }
         };
         let expected = match derive_identity_key_for_rule(value, rule_version) {
             Ok(value) => value,
             Err(_) => {
-                errors.push(format!("identityClaims[{}].ruleVersion is unsupported: {}", index, rule_version));
+                errors.push(format!(
+                    "identityClaims[{}].ruleVersion is unsupported: {}",
+                    index, rule_version
+                ));
                 continue;
             }
         };
@@ -94,11 +105,19 @@ pub fn validate_identity_claim_versions(value: &JsonValue) -> Vec<String> {
                 "identityClaims[{}].identityKey must match the derived identity key for {}",
                 index, rule_version
             )),
-            _ => errors.push(format!("identityClaims[{}].identityKey must be a string", index)),
+            _ => errors.push(format!(
+                "identityClaims[{}].identityKey must be a string",
+                index
+            )),
         }
-        if let (Some(expected_id), Some(JsonValue::String(actual_id))) = (canonical_id, claim.get("canonicalId")) {
+        if let (Some(expected_id), Some(JsonValue::String(actual_id))) =
+            (canonical_id, claim.get("canonicalId"))
+        {
             if actual_id != expected_id {
-                errors.push(format!("identityClaims[{}].canonicalId must match the enclosing object id", index));
+                errors.push(format!(
+                    "identityClaims[{}].canonicalId must match the enclosing object id",
+                    index
+                ));
             }
         }
     }
@@ -114,16 +133,26 @@ mod tests {
     #[test]
     fn derives_shared_identity_key_v2_fixture() {
         let raw = include_str!("../../../conformance/identity-key-v2/minimal-object.input.json");
-        let expected = include_str!("../../../conformance/identity-key-v2/minimal-object.expected.txt");
+        let expected =
+            include_str!("../../../conformance/identity-key-v2/minimal-object.expected.txt");
         let value = parse_json(raw).expect("fixture must parse");
         assert_eq!(derive_identity_key_v2(&value), expected);
     }
 
     #[test]
     fn excludes_transport_and_provenance_fields() {
-        let first = parse_json(include_str!("../../../conformance/identity-key-v2/minimal-object.input.json")).expect("fixture must parse");
-        let second = parse_json(include_str!("../../../conformance/identity-key-v2/minimal-object-alternate-origin.input.json")).expect("fixture must parse");
-        assert_eq!(derive_identity_key_v2(&first), derive_identity_key_v2(&second));
+        let first = parse_json(include_str!(
+            "../../../conformance/identity-key-v2/minimal-object.input.json"
+        ))
+        .expect("fixture must parse");
+        let second = parse_json(include_str!(
+            "../../../conformance/identity-key-v2/minimal-object-alternate-origin.input.json"
+        ))
+        .expect("fixture must parse");
+        assert_eq!(
+            derive_identity_key_v2(&first),
+            derive_identity_key_v2(&second)
+        );
     }
 
     #[test]
@@ -139,7 +168,10 @@ mod tests {
 
     #[test]
     fn reports_unsupported_rule_separately() {
-        let value = parse_json(include_str!("../../../conformance/identity-claims/unsupported-rule.json")).expect("fixture must parse");
+        let value = parse_json(include_str!(
+            "../../../conformance/identity-claims/unsupported-rule.json"
+        ))
+        .expect("fixture must parse");
         let errors = validate_identity_claim_versions(&value);
         assert!(errors.iter().any(|error| error.contains("is unsupported")));
     }

@@ -4,9 +4,12 @@ use lingonberry_core::{
 };
 use lingonberry_indexer::IndexSnapshot;
 use lingonberry_protocol::{
-    build_capability_manifest, derive_identity_key, detect_shape, finalize_knowledge_object,
-    read_json_file, to_canonical_json, validate_knowledge_object, validate_publish_request,
-    JsonValue, CARRIER_KIND_HTTP, DEFAULT_ACCESS_SCOPE, DEFAULT_RETENTION_HINT,
+    build_capability_manifest, derive_identity_key, detect_shape, read_json_file,
+    to_canonical_json, JsonValue, CARRIER_KIND_HTTP, DEFAULT_ACCESS_SCOPE, DEFAULT_RETENTION_HINT,
+};
+use lingonberry_validation::{
+    finalize_knowledge_object_full, validate_knowledge_object_full, validate_publish_request_full,
+    IdentityValidationStatus, ValidationReport,
 };
 use std::collections::BTreeMap;
 use std::env;
@@ -107,12 +110,15 @@ fn run(args: Vec<String>) -> Result<(), String> {
 
 fn handle_validate(pathname: &str) -> Result<(), String> {
     let loaded = read_json_file(pathname)?;
-    let errors = match detect_shape(&loaded.value) {
-        "publish-request" => validate_publish_request(&loaded.value),
-        _ => validate_knowledge_object(&loaded.value),
+    let report = match detect_shape(&loaded.value) {
+        "publish-request" => validate_publish_request_full(&loaded.value),
+        _ => validate_knowledge_object_full(&loaded.value),
     };
-    if !errors.is_empty() {
-        return Err(format_validation_error("validation failed", &errors));
+    if !report.is_valid() {
+        return Err(format_validation_error(
+            "validation failed",
+            &report.combined_errors(),
+        ));
     }
     println!(
         "{}",
@@ -123,9 +129,12 @@ fn handle_validate(pathname: &str) -> Result<(), String> {
 
 fn handle_publish(pathname: &str, backend: &impl StorageBackend) -> Result<(), String> {
     let loaded = read_json_file(pathname)?;
-    let errors = validate_publish_request(&loaded.value);
-    if !errors.is_empty() {
-        return Err(format_validation_error("validation failed", &errors));
+    let report = validate_publish_request_full(&loaded.value);
+    if !report.is_valid() {
+        return Err(format_validation_error(
+            "validation failed",
+            &report.combined_errors(),
+        ));
     }
 
     let request =
@@ -133,8 +142,9 @@ fn handle_publish(pathname: &str, backend: &impl StorageBackend) -> Result<(), S
     let object = request
         .get("object")
         .ok_or_else(|| "publish request missing object".to_string())?;
-    let finalized = finalize_knowledge_object(object)
-        .map_err(|errors| format_validation_error("validation failed", &errors))?;
+    let finalized = finalize_knowledge_object_full(object).map_err(|report| {
+        format_validation_error("validation failed", &report.combined_errors())
+    })?;
     let outcome = backend
         .append_publish_request(&loaded.raw, &finalized)
         .map_err(|error| error.to_string())?;
@@ -188,9 +198,12 @@ fn handle_identity_key(pathname: &str) -> Result<(), String> {
     let loaded = read_json_file(pathname)?;
     let object = match detect_shape(&loaded.value) {
         "publish-request" => {
-            let errors = validate_publish_request(&loaded.value);
-            if !errors.is_empty() {
-                return Err(format_validation_error("validation failed", &errors));
+            let report = validate_publish_request_full(&loaded.value);
+            if !report.is_valid() {
+                return Err(format_validation_error(
+                    "validation failed",
+                    &report.combined_errors(),
+                ));
             }
             as_object(&loaded.value)
                 .and_then(|request| request.get("object"))
@@ -198,9 +211,12 @@ fn handle_identity_key(pathname: &str) -> Result<(), String> {
                 .ok_or_else(|| "publish request missing object".to_string())?
         }
         _ => {
-            let errors = validate_knowledge_object(&loaded.value);
-            if !errors.is_empty() {
-                return Err(format_validation_error("validation failed", &errors));
+            let report = validate_knowledge_object_full(&loaded.value);
+            if !report.is_valid() {
+                return Err(format_validation_error(
+                    "validation failed",
+                    &report.combined_errors(),
+                ));
             }
             loaded.value
         }
@@ -578,12 +594,13 @@ fn handle_http_publish(
         ));
     }
     let value = lingonberry_protocol::parse_json(body).map_err(|error| error.to_string())?;
-    let errors = validate_publish_request(&value);
-    if !errors.is_empty() {
+    let report = validate_publish_request_full(&value);
+    if !report.is_valid() {
+        let (status, text, kind) = validation_http_error(&report);
         return Ok((
-            400,
-            "Bad Request",
-            http_error("validation_error", &errors.join("; ")),
+            status,
+            text,
+            http_error(kind, &report.combined_errors().join("; ")),
         ));
     }
     let Some(request_map) = as_object(&value) else {
@@ -600,8 +617,9 @@ fn handle_http_publish(
             http_error("validation_error", "publish request missing object"),
         ));
     };
-    let finalized = finalize_knowledge_object(object)
-        .map_err(|errors| format_validation_error("validation failed", &errors))?;
+    let finalized = finalize_knowledge_object_full(object).map_err(|report| {
+        format_validation_error("validation failed", &report.combined_errors())
+    })?;
     match backend.append_publish_request(body, &finalized) {
         Ok(outcome) => {
             let raw_ref = as_object(object)
@@ -741,6 +759,14 @@ fn write_http_response(
         body_json
     );
     stream.write_all(response.as_bytes())
+}
+
+fn validation_http_error(report: &ValidationReport) -> (u16, &'static str, &'static str) {
+    if report.identity_status == IdentityValidationStatus::Unsupported {
+        (422, "Unprocessable Entity", "unsupported_identity_rule")
+    } else {
+        (400, "Bad Request", "validation_error")
+    }
 }
 
 fn http_error(kind: &str, message: &str) -> JsonValue {

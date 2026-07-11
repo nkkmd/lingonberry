@@ -8,3 +8,4 @@ license = "Apache-2.0"
 lingonberry-core = { path = "../core" }
 lingonberry-indexer = { path = "../indexer" }
 lingonberry-protocol = { path = "../protocol" }
+lingonberry-validation = { path = "../validation" }

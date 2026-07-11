@@ -52,3 +52,31 @@ GET /v1/quarantine-resolutions
 ```
 
 Promotion is allowed only when the record now evaluates to `Accept`. Successful and duplicate promotions are recorded in the append-only `quarantine-resolutions.jsonl` ledger. The original quarantine record is retained for auditability, and repeated promotion requests return the existing resolution instead of writing again.
+
+
+## Batch revalidation
+
+Unresolved quarantine records can be processed in bounded batches.
+
+```bash
+lingonberry quarantine-promote-batch [limit] [--dry-run]
+```
+
+The default limit is 100 and the maximum is 1000. `--dry-run` evaluates records without writing to canonical storage or the resolution ledger.
+
+HTTP equivalent:
+
+```text
+POST /v1/quarantine/promote-batch
+```
+
+Example body:
+
+```json
+{
+  "limit": 100,
+  "dryRun": true
+}
+```
+
+Only records without an existing resolution are selected. The response includes aggregate counts and the outcome for each scanned record, making the command suitable for a scheduler or periodic maintenance job.

@@ -1,3 +1,10 @@
+mod policy;
+
+pub use policy::{
+    evaluate_acceptance, AcceptanceDecision, AcceptancePolicy, UnsupportedIdentityPolicy,
+    REQUIRE_IDENTITY_CLAIM_ENV, UNSUPPORTED_IDENTITY_POLICY_ENV,
+};
+
 use lingonberry_identity::validate_identity_claim_versions;
 use lingonberry_protocol::{
     derive_identity_key, normalize_json, to_canonical_json, validate_knowledge_object,

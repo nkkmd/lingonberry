@@ -277,6 +277,133 @@ pub fn promote_quarantine_record(
     })
 }
 
+#[derive(Debug, Clone)]
+pub struct QuarantineBatchReport {
+    pub dry_run: bool,
+    pub limit: usize,
+    pub scanned: usize,
+    pub promoted: usize,
+    pub already_promoted: usize,
+    pub deferred: usize,
+    pub rejected: usize,
+    pub outcomes: Vec<QuarantinePromotionOutcome>,
+}
+
+pub fn preview_quarantine_record(
+    quarantine_id: &str,
+) -> Result<QuarantinePromotionOutcome, StoreError> {
+    let store = QuarantineStore::new(runtime_state_dir());
+    if let Some(resolution) = store.get_resolution(quarantine_id)? {
+        return Ok(QuarantinePromotionOutcome::AlreadyPromoted {
+            quarantine_id: quarantine_id.to_string(),
+            canonical_id: resolution.canonical_id,
+            duplicate: resolution.duplicate,
+        });
+    }
+    let record = store.get(quarantine_id)?.ok_or_else(|| {
+        store_error(
+            "LB_QUARANTINE_NOT_FOUND",
+            format!("quarantine record not found: {quarantine_id}"),
+        )
+    })?;
+    let request = parse_json(&record.request_json)
+        .map_err(|error| store_error("LB_QUARANTINE_CORRUPT", error.to_string()))?;
+    let request_map = as_object(&request).ok_or_else(|| {
+        store_error(
+            "LB_QUARANTINE_CORRUPT",
+            "quarantine request is not a publish request",
+        )
+    })?;
+    let object = request_map.get("object").ok_or_else(|| {
+        store_error(
+            "LB_QUARANTINE_CORRUPT",
+            "quarantine publish request missing object",
+        )
+    })?;
+    let report = validate_knowledge_object_full(object);
+    let policy =
+        AcceptancePolicy::from_env().map_err(|error| store_error("LB_ACCEPTANCE_POLICY", error))?;
+    match evaluate_acceptance(&report, &policy) {
+        AcceptanceDecision::Reject { code, errors } => Ok(QuarantinePromotionOutcome::Rejected {
+            quarantine_id: quarantine_id.to_string(),
+            code,
+            errors,
+        }),
+        AcceptanceDecision::Defer { code, errors } => {
+            Ok(QuarantinePromotionOutcome::StillDeferred {
+                quarantine_id: quarantine_id.to_string(),
+                code,
+                errors,
+            })
+        }
+        AcceptanceDecision::Accept => {
+            let finalized = finalize_knowledge_object_full(object).map_err(|report| {
+                store_error(
+                    "LB_QUARANTINE_PROMOTION",
+                    report.combined_errors().join("; "),
+                )
+            })?;
+            Ok(QuarantinePromotionOutcome::Promoted {
+                quarantine_id: quarantine_id.to_string(),
+                canonical_id: finalized.canonical_id,
+                duplicate: false,
+            })
+        }
+    }
+}
+
+pub fn promote_quarantine_batch(
+    limit: usize,
+    dry_run: bool,
+    backend: &impl StorageBackend,
+) -> Result<QuarantineBatchReport, StoreError> {
+    if limit == 0 {
+        return Err(store_error(
+            "LB_QUARANTINE_BATCH",
+            "limit must be greater than zero",
+        ));
+    }
+    let store = QuarantineStore::new(runtime_state_dir());
+    let resolved = store
+        .list_resolutions()?
+        .into_iter()
+        .map(|resolution| resolution.quarantine_id)
+        .collect::<BTreeSet<_>>();
+    let ids = store
+        .list()?
+        .into_iter()
+        .filter(|record| !resolved.contains(&record.id))
+        .map(|record| record.id)
+        .take(limit)
+        .collect::<Vec<_>>();
+
+    let mut report = QuarantineBatchReport {
+        dry_run,
+        limit,
+        scanned: ids.len(),
+        promoted: 0,
+        already_promoted: 0,
+        deferred: 0,
+        rejected: 0,
+        outcomes: Vec::new(),
+    };
+    for id in ids {
+        let outcome = if dry_run {
+            preview_quarantine_record(&id)?
+        } else {
+            promote_quarantine_record(&id, backend)?
+        };
+        match &outcome {
+            QuarantinePromotionOutcome::Promoted { .. } => report.promoted += 1,
+            QuarantinePromotionOutcome::AlreadyPromoted { .. } => report.already_promoted += 1,
+            QuarantinePromotionOutcome::StillDeferred { .. } => report.deferred += 1,
+            QuarantinePromotionOutcome::Rejected { .. } => report.rejected += 1,
+        }
+        report.outcomes.push(outcome);
+    }
+    Ok(report)
+}
+
 pub fn export_archive(
     backend: &impl StorageBackend,
     archive_dir: impl AsRef<Path>,

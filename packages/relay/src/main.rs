@@ -1,7 +1,8 @@
 use lingonberry_core::{
     build_runtime_capability_manifest, build_runtime_storage_backend, export_archive,
-    import_archive, promote_quarantine_record, quarantine_record_json, quarantine_resolution_json,
-    runtime_state_dir, QuarantinePromotionOutcome, QuarantineStore, StorageBackend,
+    import_archive, promote_quarantine_batch, promote_quarantine_record, quarantine_record_json,
+    quarantine_resolution_json, runtime_state_dir, QuarantineBatchReport,
+    QuarantinePromotionOutcome, QuarantineStore, StorageBackend,
 };
 use lingonberry_indexer::IndexSnapshot;
 use lingonberry_protocol::{
@@ -28,7 +29,7 @@ fn main() {
 
 fn run(args: Vec<String>) -> Result<(), String> {
     let Some(command) = args.first().map(String::as_str) else {
-        return Err("usage: lingonberry <validate|publish|identity-key|get|raw|list|subscribe|replay|rebuild-index|relation-graph|lineage-graph|provenance-graph|quarantine-list|quarantine-get|quarantine-promote|quarantine-resolutions|capabilities|ready|export-archive|import-archive|serve-http> <json-file|id|type|archive-dir|addr>".to_string());
+        return Err("usage: lingonberry <validate|publish|identity-key|get|raw|list|subscribe|replay|rebuild-index|relation-graph|lineage-graph|provenance-graph|quarantine-list|quarantine-get|quarantine-promote|quarantine-promote-batch|quarantine-resolutions|capabilities|ready|export-archive|import-archive|serve-http> <json-file|id|type|archive-dir|addr>".to_string());
     };
     let backend = build_runtime_storage_backend();
 
@@ -91,6 +92,11 @@ fn run(args: Vec<String>) -> Result<(), String> {
                 "usage: lingonberry quarantine-promote <quarantine-id>".to_string()
             })?;
             handle_quarantine_promote(id, &backend)
+        }
+        "quarantine-promote-batch" => {
+            let limit = parse_batch_limit(args.get(1).map(String::as_str))?;
+            let dry_run = args.iter().any(|arg| arg == "--dry-run");
+            handle_quarantine_promote_batch(limit, dry_run, &backend)
         }
         "quarantine-resolutions" => handle_quarantine_resolutions(),
         "provenance-graph" => {
@@ -345,6 +351,58 @@ fn promotion_outcome_json(outcome: QuarantinePromotionOutcome) -> JsonValue {
 fn handle_quarantine_promote(id: &str, backend: &impl StorageBackend) -> Result<(), String> {
     let outcome = promote_quarantine_record(id, backend).map_err(|error| error.to_string())?;
     println!("{}", to_canonical_json(&promotion_outcome_json(outcome)));
+    Ok(())
+}
+
+fn parse_batch_limit(value: Option<&str>) -> Result<usize, String> {
+    match value {
+        None | Some("--dry-run") => Ok(100),
+        Some(value) => value
+            .parse::<usize>()
+            .map_err(|_| "batch limit must be a positive integer".to_string())
+            .and_then(|limit| {
+                if limit == 0 || limit > 1000 {
+                    Err("batch limit must be between 1 and 1000".to_string())
+                } else {
+                    Ok(limit)
+                }
+            }),
+    }
+}
+
+fn batch_report_json(report: QuarantineBatchReport) -> JsonValue {
+    json_object(vec![
+        ("dryRun", JsonValue::Bool(report.dry_run)),
+        ("limit", JsonValue::Number(report.limit.to_string())),
+        ("scanned", JsonValue::Number(report.scanned.to_string())),
+        ("promoted", JsonValue::Number(report.promoted.to_string())),
+        (
+            "alreadyPromoted",
+            JsonValue::Number(report.already_promoted.to_string()),
+        ),
+        ("deferred", JsonValue::Number(report.deferred.to_string())),
+        ("rejected", JsonValue::Number(report.rejected.to_string())),
+        (
+            "outcomes",
+            JsonValue::Array(
+                report
+                    .outcomes
+                    .into_iter()
+                    .map(promotion_outcome_json)
+                    .collect(),
+            ),
+        ),
+    ])
+}
+
+fn handle_quarantine_promote_batch(
+    limit: usize,
+    dry_run: bool,
+    backend: &impl StorageBackend,
+) -> Result<(), String> {
+    let report =
+        promote_quarantine_batch(limit, dry_run, backend).map_err(|error| error.to_string())?;
+    println!("{}", to_canonical_json(&batch_report_json(report)));
     Ok(())
 }
 
@@ -694,6 +752,9 @@ fn route_http_request(
         )),
         ("GET", "/v1/quarantine") => handle_http_quarantine_list(),
         ("GET", "/v1/quarantine-resolutions") => handle_http_quarantine_resolutions(),
+        ("POST", "/v1/quarantine/promote-batch") => {
+            handle_http_quarantine_promote_batch(body, backend)
+        }
         ("POST", path) if path.starts_with("/v1/quarantine/") && path.ends_with("/promote") => {
             let id = path
                 .trim_start_matches("/v1/quarantine/")
@@ -872,6 +933,32 @@ fn handle_http_quarantine_promote(
         _ => "Unprocessable Entity",
     };
     Ok((status, text, promotion_outcome_json(outcome)))
+}
+
+fn handle_http_quarantine_promote_batch(
+    body: &str,
+    backend: &impl StorageBackend,
+) -> Result<(u16, &'static str, JsonValue), String> {
+    let (limit, dry_run) = if body.trim().is_empty() {
+        (100, false)
+    } else {
+        let value = lingonberry_protocol::parse_json(body).map_err(|error| error.to_string())?;
+        let map = as_object(&value).ok_or_else(|| "batch request must be an object".to_string())?;
+        let limit = match map.get("limit") {
+            None => 100,
+            Some(JsonValue::Number(value)) => parse_batch_limit(Some(value))?,
+            _ => return Err("batch limit must be a number".to_string()),
+        };
+        let dry_run = match map.get("dryRun") {
+            None => false,
+            Some(JsonValue::Bool(value)) => *value,
+            _ => return Err("dryRun must be a boolean".to_string()),
+        };
+        (limit, dry_run)
+    };
+    let report =
+        promote_quarantine_batch(limit, dry_run, backend).map_err(|error| error.to_string())?;
+    Ok((200, "OK", batch_report_json(report)))
 }
 
 fn handle_http_quarantine_resolutions() -> Result<(u16, &'static str, JsonValue), String> {

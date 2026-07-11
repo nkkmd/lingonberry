@@ -1,6 +1,6 @@
 use lingonberry_core::{
     build_runtime_capability_manifest, build_runtime_storage_backend, export_archive,
-    import_archive, StorageBackend,
+    import_archive, quarantine_record_json, runtime_state_dir, QuarantineStore, StorageBackend,
 };
 use lingonberry_indexer::IndexSnapshot;
 use lingonberry_protocol::{
@@ -27,7 +27,7 @@ fn main() {
 
 fn run(args: Vec<String>) -> Result<(), String> {
     let Some(command) = args.first().map(String::as_str) else {
-        return Err("usage: lingonberry <validate|publish|identity-key|get|raw|list|subscribe|replay|rebuild-index|relation-graph|lineage-graph|provenance-graph|capabilities|ready|export-archive|import-archive|serve-http> <json-file|id|type|archive-dir|addr>".to_string());
+        return Err("usage: lingonberry <validate|publish|identity-key|get|raw|list|subscribe|replay|rebuild-index|relation-graph|lineage-graph|provenance-graph|quarantine-list|quarantine-get|capabilities|ready|export-archive|import-archive|serve-http> <json-file|id|type|archive-dir|addr>".to_string());
     };
     let backend = build_runtime_storage_backend();
 
@@ -77,6 +77,13 @@ fn run(args: Vec<String>) -> Result<(), String> {
                 .get(1)
                 .ok_or_else(|| "usage: lingonberry lineage-graph <canonical-id>".to_string())?;
             handle_lineage_graph(canonical_id, &backend)
+        }
+        "quarantine-list" => handle_quarantine_list(),
+        "quarantine-get" => {
+            let id = args
+                .get(1)
+                .ok_or_else(|| "usage: lingonberry quarantine-get <quarantine-id>".to_string())?;
+            handle_quarantine_get(id)
         }
         "provenance-graph" => {
             let protocol = args.get(1).ok_or_else(|| {
@@ -138,7 +145,19 @@ fn handle_publish(pathname: &str, backend: &impl StorageBackend) -> Result<(), S
             return Err(format!("{}: {}", code, errors.join("; ")))
         }
         AcceptanceDecision::Defer { code, errors } => {
-            return Err(format!("{}: {}", code, errors.join("; ")))
+            let record = QuarantineStore::new(runtime_state_dir())
+                .append(&loaded.raw, code, &errors)
+                .map_err(|error| error.to_string())?;
+            println!(
+                "{}",
+                to_canonical_json(&json_object(vec![
+                    ("status", JsonValue::String("deferred".to_string())),
+                    ("stored", JsonValue::Bool(false)),
+                    ("quarantineId", JsonValue::String(record.id)),
+                    ("reason", JsonValue::String(errors.join("; "))),
+                ]))
+            );
+            return Ok(());
         }
     }
 
@@ -237,6 +256,30 @@ fn handle_identity_key(pathname: &str) -> Result<(), String> {
         ("identityKey", JsonValue::String(identity_key)),
     ]);
     println!("{}", to_canonical_json(&output));
+    Ok(())
+}
+
+fn handle_quarantine_list() -> Result<(), String> {
+    let records = QuarantineStore::new(runtime_state_dir())
+        .list()
+        .map_err(|error| error.to_string())?;
+    let output = json_object(vec![
+        ("count", JsonValue::Number(records.len().to_string())),
+        (
+            "records",
+            JsonValue::Array(records.iter().map(quarantine_record_json).collect()),
+        ),
+    ]);
+    println!("{}", to_canonical_json(&output));
+    Ok(())
+}
+
+fn handle_quarantine_get(id: &str) -> Result<(), String> {
+    let record = QuarantineStore::new(runtime_state_dir())
+        .get(id)
+        .map_err(|error| error.to_string())?
+        .ok_or_else(|| format!("quarantine record not found: {}", id))?;
+    println!("{}", to_canonical_json(&quarantine_record_json(&record)));
     Ok(())
 }
 
@@ -569,6 +612,11 @@ fn route_http_request(
                 ("service", JsonValue::String("relay".to_string())),
             ]),
         )),
+        ("GET", "/v1/quarantine") => handle_http_quarantine_list(),
+        ("GET", path) if path.starts_with("/v1/quarantine/") => {
+            let id = path.trim_start_matches("/v1/quarantine/");
+            handle_http_quarantine_get(id)
+        }
         ("GET", "/v1/capabilities") => Ok((
             200,
             "OK",
@@ -621,7 +669,10 @@ fn handle_http_publish(
             };
             return Ok((status, text, http_error(kind, &errors.join("; "))));
         }
-        AcceptanceDecision::Defer { errors, .. } => {
+        AcceptanceDecision::Defer { code, errors } => {
+            let record = QuarantineStore::new(runtime_state_dir())
+                .append(body, code, &errors)
+                .map_err(|error| error.to_string())?;
             return Ok((
                 202,
                 "Accepted",
@@ -629,6 +680,7 @@ fn handle_http_publish(
                     ("status", JsonValue::String("deferred".to_string())),
                     ("reason", JsonValue::String(errors.join("; "))),
                     ("stored", JsonValue::Bool(false)),
+                    ("quarantineId", JsonValue::String(record.id)),
                 ]),
             ));
         }
@@ -680,6 +732,37 @@ fn handle_http_publish(
             500,
             "Internal Server Error",
             http_error("storage_error", &error.to_string()),
+        )),
+    }
+}
+
+fn handle_http_quarantine_list() -> Result<(u16, &'static str, JsonValue), String> {
+    let records = QuarantineStore::new(runtime_state_dir())
+        .list()
+        .map_err(|error| error.to_string())?;
+    Ok((
+        200,
+        "OK",
+        json_object(vec![
+            ("count", JsonValue::Number(records.len().to_string())),
+            (
+                "records",
+                JsonValue::Array(records.iter().map(quarantine_record_json).collect()),
+            ),
+        ]),
+    ))
+}
+
+fn handle_http_quarantine_get(id: &str) -> Result<(u16, &'static str, JsonValue), String> {
+    match QuarantineStore::new(runtime_state_dir())
+        .get(id)
+        .map_err(|error| error.to_string())?
+    {
+        Some(record) => Ok((200, "OK", quarantine_record_json(&record))),
+        None => Ok((
+            404,
+            "Not Found",
+            http_error("not_found", "quarantine record not found"),
         )),
     }
 }

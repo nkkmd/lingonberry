@@ -2,6 +2,7 @@
 members = [
   "packages/protocol",
   "packages/identity",
+  "packages/validation",
   "packages/core",
   "packages/indexer",
   "packages/relay",

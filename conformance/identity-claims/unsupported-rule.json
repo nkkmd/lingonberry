@@ -1,0 +1,41 @@
+{
+  "id": "lb:obj:unsupported-identity-rule",
+  "schemaVersion": "0.1.0",
+  "type": "inquiry",
+  "createdAt": "2026-07-11T00:00:00Z",
+  "body": {
+    "text": "Unsupported identity rule",
+    "language": "en"
+  },
+  "provenance": {
+    "sources": [
+      {
+        "protocol": "example",
+        "sourceId": "unsupported-rule"
+      }
+    ]
+  },
+  "rawRef": {
+    "protocol": "example",
+    "sourceId": "unsupported-rule"
+  },
+  "identityClaims": [
+    {
+      "schemaVersion": "1",
+      "claimType": "identity",
+      "ruleVersion": "lb.identity.key.v99",
+      "identityKey": "lb:key:lb.identity.key.v99:sha256:0000000000000000000000000000000000000000000000000000000000000000",
+      "canonicalId": "lb:obj:unsupported-identity-rule",
+      "issuer": {
+        "protocol": "example",
+        "sourceId": "validator-test"
+      },
+      "issuedAt": "2026-07-11T00:00:00Z",
+      "verification": {
+        "method": "fixture",
+        "payloadHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "status": "pending"
+      }
+    }
+  ]
+}

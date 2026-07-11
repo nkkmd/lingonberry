@@ -28,6 +28,19 @@ jobs:
         with:
           node-version: '22'
 
+      - name: Normalize migration input
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path("tools/apply-quarantine-batch.py")
+          content = path.read_text()
+          content = content.replace(
+              '''    import_archive, promote_quarantine_record, quarantine_record_json,\n    quarantine_resolution_json, runtime_state_dir, QuarantinePromotionOutcome, QuarantineStore,\n    StorageBackend,\n''',
+              '''    import_archive, promote_quarantine_record, quarantine_record_json, quarantine_resolution_json,\n    runtime_state_dir, QuarantinePromotionOutcome, QuarantineStore, StorageBackend,\n''',
+          )
+          path.write_text(content)
+          PY
+
       - name: Apply migration
         run: python tools/apply-quarantine-batch.py
 
@@ -55,5 +68,3 @@ jobs:
           git add -A
           git commit -m "feat: add quarantine batch promotion"
           git push origin HEAD:agent/quarantine-batch-promotion
-
-# trigger

@@ -31,7 +31,11 @@ impl AcceptancePolicy {
         let require_identity_claim = match env::var(REQUIRE_IDENTITY_CLAIM_ENV) {
             Ok(value) => parse_bool(REQUIRE_IDENTITY_CLAIM_ENV, &value)?,
             Err(env::VarError::NotPresent) => false,
-            Err(error) => return Err(format!("failed to read {REQUIRE_IDENTITY_CLAIM_ENV}: {error}")),
+            Err(error) => {
+                return Err(format!(
+                    "failed to read {REQUIRE_IDENTITY_CLAIM_ENV}: {error}"
+                ))
+            }
         };
 
         let unsupported_identity_policy = match env::var(UNSUPPORTED_IDENTITY_POLICY_ENV) {
@@ -62,8 +66,14 @@ impl AcceptancePolicy {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AcceptanceDecision {
     Accept,
-    Reject { code: &'static str, errors: Vec<String> },
-    Defer { code: &'static str, errors: Vec<String> },
+    Reject {
+        code: &'static str,
+        errors: Vec<String>,
+    },
+    Defer {
+        code: &'static str,
+        errors: Vec<String>,
+    },
 }
 
 pub fn evaluate_acceptance(
@@ -84,7 +94,9 @@ pub fn evaluate_acceptance(
     {
         return AcceptanceDecision::Reject {
             code: "LB_IDENTITY_CLAIM_REQUIRED",
-            errors: vec!["at least one identity claim is required by the acceptance policy".to_string()],
+            errors: vec![
+                "at least one identity claim is required by the acceptance policy".to_string(),
+            ],
         };
     }
 
@@ -134,7 +146,10 @@ mod tests {
     #[test]
     fn default_policy_accepts_objects_without_claims() {
         assert_eq!(
-            evaluate_acceptance(&report(IdentityValidationStatus::NotPresent), &AcceptancePolicy::default()),
+            evaluate_acceptance(
+                &report(IdentityValidationStatus::NotPresent),
+                &AcceptancePolicy::default()
+            ),
             AcceptanceDecision::Accept
         );
     }

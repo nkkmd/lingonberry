@@ -123,7 +123,10 @@ fn parse_record(line: &str) -> Result<QuarantineRecord, StoreError> {
     let value = parse_json(line)
         .map_err(|error| store_error("LB_QUARANTINE_CORRUPT", error.to_string()))?;
     let JsonValue::Object(map) = value else {
-        return Err(store_error("LB_QUARANTINE_CORRUPT", "record is not an object"));
+        return Err(store_error(
+            "LB_QUARANTINE_CORRUPT",
+            "record is not an object",
+        ));
     };
     let string = |name: &str| match map.get(name) {
         Some(JsonValue::String(value)) => Ok(value.clone()),
@@ -143,7 +146,12 @@ fn parse_record(line: &str) -> Result<QuarantineRecord, StoreError> {
                 )),
             })
             .collect::<Result<Vec<_>, _>>()?,
-        _ => return Err(store_error("LB_QUARANTINE_CORRUPT", "record missing reasons")),
+        _ => {
+            return Err(store_error(
+                "LB_QUARANTINE_CORRUPT",
+                "record missing reasons",
+            ))
+        }
     };
     Ok(QuarantineRecord {
         id: string("id")?,
@@ -166,14 +174,24 @@ mod tests {
     fn appends_lists_and_gets_records() {
         let dir = std::env::temp_dir().join(format!(
             "lingonberry-quarantine-{}",
-            SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos()
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
         ));
         let store = QuarantineStore::new(&dir);
         let record = store
-            .append("{\"object\":{}}", "LB_IDENTITY_DEFERRED", &["future rule".to_string()])
+            .append(
+                "{\"object\":{}}",
+                "LB_IDENTITY_DEFERRED",
+                &["future rule".to_string()],
+            )
             .unwrap();
         assert_eq!(store.list().unwrap().len(), 1);
-        assert_eq!(store.get(&record.id).unwrap().unwrap().reason_code, "LB_IDENTITY_DEFERRED");
+        assert_eq!(
+            store.get(&record.id).unwrap().unwrap().reason_code,
+            "LB_IDENTITY_DEFERRED"
+        );
         let _ = fs::remove_dir_all(dir);
     }
 }

@@ -23,7 +23,7 @@ Allowed values:
 - `reject` (default): reject with `LB_UNSUPPORTED_IDENTITY_RULE`; HTTP returns 422.
 - `defer`: do not store the object; HTTP returns 202 with `status: deferred`, while CLI and archive import return `LB_IDENTITY_DEFERRED`.
 
-`defer` is intentionally non-persistent in this version. A durable quarantine store can be added separately without weakening the guarantee that unverified objects never enter the canonical catalog.
+`defer` persists the original publish request and validation reasons to `<state-dir>/quarantine.jsonl`. Quarantined objects remain outside the canonical catalog. Use `quarantine-list`, `quarantine-get <id>`, `GET /v1/quarantine`, or `GET /v1/quarantine/<id>` to inspect them.
 
 ## Defaults
 

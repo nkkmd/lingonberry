@@ -16,7 +16,9 @@ use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+mod quarantine;
 mod sqlite;
+pub use quarantine::{quarantine_record_json, QuarantineRecord, QuarantineStore};
 pub use sqlite::SqliteStorageBackend;
 
 #[derive(Debug, Clone)]
@@ -299,7 +301,15 @@ pub fn import_archive(
                 return Err(store_error(code, errors.join("; ")))
             }
             AcceptanceDecision::Defer { code, errors } => {
-                return Err(store_error(code, errors.join("; ")))
+                let record = QuarantineStore::new(runtime_state_dir()).append(
+                    request_json,
+                    code,
+                    &errors,
+                )?;
+                return Err(store_error(
+                    code,
+                    format!("{}; quarantineId={}", errors.join("; "), record.id),
+                ));
             }
         }
         let finalized = finalize_knowledge_object_full(object_value).map_err(|report| {

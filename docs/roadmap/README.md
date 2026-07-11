@@ -1,9 +1,10 @@
 # ロードマップ
 
-**Status: active** | **Last updated: 2026-06-25**
+**Status: active** | **Last updated: 2026-07-11**
 
-このディレクトリには、2 本のロードマップとそれぞれの backlog を置きます。
+このディレクトリには、2 本のロードマップとそれぞれの backlog、および作業再開用の現在地文書を置きます。
 
+- [現在の実装状況](./CURRENT_IMPLEMENTATION_STATUS.md) は、中断後に作業を再開するための引き継ぎ用正本です。
 - [実装ロードマップ](./IMPLEMENTATION_ROADMAP.md) と [実装バックログ](./IMPLEMENTATION_BACKLOG.md) は、Lingonberry の core 実装を進めるための文書です。
 - [運用準備ロードマップ](./OPERATIONAL_READINESS_ROADMAP.md) と [運用準備バックログ](./OPERATIONAL_READINESS_BACKLOG.md) は、実装後の運用整備を進めるための文書です。
 - [v0.1.0 公開前チェックリスト](./RELEASE_0_1_0_CHECKLIST.md) は、OSS 公開・配布の直前に確認するための文書です。
@@ -30,6 +31,7 @@ Phase 12 の実装完了条件は [Phase 12 実装完了チェックリスト](.
 5. `cargo run -p lingonberry-relay -- import-archive /tmp/lingonberry-archive`
 
 ## 文書
+- [現在の実装状況](./CURRENT_IMPLEMENTATION_STATUS.md)
 - [実装ロードマップ](./IMPLEMENTATION_ROADMAP.md)
 - [実装バックログ](./IMPLEMENTATION_BACKLOG.md)
 - [運用準備ロードマップ](./OPERATIONAL_READINESS_ROADMAP.md)

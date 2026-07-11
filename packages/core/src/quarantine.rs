@@ -140,8 +140,8 @@ fn read_json_lines<T>(
     if !path.exists() {
         return Ok(Vec::new());
     }
-    let file = fs::File::open(path)
-        .map_err(|error| store_error("LB_QUARANTINE_IO", error.to_string()))?;
+    let file =
+        fs::File::open(path).map_err(|error| store_error("LB_QUARANTINE_IO", error.to_string()))?;
     let mut records = Vec::new();
     for line in BufReader::new(file).lines() {
         let line = line.map_err(|error| store_error("LB_QUARANTINE_IO", error.to_string()))?;
@@ -200,7 +200,10 @@ fn resolution_json(resolution: &QuarantineResolution) -> JsonValue {
             "canonicalId".to_string(),
             JsonValue::String(resolution.canonical_id.clone()),
         ),
-        ("duplicate".to_string(), JsonValue::Bool(resolution.duplicate)),
+        (
+            "duplicate".to_string(),
+            JsonValue::Bool(resolution.duplicate),
+        ),
     ]))
 }
 

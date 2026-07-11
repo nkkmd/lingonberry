@@ -1,0 +1,9 @@
+[package]
+name = "lingonberry-identity"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+
+[dependencies]
+lingonberry-protocol = { path = "../protocol" }
+sha2 = "0.10"

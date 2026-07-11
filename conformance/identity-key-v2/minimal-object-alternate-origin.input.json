@@ -1,0 +1,28 @@
+{
+  "id": "lb:obj:identity-v2-example-copy",
+  "schemaVersion": "0.1.0",
+  "type": "inquiry",
+  "createdAt": "2026-07-11T00:00:00Z",
+  "body": {
+    "language": "en",
+    "text": "How should this knowledge be verified?"
+  },
+  "contexts": ["test"],
+  "labels": ["identity-v2"],
+  "provenance": {
+    "sources": [
+      {
+        "protocol": "archive",
+        "sourceId": "source-b"
+      }
+    ]
+  },
+  "rawRef": {
+    "protocol": "archive",
+    "sourceId": "raw-b",
+    "locator": "archive://copy"
+  },
+  "meta": {
+    "storageHint": "secondary"
+  }
+}

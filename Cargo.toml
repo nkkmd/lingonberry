@@ -1,6 +1,7 @@
 [workspace]
 members = [
   "packages/protocol",
+  "packages/identity",
   "packages/core",
   "packages/indexer",
   "packages/relay",

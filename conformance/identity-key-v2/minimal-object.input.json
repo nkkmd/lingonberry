@@ -1,0 +1,24 @@
+{
+  "id": "lb:obj:identity-v2-example",
+  "schemaVersion": "0.1.0",
+  "type": "inquiry",
+  "createdAt": "2026-07-11T00:00:00Z",
+  "body": {
+    "text": "How should this knowledge be verified?",
+    "language": "en"
+  },
+  "contexts": ["test"],
+  "labels": ["identity-v2"],
+  "provenance": {
+    "sources": [
+      {
+        "protocol": "example",
+        "sourceId": "source-a"
+      }
+    ]
+  },
+  "rawRef": {
+    "protocol": "example",
+    "sourceId": "raw-a"
+  }
+}

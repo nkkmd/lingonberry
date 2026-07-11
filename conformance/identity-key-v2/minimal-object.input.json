@@ -7,7 +7,9 @@
     "text": "How should this knowledge be verified?",
     "language": "en"
   },
-  "contexts": ["test"],
+  "contexts": {
+    "topic": "test"
+  },
   "labels": ["identity-v2"],
   "provenance": {
     "sources": [

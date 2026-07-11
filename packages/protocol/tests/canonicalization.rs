@@ -1,11 +1,9 @@
 use lingonberry_protocol::{normalize_json, parse_json, to_canonical_json};
 
-const INPUT: &str = include_str!(
-    "../../../conformance/canonicalization/object-key-order.input.json"
-);
-const EXPECTED: &str = include_str!(
-    "../../../conformance/canonicalization/object-key-order.expected.json"
-);
+const INPUT: &str =
+    include_str!("../../../conformance/canonicalization/object-key-order.input.json");
+const EXPECTED: &str =
+    include_str!("../../../conformance/canonicalization/object-key-order.expected.json");
 
 #[test]
 fn canonicalization_matches_shared_fixture() {

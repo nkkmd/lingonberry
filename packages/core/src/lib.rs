@@ -4,6 +4,7 @@ use lingonberry_protocol::{
     DEFAULT_ACCESS_SCOPE, DEFAULT_RETENTION_HINT, HTTP_PUBLISH_REQUEST_SCHEMA_VERSION,
     KNOWLEDGE_OBJECT_SCHEMA_VERSION, PROTOCOL_VERSION,
 };
+use lingonberry_validation::{finalize_knowledge_object_full, IdentityValidationStatus};
 use std::collections::{BTreeMap, BTreeSet};
 use std::env;
 use std::fmt;
@@ -286,8 +287,14 @@ pub fn import_archive(
                 "publish request missing object",
             ));
         };
-        let finalized = finalize_knowledge_object(object_value)
-            .map_err(|errors| store_error("LB_ARCHIVE_IMPORT", errors.join("; ")))?;
+        let finalized = finalize_knowledge_object_full(object_value).map_err(|report| {
+            let code = if report.identity_status == IdentityValidationStatus::Unsupported {
+                "LB_UNSUPPORTED_IDENTITY_RULE"
+            } else {
+                "LB_ARCHIVE_IMPORT"
+            };
+            store_error(code, report.combined_errors().join("; "))
+        })?;
         let outcome = backend.append_publish_request(request_json, &finalized)?;
         if outcome.duplicate {
             duplicates += 1;

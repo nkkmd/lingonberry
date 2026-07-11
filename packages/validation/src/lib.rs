@@ -1,5 +1,8 @@
 use lingonberry_identity::validate_identity_claim_versions;
-use lingonberry_protocol::{validate_knowledge_object, JsonValue};
+use lingonberry_protocol::{
+    derive_identity_key, normalize_json, to_canonical_json, validate_knowledge_object,
+    validate_publish_request, FinalizedKnowledgeObject, JsonValue,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum IdentityValidationStatus {
@@ -23,21 +26,26 @@ impl ValidationReport {
             && self.identity_errors.is_empty()
             && self.unsupported_identity_rules.is_empty()
     }
+
+    pub fn combined_errors(&self) -> Vec<String> {
+        self.schema_errors
+            .iter()
+            .chain(self.identity_errors.iter())
+            .chain(self.unsupported_identity_rules.iter())
+            .cloned()
+            .collect()
+    }
 }
 
 fn is_legacy_identity_rule_error(error: &str) -> bool {
+    let error = error.strip_prefix("object.").unwrap_or(error);
     error.starts_with("identityClaims[")
         && (error.contains(".ruleVersion must be lb.identity.key.v1")
             || error.contains(".identityKey must match the derived identity key"))
 }
 
-pub fn validate_knowledge_object_full(value: &JsonValue) -> ValidationReport {
-    let schema_errors = validate_knowledge_object(value)
-        .into_iter()
-        .filter(|error| !is_legacy_identity_rule_error(error))
-        .collect();
+fn identity_report(value: &JsonValue) -> (Vec<String>, Vec<String>, IdentityValidationStatus) {
     let identity_results = validate_identity_claim_versions(value);
-
     let mut identity_errors = Vec::new();
     let mut unsupported_identity_rules = Vec::new();
 
@@ -55,7 +63,7 @@ pub fn validate_knowledge_object_full(value: &JsonValue) -> ValidationReport {
             if matches!(object.get("identityClaims"), Some(JsonValue::Array(items)) if !items.is_empty())
     );
 
-    let identity_status = if !unsupported_identity_rules.is_empty() {
+    let status = if !unsupported_identity_rules.is_empty() {
         IdentityValidationStatus::Unsupported
     } else if !identity_errors.is_empty() {
         IdentityValidationStatus::Invalid
@@ -65,12 +73,72 @@ pub fn validate_knowledge_object_full(value: &JsonValue) -> ValidationReport {
         IdentityValidationStatus::NotPresent
     };
 
+    (identity_errors, unsupported_identity_rules, status)
+}
+
+pub fn validate_knowledge_object_full(value: &JsonValue) -> ValidationReport {
+    let schema_errors = validate_knowledge_object(value)
+        .into_iter()
+        .filter(|error| !is_legacy_identity_rule_error(error))
+        .collect();
+    let (identity_errors, unsupported_identity_rules, identity_status) = identity_report(value);
+
     ValidationReport {
         schema_errors,
         identity_errors,
         unsupported_identity_rules,
         identity_status,
     }
+}
+
+pub fn validate_publish_request_full(value: &JsonValue) -> ValidationReport {
+    let schema_errors = validate_publish_request(value)
+        .into_iter()
+        .filter(|error| !is_legacy_identity_rule_error(error))
+        .collect::<Vec<_>>();
+
+    let object = match value {
+        JsonValue::Object(request) => request.get("object"),
+        _ => None,
+    };
+    let (identity_errors, unsupported_identity_rules, identity_status) = match object {
+        Some(object) => identity_report(object),
+        None => (Vec::new(), Vec::new(), IdentityValidationStatus::NotPresent),
+    };
+
+    ValidationReport {
+        schema_errors,
+        identity_errors,
+        unsupported_identity_rules,
+        identity_status,
+    }
+}
+
+pub fn finalize_knowledge_object_full(
+    value: &JsonValue,
+) -> Result<FinalizedKnowledgeObject, ValidationReport> {
+    let report = validate_knowledge_object_full(value);
+    if !report.is_valid() {
+        return Err(report);
+    }
+
+    let normalized = normalize_json(value.clone());
+    let canonical_json = to_canonical_json(&normalized);
+    let canonical_id = match &normalized {
+        JsonValue::Object(object) => match object.get("id") {
+            Some(JsonValue::String(value)) => value.clone(),
+            _ => String::new(),
+        },
+        _ => String::new(),
+    };
+    let identity_key = derive_identity_key(&normalized);
+
+    Ok(FinalizedKnowledgeObject {
+        canonical_id,
+        identity_key,
+        object: normalized,
+        canonical_json,
+    })
 }
 
 #[cfg(test)]
@@ -94,7 +162,7 @@ mod tests {
     }
 
     #[test]
-    fn validates_v2_claim_through_the_facade() {
+    fn validates_and_finalizes_v2_claim_through_the_facade() {
         let value = parse(include_str!(
             "../../../conformance/identity-claims/valid-v2.json"
         ));
@@ -102,6 +170,8 @@ mod tests {
 
         assert!(report.is_valid(), "{report:?}");
         assert_eq!(report.identity_status, IdentityValidationStatus::Valid);
+        let finalized = finalize_knowledge_object_full(&value).expect("v2 object must finalize");
+        assert_eq!(finalized.canonical_id, "lb:obj:identity-v2-claim");
     }
 
     #[test]
@@ -111,7 +181,10 @@ mod tests {
         ));
         let report = validate_knowledge_object_full(&value);
 
-        assert_eq!(report.identity_status, IdentityValidationStatus::Unsupported);
+        assert_eq!(
+            report.identity_status,
+            IdentityValidationStatus::Unsupported
+        );
         assert!(report.identity_errors.is_empty());
         assert_eq!(report.unsupported_identity_rules.len(), 1);
     }

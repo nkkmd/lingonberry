@@ -1,0 +1,57 @@
+name: Apply ingress validation migration
+
+on:
+  push:
+    branches:
+      - agent/enforce-validation-at-ingress
+    paths:
+      - tools/apply-ingress-validation.py
+      - .github/workflows/apply-ingress-validation.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/enforce-validation-at-ingress
+          fetch-depth: 0
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Apply migration
+        run: python tools/apply-ingress-validation.py
+
+      - name: Format Rust
+        run: cargo fmt --all
+
+      - name: Run Rust tests
+        run: cargo test --workspace
+
+      - name: Run JavaScript tests
+        run: >-
+          node --test
+          packages/codecs/test/canonicalization.test.mjs
+          packages/identity/test/identity-key-v2.test.mjs
+          packages/identity/test/identity-claim-validator.test.mjs
+          packages/validation/test/validation.test.mjs
+
+      - name: Remove one-shot migration files
+        run: rm tools/apply-ingress-validation.py .github/workflows/apply-ingress-validation.yml
+
+      - name: Commit migrated sources
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "feat: enforce integrated validation at ingress"
+          git push origin HEAD:agent/enforce-validation-at-ingress

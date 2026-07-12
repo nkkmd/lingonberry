@@ -8,7 +8,7 @@
 
 ## 1. 現在地
 
-2026-07-12 時点で、persistent quarantine、promotion、batch revalidation、status、metrics、scheduler、operator annotations、manual dismissal、admin HTTP isolation、permanent rejection lifecycleまで実装済みです。
+2026-07-12 時点で、persistent quarantine、promotion、status / metrics、scheduler、annotations、manual dismissal、admin HTTP isolation、permanent rejection、verified backup / restoreまで実装済みです。
 
 | 項目 | 状態 |
 |---|---|
@@ -18,10 +18,9 @@
 | scheduler integration | 実装済み |
 | append-only annotations | 実装済み |
 | append-only manual dismissal | 実装済み |
-| public/admin listener separation | 実装済み |
-| admin Bearer authentication / failure audit | 実装済み |
+| admin authentication / isolation | 実装済み |
 | append-only permanent rejection | 実装済み |
-| backup / restore boundary | 未実装 |
+| verified backup / export / restore | 実装済み |
 | concurrent ledger coordination | 未実装 |
 | retention / compaction / rotation | 未実装 |
 | multi-role authorization | 未実装 |
@@ -37,64 +36,11 @@ dismissed
 permanently-rejected
 ```
 
-- `pending`: terminal lifecycle eventがないrecord
-- `promoted`: promotion resolutionがあるrecord
-- `dismissed`: operator dismissal eventがあるrecord
-- `permanently-rejected`: operator permanent rejection eventがあるrecord
-
-Transient revalidation outcomes:
-
-```text
-accept
-still-deferred
-rejected
-```
-
-Transientな`rejected`は自動的にpersistent stateへ変換しません。
+Transientな再検証結果`rejected`はpersistent stateへ自動変換しません。
 
 ---
 
-## 3. Permanent rejectionの固定仕様
-
-```text
-対象: pending recordのみ
-作成主体: operator
-理由: LB_OPERATOR_PERMANENTLY_REJECTED + required note
-重複: 1 record 1 active eventとしてidempotent
-undo / reopen: 非スコープ
-入口: Core + CLI + authenticated admin HTTP
-```
-
-永続event：
-
-```json
-{
-  "id": "lb:qr:...",
-  "quarantineId": "lb:q:...",
-  "rejectedAt": "...Z",
-  "operator": "operator-name",
-  "reasonCode": "LB_OPERATOR_PERMANENTLY_REJECTED",
-  "note": "known prohibited content"
-}
-```
-
-固定条件：
-
-- unknown、promoted、dismissed recordを拒否
-- duplicate requestは既存eventを返す
-- duplicate ledger eventはcorruption
-- 元quarantine recordとannotationを保持
-- default quarantine listとbatch promotionから除外
-- direct CLI / admin HTTP promotionを拒否
-- transient batch `rejected` counterとは別概念
-
-関連文書：`docs/operations/QUARANTINE_PERMANENT_REJECTIONS.md`
-
-関連Issue：#26
-
----
-
-## 4. Runtime state
+## 3. Runtime state
 
 ```text
 quarantine.jsonl
@@ -109,35 +55,53 @@ admin-auth-audit.jsonl
 
 ---
 
-## 5. HTTP boundary
+## 4. Backup / Export / Restore
 
-Public listener:
+専用local administrative binary：
 
 ```bash
-lingonberry-relay serve-http 127.0.0.1:8787
+lingonberry-quarantine-backup export <empty-backup-dir>
+lingonberry-quarantine-backup verify <backup-dir>
+lingonberry-quarantine-backup restore <backup-dir> <empty-state-dir>
 ```
 
-公開routeはreadiness、capabilities、publish、object retrievalのみです。`/metrics`と`/v1/quarantine*`は`404`になります。
+固定条件：
 
-Admin listener:
+- versioned manifestは`quarantine-backup-manifest.json`
+- manifestはmanaged fileのcopy完了後に最後に発行
+- source fileをcopy後に再読込し、byte lengthとdigestが変化していないことを確認
+- source変更時はexport失敗
+- exact managed-file setを検証
+- sparse stateでは不在ファイルをmanifestに明示
+- restore前にbackup全体を検証
+- destinationの既存managed fileは上書きしない
+- restoreはtemporary file + atomic rename
+- bearer tokenや環境変数はbackupしない
+
+現在のintegrity digestは`fnv1a64:<hex>`です。これは偶発的な破損検出用であり、暗号学的真正性の保証ではありません。
+
+関連文書：`docs/operations/QUARANTINE_BACKUP_RESTORE.md`
+
+関連Issue：#28
+
+---
+
+## 5. HTTP boundary
+
+Public listenerはreadiness、capabilities、publish、object retrievalのみを公開します。`/metrics`と`/v1/quarantine*`は`404`です。
+
+Admin listener：
 
 ```bash
 export LINGONBERRY_ADMIN_TOKEN='<long-random-secret>'
 lingonberry-relay serve-admin-http 127.0.0.1:8788
 ```
 
-Bearer認証後にquarantine管理routeを利用できます。
-
-Permanent rejection routes:
-
-```text
-POST /v1/quarantine/<quarantine-id>/permanent-rejection
-GET  /v1/quarantine/<quarantine-id>/permanent-rejection
-```
+Backup / restoreはHTTP endpointを持たず、local binaryだけで実行します。
 
 ---
 
-## 6. CLI
+## 6. Quarantine CLI
 
 ```bash
 lingonberry-relay quarantine-list
@@ -159,22 +123,6 @@ lingonberry-relay quarantine-permanent-rejections [quarantine-id]
 
 ## 7. Statusとmetrics
 
-Status fields：
-
-```text
-total
-pending
-promoted
-dismissed
-permanentlyRejected
-oldestPendingAt
-latestReceivedAt
-latestPromotedAt
-latestDismissedAt
-latestPermanentlyRejectedAt
-reasonCodeCounts
-```
-
 Persistent lifecycle gauges：
 
 ```text
@@ -194,14 +142,11 @@ operator、note、quarantine IDはmetric labelに使用しません。
 ```text
 docs/roadmap/CURRENT_IMPLEMENTATION_STATUS.md
 docs/roadmap/QUARANTINE_LIFECYCLE_BACKLOG.md
-docs/operations/QUARANTINE_ADMIN_HTTP.md
-docs/operations/QUARANTINE_DISMISSALS.md
-docs/operations/QUARANTINE_PERMANENT_REJECTIONS.md
+docs/operations/QUARANTINE_BACKUP_RESTORE.md
+packages/core/src/quarantine_backup.rs
 packages/core/src/quarantine.rs
-packages/core/src/quarantine_dismissals.rs
-packages/core/src/quarantine_rejections.rs
 packages/core/src/quarantine_status.rs
-packages/relay/src/admin_auth.rs
+packages/relay/src/quarantine_backup_main.rs
 packages/relay/src/main_entry.rs
 ```
 
@@ -216,13 +161,12 @@ git status
 cargo test --workspace
 ```
 
-Read-only確認：
+Backup smoke test：
 
 ```bash
-cargo run -p lingonberry-relay -- quarantine-status
-cargo run -p lingonberry-relay -- quarantine-metrics
-cargo run -p lingonberry-relay -- quarantine-permanent-rejections
-cargo run -p lingonberry-relay -- quarantine-promote-batch 100 --dry-run
+export LINGONBERRY_STATE_DIR=/var/lib/lingonberry/relay
+lingonberry-quarantine-backup export /tmp/lingonberry-quarantine-backup
+lingonberry-quarantine-backup verify /tmp/lingonberry-quarantine-backup
 ```
 
 ---
@@ -230,18 +174,18 @@ cargo run -p lingonberry-relay -- quarantine-promote-batch 100 --dry-run
 ## 10. 絶対に崩さない安全性ルール
 
 1. validation未通過objectをcanonical storageへ保存しない
-2. `defer`されたobjectはquarantineにのみ保存する
-3. promotion前に現在のvalidatorとpolicyで再評価する
-4. promotionの再実行はidempotentに扱う
-5. 元quarantine recordを監査証跡として保持する
-6. dry-runでは永続状態を変更しない
-7. corruptionとI/O errorを黙って無視しない
-8. annotationをlifecycle stateとして解釈しない
-9. dismissalとpermanent rejectionは専用append-only eventで表現する
-10. terminal recordを通常のbatch promotion対象へ戻さない
-11. transient `rejected`を自動的にpermanent rejectionとして保存しない
-12. quarantine管理routeを公開listenerへ戻さない
-13. bearer tokenや自由文noteをauth auditへ記録しない
+2. promotion前に現在のvalidatorとpolicyで再評価する
+3. 元quarantine recordとappend-only eventを保持する
+4. dry-runでは永続状態を変更しない
+5. corruptionとI/O errorを黙って無視しない
+6. terminal recordを通常のbatch promotion対象へ戻さない
+7. transient `rejected`をpermanent rejectionとして自動保存しない
+8. quarantine管理routeを公開listenerへ戻さない
+9. bearer tokenや自由文noteをauth auditへ記録しない
+10. backup manifestをmanaged fileより先に発行しない
+11. verification失敗backupをrestoreしない
+12. restore時に既存managed fileを上書きしない
+13. backup export中のmutationを完全に防げるとは仮定しない
 
 ---
 
@@ -250,20 +194,12 @@ cargo run -p lingonberry-relay -- quarantine-promote-batch 100 --dry-run
 ### 第一候補
 
 ```text
-QL-4: Backup / Export / Restore
-```
-
-全quarantine ledgerの一貫したsnapshot、manifest、restore検証を定義します。
-
-### 第二候補
-
-```text
 QL-6: Concurrent Ledger Operations
 ```
 
-promotion、dismissal、permanent rejection、annotation、audit appendの競合を扱います。
+promotion、dismissal、permanent rejection、annotation、auth audit、backup exportの競合条件を固定します。
 
-### 第三候補
+### 第二候補
 
 ```text
 QL-5: JSONL Index / Rotation / Compaction
@@ -286,5 +222,6 @@ append-only監査証跡を維持しながら長期運用コストを管理しま
 → #19 annotations
 → #23 manual dismissal
 → #25 admin HTTP isolation
-→ #26 permanent rejection
+→ #27 permanent rejection
+→ #28 verified backup / restore
 ```

@@ -2,11 +2,7 @@
 
 **Status: active** | **Last updated: 2026-07-12**
 
-この文書は、quarantine運用の次段階を再開しやすいissue単位で整理します。
-
-現在地の正本は [CURRENT_IMPLEMENTATION_STATUS.md](./CURRENT_IMPLEMENTATION_STATUS.md) です。実装前に必ず両方を確認してください。
-
----
+現在地の正本は [CURRENT_IMPLEMENTATION_STATUS.md](./CURRENT_IMPLEMENTATION_STATUS.md) です。
 
 ## 完了済み
 
@@ -21,7 +17,8 @@
 | operator annotations | #19 | 完了 |
 | append-only manual dismissal lifecycle | #22 / #23 | 完了 |
 | admin authentication and network isolation | #24 / #25 | 完了 |
-| append-only permanent rejection lifecycle | #26 | 実装・PR化 |
+| append-only permanent rejection lifecycle | #26 / #27 | 完了 |
+| verified backup / export / restore | #28 | 実装・PR化 |
 
 ---
 
@@ -43,56 +40,7 @@
 
 ## QL-3: Persistent Rejection Decisions
 
-**状態: implemented**
-
-### 固定した判断
-
-```text
-persistent state: permanently-rejected
-対象: pending recordのみ
-入口: Core + CLI + authenticated admin HTTP
-作成主体: operatorのみ
-transient Rejectedからの自動永続化: しない
-重複: 1 record 1 active eventとしてidempotent
-undo / reopen: 非スコープ
-```
-
-### Persistent state
-
-```text
-quarantine-rejections.jsonl
-```
-
-```json
-{
-  "id": "lb:qr:...",
-  "quarantineId": "lb:q:...",
-  "rejectedAt": "...Z",
-  "operator": "operator-name",
-  "reasonCode": "LB_OPERATOR_PERMANENTLY_REJECTED",
-  "note": "known prohibited content"
-}
-```
-
-### 実装済み完了条件
-
-- append-only permanent rejection ledger
-- unknown、promoted、dismissed recordを拒否
-- duplicate requestをidempotentに処理
-- duplicate ledger eventをcorruptionとして明示
-- default listとbatch promotionから除外
-- direct CLI / admin HTTP promotionを拒否
-- statusに`permanentlyRejected`と`latestPermanentlyRejectedAt`を追加
-- metricsに`permanently_rejected` gaugeを追加
-- transient batch `rejected`とは別概念として保持
-- 元quarantine recordとannotationを変更しない
-
-### 非スコープ
-
-- transient rejectionからの自動永続化
-- physical deletion
-- undo / reopen / appeal workflow
-- distributed locking
+**状態: completed**
 
 関連文書：`docs/operations/QUARANTINE_PERMANENT_REJECTIONS.md`
 
@@ -100,9 +48,20 @@ quarantine-rejections.jsonl
 
 ## QL-4: Backup / Export / Restore
 
-**優先度: highest**
+**状態: implemented**
 
-### 対象
+### 固定した判断
+
+```text
+対象: 全quarantine関連append-only state
+入口: local administrative binary
+snapshot境界: source copy後にlength + digestを再検証
+manifest: versioned JSON、最後にatomic rename
+restore先: managed fileが存在しないdirectoryのみ
+secret環境変数: backup対象外
+```
+
+### 対象ファイル
 
 ```text
 quarantine.jsonl
@@ -113,19 +72,34 @@ quarantine-rejections.jsonl
 admin-auth-audit.jsonl
 ```
 
-### 完了条件
+### 実装済み完了条件
 
-- 一貫したsnapshot境界が定義される
-- restore時の重複と順序を扱える
-- 原本hashまたはmanifestを検討する
-- restore検証手順がある
-- 権限と秘密情報の扱いを文書化する
+- sparse snapshotで不在ファイルを明示
+- source変更検出時にvalid manifestを発行しない
+- exact managed-file setをmanifestで検証
+- byte lengthとintegrity digestを検証
+- path traversal、unsupported version、tamperingを拒否
+- restore前にbackup全体を検証
+- destinationの既存managed fileを上書きしない
+- temporary file + atomic renameでrestore
+- bearer tokenと環境変数を保存しない
+- export / verify / restore CLIを追加
+
+### 非スコープ
+
+- distributed snapshot coordination
+- encryption at rest
+- remote object storage
+- retention scheduling
+- compaction / rotation
+
+関連文書：`docs/operations/QUARANTINE_BACKUP_RESTORE.md`
 
 ---
 
 ## QL-5: JSONL Index / Rotation / Compaction
 
-**優先度: medium-low**
+**優先度: medium**
 
 ### 検討順
 
@@ -146,7 +120,7 @@ admin-auth-audit.jsonl
 
 ## QL-6: Concurrent Ledger Operations
 
-**優先度: high**
+**優先度: highest**
 
 ### 対象
 
@@ -155,6 +129,7 @@ admin-auth-audit.jsonl
 - admin auth auditへの同時append
 - schedulerと手動操作の競合
 - promotion / dismissal / permanent rejectionの競合
+- backup export中のmutation
 
 ### 完了条件
 
@@ -162,6 +137,7 @@ admin-auth-audit.jsonl
 - atomic appendの前提を文書化する
 - duplicate eventの意味を固定する
 - concurrency testを追加する
+- backup snapshot lockとの関係を固定する
 - distributed lockを実装しない場合は明記する
 
 ---
@@ -170,26 +146,14 @@ admin-auth-audit.jsonl
 
 ```markdown
 ## Goal
-
 ## Persistent state changes
-
 ## CLI / HTTP changes
-
 ## Lifecycle semantics
-
 ## Idempotency and concurrency
-
 ## Error handling
-
 ## Tests
-
 ## Documentation updates
-
 ## Non-goals
 ```
 
-各quarantine関連PRでは、次を完了条件に含めます。
-
-```text
-CURRENT_IMPLEMENTATION_STATUS.mdを更新する、または更新不要の理由をPR本文へ記載する
-```
+各quarantine関連PRでは、`CURRENT_IMPLEMENTATION_STATUS.md`を更新するか、更新不要の理由をPR本文へ記載します。

@@ -289,7 +289,7 @@ impl IndexSnapshot {
 
         if let Some(object_type) = object_type {
             push_unique(
-                &mut self.type_index.entry(object_type).or_default(),
+                self.type_index.entry(object_type).or_default(),
                 canonical_id.clone(),
             );
         }

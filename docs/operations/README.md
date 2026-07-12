@@ -4,6 +4,8 @@
 
 このディレクトリには、Lingonberry の技術決定と運用正本を置きます。
 
+作業再開時は、最初に [現在の実装状況](../roadmap/CURRENT_IMPLEMENTATION_STATUS.md) と [Quarantine Lifecycle Backlog](../roadmap/QUARANTINE_LIFECYCLE_BACKLOG.md) を確認してください。前者はPR #19までの実装・runtime state・安全性ルール・再開コマンド、後者は次のissue候補と完了条件をまとめています。
+
 ## 文書
 
 ### Quickstart

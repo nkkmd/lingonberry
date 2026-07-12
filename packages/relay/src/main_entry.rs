@@ -5,6 +5,10 @@ mod legacy {
         run(args)
     }
 
+    pub(crate) fn exit_code(error: &str) -> i32 {
+        exit_code_for_error(error)
+    }
+
     pub(crate) fn serve_http_with_quarantine_status(
         addr: &str,
         backend: &impl StorageBackend,
@@ -41,8 +45,7 @@ mod legacy {
         let (method, path, _version) = parse_http_request_line(&request_line)?;
         let headers = read_http_headers(&mut reader)?;
         let body = read_http_body(&mut reader, &headers)?;
-        let (status_code, status_text, response_body) = if method == "GET"
-            && path == "/v1/quarantine-status"
+        let (status_code, status_text, response_body) = if is_quarantine_status_route(&method, &path)
         {
             let status = QuarantineStore::new(runtime_state_dir())
                 .status_json()
@@ -53,6 +56,10 @@ mod legacy {
         };
         write_http_response(&mut stream, status_code, status_text, &response_body)
             .map_err(|error| error.to_string())
+    }
+
+    pub(crate) fn is_quarantine_status_route(method: &str, path: &str) -> bool {
+        method == "GET" && path == "/v1/quarantine-status"
     }
 }
 
@@ -75,7 +82,7 @@ fn main() {
 
     if let Err(error) = result {
         eprintln!("{}", error);
-        process::exit(1);
+        process::exit(legacy::exit_code(&error));
     }
 }
 
@@ -89,9 +96,13 @@ fn handle_quarantine_status() -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
+    use super::legacy::is_quarantine_status_route;
+
     #[test]
     fn quarantine_status_http_route_is_exact() {
-        assert_eq!("GET", "GET");
-        assert_eq!("/v1/quarantine-status", "/v1/quarantine-status");
+        assert!(is_quarantine_status_route("GET", "/v1/quarantine-status"));
+        assert!(!is_quarantine_status_route("POST", "/v1/quarantine-status"));
+        assert!(!is_quarantine_status_route("GET", "/v1/quarantine-status/"));
+        assert!(!is_quarantine_status_route("GET", "/v1/quarantine"));
     }
 }

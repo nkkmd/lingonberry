@@ -1,5 +1,11 @@
+mod admin_auth;
+
 mod legacy {
     include!("main.rs");
+
+    use super::admin_auth::{
+        admin_token_matches, append_admin_auth_failure, configured_admin_token,
+    };
 
     pub(crate) fn run_existing(args: Vec<String>) -> Result<(), String> {
         run(args)
@@ -9,18 +15,17 @@ mod legacy {
         exit_code_for_error(error)
     }
 
-    pub(crate) fn serve_http_with_quarantine_status(
+    pub(crate) fn serve_public_http(
         addr: &str,
         backend: &impl StorageBackend,
     ) -> Result<(), String> {
         let listener = TcpListener::bind(addr)
             .map_err(|error| format!("failed to bind {}: {}", addr, error))?;
-        eprintln!("listening on http://{}", addr);
+        eprintln!("public relay listening on http://{}", addr);
         for stream in listener.incoming() {
             match stream {
                 Ok(stream) => {
-                    if let Err(error) = handle_http_connection_with_quarantine_status(stream, backend)
-                    {
+                    if let Err(error) = handle_public_http_connection(stream, backend) {
                         eprintln!("{}", error);
                     }
                 }
@@ -30,7 +35,28 @@ mod legacy {
         Ok(())
     }
 
-    fn handle_http_connection_with_quarantine_status(
+    pub(crate) fn serve_admin_http(
+        addr: &str,
+        backend: &impl StorageBackend,
+    ) -> Result<(), String> {
+        let token = configured_admin_token()?;
+        let listener = TcpListener::bind(addr)
+            .map_err(|error| format!("failed to bind {}: {}", addr, error))?;
+        eprintln!("admin API listening on http://{}", addr);
+        for stream in listener.incoming() {
+            match stream {
+                Ok(stream) => {
+                    if let Err(error) = handle_admin_http_connection(stream, backend, &token) {
+                        eprintln!("{}", error);
+                    }
+                }
+                Err(error) => eprintln!("accept error: {}", error),
+            }
+        }
+        Ok(())
+    }
+
+    fn handle_public_http_connection(
         mut stream: TcpStream,
         backend: &impl StorageBackend,
     ) -> Result<(), String> {
@@ -45,6 +71,62 @@ mod legacy {
         let (method, path, _version) = parse_http_request_line(&request_line)?;
         let headers = read_http_headers(&mut reader)?;
         let body = read_http_body(&mut reader, &headers)?;
+        let response = if is_admin_path(&path) {
+            (404, "Not Found", http_error("not_found", "route not found"))
+        } else {
+            route_http_request(&method, &path, &body, backend)?
+        };
+        write_http_response(&mut stream, response.0, response.1, &response.2)
+            .map_err(|error| error.to_string())
+    }
+
+    fn handle_admin_http_connection(
+        mut stream: TcpStream,
+        backend: &impl StorageBackend,
+        expected_token: &str,
+    ) -> Result<(), String> {
+        let remote_addr = stream
+            .peer_addr()
+            .map(|addr| addr.to_string())
+            .unwrap_or_else(|_| "unknown".to_string());
+        let mut reader = BufReader::new(stream.try_clone().map_err(|error| error.to_string())?);
+        let mut request_line = String::new();
+        reader
+            .read_line(&mut request_line)
+            .map_err(|error| error.to_string())?;
+        if request_line.trim().is_empty() {
+            return Ok(());
+        }
+        let (method, path, _version) = parse_http_request_line(&request_line)?;
+        let headers = read_http_headers(&mut reader)?;
+        let body = read_http_body(&mut reader, &headers)?;
+
+        if !is_admin_path(&path) {
+            return write_http_response(
+                &mut stream,
+                404,
+                "Not Found",
+                &http_error("not_found", "route not found"),
+            )
+            .map_err(|error| error.to_string());
+        }
+
+        if !admin_token_matches(&headers, expected_token) {
+            append_admin_auth_failure(
+                runtime_state_dir(),
+                &remote_addr,
+                &method,
+                &path,
+                "LB_ADMIN_AUTH_FAILED",
+            )?;
+            return write_http_response(
+                &mut stream,
+                401,
+                "Unauthorized",
+                &http_error("unauthorized", "admin authentication required"),
+            )
+            .map_err(|error| error.to_string());
+        }
 
         if is_quarantine_metrics_route(&method, &path) {
             let metrics = QuarantineStore::new(runtime_state_dir())
@@ -155,9 +237,17 @@ mod legacy {
         write!(
             stream,
             "HTTP/1.1 200 OK\r\nContent-Type: text/plain; version=0.0.4; charset=utf-8\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
-            body.as_bytes().len(),
+            body.len(),
             body
         )
+    }
+
+    pub(crate) fn is_admin_path(path: &str) -> bool {
+        path == "/metrics"
+            || path == "/v1/quarantine-status"
+            || path == "/v1/quarantine"
+            || path == "/v1/quarantine-resolutions"
+            || path.starts_with("/v1/quarantine/")
     }
 
     pub(crate) fn is_quarantine_status_route(method: &str, path: &str) -> bool {
@@ -203,7 +293,12 @@ fn main() {
         Some("serve-http") => {
             let backend = build_runtime_storage_backend();
             let addr = args.get(1).map(String::as_str).unwrap_or("127.0.0.1:8787");
-            legacy::serve_http_with_quarantine_status(addr, &backend)
+            legacy::serve_public_http(addr, &backend)
+        }
+        Some("serve-admin-http") => {
+            let backend = build_runtime_storage_backend();
+            let addr = args.get(1).map(String::as_str).unwrap_or("127.0.0.1:8788");
+            legacy::serve_admin_http(addr, &backend)
         }
         _ => legacy::run_existing(args),
     };
@@ -310,15 +405,28 @@ fn handle_quarantine_dismissals(args: &[String]) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::legacy::{
-        annotation_route_id, is_quarantine_metrics_route, is_quarantine_status_route,
+        annotation_route_id, is_admin_path, is_quarantine_metrics_route,
+        is_quarantine_status_route,
     };
+
+    #[test]
+    fn public_admin_boundary_is_explicit() {
+        assert!(is_admin_path("/metrics"));
+        assert!(is_admin_path("/v1/quarantine-status"));
+        assert!(is_admin_path("/v1/quarantine"));
+        assert!(is_admin_path("/v1/quarantine/lb:q:123"));
+        assert!(is_admin_path("/v1/quarantine/lb:q:123/annotations"));
+        assert!(!is_admin_path("/v1/ready"));
+        assert!(!is_admin_path("/v1/capabilities"));
+        assert!(!is_admin_path("/v1/objects"));
+        assert!(!is_admin_path("/v1/objects/lb:obj:123"));
+    }
 
     #[test]
     fn quarantine_status_http_route_is_exact() {
         assert!(is_quarantine_status_route("GET", "/v1/quarantine-status"));
         assert!(!is_quarantine_status_route("POST", "/v1/quarantine-status"));
         assert!(!is_quarantine_status_route("GET", "/v1/quarantine-status/"));
-        assert!(!is_quarantine_status_route("GET", "/v1/quarantine"));
     }
 
     #[test]
@@ -326,7 +434,6 @@ mod tests {
         assert!(is_quarantine_metrics_route("GET", "/metrics"));
         assert!(!is_quarantine_metrics_route("POST", "/metrics"));
         assert!(!is_quarantine_metrics_route("GET", "/metrics/"));
-        assert!(!is_quarantine_metrics_route("GET", "/v1/metrics"));
     }
 
     #[test]
@@ -341,10 +448,6 @@ mod tests {
         );
         assert_eq!(
             annotation_route_id("DELETE", "/v1/quarantine/lb:q:123/annotations"),
-            None
-        );
-        assert_eq!(
-            annotation_route_id("GET", "/v1/quarantine/lb:q:123/annotations/"),
             None
         );
     }

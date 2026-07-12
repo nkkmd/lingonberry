@@ -19,64 +19,21 @@
 | Prometheus metrics | #15 | 完了 |
 | scheduler integration | #17 | 完了 |
 | operator annotations | #19 | 完了 |
-| append-only manual dismissal lifecycle | #22 | 実装・PR化 |
+| append-only manual dismissal lifecycle | #22 / #23 | 完了 |
+| admin authentication and network isolation | #24 | 実装・PR化 |
 
 ---
 
 ## QL-1: Append-only Manual Dismissal Lifecycle
 
-**状態: implemented**
+**状態: completed**
 
-### 固定した判断
-
-```text
-対象: pending recordのみ
-重複: 1 record 1 active dismissalとしてidempotent
-undo / reopen: 非スコープ
-理由: bounded reasonCode + operator note
-入口: Core + CLI
-HTTP mutation API: admin authと分離
-```
-
-### Persistent state
-
-```text
-quarantine-dismissals.jsonl
-```
-
-```json
-{
-  "id": "lb:qd:...",
-  "quarantineId": "lb:q:...",
-  "dismissedAt": "...Z",
-  "operator": "operator-name",
-  "reasonCode": "LB_OPERATOR_DISMISSED",
-  "note": "duplicate external submission"
-}
-```
-
-### 実装済み完了条件
-
-- append-only dismissal ledger
-- unknown quarantine IDを拒否
-- promoted recordのdismissalを拒否
-- duplicate requestをidempotentに処理
-- duplicate ledger eventをcorruptionとして明示
-- batch promotionがdismissed recordを除外
-- statusに`dismissed`と`latestDismissedAt`を追加
-- metricsにdismissed gaugeを追加
-- 元quarantine recordとannotationを変更しない
-- corruption / I/O errorを明示
-- operations文書を追加
-- `CURRENT_IMPLEMENTATION_STATUS.md`を更新
-
-### 非スコープ
-
-- physical deletion
-- undo / reopen
-- HTTP dismissal mutation endpoint
-- distributed locking
-- retention / compaction
+- pending recordのみdismiss可能
+- 1 record 1 active dismissalとしてidempotent
+- undo / reopenは非スコープ
+- bounded reasonCode + operator note
+- Core + CLI
+- HTTP mutation APIは非スコープ
 
 関連文書：`docs/operations/QUARANTINE_DISMISSALS.md`
 
@@ -84,36 +41,45 @@ quarantine-dismissals.jsonl
 
 ## QL-2: Admin Authentication and Network Isolation
 
-**優先度: highest**
+**状態: implemented**
 
-### 目的
+### 固定した判断
 
-quarantineの参照・promotion・annotation・将来のdismissal APIを、公開relayの一般surfaceから分離します。
+```text
+public listener: quarantine admin routeを404で遮断
+admin listener: 127.0.0.1:8788を既定
+認証: LINGONBERRY_ADMIN_TOKEN + Bearer token
+authorization: 初期版は単一admin role
+失敗監査: admin-auth-audit.jsonlへappend-only
+```
 
-### 検討項目
+### 実装済み完了条件
 
-- authentication方式
-- role / permission model
-- loopback-onlyまたは別listen address
-- reverse proxyでのpath isolation
-- audit log
-- rate limit
-- secret管理
-- failure responseの情報量
+- `serve-http`からquarantine管理routeを分離
+- `serve-admin-http`を追加
+- token未設定・空文字でadmin listener起動を拒否
+- missing / invalid tokenを同一401 responseとして処理
+- 認証失敗をbounded metadataだけでappend-only audit
+- bearer token、request body、annotation note、quarantine payloadをauditへ保存しない
+- loopback-only systemd templateを追加
+- 管理endpointの公開境界を文書化
 
-### 完了条件
+### 非スコープ
 
-- 管理endpointの公開境界が文書化される
-- 無認証の一般公開構成を推奨しない
-- 少なくともlocal-only運用templateがある
-- annotationやnoteを不必要に公開しない
-- 認証失敗をaudit可能にする
+- TLS termination
+- multi-role RBAC
+- distributed rate limiting
+- browser session / CSRF protection
+- remote-by-default binding
+- dismissal HTTP mutation endpoint
+
+関連文書：`docs/operations/QUARANTINE_ADMIN_HTTP.md`
 
 ---
 
 ## QL-3: Persistent Rejection Decisions
 
-**優先度: high**
+**優先度: highest**
 
 ### 目的
 
@@ -145,6 +111,7 @@ quarantine.jsonl
 quarantine-resolutions.jsonl
 quarantine-annotations.jsonl
 quarantine-dismissals.jsonl
+admin-auth-audit.jsonl
 将来のrejection ledger
 ```
 
@@ -161,10 +128,6 @@ quarantine-dismissals.jsonl
 ## QL-5: JSONL Index / Rotation / Compaction
 
 **優先度: medium-low**
-
-### 目的
-
-append-only監査証跡を維持しつつ、長期運用時の読み取りコストと容量増加を管理します。
 
 ### 検討順
 
@@ -193,6 +156,7 @@ append-only監査証跡を維持しつつ、長期運用時の読み取りコス
 - resolution ledgerへの同時append
 - annotation ledgerへの同時append
 - dismissal ledgerへの同時append
+- admin auth auditへの同時append
 - schedulerと手動操作の競合
 - promotionとdismissalの競合
 

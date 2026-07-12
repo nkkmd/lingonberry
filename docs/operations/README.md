@@ -4,7 +4,7 @@
 
 このディレクトリには、Lingonberry の技術決定と運用正本を置きます。
 
-作業再開時は、最初に [現在の実装状況](../roadmap/CURRENT_IMPLEMENTATION_STATUS.md) と [Quarantine Lifecycle Backlog](../roadmap/QUARANTINE_LIFECYCLE_BACKLOG.md) を確認してください。前者は最新の実装・runtime state・安全性ルール・再開コマンド、後者は次のissue候補と完了条件をまとめています。
+作業再開時は、最初に [現在の実装状況](../roadmap/CURRENT_IMPLEMENTATION_STATUS.md) と [Quarantine Lifecycle Backlog](../roadmap/QUARANTINE_LIFECYCLE_BACKLOG.md) を確認してください。
 
 ## 文書
 
@@ -34,9 +34,7 @@
 
 障害時の一次参照先は [Node Lifecycle Runbook](./NODE_LIFECYCLE_RUNBOOK.md) とします。
 
-quarantine 管理HTTP surfaceは [Quarantine Admin HTTP Isolation](./QUARANTINE_ADMIN_HTTP.md) に従い、公開relay listenerから分離したloopback-onlyの管理listenerで提供します。statusとmetricsのHTTP取得にもBearer認証が必要です。CLIは引き続きローカル運用の正本です。
-
-定期的なbatch revalidationは [Quarantine Scheduler](./QUARANTINE_SCHEDULER.md)、運用上の確認事項は [Quarantine Operator Annotations](./QUARANTINE_ANNOTATIONS.md)、pending recordのdismissalは [Quarantine Manual Dismissals](./QUARANTINE_DISMISSALS.md) を正本とします。
+quarantine管理HTTP surfaceは [Quarantine Admin HTTP Isolation](./QUARANTINE_ADMIN_HTTP.md) に従い、公開relay listenerから分離したloopback-onlyの管理listenerで提供します。
 
 - [Access and Retention Policy](./ACCESS_RETENTION_POLICY.md)
 - [Access and Retention Audit Checklist](./ACCESS_RETENTION_AUDIT_CHECKLIST.md)
@@ -46,6 +44,7 @@ quarantine 管理HTTP surfaceは [Quarantine Admin HTTP Isolation](./QUARANTINE_
 - [Quarantine Admin HTTP Isolation](./QUARANTINE_ADMIN_HTTP.md)
 - [Quarantine Operator Annotations](./QUARANTINE_ANNOTATIONS.md)
 - [Quarantine Manual Dismissals](./QUARANTINE_DISMISSALS.md)
+- [Quarantine Permanent Rejections](./QUARANTINE_PERMANENT_REJECTIONS.md)
 - [Quarantine Observability Metrics](./QUARANTINE_OBSERVABILITY_METRICS.md)
 - [Quarantine Scheduler](./QUARANTINE_SCHEDULER.md)
 - [Quarantine Status API](../roadmap/QUARANTINE_STATUS_API.md)

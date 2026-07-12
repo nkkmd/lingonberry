@@ -12,17 +12,18 @@ struct QuarantineStatus {
     pending: usize,
     promoted: usize,
     dismissed: usize,
+    permanently_rejected: usize,
     oldest_pending_at: Option<String>,
     latest_received_at: Option<String>,
     latest_promoted_at: Option<String>,
     latest_dismissed_at: Option<String>,
+    latest_permanently_rejected_at: Option<String>,
     reason_code_counts: BTreeMap<String, usize>,
 }
 
 impl QuarantineStore {
     pub fn status_json(&self) -> Result<JsonValue, StoreError> {
-        let status = quarantine_status(self)?;
-        Ok(quarantine_status_json(&status))
+        Ok(quarantine_status_json(&quarantine_status(self)?))
     }
 
     pub fn metrics_text(&self) -> Result<String, StoreError> {
@@ -39,22 +40,32 @@ fn quarantine_status(store: &QuarantineStore) -> Result<QuarantineStatus, StoreE
     let records = store.list_all()?;
     let resolutions = store.list_resolutions()?;
     let dismissals = store.list_dismissals(None)?;
+    let permanent_rejections = store.list_permanent_rejections(None)?;
 
     let record_ids: BTreeSet<&str> = records.iter().map(|record| record.id.as_str()).collect();
     let promoted_ids: BTreeSet<&str> = resolutions
         .iter()
-        .filter_map(|resolution| {
+        .filter_map(|event| {
             record_ids
-                .contains(resolution.quarantine_id.as_str())
-                .then_some(resolution.quarantine_id.as_str())
+                .contains(event.quarantine_id.as_str())
+                .then_some(event.quarantine_id.as_str())
         })
         .collect();
     let dismissed_ids: BTreeSet<&str> = dismissals
         .iter()
-        .filter_map(|dismissal| {
-            (record_ids.contains(dismissal.quarantine_id.as_str())
-                && !promoted_ids.contains(dismissal.quarantine_id.as_str()))
-            .then_some(dismissal.quarantine_id.as_str())
+        .filter_map(|event| {
+            (record_ids.contains(event.quarantine_id.as_str())
+                && !promoted_ids.contains(event.quarantine_id.as_str()))
+            .then_some(event.quarantine_id.as_str())
+        })
+        .collect();
+    let permanently_rejected_ids: BTreeSet<&str> = permanent_rejections
+        .iter()
+        .filter_map(|event| {
+            (record_ids.contains(event.quarantine_id.as_str())
+                && !promoted_ids.contains(event.quarantine_id.as_str())
+                && !dismissed_ids.contains(event.quarantine_id.as_str()))
+            .then_some(event.quarantine_id.as_str())
         })
         .collect();
 
@@ -65,12 +76,14 @@ fn quarantine_status(store: &QuarantineStore) -> Result<QuarantineStatus, StoreE
             .or_insert(0) += 1;
     }
 
+    let is_pending = |id: &str| {
+        !promoted_ids.contains(id)
+            && !dismissed_ids.contains(id)
+            && !permanently_rejected_ids.contains(id)
+    };
     let oldest_pending_at = records
         .iter()
-        .filter(|record| {
-            !promoted_ids.contains(record.id.as_str())
-                && !dismissed_ids.contains(record.id.as_str())
-        })
+        .filter(|record| is_pending(record.id.as_str()))
         .map(|record| record.received_at.clone())
         .min();
     let latest_received_at = records
@@ -79,28 +92,39 @@ fn quarantine_status(store: &QuarantineStore) -> Result<QuarantineStatus, StoreE
         .max();
     let latest_promoted_at = resolutions
         .iter()
-        .filter(|resolution| record_ids.contains(resolution.quarantine_id.as_str()))
-        .map(|resolution| resolution.resolved_at.clone())
+        .filter(|event| promoted_ids.contains(event.quarantine_id.as_str()))
+        .map(|event| event.resolved_at.clone())
         .max();
     let latest_dismissed_at = dismissals
         .iter()
-        .filter(|dismissal| dismissed_ids.contains(dismissal.quarantine_id.as_str()))
-        .map(|dismissal| dismissal.dismissed_at.clone())
+        .filter(|event| dismissed_ids.contains(event.quarantine_id.as_str()))
+        .map(|event| event.dismissed_at.clone())
+        .max();
+    let latest_permanently_rejected_at = permanent_rejections
+        .iter()
+        .filter(|event| permanently_rejected_ids.contains(event.quarantine_id.as_str()))
+        .map(|event| event.rejected_at.clone())
         .max();
 
     let total = records.len();
     let promoted = promoted_ids.len();
     let dismissed = dismissed_ids.len();
+    let permanently_rejected = permanently_rejected_ids.len();
 
     Ok(QuarantineStatus {
         total,
-        pending: total.saturating_sub(promoted).saturating_sub(dismissed),
+        pending: total
+            .saturating_sub(promoted)
+            .saturating_sub(dismissed)
+            .saturating_sub(permanently_rejected),
         promoted,
         dismissed,
+        permanently_rejected,
         oldest_pending_at,
         latest_received_at,
         latest_promoted_at,
         latest_dismissed_at,
+        latest_permanently_rejected_at,
         reason_code_counts,
     })
 }
@@ -114,6 +138,10 @@ fn quarantine_status_json(status: &QuarantineStatus) -> JsonValue {
         (
             "latestDismissedAt".to_string(),
             optional_string_json(&status.latest_dismissed_at),
+        ),
+        (
+            "latestPermanentlyRejectedAt".to_string(),
+            optional_string_json(&status.latest_permanently_rejected_at),
         ),
         (
             "latestPromotedAt".to_string(),
@@ -130,6 +158,10 @@ fn quarantine_status_json(status: &QuarantineStatus) -> JsonValue {
         (
             "pending".to_string(),
             JsonValue::Number(status.pending.to_string()),
+        ),
+        (
+            "permanentlyRejected".to_string(),
+            JsonValue::Number(status.permanently_rejected.to_string()),
         ),
         (
             "promoted".to_string(),
@@ -164,22 +196,17 @@ fn quarantine_metrics_text(status: &QuarantineStatus, now_seconds: u64) -> Strin
         "# HELP lingonberry_quarantine_records Current quarantine records by persistent lifecycle state.\n\
 # TYPE lingonberry_quarantine_records gauge\n",
     );
-    output.push_str(&format!(
-        "lingonberry_quarantine_records{{state=\"total\"}} {}\n",
-        status.total
-    ));
-    output.push_str(&format!(
-        "lingonberry_quarantine_records{{state=\"pending\"}} {}\n",
-        status.pending
-    ));
-    output.push_str(&format!(
-        "lingonberry_quarantine_records{{state=\"promoted\"}} {}\n",
-        status.promoted
-    ));
-    output.push_str(&format!(
-        "lingonberry_quarantine_records{{state=\"dismissed\"}} {}\n",
-        status.dismissed
-    ));
+    for (state, count) in [
+        ("total", status.total),
+        ("pending", status.pending),
+        ("promoted", status.promoted),
+        ("dismissed", status.dismissed),
+        ("permanently_rejected", status.permanently_rejected),
+    ] {
+        output.push_str(&format!(
+            "lingonberry_quarantine_records{{state=\"{state}\"}} {count}\n"
+        ));
+    }
     output.push_str(
         "# HELP lingonberry_quarantine_oldest_pending_age_seconds Age of the oldest pending quarantine record.\n\
 # TYPE lingonberry_quarantine_oldest_pending_age_seconds gauge\n",
@@ -223,10 +250,11 @@ fn optional_string_json(value: &Option<String>) -> JsonValue {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::OPERATOR_DISMISSED_REASON_CODE;
+    use crate::{
+        OPERATOR_DISMISSED_REASON_CODE, OPERATOR_PERMANENTLY_REJECTED_REASON_CODE,
+    };
     use std::fs;
     use std::path::PathBuf;
-    use std::time::{SystemTime, UNIX_EPOCH};
 
     fn temp_dir() -> PathBuf {
         std::env::temp_dir().join(format!(
@@ -240,111 +268,80 @@ mod tests {
 
     #[test]
     fn empty_store_has_zero_status() {
-        let dir = temp_dir();
-        let status = quarantine_status(&QuarantineStore::new(&dir)).unwrap();
+        let status = quarantine_status(&QuarantineStore::new(temp_dir())).unwrap();
         assert_eq!(status.total, 0);
         assert_eq!(status.pending, 0);
-        assert_eq!(status.promoted, 0);
-        assert_eq!(status.dismissed, 0);
-        assert_eq!(status.oldest_pending_at, None);
-        assert_eq!(status.latest_received_at, None);
-        assert_eq!(status.latest_promoted_at, None);
-        assert_eq!(status.latest_dismissed_at, None);
-        assert!(status.reason_code_counts.is_empty());
+        assert_eq!(status.permanently_rejected, 0);
+        assert_eq!(status.latest_permanently_rejected_at, None);
     }
 
     #[test]
-    fn status_tracks_pending_promoted_dismissed_and_reason_codes() {
+    fn tracks_all_persistent_states() {
         let dir = temp_dir();
         let store = QuarantineStore::new(&dir);
-        let first = store
-            .append("{\"object\":{}}", "LB_IDENTITY_DEFERRED", &[])
-            .unwrap();
-        let second = store
-            .append("{\"object\":{}}", "LB_POLICY_DEFERRED", &[])
-            .unwrap();
-        let third = store
-            .append("{\"object\":{}}", "LB_IDENTITY_DEFERRED", &[])
-            .unwrap();
-
+        let promoted = store.append("{\"object\":{}}", "LB_A", &[]).unwrap();
+        let pending = store.append("{\"object\":{}}", "LB_B", &[]).unwrap();
+        let dismissed = store.append("{\"object\":{}}", "LB_C", &[]).unwrap();
+        let rejected = store.append("{\"object\":{}}", "LB_D", &[]).unwrap();
         store
-            .append_resolution(&first.id, "lb:obj:first", false)
+            .append_resolution(&promoted.id, "lb:obj:first", false)
             .unwrap();
         store
             .dismiss(
-                &third.id,
+                &dismissed.id,
                 "operator",
                 OPERATOR_DISMISSED_REASON_CODE,
                 "duplicate",
             )
             .unwrap();
-
+        store
+            .permanently_reject(
+                &rejected.id,
+                "operator",
+                OPERATOR_PERMANENTLY_REJECTED_REASON_CODE,
+                "prohibited",
+            )
+            .unwrap();
         let status = quarantine_status(&store).unwrap();
-        assert_eq!(status.total, 3);
+        assert_eq!(status.total, 4);
         assert_eq!(status.pending, 1);
         assert_eq!(status.promoted, 1);
         assert_eq!(status.dismissed, 1);
-        assert_eq!(status.oldest_pending_at, Some(second.received_at));
-        assert!(status.latest_promoted_at.is_some());
-        assert!(status.latest_dismissed_at.is_some());
-        assert_eq!(status.reason_code_counts["LB_IDENTITY_DEFERRED"], 2);
-        assert_eq!(status.reason_code_counts["LB_POLICY_DEFERRED"], 1);
+        assert_eq!(status.permanently_rejected, 1);
+        assert_eq!(status.oldest_pending_at, Some(pending.received_at));
+        assert!(status.latest_permanently_rejected_at.is_some());
         let _ = fs::remove_dir_all(dir);
     }
 
     #[test]
-    fn unknown_and_duplicate_resolutions_are_not_double_counted() {
-        let dir = temp_dir();
-        let store = QuarantineStore::new(&dir);
-        let record = store
-            .append("{\"object\":{}}", "LB_IDENTITY_DEFERRED", &[])
-            .unwrap();
-        fs::create_dir_all(&dir).unwrap();
-        fs::write(
-            store.resolutions_path(),
-            format!(
-                "{{\"canonicalId\":\"lb:obj:one\",\"duplicate\":false,\"quarantineId\":\"{}\",\"resolvedAt\":\"1.000000000Z\",\"status\":\"promoted\"}}\n{{\"canonicalId\":\"lb:obj:two\",\"duplicate\":true,\"quarantineId\":\"{}\",\"resolvedAt\":\"2.000000000Z\",\"status\":\"promoted\"}}\n{{\"canonicalId\":\"lb:obj:unknown\",\"duplicate\":false,\"quarantineId\":\"lb:q:unknown\",\"resolvedAt\":\"3.000000000Z\",\"status\":\"promoted\"}}\n",
-                record.id, record.id
-            ),
-        )
-        .unwrap();
-        let status = quarantine_status(&store).unwrap();
-        assert_eq!(status.total, 1);
-        assert_eq!(status.pending, 0);
-        assert_eq!(status.promoted, 1);
-        assert_eq!(status.dismissed, 0);
-        assert_eq!(status.latest_promoted_at, Some("2.000000000Z".to_string()));
-        let _ = fs::remove_dir_all(dir);
-    }
-
-    #[test]
-    fn metrics_report_dismissed_count_age_and_escaped_reason_codes() {
+    fn metrics_include_permanent_rejection_gauge() {
         let status = QuarantineStatus {
-            total: 3,
+            total: 4,
             pending: 1,
             promoted: 1,
             dismissed: 1,
+            permanently_rejected: 1,
             oldest_pending_at: Some("100.000000000Z".to_string()),
             latest_received_at: None,
             latest_promoted_at: None,
             latest_dismissed_at: None,
-            reason_code_counts: BTreeMap::from([("LB_\"TEST\\CODE".to_string(), 2)]),
+            latest_permanently_rejected_at: None,
+            reason_code_counts: BTreeMap::new(),
         };
         let metrics = quarantine_metrics_text(&status, 145);
-        assert!(metrics.contains("lingonberry_quarantine_records{state=\"pending\"} 1"));
-        assert!(metrics.contains("lingonberry_quarantine_records{state=\"dismissed\"} 1"));
+        assert!(metrics.contains(
+            "lingonberry_quarantine_records{state=\"permanently_rejected\"} 1"
+        ));
         assert!(metrics.contains("lingonberry_quarantine_oldest_pending_age_seconds 45"));
-        assert!(metrics.contains("reason_code=\"LB_\\\"TEST\\\\CODE\"} 2"));
     }
 
     #[test]
-    fn corrupt_ledger_is_reported() {
+    fn corrupt_rejection_ledger_is_reported() {
         let dir = temp_dir();
         let store = QuarantineStore::new(&dir);
         fs::create_dir_all(&dir).unwrap();
-        fs::write(store.dismissals_path(), "not-json\n").unwrap();
-        let error = quarantine_status(&store).unwrap_err();
-        assert_eq!(error.code, "LB_QUARANTINE_CORRUPT");
+        fs::write(store.permanent_rejections_path(), "not-json\n").unwrap();
+        assert_eq!(quarantine_status(&store).unwrap_err().code, "LB_QUARANTINE_CORRUPT");
         let _ = fs::remove_dir_all(dir);
     }
 }

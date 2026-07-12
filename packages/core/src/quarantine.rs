@@ -73,12 +73,19 @@ impl QuarantineStore {
         let dismissed = self
             .list_dismissals(None)?
             .into_iter()
-            .map(|dismissal| dismissal.quarantine_id)
+            .map(|event| event.quarantine_id)
+            .collect::<BTreeSet<_>>();
+        let permanently_rejected = self
+            .list_permanent_rejections(None)?
+            .into_iter()
+            .map(|event| event.quarantine_id)
             .collect::<BTreeSet<_>>();
         Ok(self
             .list_all()?
             .into_iter()
-            .filter(|record| !dismissed.contains(&record.id))
+            .filter(|record| {
+                !dismissed.contains(&record.id) && !permanently_rejected.contains(&record.id)
+            })
             .collect())
     }
 
@@ -309,7 +316,9 @@ pub fn quarantine_resolution_json(resolution: &QuarantineResolution) -> JsonValu
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::OPERATOR_DISMISSED_REASON_CODE;
+    use crate::{
+        OPERATOR_DISMISSED_REASON_CODE, OPERATOR_PERMANENTLY_REJECTED_REASON_CODE,
+    };
 
     fn temp_dir() -> PathBuf {
         std::env::temp_dir().join(format!(
@@ -341,23 +350,35 @@ mod tests {
     }
 
     #[test]
-    fn dismissed_records_are_excluded_from_default_list_but_remain_addressable() {
+    fn terminal_records_are_excluded_but_remain_addressable() {
         let dir = temp_dir();
         let store = QuarantineStore::new(&dir);
-        let record = store
+        let dismissed = store
             .append("{\"object\":{}}", "LB_IDENTITY_DEFERRED", &[])
+            .unwrap();
+        let rejected = store
+            .append("{\"object\":{}}", "LB_POLICY_DEFERRED", &[])
             .unwrap();
         store
             .dismiss(
-                &record.id,
+                &dismissed.id,
                 "operator",
                 OPERATOR_DISMISSED_REASON_CODE,
                 "duplicate",
             )
             .unwrap();
+        store
+            .permanently_reject(
+                &rejected.id,
+                "operator",
+                OPERATOR_PERMANENTLY_REJECTED_REASON_CODE,
+                "prohibited",
+            )
+            .unwrap();
         assert!(store.list().unwrap().is_empty());
-        assert_eq!(store.list_all().unwrap().len(), 1);
-        assert!(store.get(&record.id).unwrap().is_some());
+        assert_eq!(store.list_all().unwrap().len(), 2);
+        assert!(store.get(&dismissed.id).unwrap().is_some());
+        assert!(store.get(&rejected.id).unwrap().is_some());
         let _ = fs::remove_dir_all(dir);
     }
 

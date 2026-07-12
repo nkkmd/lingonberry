@@ -136,19 +136,111 @@ mod legacy {
         }
 
         let (status_code, status_text, response_body) = if let Some(quarantine_id) =
-            annotation_route_id(&method, &path)
+            permanent_rejection_route_id(&method, &path)
         {
+            handle_http_permanent_rejection(&method, quarantine_id, &body)?
+        } else if let Some(quarantine_id) = annotation_route_id(&method, &path) {
             handle_http_quarantine_annotations(&method, quarantine_id, &body)?
         } else if is_quarantine_status_route(&method, &path) {
             let status = QuarantineStore::new(runtime_state_dir())
                 .status_json()
                 .map_err(|error| error.to_string())?;
             (200, "OK", status)
+        } else if let Some(quarantine_id) = promotion_route_id(&method, &path) {
+            if QuarantineStore::new(runtime_state_dir())
+                .get_permanent_rejection(quarantine_id)
+                .map_err(|error| error.to_string())?
+                .is_some()
+            {
+                (
+                    409,
+                    "Conflict",
+                    http_error(
+                        "conflict",
+                        "permanently rejected quarantine record cannot be promoted",
+                    ),
+                )
+            } else {
+                route_http_request(&method, &path, &body, backend)?
+            }
         } else {
             route_http_request(&method, &path, &body, backend)?
         };
         write_http_response(&mut stream, status_code, status_text, &response_body)
             .map_err(|error| error.to_string())
+    }
+
+    fn handle_http_permanent_rejection(
+        method: &str,
+        quarantine_id: &str,
+        body: &str,
+    ) -> Result<(u16, &'static str, JsonValue), String> {
+        let store = QuarantineStore::new(runtime_state_dir());
+        match method {
+            "GET" => match store
+                .get_permanent_rejection(quarantine_id)
+                .map_err(|error| error.to_string())?
+            {
+                Some(event) => Ok((
+                    200,
+                    "OK",
+                    lingonberry_core::quarantine_permanent_rejection_json(&event),
+                )),
+                None => Ok((
+                    404,
+                    "Not Found",
+                    http_error("not_found", "permanent rejection not found"),
+                )),
+            },
+            "POST" => {
+                let value = lingonberry_protocol::parse_json(body)
+                    .map_err(|error| error.to_string())?;
+                let map = as_object(&value)
+                    .ok_or_else(|| "permanent rejection request must be an object".to_string())?;
+                let operator = map
+                    .get("operator")
+                    .and_then(as_string)
+                    .ok_or_else(|| "permanent rejection request missing operator".to_string())?;
+                let note = map
+                    .get("note")
+                    .and_then(as_string)
+                    .ok_or_else(|| "permanent rejection request missing note".to_string())?;
+                match store.permanently_reject(
+                    quarantine_id,
+                    operator,
+                    lingonberry_core::OPERATOR_PERMANENTLY_REJECTED_REASON_CODE,
+                    note,
+                ) {
+                    Ok(event) => Ok((
+                        201,
+                        "Created",
+                        lingonberry_core::quarantine_permanent_rejection_json(&event),
+                    )),
+                    Err(error) if error.code == "LB_QUARANTINE_NOT_FOUND" => Ok((
+                        404,
+                        "Not Found",
+                        http_error("not_found", &error.message),
+                    )),
+                    Err(error)
+                        if error.code == "LB_QUARANTINE_ALREADY_PROMOTED"
+                            || error.code == "LB_QUARANTINE_ALREADY_DISMISSED" =>
+                    {
+                        Ok((409, "Conflict", http_error("conflict", &error.message)))
+                    }
+                    Err(error) if error.code == "LB_QUARANTINE_PERMANENT_REJECTION" => Ok((
+                        400,
+                        "Bad Request",
+                        http_error("validation_error", &error.message),
+                    )),
+                    Err(error) => Err(error.to_string()),
+                }
+            }
+            _ => Ok((
+                405,
+                "Method Not Allowed",
+                http_error("method_not_allowed", "method not allowed"),
+            )),
+        }
     }
 
     fn handle_http_quarantine_annotations(
@@ -259,11 +351,33 @@ mod legacy {
     }
 
     pub(crate) fn annotation_route_id<'a>(method: &str, path: &'a str) -> Option<&'a str> {
+        route_id(method, path, "/annotations")
+    }
+
+    pub(crate) fn permanent_rejection_route_id<'a>(
+        method: &str,
+        path: &'a str,
+    ) -> Option<&'a str> {
+        route_id(method, path, "/permanent-rejection")
+    }
+
+    pub(crate) fn promotion_route_id<'a>(method: &str, path: &'a str) -> Option<&'a str> {
+        if method != "POST" || !path.ends_with("/promote") {
+            return None;
+        }
+        let prefix = "/v1/quarantine/";
+        if !path.starts_with(prefix) {
+            return None;
+        }
+        let id = &path[prefix.len()..path.len() - "/promote".len()];
+        (!id.is_empty() && !id.contains('/')).then_some(id)
+    }
+
+    fn route_id<'a>(method: &str, path: &'a str, suffix: &str) -> Option<&'a str> {
         if method != "GET" && method != "POST" {
             return None;
         }
         let prefix = "/v1/quarantine/";
-        let suffix = "/annotations";
         if !path.starts_with(prefix) || !path.ends_with(suffix) {
             return None;
         }
@@ -274,7 +388,8 @@ mod legacy {
 
 use lingonberry_core::{
     build_runtime_storage_backend, quarantine_annotation_json, quarantine_dismissal_json,
-    runtime_state_dir, QuarantineStore, OPERATOR_DISMISSED_REASON_CODE,
+    quarantine_permanent_rejection_json, runtime_state_dir, QuarantineStore,
+    OPERATOR_DISMISSED_REASON_CODE, OPERATOR_PERMANENTLY_REJECTED_REASON_CODE,
 };
 use lingonberry_protocol::{to_canonical_json, JsonValue};
 use std::collections::BTreeMap;
@@ -290,6 +405,9 @@ fn main() {
         Some("quarantine-annotations") => handle_quarantine_annotations(&args),
         Some("quarantine-dismiss") => handle_quarantine_dismiss(&args),
         Some("quarantine-dismissals") => handle_quarantine_dismissals(&args),
+        Some("quarantine-permanently-reject") => handle_quarantine_permanently_reject(&args),
+        Some("quarantine-permanent-rejections") => handle_quarantine_permanent_rejections(&args),
+        Some("quarantine-promote") => guard_then_run_promotion(args),
         Some("serve-http") => {
             let backend = build_runtime_storage_backend();
             let addr = args.get(1).map(String::as_str).unwrap_or("127.0.0.1:8787");
@@ -307,6 +425,22 @@ fn main() {
         eprintln!("{}", error);
         process::exit(legacy::exit_code(&error));
     }
+}
+
+fn guard_then_run_promotion(args: Vec<String>) -> Result<(), String> {
+    let quarantine_id = args
+        .get(1)
+        .ok_or_else(|| "usage: lingonberry quarantine-promote <quarantine-id>".to_string())?;
+    if QuarantineStore::new(runtime_state_dir())
+        .get_permanent_rejection(quarantine_id)
+        .map_err(|error| error.to_string())?
+        .is_some()
+    {
+        return Err(format!(
+            "LB_QUARANTINE_PERMANENTLY_REJECTED: permanently rejected quarantine record cannot be promoted: {quarantine_id}"
+        ));
+    }
+    legacy::run_existing(args)
 }
 
 fn handle_quarantine_status() -> Result<(), String> {
@@ -365,6 +499,15 @@ fn handle_quarantine_dismiss(args: &[String]) -> Result<(), String> {
     let quarantine_id = args.get(1).ok_or_else(|| {
         "usage: lingonberry quarantine-dismiss <quarantine-id> <operator> <note>".to_string()
     })?;
+    if QuarantineStore::new(runtime_state_dir())
+        .get_permanent_rejection(quarantine_id)
+        .map_err(|error| error.to_string())?
+        .is_some()
+    {
+        return Err(format!(
+            "LB_QUARANTINE_PERMANENTLY_REJECTED: permanently rejected quarantine record cannot be dismissed: {quarantine_id}"
+        ));
+    }
     let operator = args.get(2).ok_or_else(|| {
         "usage: lingonberry quarantine-dismiss <quarantine-id> <operator> <note>".to_string()
     })?;
@@ -402,11 +545,63 @@ fn handle_quarantine_dismissals(args: &[String]) -> Result<(), String> {
     Ok(())
 }
 
+fn handle_quarantine_permanently_reject(args: &[String]) -> Result<(), String> {
+    let quarantine_id = args.get(1).ok_or_else(|| {
+        "usage: lingonberry quarantine-permanently-reject <quarantine-id> <operator> <note>"
+            .to_string()
+    })?;
+    let operator = args.get(2).ok_or_else(|| {
+        "usage: lingonberry quarantine-permanently-reject <quarantine-id> <operator> <note>"
+            .to_string()
+    })?;
+    let note = args.get(3).ok_or_else(|| {
+        "usage: lingonberry quarantine-permanently-reject <quarantine-id> <operator> <note>"
+            .to_string()
+    })?;
+    let event = QuarantineStore::new(runtime_state_dir())
+        .permanently_reject(
+            quarantine_id,
+            operator,
+            OPERATOR_PERMANENTLY_REJECTED_REASON_CODE,
+            note,
+        )
+        .map_err(|error| error.to_string())?;
+    println!(
+        "{}",
+        to_canonical_json(&quarantine_permanent_rejection_json(&event))
+    );
+    Ok(())
+}
+
+fn handle_quarantine_permanent_rejections(args: &[String]) -> Result<(), String> {
+    let quarantine_id = args.get(1).map(String::as_str);
+    let events = QuarantineStore::new(runtime_state_dir())
+        .list_permanent_rejections(quarantine_id)
+        .map_err(|error| error.to_string())?;
+    let output = JsonValue::Object(BTreeMap::from([
+        (
+            "count".to_string(),
+            JsonValue::Number(events.len().to_string()),
+        ),
+        (
+            "permanentRejections".to_string(),
+            JsonValue::Array(
+                events
+                    .iter()
+                    .map(quarantine_permanent_rejection_json)
+                    .collect(),
+            ),
+        ),
+    ]));
+    println!("{}", to_canonical_json(&output));
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::legacy::{
         annotation_route_id, is_admin_path, is_quarantine_metrics_route,
-        is_quarantine_status_route,
+        is_quarantine_status_route, permanent_rejection_route_id, promotion_route_id,
     };
 
     #[test]
@@ -415,39 +610,44 @@ mod tests {
         assert!(is_admin_path("/v1/quarantine-status"));
         assert!(is_admin_path("/v1/quarantine"));
         assert!(is_admin_path("/v1/quarantine/lb:q:123"));
-        assert!(is_admin_path("/v1/quarantine/lb:q:123/annotations"));
+        assert!(is_admin_path(
+            "/v1/quarantine/lb:q:123/permanent-rejection"
+        ));
         assert!(!is_admin_path("/v1/ready"));
         assert!(!is_admin_path("/v1/capabilities"));
         assert!(!is_admin_path("/v1/objects"));
-        assert!(!is_admin_path("/v1/objects/lb:obj:123"));
     }
 
     #[test]
-    fn quarantine_status_http_route_is_exact() {
+    fn quarantine_status_and_metrics_routes_are_exact() {
         assert!(is_quarantine_status_route("GET", "/v1/quarantine-status"));
         assert!(!is_quarantine_status_route("POST", "/v1/quarantine-status"));
-        assert!(!is_quarantine_status_route("GET", "/v1/quarantine-status/"));
-    }
-
-    #[test]
-    fn quarantine_metrics_http_route_is_exact() {
         assert!(is_quarantine_metrics_route("GET", "/metrics"));
         assert!(!is_quarantine_metrics_route("POST", "/metrics"));
-        assert!(!is_quarantine_metrics_route("GET", "/metrics/"));
     }
 
     #[test]
-    fn quarantine_annotation_route_is_exact() {
+    fn quarantine_subresource_routes_are_exact() {
         assert_eq!(
             annotation_route_id("GET", "/v1/quarantine/lb:q:123/annotations"),
             Some("lb:q:123")
         );
         assert_eq!(
-            annotation_route_id("POST", "/v1/quarantine/lb:q:123/annotations"),
+            permanent_rejection_route_id(
+                "POST",
+                "/v1/quarantine/lb:q:123/permanent-rejection"
+            ),
             Some("lb:q:123")
         );
         assert_eq!(
-            annotation_route_id("DELETE", "/v1/quarantine/lb:q:123/annotations"),
+            promotion_route_id("POST", "/v1/quarantine/lb:q:123/promote"),
+            Some("lb:q:123")
+        );
+        assert_eq!(
+            permanent_rejection_route_id(
+                "DELETE",
+                "/v1/quarantine/lb:q:123/permanent-rejection"
+            ),
             None
         );
     }

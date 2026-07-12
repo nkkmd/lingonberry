@@ -9,6 +9,10 @@ autobins = false
 name = "lingonberry-relay"
 path = "src/main_entry.rs"
 
+[[bin]]
+name = "lingonberry-quarantine-backup"
+path = "src/quarantine_backup_main.rs"
+
 [dependencies]
 lingonberry-core = { path = "../core" }
 lingonberry-indexer = { path = "../indexer" }

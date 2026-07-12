@@ -1,21 +1,29 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use lingonberry_protocol::{JsonValue};
+use lingonberry_protocol::JsonValue;
 
-use crate::{QuarantineStore, StoreError};
+use super::QuarantineStore;
+use crate::StoreError;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct QuarantineStatus {
-    pub total: usize,
-    pub pending: usize,
-    pub promoted: usize,
-    pub oldest_pending_at: Option<String>,
-    pub latest_received_at: Option<String>,
-    pub latest_promoted_at: Option<String>,
-    pub reason_code_counts: BTreeMap<String, usize>,
+struct QuarantineStatus {
+    total: usize,
+    pending: usize,
+    promoted: usize,
+    oldest_pending_at: Option<String>,
+    latest_received_at: Option<String>,
+    latest_promoted_at: Option<String>,
+    reason_code_counts: BTreeMap<String, usize>,
 }
 
-pub fn quarantine_status(store: &QuarantineStore) -> Result<QuarantineStatus, StoreError> {
+impl QuarantineStore {
+    pub fn status_json(&self) -> Result<JsonValue, StoreError> {
+        let status = quarantine_status(self)?;
+        Ok(quarantine_status_json(&status))
+    }
+}
+
+fn quarantine_status(store: &QuarantineStore) -> Result<QuarantineStatus, StoreError> {
     let records = store.list()?;
     let resolutions = store.list_resolutions()?;
 
@@ -41,12 +49,10 @@ pub fn quarantine_status(store: &QuarantineStore) -> Result<QuarantineStatus, St
         .filter(|record| !promoted_ids.contains(record.id.as_str()))
         .map(|record| record.received_at.clone())
         .min();
-
     let latest_received_at = records
         .iter()
         .map(|record| record.received_at.clone())
         .max();
-
     let latest_promoted_at = resolutions
         .iter()
         .filter(|resolution| record_ids.contains(resolution.quarantine_id.as_str()))
@@ -67,7 +73,7 @@ pub fn quarantine_status(store: &QuarantineStore) -> Result<QuarantineStatus, St
     })
 }
 
-pub fn quarantine_status_json(status: &QuarantineStatus) -> JsonValue {
+fn quarantine_status_json(status: &QuarantineStatus) -> JsonValue {
     JsonValue::Object(BTreeMap::from([
         (
             "latestPromotedAt".to_string(),
@@ -95,9 +101,7 @@ pub fn quarantine_status_json(status: &QuarantineStatus) -> JsonValue {
                 status
                     .reason_code_counts
                     .iter()
-                    .map(|(code, count)| {
-                        (code.clone(), JsonValue::Number(count.to_string()))
-                    })
+                    .map(|(code, count)| (code.clone(), JsonValue::Number(count.to_string())))
                     .collect(),
             ),
         ),

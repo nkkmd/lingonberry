@@ -3,6 +3,11 @@ name = "lingonberry-relay"
 version = "0.1.0"
 edition = "2021"
 license = "Apache-2.0"
+autobins = false
+
+[[bin]]
+name = "lingonberry-relay"
+path = "src/main_entry.rs"
 
 [dependencies]
 lingonberry-core = { path = "../core" }

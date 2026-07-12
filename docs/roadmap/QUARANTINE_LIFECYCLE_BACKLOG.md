@@ -20,7 +20,8 @@
 | scheduler integration | #17 | 完了 |
 | operator annotations | #19 | 完了 |
 | append-only manual dismissal lifecycle | #22 / #23 | 完了 |
-| admin authentication and network isolation | #24 | 実装・PR化 |
+| admin authentication and network isolation | #24 / #25 | 完了 |
+| append-only permanent rejection lifecycle | #26 | 実装・PR化 |
 
 ---
 
@@ -28,50 +29,13 @@
 
 **状態: completed**
 
-- pending recordのみdismiss可能
-- 1 record 1 active dismissalとしてidempotent
-- undo / reopenは非スコープ
-- bounded reasonCode + operator note
-- Core + CLI
-- HTTP mutation APIは非スコープ
-
 関連文書：`docs/operations/QUARANTINE_DISMISSALS.md`
 
 ---
 
 ## QL-2: Admin Authentication and Network Isolation
 
-**状態: implemented**
-
-### 固定した判断
-
-```text
-public listener: quarantine admin routeを404で遮断
-admin listener: 127.0.0.1:8788を既定
-認証: LINGONBERRY_ADMIN_TOKEN + Bearer token
-authorization: 初期版は単一admin role
-失敗監査: admin-auth-audit.jsonlへappend-only
-```
-
-### 実装済み完了条件
-
-- `serve-http`からquarantine管理routeを分離
-- `serve-admin-http`を追加
-- token未設定・空文字でadmin listener起動を拒否
-- missing / invalid tokenを同一401 responseとして処理
-- 認証失敗をbounded metadataだけでappend-only audit
-- bearer token、request body、annotation note、quarantine payloadをauditへ保存しない
-- loopback-only systemd templateを追加
-- 管理endpointの公開境界を文書化
-
-### 非スコープ
-
-- TLS termination
-- multi-role RBAC
-- distributed rate limiting
-- browser session / CSRF protection
-- remote-by-default binding
-- dismissal HTTP mutation endpoint
+**状態: completed**
 
 関連文書：`docs/operations/QUARANTINE_ADMIN_HTTP.md`
 
@@ -79,30 +43,64 @@ authorization: 初期版は単一admin role
 
 ## QL-3: Persistent Rejection Decisions
 
-**優先度: highest**
+**状態: implemented**
 
-### 目的
+### 固定した判断
 
-現在のtransientな`rejected`判定と、operatorまたはpolicyによる恒久的なlifecycle stateを分離します。
+```text
+persistent state: permanently-rejected
+対象: pending recordのみ
+入口: Core + CLI + authenticated admin HTTP
+作成主体: operatorのみ
+transient Rejectedからの自動永続化: しない
+重複: 1 record 1 active eventとしてidempotent
+undo / reopen: 非スコープ
+```
 
-### 検討項目
+### Persistent state
 
-- `permanently-rejected`を自動判定できるか
-- policy変更後の再評価を許すか
-- operator承認を必須にするか
-- dismissalとの違い
-- status / metrics上の分類
-- event取消の表現
+```text
+quarantine-rejections.jsonl
+```
 
-### 注意
+```json
+{
+  "id": "lb:qr:...",
+  "quarantineId": "lb:q:...",
+  "rejectedAt": "...Z",
+  "operator": "operator-name",
+  "reasonCode": "LB_OPERATOR_PERMANENTLY_REJECTED",
+  "note": "known prohibited content"
+}
+```
 
-現在の`rejected`をそのまま永続状態として数えてはいけません。
+### 実装済み完了条件
+
+- append-only permanent rejection ledger
+- unknown、promoted、dismissed recordを拒否
+- duplicate requestをidempotentに処理
+- duplicate ledger eventをcorruptionとして明示
+- default listとbatch promotionから除外
+- direct CLI / admin HTTP promotionを拒否
+- statusに`permanentlyRejected`と`latestPermanentlyRejectedAt`を追加
+- metricsに`permanently_rejected` gaugeを追加
+- transient batch `rejected`とは別概念として保持
+- 元quarantine recordとannotationを変更しない
+
+### 非スコープ
+
+- transient rejectionからの自動永続化
+- physical deletion
+- undo / reopen / appeal workflow
+- distributed locking
+
+関連文書：`docs/operations/QUARANTINE_PERMANENT_REJECTIONS.md`
 
 ---
 
 ## QL-4: Backup / Export / Restore
 
-**優先度: medium**
+**優先度: highest**
 
 ### 対象
 
@@ -111,8 +109,8 @@ quarantine.jsonl
 quarantine-resolutions.jsonl
 quarantine-annotations.jsonl
 quarantine-dismissals.jsonl
+quarantine-rejections.jsonl
 admin-auth-audit.jsonl
-将来のrejection ledger
 ```
 
 ### 完了条件
@@ -148,17 +146,15 @@ admin-auth-audit.jsonl
 
 ## QL-6: Concurrent Ledger Operations
 
-**優先度: medium**
+**優先度: high**
 
 ### 対象
 
 - 同一recordの同時promotion
-- resolution ledgerへの同時append
-- annotation ledgerへの同時append
-- dismissal ledgerへの同時append
+- resolution / annotation / dismissal / rejection ledgerへの同時append
 - admin auth auditへの同時append
 - schedulerと手動操作の競合
-- promotionとdismissalの競合
+- promotion / dismissal / permanent rejectionの競合
 
 ### 完了条件
 

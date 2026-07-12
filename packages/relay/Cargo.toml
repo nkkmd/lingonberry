@@ -10,6 +10,10 @@ name = "lingonberry-relay"
 path = "src/main_entry.rs"
 
 [[bin]]
+name = "lingonberry-admin-auth-config"
+path = "src/admin_auth_config_main.rs"
+
+[[bin]]
 name = "lingonberry-quarantine-backup"
 path = "src/quarantine_backup_main.rs"
 

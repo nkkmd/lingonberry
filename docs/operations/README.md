@@ -32,13 +32,14 @@
 
 障害時の一次参照先は [Node Lifecycle Runbook](./NODE_LIFECYCLE_RUNBOOK.md) とします。
 
-quarantine backlog の一次確認には、CLI の `quarantine-status` または HTTP の `GET /v1/quarantine-status` を使用します。Prometheus 形式の監視値は CLI の `quarantine-metrics` または HTTP の `GET /metrics` から取得します。定期的な batch revalidation は [Quarantine Scheduler](./QUARANTINE_SCHEDULER.md) を正本とします。
+quarantine backlog の一次確認には、CLI の `quarantine-status` または HTTP の `GET /v1/quarantine-status` を使用します。Prometheus 形式の監視値は CLI の `quarantine-metrics` または HTTP の `GET /metrics` から取得します。定期的な batch revalidation は [Quarantine Scheduler](./QUARANTINE_SCHEDULER.md) を正本とし、運用上の確認事項は [Quarantine Operator Annotations](./QUARANTINE_ANNOTATIONS.md) に従ってappend-onlyで記録します。
 
 - [Access and Retention Policy](./ACCESS_RETENTION_POLICY.md)
 - [Access and Retention Audit Checklist](./ACCESS_RETENTION_AUDIT_CHECKLIST.md)
 - [Caddy Relay Publication](./CADDY_RELAY_PUBLICATION.md)
 - [Secret Management](./SECRET_MANAGEMENT.md)
 - [Observability](./OBSERVABILITY.md)
+- [Quarantine Operator Annotations](./QUARANTINE_ANNOTATIONS.md)
 - [Quarantine Observability Metrics](./QUARANTINE_OBSERVABILITY_METRICS.md)
 - [Quarantine Scheduler](./QUARANTINE_SCHEDULER.md)
 - [Quarantine Status API](../roadmap/QUARANTINE_STATUS_API.md)

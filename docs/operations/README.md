@@ -4,7 +4,7 @@
 
 このディレクトリには、Lingonberry の技術決定と運用正本を置きます。
 
-作業再開時は、最初に [現在の実装状況](../roadmap/CURRENT_IMPLEMENTATION_STATUS.md) と [Quarantine Lifecycle Backlog](../roadmap/QUARANTINE_LIFECYCLE_BACKLOG.md) を確認してください。前者はPR #19までの実装・runtime state・安全性ルール・再開コマンド、後者は次のissue候補と完了条件をまとめています。
+作業再開時は、最初に [現在の実装状況](../roadmap/CURRENT_IMPLEMENTATION_STATUS.md) と [Quarantine Lifecycle Backlog](../roadmap/QUARANTINE_LIFECYCLE_BACKLOG.md) を確認してください。前者は最新の実装・runtime state・安全性ルール・再開コマンド、後者は次のissue候補と完了条件をまとめています。
 
 ## 文書
 
@@ -34,7 +34,7 @@
 
 障害時の一次参照先は [Node Lifecycle Runbook](./NODE_LIFECYCLE_RUNBOOK.md) とします。
 
-quarantine backlog の一次確認には、CLI の `quarantine-status` または HTTP の `GET /v1/quarantine-status` を使用します。Prometheus 形式の監視値は CLI の `quarantine-metrics` または HTTP の `GET /metrics` から取得します。定期的な batch revalidation は [Quarantine Scheduler](./QUARANTINE_SCHEDULER.md) を正本とし、運用上の確認事項は [Quarantine Operator Annotations](./QUARANTINE_ANNOTATIONS.md) に従ってappend-onlyで記録します。
+quarantine backlog の一次確認には、CLI の `quarantine-status` または HTTP の `GET /v1/quarantine-status` を使用します。Prometheus 形式の監視値は CLI の `quarantine-metrics` または HTTP の `GET /metrics` から取得します。定期的な batch revalidation は [Quarantine Scheduler](./QUARANTINE_SCHEDULER.md) を正本とし、運用上の確認事項は [Quarantine Operator Annotations](./QUARANTINE_ANNOTATIONS.md) に従って append-only で記録します。pending record を通常の promotion 対象から外す操作は [Quarantine Manual Dismissals](./QUARANTINE_DISMISSALS.md) に従います。
 
 - [Access and Retention Policy](./ACCESS_RETENTION_POLICY.md)
 - [Access and Retention Audit Checklist](./ACCESS_RETENTION_AUDIT_CHECKLIST.md)
@@ -42,6 +42,7 @@ quarantine backlog の一次確認には、CLI の `quarantine-status` または
 - [Secret Management](./SECRET_MANAGEMENT.md)
 - [Observability](./OBSERVABILITY.md)
 - [Quarantine Operator Annotations](./QUARANTINE_ANNOTATIONS.md)
+- [Quarantine Manual Dismissals](./QUARANTINE_DISMISSALS.md)
 - [Quarantine Observability Metrics](./QUARANTINE_OBSERVABILITY_METRICS.md)
 - [Quarantine Scheduler](./QUARANTINE_SCHEDULER.md)
 - [Quarantine Status API](../roadmap/QUARANTINE_STATUS_API.md)

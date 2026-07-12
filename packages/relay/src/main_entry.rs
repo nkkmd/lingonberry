@@ -183,7 +183,8 @@ mod legacy {
 }
 
 use lingonberry_core::{
-    build_runtime_storage_backend, quarantine_annotation_json, runtime_state_dir, QuarantineStore,
+    build_runtime_storage_backend, quarantine_annotation_json, quarantine_dismissal_json,
+    runtime_state_dir, QuarantineStore, OPERATOR_DISMISSED_REASON_CODE,
 };
 use lingonberry_protocol::{to_canonical_json, JsonValue};
 use std::collections::BTreeMap;
@@ -197,6 +198,8 @@ fn main() {
         Some("quarantine-metrics") => handle_quarantine_metrics(),
         Some("quarantine-annotate") => handle_quarantine_annotate(&args),
         Some("quarantine-annotations") => handle_quarantine_annotations(&args),
+        Some("quarantine-dismiss") => handle_quarantine_dismiss(&args),
+        Some("quarantine-dismissals") => handle_quarantine_dismissals(&args),
         Some("serve-http") => {
             let backend = build_runtime_storage_backend();
             let addr = args.get(1).map(String::as_str).unwrap_or("127.0.0.1:8787");
@@ -257,6 +260,47 @@ fn handle_quarantine_annotations(args: &[String]) -> Result<(), String> {
         (
             "annotations".to_string(),
             JsonValue::Array(annotations.iter().map(quarantine_annotation_json).collect()),
+        ),
+    ]));
+    println!("{}", to_canonical_json(&output));
+    Ok(())
+}
+
+fn handle_quarantine_dismiss(args: &[String]) -> Result<(), String> {
+    let quarantine_id = args.get(1).ok_or_else(|| {
+        "usage: lingonberry quarantine-dismiss <quarantine-id> <operator> <note>".to_string()
+    })?;
+    let operator = args.get(2).ok_or_else(|| {
+        "usage: lingonberry quarantine-dismiss <quarantine-id> <operator> <note>".to_string()
+    })?;
+    let note = args.get(3).ok_or_else(|| {
+        "usage: lingonberry quarantine-dismiss <quarantine-id> <operator> <note>".to_string()
+    })?;
+    let dismissal = QuarantineStore::new(runtime_state_dir())
+        .dismiss(
+            quarantine_id,
+            operator,
+            OPERATOR_DISMISSED_REASON_CODE,
+            note,
+        )
+        .map_err(|error| error.to_string())?;
+    println!("{}", to_canonical_json(&quarantine_dismissal_json(&dismissal)));
+    Ok(())
+}
+
+fn handle_quarantine_dismissals(args: &[String]) -> Result<(), String> {
+    let quarantine_id = args.get(1).map(String::as_str);
+    let dismissals = QuarantineStore::new(runtime_state_dir())
+        .list_dismissals(quarantine_id)
+        .map_err(|error| error.to_string())?;
+    let output = JsonValue::Object(BTreeMap::from([
+        (
+            "count".to_string(),
+            JsonValue::Number(dismissals.len().to_string()),
+        ),
+        (
+            "dismissals".to_string(),
+            JsonValue::Array(dismissals.iter().map(quarantine_dismissal_json).collect()),
         ),
     ]));
     println!("{}", to_canonical_json(&output));

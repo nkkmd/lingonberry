@@ -1,5 +1,5 @@
 use lingonberry_protocol::{parse_json, to_canonical_json, JsonValue};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs::{self, OpenOptions};
 use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
@@ -65,12 +65,28 @@ impl QuarantineStore {
         Ok(record)
     }
 
-    pub fn list(&self) -> Result<Vec<QuarantineRecord>, StoreError> {
+    pub fn list_all(&self) -> Result<Vec<QuarantineRecord>, StoreError> {
         read_json_lines(&self.path, parse_record)
     }
 
+    pub fn list(&self) -> Result<Vec<QuarantineRecord>, StoreError> {
+        let dismissed = self
+            .list_dismissals(None)?
+            .into_iter()
+            .map(|dismissal| dismissal.quarantine_id)
+            .collect::<BTreeSet<_>>();
+        Ok(self
+            .list_all()?
+            .into_iter()
+            .filter(|record| !dismissed.contains(&record.id))
+            .collect())
+    }
+
     pub fn get(&self, id: &str) -> Result<Option<QuarantineRecord>, StoreError> {
-        Ok(self.list()?.into_iter().find(|record| record.id == id))
+        Ok(self
+            .list_all()?
+            .into_iter()
+            .find(|record| record.id == id))
     }
 
     pub fn append_resolution(
@@ -293,6 +309,7 @@ pub fn quarantine_resolution_json(resolution: &QuarantineResolution) -> JsonValu
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::OPERATOR_DISMISSED_REASON_CODE;
 
     fn temp_dir() -> PathBuf {
         std::env::temp_dir().join(format!(
@@ -320,6 +337,27 @@ mod tests {
             store.get(&record.id).unwrap().unwrap().reason_code,
             "LB_IDENTITY_DEFERRED"
         );
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn dismissed_records_are_excluded_from_default_list_but_remain_addressable() {
+        let dir = temp_dir();
+        let store = QuarantineStore::new(&dir);
+        let record = store
+            .append("{\"object\":{}}", "LB_IDENTITY_DEFERRED", &[])
+            .unwrap();
+        store
+            .dismiss(
+                &record.id,
+                "operator",
+                OPERATOR_DISMISSED_REASON_CODE,
+                "duplicate",
+            )
+            .unwrap();
+        assert!(store.list().unwrap().is_empty());
+        assert_eq!(store.list_all().unwrap().len(), 1);
+        assert!(store.get(&record.id).unwrap().is_some());
         let _ = fs::remove_dir_all(dir);
     }
 

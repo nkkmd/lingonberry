@@ -31,24 +31,8 @@ jobs:
       - name: Cache Cargo artifacts
         uses: Swatinem/rust-cache@v2
 
-      - name: Generate formatting check
-        shell: bash
-        run: |
-          cargo fmt --all
-          git diff --name-only -- '*.rs' > rustfmt-files.txt
-          git diff -- '*.rs' > rustfmt.patch
-
-      - name: Upload rustfmt diagnostics
-        uses: actions/upload-artifact@v4
-        with:
-          name: rustfmt-diagnostics
-          path: |
-            rustfmt-files.txt
-            rustfmt.patch
-
-      - name: Enforce formatting
-        shell: bash
-        run: test ! -s rustfmt-files.txt
+      - name: Check formatting
+        run: cargo fmt --all -- --check
 
       - name: Run clippy
         run: cargo clippy --workspace --all-targets -- -D warnings

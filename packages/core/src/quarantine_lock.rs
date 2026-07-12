@@ -32,10 +32,7 @@ pub fn acquire_quarantine_lock(
     for attempt in 0..=1 {
         match OpenOptions::new().write(true).create_new(true).open(&path) {
             Ok(mut file) => {
-                let acquired_at = SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .map_err(|error| store_error("LB_QUARANTINE_IO", error.to_string()))?
-                    .as_secs();
+                let acquired_at = now_seconds()?;
                 writeln!(
                     file,
                     "operation={operation}\npid={}\nacquiredAt={acquired_at}",
@@ -99,6 +96,16 @@ fn sanitize_operation(operation: &str) -> Result<String, StoreError> {
 }
 
 fn lock_is_stale(path: &Path) -> Result<bool, StoreError> {
+    if let Ok(contents) = fs::read_to_string(path) {
+        if let Some(acquired_at) = contents
+            .lines()
+            .find_map(|line| line.strip_prefix("acquiredAt="))
+            .and_then(|value| value.parse::<u64>().ok())
+        {
+            return Ok(now_seconds()?.saturating_sub(acquired_at)
+                >= QUARANTINE_LOCK_STALE_AFTER.as_secs());
+        }
+    }
     let metadata = fs::metadata(path)
         .map_err(|error| store_error("LB_QUARANTINE_IO", error.to_string()))?;
     let modified = metadata
@@ -108,6 +115,13 @@ fn lock_is_stale(path: &Path) -> Result<bool, StoreError> {
         .duration_since(modified)
         .unwrap_or_default()
         >= QUARANTINE_LOCK_STALE_AFTER)
+}
+
+fn now_seconds() -> Result<u64, StoreError> {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_secs())
+        .map_err(|error| store_error("LB_QUARANTINE_IO", error.to_string()))
 }
 
 #[cfg(test)]
@@ -136,6 +150,22 @@ mod tests {
         );
         drop(first);
         acquire_quarantine_lock(&dir, "second-operation").unwrap();
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn recovers_stale_lock_once() {
+        let dir = temp_dir();
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(
+            dir.join(QUARANTINE_LOCK_FILE),
+            "operation=crashed\npid=1\nacquiredAt=0\n",
+        )
+        .unwrap();
+        let guard = acquire_quarantine_lock(&dir, "replacement").unwrap();
+        let metadata = fs::read_to_string(dir.join(QUARANTINE_LOCK_FILE)).unwrap();
+        assert!(metadata.contains("operation=replacement"));
+        drop(guard);
         let _ = fs::remove_dir_all(dir);
     }
 

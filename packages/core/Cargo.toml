@@ -7,7 +7,7 @@ license = "Apache-2.0"
 
 [lib]
 name = "lingonberry_core"
-path = "src/lib.rs"
+path = "src/lib_entry.rs"
 
 [dependencies]
 lingonberry-protocol = { path = "../protocol" }

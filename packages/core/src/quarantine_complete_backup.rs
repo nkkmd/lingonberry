@@ -15,7 +15,7 @@ use crate::{
 pub const QUARANTINE_COMPLETE_BACKUP_VERSION: &str = "lingonberry-quarantine-backup/v2";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct CompleteBackupEntry {
+struct BackupEntry {
     path: String,
     present: bool,
     bytes: u64,
@@ -23,11 +23,11 @@ struct CompleteBackupEntry {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct CompleteBackupManifest {
+struct BackupManifest {
     version: String,
     created_at: String,
     source_state_dir: String,
-    files: Vec<CompleteBackupEntry>,
+    files: Vec<BackupEntry>,
 }
 
 pub fn export_complete_quarantine_backup(
@@ -44,35 +44,31 @@ pub fn export_complete_quarantine_backup(
         .iter()
         .map(|name| name.to_string())
         .collect::<Vec<_>>();
-    let segment_manifest = state_dir.join(QUARANTINE_SEGMENT_MANIFEST_FILE);
-    if segment_manifest.exists() {
+    if state_dir.join(QUARANTINE_SEGMENT_MANIFEST_FILE).exists() {
         paths.push(QUARANTINE_SEGMENT_MANIFEST_FILE.to_string());
         let archive_dir = state_dir.join(QUARANTINE_SEGMENT_ARCHIVE_DIR);
         if archive_dir.exists() {
-            let mut archive_files = fs::read_dir(&archive_dir)
-                .map_err(|error| store_error("LB_QUARANTINE_IO", error.to_string()))?
+            let mut names = fs::read_dir(&archive_dir)
+                .map_err(io_error)?
                 .map(|entry| {
                     entry
-                        .map_err(|error| store_error("LB_QUARANTINE_IO", error.to_string()))
+                        .map_err(io_error)
                         .map(|entry| entry.file_name().to_string_lossy().to_string())
                 })
                 .collect::<Result<Vec<_>, StoreError>>()?;
-            archive_files.sort();
-            for name in archive_files {
-                if name.starts_with('.') {
-                    continue;
-                }
+            names.sort();
+            for name in names.into_iter().filter(|name| !name.starts_with('.')) {
                 paths.push(format!("{QUARANTINE_SEGMENT_ARCHIVE_DIR}/{name}"));
             }
         }
     }
 
-    let mut entries = Vec::new();
+    let mut files = Vec::new();
     for relative in paths {
         validate_relative_path(&relative)?;
         let source = state_dir.join(&relative);
         if !source.exists() {
-            entries.push(CompleteBackupEntry {
+            files.push(BackupEntry {
                 path: relative,
                 present: false,
                 bytes: 0,
@@ -86,28 +82,23 @@ pub fn export_complete_quarantine_backup(
                 format!("backup source is not a regular file: {}", source.display()),
             ));
         }
-        let before = fs::read(&source)
-            .map_err(|error| store_error("LB_QUARANTINE_IO", error.to_string()))?;
+        let before = fs::read(&source).map_err(io_error)?;
         let digest = integrity_digest(&before);
         let destination = backup_dir.join(&relative);
         if let Some(parent) = destination.parent() {
-            fs::create_dir_all(parent)
-                .map_err(|error| store_error("LB_QUARANTINE_IO", error.to_string()))?;
+            fs::create_dir_all(parent).map_err(io_error)?;
         }
-        let temporary = destination.with_extension("backup-tmp");
-        fs::write(&temporary, &before)
-            .map_err(|error| store_error("LB_QUARANTINE_IO", error.to_string()))?;
-        fs::rename(&temporary, &destination)
-            .map_err(|error| store_error("LB_QUARANTINE_IO", error.to_string()))?;
-        let after = fs::read(&source)
-            .map_err(|error| store_error("LB_QUARANTINE_IO", error.to_string()))?;
+        let temporary = temporary_path(&destination, "backup");
+        fs::write(&temporary, &before).map_err(io_error)?;
+        fs::rename(&temporary, &destination).map_err(io_error)?;
+        let after = fs::read(&source).map_err(io_error)?;
         if before.len() != after.len() || digest != integrity_digest(&after) {
             return Err(store_error(
                 "LB_QUARANTINE_BACKUP_CHANGED",
                 format!("source changed during backup: {relative}"),
             ));
         }
-        entries.push(CompleteBackupEntry {
+        files.push(BackupEntry {
             path: relative,
             present: true,
             bytes: before.len() as u64,
@@ -115,18 +106,16 @@ pub fn export_complete_quarantine_backup(
         });
     }
 
-    let manifest = CompleteBackupManifest {
+    let manifest = BackupManifest {
         version: QUARANTINE_COMPLETE_BACKUP_VERSION.to_string(),
         created_at: timestamp()?,
         source_state_dir: state_dir.to_string_lossy().to_string(),
-        files: entries,
+        files,
     };
     let manifest_path = backup_dir.join(QUARANTINE_BACKUP_MANIFEST);
     let temporary = backup_dir.join(format!(".{QUARANTINE_BACKUP_MANIFEST}.tmp"));
-    fs::write(&temporary, to_canonical_json(&manifest_json(&manifest)))
-        .map_err(|error| store_error("LB_QUARANTINE_IO", error.to_string()))?;
-    fs::rename(&temporary, &manifest_path)
-        .map_err(|error| store_error("LB_QUARANTINE_IO", error.to_string()))?;
+    fs::write(&temporary, to_canonical_json(&manifest_json(&manifest))).map_err(io_error)?;
+    fs::rename(&temporary, &manifest_path).map_err(io_error)?;
     verify_any_quarantine_backup(backup_dir)
 }
 
@@ -135,14 +124,13 @@ pub fn verify_any_quarantine_backup(
 ) -> Result<QuarantineBackupReport, StoreError> {
     let backup_dir = backup_dir.as_ref();
     let text = fs::read_to_string(backup_dir.join(QUARANTINE_BACKUP_MANIFEST))
-        .map_err(|error| store_error("LB_QUARANTINE_BACKUP_INVALID", error.to_string()))?;
-    let version = manifest_version(&text)?;
-    if version != QUARANTINE_COMPLETE_BACKUP_VERSION {
+        .map_err(|error| invalid(&error.to_string()))?;
+    if manifest_version(&text)? != QUARANTINE_COMPLETE_BACKUP_VERSION {
         return verify_quarantine_backup(backup_dir);
     }
     let manifest = parse_manifest(&text)?;
     validate_manifest(&manifest)?;
-    verify_backup_tree(backup_dir, &manifest)?;
+    verify_backup_files(backup_dir, &manifest)?;
     verify_quarantine_segments(backup_dir)?;
     Ok(report(backup_dir, &manifest))
 }
@@ -154,47 +142,42 @@ pub fn restore_any_quarantine_backup(
     let backup_dir = backup_dir.as_ref();
     let destination = destination.as_ref();
     let text = fs::read_to_string(backup_dir.join(QUARANTINE_BACKUP_MANIFEST))
-        .map_err(|error| store_error("LB_QUARANTINE_BACKUP_INVALID", error.to_string()))?;
-    let version = manifest_version(&text)?;
-    if version != QUARANTINE_COMPLETE_BACKUP_VERSION {
+        .map_err(|error| invalid(&error.to_string()))?;
+    if manifest_version(&text)? != QUARANTINE_COMPLETE_BACKUP_VERSION {
         return restore_quarantine_backup(backup_dir, destination);
     }
     let manifest = parse_manifest(&text)?;
     verify_any_quarantine_backup(backup_dir)?;
     let _lock = acquire_quarantine_lock(destination, "quarantine-backup-restore-v2")?;
     reject_destination_conflicts(destination)?;
-    fs::create_dir_all(destination)
-        .map_err(|error| store_error("LB_QUARANTINE_IO", error.to_string()))?;
 
-    let mut written = Vec::new();
+    let mut written = Vec::<PathBuf>::new();
     for entry in manifest.files.iter().filter(|entry| entry.present) {
         let source = backup_dir.join(&entry.path);
         let target = destination.join(&entry.path);
         if let Some(parent) = target.parent() {
-            fs::create_dir_all(parent)
-                .map_err(|error| store_error("LB_QUARANTINE_IO", error.to_string()))?;
+            fs::create_dir_all(parent).map_err(io_error)?;
         }
-        let temporary = target.with_extension("restore-tmp");
-        let bytes = fs::read(&source)
-            .map_err(|error| store_error("LB_QUARANTINE_IO", error.to_string()))?;
+        let temporary = temporary_path(&target, "restore");
+        let bytes = fs::read(&source).map_err(io_error)?;
         if let Err(error) = fs::write(&temporary, bytes)
             .and_then(|_| fs::rename(&temporary, &target))
         {
-            rollback_written(&written);
-            return Err(store_error("LB_QUARANTINE_IO", error.to_string()));
+            rollback_written(&written, destination);
+            return Err(io_error(error));
         }
         written.push(target);
     }
     if let Err(error) = verify_quarantine_segments(destination) {
-        rollback_written(&written);
+        rollback_written(&written, destination);
         return Err(error);
     }
     Ok(report(backup_dir, &manifest))
 }
 
-fn verify_backup_tree(
+fn verify_backup_files(
     backup_dir: &Path,
-    manifest: &CompleteBackupManifest,
+    manifest: &BackupManifest,
 ) -> Result<(), StoreError> {
     let listed = manifest
         .files
@@ -216,19 +199,17 @@ fn verify_backup_tree(
         }
         let bytes = fs::read(&path)
             .map_err(|error| invalid(&format!("failed to read {}: {error}", entry.path)))?;
+        let actual_digest = integrity_digest(&bytes);
         if bytes.len() as u64 != entry.bytes
-            || entry.digest.as_deref() != Some(integrity_digest(&bytes).as_str())
+            || entry.digest.as_deref() != Some(actual_digest.as_str())
         {
             return Err(invalid(&format!("backup metadata mismatch: {}", entry.path)));
         }
     }
     let archive_dir = backup_dir.join(QUARANTINE_SEGMENT_ARCHIVE_DIR);
     if archive_dir.exists() {
-        for item in fs::read_dir(&archive_dir)
-            .map_err(|error| store_error("LB_QUARANTINE_IO", error.to_string()))?
-        {
-            let item = item
-                .map_err(|error| store_error("LB_QUARANTINE_IO", error.to_string()))?;
+        for item in fs::read_dir(&archive_dir).map_err(io_error)? {
+            let item = item.map_err(io_error)?;
             let relative = format!(
                 "{QUARANTINE_SEGMENT_ARCHIVE_DIR}/{}",
                 item.file_name().to_string_lossy()
@@ -241,22 +222,22 @@ fn verify_backup_tree(
     Ok(())
 }
 
-fn validate_manifest(manifest: &CompleteBackupManifest) -> Result<(), StoreError> {
+fn validate_manifest(manifest: &BackupManifest) -> Result<(), StoreError> {
     if manifest.version != QUARANTINE_COMPLETE_BACKUP_VERSION {
         return Err(invalid("unsupported complete backup version"));
     }
-    let names = manifest
+    let paths = manifest
         .files
         .iter()
         .map(|entry| entry.path.as_str())
         .collect::<BTreeSet<_>>();
+    if paths.len() != manifest.files.len() {
+        return Err(invalid("duplicate backup path"));
+    }
     for required in QUARANTINE_BACKUP_FILES {
-        if !names.contains(required) {
+        if !paths.contains(required) {
             return Err(invalid(&format!("missing active ledger entry: {required}")));
         }
-    }
-    if names.len() != manifest.files.len() {
-        return Err(invalid("duplicate backup path"));
     }
     for entry in &manifest.files {
         validate_relative_path(&entry.path)?;
@@ -286,7 +267,6 @@ fn reject_destination_conflicts(destination: &Path) -> Result<(), StoreError> {
             destination.join(QUARANTINE_SEGMENT_MANIFEST_FILE),
             destination.join(QUARANTINE_SEGMENT_ARCHIVE_DIR),
             destination.join("quarantine-ledger-index.json"),
-            destination.join(".quarantine-operation.lock"),
         ]);
     for path in conflicts {
         if path.exists() {
@@ -299,20 +279,16 @@ fn reject_destination_conflicts(destination: &Path) -> Result<(), StoreError> {
     Ok(())
 }
 
-fn rollback_written(paths: &[PathBuf]) {
+fn rollback_written(paths: &[PathBuf], destination: &Path) {
     for path in paths.iter().rev() {
         let _ = fs::remove_file(path);
     }
+    let _ = fs::remove_dir(destination.join(QUARANTINE_SEGMENT_ARCHIVE_DIR));
 }
 
 fn prepare_empty_dir(path: &Path) -> Result<(), StoreError> {
-    fs::create_dir_all(path)
-        .map_err(|error| store_error("LB_QUARANTINE_IO", error.to_string()))?;
-    if fs::read_dir(path)
-        .map_err(|error| store_error("LB_QUARANTINE_IO", error.to_string()))?
-        .next()
-        .is_some()
-    {
+    fs::create_dir_all(path).map_err(io_error)?;
+    if fs::read_dir(path).map_err(io_error)?.next().is_some() {
         return Err(store_error(
             "LB_QUARANTINE_BACKUP_CONFLICT",
             "backup directory must be empty",
@@ -321,16 +297,28 @@ fn prepare_empty_dir(path: &Path) -> Result<(), StoreError> {
     Ok(())
 }
 
-fn validate_relative_path(path: &str) -> Result<(), StoreError> {
-    let parsed = Path::new(path);
-    if parsed.is_absolute()
-        || parsed.components().any(|component| {
-            matches!(component, Component::ParentDir | Component::RootDir | Component::Prefix(_))
+fn validate_relative_path(value: &str) -> Result<(), StoreError> {
+    let path = Path::new(value);
+    if value.is_empty()
+        || path.is_absolute()
+        || path.components().any(|component| {
+            matches!(
+                component,
+                Component::ParentDir | Component::RootDir | Component::Prefix(_)
+            )
         })
     {
-        return Err(invalid(&format!("invalid backup path: {path}")));
+        return Err(invalid(&format!("invalid backup path: {value}")));
     }
     Ok(())
+}
+
+fn temporary_path(target: &Path, operation: &str) -> PathBuf {
+    let name = target
+        .file_name()
+        .map(|name| name.to_string_lossy())
+        .unwrap_or_default();
+    target.with_file_name(format!(".{name}.{operation}-tmp"))
 }
 
 fn manifest_version(text: &str) -> Result<String, StoreError> {
@@ -338,7 +326,7 @@ fn manifest_version(text: &str) -> Result<String, StoreError> {
     string(&map, "version")
 }
 
-fn manifest_json(manifest: &CompleteBackupManifest) -> JsonValue {
+fn manifest_json(manifest: &BackupManifest) -> JsonValue {
     JsonValue::Object(BTreeMap::from([
         (
             "createdAt".to_string(),
@@ -379,14 +367,14 @@ fn manifest_json(manifest: &CompleteBackupManifest) -> JsonValue {
     ]))
 }
 
-fn parse_manifest(text: &str) -> Result<CompleteBackupManifest, StoreError> {
+fn parse_manifest(text: &str) -> Result<BackupManifest, StoreError> {
     let map = object(parse_json(text).map_err(|error| invalid(&error.to_string()))?)?;
     let files = match map.get("files") {
         Some(JsonValue::Array(values)) => values
             .iter()
             .map(|value| {
                 let map = object(value.clone())?;
-                Ok(CompleteBackupEntry {
+                Ok(BackupEntry {
                     path: string(&map, "path")?,
                     present: boolean(&map, "present")?,
                     bytes: number(&map, "bytes")?,
@@ -396,7 +384,7 @@ fn parse_manifest(text: &str) -> Result<CompleteBackupManifest, StoreError> {
             .collect::<Result<Vec<_>, StoreError>>()?,
         _ => return Err(invalid("backup manifest missing files")),
     };
-    Ok(CompleteBackupManifest {
+    Ok(BackupManifest {
         version: string(&map, "version")?,
         created_at: string(&map, "createdAt")?,
         source_state_dir: string(&map, "sourceStateDir")?,
@@ -404,7 +392,7 @@ fn parse_manifest(text: &str) -> Result<CompleteBackupManifest, StoreError> {
     })
 }
 
-fn report(backup_dir: &Path, manifest: &CompleteBackupManifest) -> QuarantineBackupReport {
+fn report(backup_dir: &Path, manifest: &BackupManifest) -> QuarantineBackupReport {
     QuarantineBackupReport {
         backup_dir: backup_dir.to_path_buf(),
         manifest_path: backup_dir.join(QUARANTINE_BACKUP_MANIFEST),
@@ -468,6 +456,10 @@ fn timestamp() -> Result<String, StoreError> {
         .duration_since(UNIX_EPOCH)
         .map_err(|error| store_error("LB_QUARANTINE_IO", error.to_string()))?;
     Ok(format!("{}.{:09}Z", now.as_secs(), now.subsec_nanos()))
+}
+
+fn io_error(error: std::io::Error) -> StoreError {
+    store_error("LB_QUARANTINE_IO", error.to_string())
 }
 
 fn invalid(message: &str) -> StoreError {

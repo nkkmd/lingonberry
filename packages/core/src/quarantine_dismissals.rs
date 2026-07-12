@@ -6,13 +6,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use lingonberry_protocol::{parse_json, to_canonical_json, JsonValue};
 
-use super::{
-    preview_quarantine_record, promote_quarantine_record, QuarantineBatchReport,
-    QuarantinePromotionOutcome, QuarantineStore, StorageBackend,
-};
-use crate::{
-    acquire_quarantine_lock, read_managed_ledger_lines, store_error, StoreError,
-};
+use super::QuarantineStore;
+use crate::{acquire_quarantine_lock, read_managed_ledger_lines, store_error, StoreError};
 
 pub const OPERATOR_DISMISSED_REASON_CODE: &str = "LB_OPERATOR_DISMISSED";
 
@@ -54,7 +49,9 @@ impl QuarantineStore {
         if self.get_permanent_rejection(quarantine_id)?.is_some() {
             return Err(store_error(
                 "LB_QUARANTINE_PERMANENTLY_REJECTED",
-                format!("permanently rejected quarantine record cannot be dismissed: {quarantine_id}"),
+                format!(
+                    "permanently rejected quarantine record cannot be dismissed: {quarantine_id}"
+                ),
             ));
         }
         if let Some(existing) = self.get_dismissal(quarantine_id)? {
@@ -65,7 +62,10 @@ impl QuarantineStore {
         let reason_code = reason_code.trim();
         let note = note.trim();
         if operator.is_empty() {
-            return Err(store_error("LB_QUARANTINE_DISMISSAL", "operator must not be empty"));
+            return Err(store_error(
+                "LB_QUARANTINE_DISMISSAL",
+                "operator must not be empty",
+            ));
         }
         if reason_code != OPERATOR_DISMISSED_REASON_CODE {
             return Err(store_error(
@@ -74,7 +74,10 @@ impl QuarantineStore {
             ));
         }
         if note.is_empty() {
-            return Err(store_error("LB_QUARANTINE_DISMISSAL", "note must not be empty"));
+            return Err(store_error(
+                "LB_QUARANTINE_DISMISSAL",
+                "note must not be empty",
+            ));
         }
 
         let now = SystemTime::now()
@@ -130,60 +133,6 @@ impl QuarantineStore {
     }
 }
 
-pub fn promote_quarantine_batch_excluding_dismissed(
-    limit: usize,
-    dry_run: bool,
-    backend: &impl StorageBackend,
-) -> Result<QuarantineBatchReport, StoreError> {
-    if limit == 0 {
-        return Err(store_error("LB_QUARANTINE_BATCH", "limit must be greater than zero"));
-    }
-    let store = QuarantineStore::new(crate::runtime_state_dir());
-    let resolved = store
-        .list_resolutions()?
-        .into_iter()
-        .map(|resolution| resolution.quarantine_id)
-        .collect::<BTreeSet<_>>();
-    let dismissed = store
-        .list_dismissals(None)?
-        .into_iter()
-        .map(|dismissal| dismissal.quarantine_id)
-        .collect::<BTreeSet<_>>();
-    let ids = store
-        .list()?
-        .into_iter()
-        .filter(|record| !resolved.contains(&record.id) && !dismissed.contains(&record.id))
-        .map(|record| record.id)
-        .take(limit)
-        .collect::<Vec<_>>();
-
-    let mut report = QuarantineBatchReport {
-        dry_run,
-        limit,
-        scanned: ids.len(),
-        promoted: 0,
-        already_promoted: 0,
-        deferred: 0,
-        rejected: 0,
-        outcomes: Vec::new(),
-    };
-    for id in ids {
-        let outcome = if dry_run {
-            preview_quarantine_record(&id)?
-        } else {
-            promote_quarantine_record(&id, backend)?
-        };
-        match &outcome {
-            QuarantinePromotionOutcome::Promoted { .. } => report.promoted += 1,
-            QuarantinePromotionOutcome::AlreadyPromoted { .. } => report.already_promoted += 1,
-            QuarantinePromotionOutcome::StillDeferred { .. } => report.deferred += 1,
-            QuarantinePromotionOutcome::Rejected { .. } => report.rejected += 1,
-        }
-        report.outcomes.push(outcome);
-    }
-    Ok(report)
-}
-
 pub fn quarantine_dismissal_json(dismissal: &QuarantineDismissal) -> JsonValue {
     JsonValue::Object(BTreeMap::from([
         ("id".to_string(), JsonValue::String(dismissal.id.clone())),
@@ -195,12 +144,18 @@ pub fn quarantine_dismissal_json(dismissal: &QuarantineDismissal) -> JsonValue {
             "dismissedAt".to_string(),
             JsonValue::String(dismissal.dismissed_at.clone()),
         ),
-        ("operator".to_string(), JsonValue::String(dismissal.operator.clone())),
+        (
+            "operator".to_string(),
+            JsonValue::String(dismissal.operator.clone()),
+        ),
         (
             "reasonCode".to_string(),
             JsonValue::String(dismissal.reason_code.clone()),
         ),
-        ("note".to_string(), JsonValue::String(dismissal.note.clone())),
+        (
+            "note".to_string(),
+            JsonValue::String(dismissal.note.clone()),
+        ),
     ]))
 }
 
@@ -230,7 +185,12 @@ fn parse_dismissal(line: &str) -> Result<QuarantineDismissal, StoreError> {
         .map_err(|error| store_error("LB_QUARANTINE_CORRUPT", error.to_string()))?
     {
         JsonValue::Object(map) => map,
-        _ => return Err(store_error("LB_QUARANTINE_CORRUPT", "dismissal is not an object")),
+        _ => {
+            return Err(store_error(
+                "LB_QUARANTINE_CORRUPT",
+                "dismissal is not an object",
+            ))
+        }
     };
     Ok(QuarantineDismissal {
         id: required_string(&map, "id")?,
@@ -242,10 +202,7 @@ fn parse_dismissal(line: &str) -> Result<QuarantineDismissal, StoreError> {
     })
 }
 
-fn required_string(
-    map: &BTreeMap<String, JsonValue>,
-    name: &str,
-) -> Result<String, StoreError> {
+fn required_string(map: &BTreeMap<String, JsonValue>, name: &str) -> Result<String, StoreError> {
     match map.get(name) {
         Some(JsonValue::String(value)) => Ok(value.clone()),
         _ => Err(store_error(

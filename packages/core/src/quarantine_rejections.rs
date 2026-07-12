@@ -7,9 +7,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use lingonberry_protocol::{parse_json, to_canonical_json, JsonValue};
 
 use super::QuarantineStore;
-use crate::{
-    acquire_quarantine_lock, read_managed_ledger_lines, store_error, StoreError,
-};
+use crate::{acquire_quarantine_lock, read_managed_ledger_lines, store_error, StoreError};
 
 pub const OPERATOR_PERMANENTLY_REJECTED_REASON_CODE: &str = "LB_OPERATOR_PERMANENTLY_REJECTED";
 
@@ -45,13 +43,17 @@ impl QuarantineStore {
         if self.get_resolution(quarantine_id)?.is_some() {
             return Err(store_error(
                 "LB_QUARANTINE_ALREADY_PROMOTED",
-                format!("promoted quarantine record cannot be permanently rejected: {quarantine_id}"),
+                format!(
+                    "promoted quarantine record cannot be permanently rejected: {quarantine_id}"
+                ),
             ));
         }
         if self.get_dismissal(quarantine_id)?.is_some() {
             return Err(store_error(
                 "LB_QUARANTINE_ALREADY_DISMISSED",
-                format!("dismissed quarantine record cannot be permanently rejected: {quarantine_id}"),
+                format!(
+                    "dismissed quarantine record cannot be permanently rejected: {quarantine_id}"
+                ),
             ));
         }
         if let Some(existing) = self.get_permanent_rejection(quarantine_id)? {
@@ -144,7 +146,10 @@ pub fn quarantine_permanent_rejection_json(event: &QuarantinePermanentRejection)
             "rejectedAt".to_string(),
             JsonValue::String(event.rejected_at.clone()),
         ),
-        ("operator".to_string(), JsonValue::String(event.operator.clone())),
+        (
+            "operator".to_string(),
+            JsonValue::String(event.operator.clone()),
+        ),
         (
             "reasonCode".to_string(),
             JsonValue::String(event.reason_code.clone()),
@@ -196,10 +201,7 @@ fn parse_event(line: &str) -> Result<QuarantinePermanentRejection, StoreError> {
     })
 }
 
-fn required_string(
-    map: &BTreeMap<String, JsonValue>,
-    name: &str,
-) -> Result<String, StoreError> {
+fn required_string(map: &BTreeMap<String, JsonValue>, name: &str) -> Result<String, StoreError> {
     match map.get(name) {
         Some(JsonValue::String(value)) => Ok(value.clone()),
         _ => Err(store_error(

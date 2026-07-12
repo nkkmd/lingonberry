@@ -250,9 +250,7 @@ fn optional_string_json(value: &Option<String>) -> JsonValue {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        OPERATOR_DISMISSED_REASON_CODE, OPERATOR_PERMANENTLY_REJECTED_REASON_CODE,
-    };
+    use crate::{OPERATOR_DISMISSED_REASON_CODE, OPERATOR_PERMANENTLY_REJECTED_REASON_CODE};
     use std::fs;
     use std::path::PathBuf;
 
@@ -329,9 +327,9 @@ mod tests {
             reason_code_counts: BTreeMap::new(),
         };
         let metrics = quarantine_metrics_text(&status, 145);
-        assert!(metrics.contains(
-            "lingonberry_quarantine_records{state=\"permanently_rejected\"} 1"
-        ));
+        assert!(
+            metrics.contains("lingonberry_quarantine_records{state=\"permanently_rejected\"} 1")
+        );
         assert!(metrics.contains("lingonberry_quarantine_oldest_pending_age_seconds 45"));
     }
 
@@ -341,7 +339,10 @@ mod tests {
         let store = QuarantineStore::new(&dir);
         fs::create_dir_all(&dir).unwrap();
         fs::write(store.permanent_rejections_path(), "not-json\n").unwrap();
-        assert_eq!(quarantine_status(&store).unwrap_err().code, "LB_QUARANTINE_CORRUPT");
+        assert_eq!(
+            quarantine_status(&store).unwrap_err().code,
+            "LB_QUARANTINE_CORRUPT"
+        );
         let _ = fs::remove_dir_all(dir);
     }
 }

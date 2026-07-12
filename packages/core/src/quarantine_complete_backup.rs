@@ -6,10 +6,9 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use lingonberry_protocol::{parse_json, to_canonical_json, JsonValue};
 
 use crate::{
-    acquire_quarantine_lock, restore_quarantine_backup, store_error,
-    verify_quarantine_backup, verify_quarantine_segments, QuarantineBackupReport, StoreError,
-    QUARANTINE_BACKUP_FILES, QUARANTINE_BACKUP_MANIFEST,
-    QUARANTINE_SEGMENT_ARCHIVE_DIR, QUARANTINE_SEGMENT_MANIFEST_FILE,
+    acquire_quarantine_lock, restore_quarantine_backup, store_error, verify_quarantine_backup,
+    verify_quarantine_segments, QuarantineBackupReport, StoreError, QUARANTINE_BACKUP_FILES,
+    QUARANTINE_BACKUP_MANIFEST, QUARANTINE_SEGMENT_ARCHIVE_DIR, QUARANTINE_SEGMENT_MANIFEST_FILE,
 };
 
 pub const QUARANTINE_COMPLETE_BACKUP_VERSION: &str = "lingonberry-quarantine-backup/v2";
@@ -160,8 +159,8 @@ pub fn restore_any_quarantine_backup(
         }
         let temporary = temporary_path(&target, "restore");
         let bytes = fs::read(&source).map_err(io_error)?;
-        if let Err(error) = fs::write(&temporary, bytes)
-            .and_then(|_| fs::rename(&temporary, &target))
+        if let Err(error) =
+            fs::write(&temporary, bytes).and_then(|_| fs::rename(&temporary, &target))
         {
             rollback_written(&written, destination);
             return Err(io_error(error));
@@ -175,10 +174,7 @@ pub fn restore_any_quarantine_backup(
     Ok(report(backup_dir, &manifest))
 }
 
-fn verify_backup_files(
-    backup_dir: &Path,
-    manifest: &BackupManifest,
-) -> Result<(), StoreError> {
+fn verify_backup_files(backup_dir: &Path, manifest: &BackupManifest) -> Result<(), StoreError> {
     let listed = manifest
         .files
         .iter()
@@ -203,7 +199,10 @@ fn verify_backup_files(
         if bytes.len() as u64 != entry.bytes
             || entry.digest.as_deref() != Some(actual_digest.as_str())
         {
-            return Err(invalid(&format!("backup metadata mismatch: {}", entry.path)));
+            return Err(invalid(&format!(
+                "backup metadata mismatch: {}",
+                entry.path
+            )));
         }
     }
     let archive_dir = backup_dir.join(QUARANTINE_SEGMENT_ARCHIVE_DIR);
@@ -340,7 +339,10 @@ fn manifest_json(manifest: &BackupManifest) -> JsonValue {
                     .iter()
                     .map(|entry| {
                         JsonValue::Object(BTreeMap::from([
-                            ("bytes".to_string(), JsonValue::Number(entry.bytes.to_string())),
+                            (
+                                "bytes".to_string(),
+                                JsonValue::Number(entry.bytes.to_string()),
+                            ),
                             (
                                 "digest".to_string(),
                                 entry

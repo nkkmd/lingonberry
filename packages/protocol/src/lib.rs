@@ -1218,7 +1218,7 @@ fn as_string(value: &JsonValue) -> Option<&str> {
 }
 
 fn decode_lower_hex(value: &str) -> Option<Vec<u8>> {
-    if !is_lower_hex(value) || value.len() % 2 != 0 {
+    if !is_lower_hex(value) || !value.len().is_multiple_of(2) {
         return None;
     }
     let mut bytes = Vec::with_capacity(value.len() / 2);
@@ -1297,10 +1297,10 @@ fn is_date(value: &str) -> bool {
         && day.chars().all(|ch| ch.is_ascii_digit())
         && month
             .parse::<u32>()
-            .map_or(false, |value| (1..=12).contains(&value))
+            .is_ok_and(|value| (1..=12).contains(&value))
         && day
             .parse::<u32>()
-            .map_or(false, |value| (1..=31).contains(&value))
+            .is_ok_and(|value| (1..=31).contains(&value))
 }
 
 fn parse_time_with_zone(value: &str) -> bool {
@@ -1339,9 +1339,9 @@ fn is_time(value: &str) -> bool {
         && hour.chars().all(|ch| ch.is_ascii_digit())
         && minute.chars().all(|ch| ch.is_ascii_digit())
         && second.chars().all(|ch| ch.is_ascii_digit())
-        && hour.parse::<u32>().map_or(false, |value| value <= 23)
-        && minute.parse::<u32>().map_or(false, |value| value <= 59)
-        && second.parse::<u32>().map_or(false, |value| value <= 60)
+        && hour.parse::<u32>().is_ok_and(|value| value <= 23)
+        && minute.parse::<u32>().is_ok_and(|value| value <= 59)
+        && second.parse::<u32>().is_ok_and(|value| value <= 60)
 }
 
 fn is_offset(value: &str) -> bool {
@@ -1353,8 +1353,8 @@ fn is_offset(value: &str) -> bool {
         && minute.len() == 2
         && hour.chars().all(|ch| ch.is_ascii_digit())
         && minute.chars().all(|ch| ch.is_ascii_digit())
-        && hour.parse::<u32>().map_or(false, |value| value <= 23)
-        && minute.parse::<u32>().map_or(false, |value| value <= 59)
+        && hour.parse::<u32>().is_ok_and(|value| value <= 23)
+        && minute.parse::<u32>().is_ok_and(|value| value <= 59)
 }
 
 fn write_json(value: &JsonValue, out: &mut String) {

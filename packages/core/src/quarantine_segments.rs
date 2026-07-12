@@ -10,8 +10,7 @@ use crate::{
     QUARANTINE_BACKUP_FILES,
 };
 
-pub const QUARANTINE_SEGMENT_MANIFEST_VERSION: &str =
-    "lingonberry-quarantine-segments/v1";
+pub const QUARANTINE_SEGMENT_MANIFEST_VERSION: &str = "lingonberry-quarantine-segments/v1";
 pub const QUARANTINE_SEGMENT_MANIFEST_FILE: &str = "quarantine-segments.json";
 pub const QUARANTINE_SEGMENT_ARCHIVE_DIR: &str = "quarantine-segments";
 
@@ -62,7 +61,11 @@ pub fn read_managed_ledger_lines(
     let manifest = load_manifest(state_dir)?;
     verify_manifest_and_segments(state_dir, &manifest)?;
     let mut lines = Vec::new();
-    for segment in manifest.segments.iter().filter(|segment| segment.ledger == ledger) {
+    for segment in manifest
+        .segments
+        .iter()
+        .filter(|segment| segment.ledger == ledger)
+    {
         let path = state_dir
             .join(QUARANTINE_SEGMENT_ARCHIVE_DIR)
             .join(&segment.file);
@@ -243,7 +246,10 @@ pub fn quarantine_rotation_report_json(report: &QuarantineRotationReport) -> Jso
             "bytes".to_string(),
             JsonValue::Number(report.bytes.to_string()),
         ),
-        ("ledger".to_string(), JsonValue::String(report.ledger.clone())),
+        (
+            "ledger".to_string(),
+            JsonValue::String(report.ledger.clone()),
+        ),
         (
             "lines".to_string(),
             JsonValue::Number(report.lines.to_string()),
@@ -293,8 +299,7 @@ fn write_manifest(
     let temporary = state_dir.join(format!(".{QUARANTINE_SEGMENT_MANIFEST_FILE}.tmp"));
     fs::write(&temporary, to_canonical_json(&manifest_json(manifest)))
         .map_err(|error| store_error("LB_QUARANTINE_IO", error.to_string()))?;
-    fs::rename(&temporary, path)
-        .map_err(|error| store_error("LB_QUARANTINE_IO", error.to_string()))
+    fs::rename(&temporary, path).map_err(|error| store_error("LB_QUARANTINE_IO", error.to_string()))
 }
 
 fn verify_manifest_and_segments(
@@ -321,14 +326,19 @@ fn verify_manifest_and_segments(
         }
         if let Some(previous) = last_sequence.insert(segment.ledger.clone(), segment.sequence) {
             if segment.sequence <= previous {
-                return Err(segment_corrupt("segment sequences are not strictly ordered"));
+                return Err(segment_corrupt(
+                    "segment sequences are not strictly ordered",
+                ));
             }
         }
         let path = state_dir
             .join(QUARANTINE_SEGMENT_ARCHIVE_DIR)
             .join(&segment.file);
         let bytes = fs::read(&path).map_err(|error| {
-            segment_corrupt(&format!("failed to read archive segment {}: {error}", segment.file))
+            segment_corrupt(&format!(
+                "failed to read archive segment {}: {error}",
+                segment.file
+            ))
         })?;
         let lines = validate_jsonl_bytes(&bytes, &segment.file)?;
         if bytes.len() as u64 != segment.bytes
@@ -346,8 +356,8 @@ fn verify_manifest_and_segments(
         for entry in fs::read_dir(&archive_dir)
             .map_err(|error| store_error("LB_QUARANTINE_IO", error.to_string()))?
         {
-            let entry = entry
-                .map_err(|error| store_error("LB_QUARANTINE_IO", error.to_string()))?;
+            let entry =
+                entry.map_err(|error| store_error("LB_QUARANTINE_IO", error.to_string()))?;
             let name = entry.file_name().to_string_lossy().to_string();
             if name.starts_with('.') {
                 continue;
@@ -366,8 +376,8 @@ fn read_valid_jsonl_lines(path: &Path, label: &str) -> Result<Vec<String>, Store
     if !path.exists() {
         return Ok(Vec::new());
     }
-    let bytes = fs::read(path)
-        .map_err(|error| store_error("LB_QUARANTINE_IO", error.to_string()))?;
+    let bytes =
+        fs::read(path).map_err(|error| store_error("LB_QUARANTINE_IO", error.to_string()))?;
     validate_jsonl_bytes(&bytes, label)?;
     let text = std::str::from_utf8(&bytes)
         .map_err(|error| store_error("LB_QUARANTINE_CORRUPT", error.to_string()))?;
@@ -442,7 +452,9 @@ fn validate_segment_file(name: &str) -> Result<(), StoreError> {
         || !matches!(path.components().next(), Some(Component::Normal(_)))
         || !name.ends_with(".jsonl")
     {
-        return Err(segment_corrupt(&format!("invalid segment file name: {name}")));
+        return Err(segment_corrupt(&format!(
+            "invalid segment file name: {name}"
+        )));
     }
     Ok(())
 }

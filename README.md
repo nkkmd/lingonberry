@@ -2,58 +2,59 @@
 
 **分散知識コモンズ・プロトコル**
 
-Lingonberry は、分散的に運営されるリレー群のあいだで知識オブジェクトを循環させるためのプロトコルです。
+Lingonberry は、分散的に運営されるリレー群のあいだで知識オブジェクトを循環させるためのプロトコルです。ソーシャルネットワークそのものではなく、分野非依存の知識基盤を目的とします。
 
-これは、まず第一にソーシャルネットワークのプロトコルではありません。
-**知識基盤のプロトコル** です。
+## v0.2.0
 
-目的は、誰でもサーバーを立て、知識オブジェクトを保存し、複製し、検索できるようにすることです。
-しかも、その中核プロトコルを農業、医療、法律、教育、研究などの特定分野に縛りつけません。
+v0.2.0では、最小publish／storage経路に加えて、運用可能なquarantine lifecycleと管理境界を整備しました。
+
+- persistent quarantine、single／batch promotion、annotation、dismissal、permanent rejection
+- status、Prometheus metrics、scheduled revalidation
+- same-host operation lock
+- verified ledger index、archive-aware ordered reads、byte-preserving rotation
+- archive-inclusive backup v2、verify、restore
+- non-destructive compaction preview and semantic proof
+- public／admin listener isolation
+- observer／reviewer／operator RBAC
+- authentication／authorization audit
+- legacy admin token deprecation diagnostic
+
+Release boundaryと既知の制約は、[v0.2.0 Release Notes](./docs/roadmap/RELEASE_0_2_0_RELEASE_NOTE.md)を参照してください。
 
 ## このリポジトリに含めるもの
 
 - プロトコルの概念と用語
 - 正規化されたデータモデル
-- リレーの責務
-- identity、provenance、revision の規則
-- protocol-native な index と API 参照面
-- ドメイン語彙とアプリケーション・プロファイルの拡張点
+- リレーとstorage nodeの責務
+- identity、provenance、revisionの規則
+- protocol-nativeなindexとAPI参照面
+- carrier、archive、migration、access／retentionの運用契約
+- quarantine lifecycleと管理・保全ツール
+- ドメイン語彙とapplication profileの拡張点
 
 ## 中核の考え方
 
-Lingonberry は、知識を append-only で、replay 可能で、provenance を保持するものとして扱います。
-
-wire 上の protocol object は正本です。
-正本は canonical な knowledge object です。
-
-WebSocket、HTTP、ファイル archive、将来の federated carrier は、同じ protocol を運ぶ carrier 実装です。
+Lingonberryは、知識をappend-onlyで、replay可能で、provenanceを保持するものとして扱います。WebSocket、HTTP、file archive、将来のfederated carrierは、同じprotocol objectを運ぶcarrier実装です。
 
 ## まず読む場所
 
 - [アーキテクチャ](./docs/architecture/README.md)
-- [Toitoi 参照チェックリスト](./docs/architecture/TOITOI_REFERENCE_CHECKLIST.md)
-- [ロードマップ](./docs/roadmap/README.md)
+- [ロードマップと現在地](./docs/roadmap/README.md)
 - [運用メモ](./docs/operations/README.md)
 - [概念](./docs/concepts/README.md)
 - [Protocols](./docs/protocols/README.md)
 - [Schemas](./schemas/README.md)
+- [Changelog](./CHANGELOG.md)
 
 ## Quickstart
 
 - [Knowledge Object Publish Quickstart](./docs/operations/KNOWLEDGE_OBJECT_PUBLISH_QUICKSTART.md)
 - [Relay Quickstart](./docs/operations/RELAY_QUICKSTART.md)
 - [Storage Node Quickstart](./docs/operations/STORAGE_NODE_QUICKSTART.md)
-
-初見で動かしたい場合は、まずここから進めます。
-
-## License
-
-Lingonberry は `Apache-2.0` で公開します。  
-詳細は [LICENSE](./LICENSE) を参照してください。
+- [Quarantine Admin HTTP](./docs/operations/QUARANTINE_ADMIN_HTTP.md)
+- [Quarantine Backup and Restore](./docs/operations/QUARANTINE_BACKUP_RESTORE.md)
 
 ## 実行例
-
-最小の carrier / storage / archive 操作は、まず Rust relay バイナリで試せます。
 
 ```bash
 cargo run -p lingonberry-relay -- capabilities
@@ -62,3 +63,18 @@ cargo run -p lingonberry-relay -- publish fixtures/http-publish-request/minimal-
 cargo run -p lingonberry-relay -- export-archive /tmp/lingonberry-archive
 cargo run -p lingonberry-relay -- import-archive /tmp/lingonberry-archive
 ```
+
+Admin listenerは明示的なrole tokenで起動します。
+
+```bash
+export LINGONBERRY_ADMIN_OBSERVER_TOKEN=<observer-secret>
+export LINGONBERRY_ADMIN_REVIEWER_TOKEN=<reviewer-secret>
+export LINGONBERRY_ADMIN_OPERATOR_TOKEN=<operator-secret>
+
+cargo run -p lingonberry-relay -- serve-admin-http 127.0.0.1:8788
+cargo run -p lingonberry-relay --bin lingonberry-admin-auth-config
+```
+
+## License
+
+Lingonberryは`Apache-2.0`で公開します。詳細は[LICENSE](./LICENSE)を参照してください。

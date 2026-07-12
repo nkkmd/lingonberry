@@ -1,37 +1,44 @@
 # 現在の実装状況
 
-**Status: active** | **Last updated: 2026-07-12**
+**Status: v0.2.0 release candidate** | **Last updated: 2026-07-12**
 
-この文書は、Lingonberry の実装作業を中断・再開するときの引き継ぎ用正本です。
+この文書は、Lingonberryの実装作業を中断・再開するときの引き継ぎ用正本です。
 
----
+## 1. Release state
 
-## 1. 現在地
+v0.2.0の機能範囲は固定済みです。残っているrelease gateは、release preparation PRのCI成功、merge後の`main`再検証、annotated tag、GitHub Release公開です。
 
-2026-07-12 時点で、persistent quarantine lifecycle、same-host concurrency、active-ledger index、archive-aware rotation、archive-inclusive backup、non-destructive compaction proof、role-scoped admin HTTP authorizationまで実装済みです。
+```text
+version: 0.2.0
+release tag: v0.2.0
+release checklist: docs/roadmap/RELEASE_0_2_0_CHECKLIST.md
+release notes: docs/roadmap/RELEASE_0_2_0_RELEASE_NOTE.md
+```
+
+## 2. 実装済み
 
 | 項目 | 状態 |
 |---|---|
+| core protocol／schema／fixtures | 実装済み |
+| HTTP publish carrier | 実装済み |
+| storage node／archive export-import | 実装済み |
 | persistent quarantine lifecycle | 実装済み |
-| status / metrics / scheduler | 実装済み |
-| public/admin listener isolation | 実装済み |
-| admin Bearer authentication | 実装済み |
-| observer / reviewer / operator RBAC | 実装済み |
-| authentication / authorization audit | 実装済み |
-| same-host concurrent ledger coordination | 実装済み |
-| verified active-ledger index | 実装済み |
+| single／batch promotion and dry-run | 実装済み |
+| annotations／dismissal／permanent rejection | 実装済み |
+| status／metrics／scheduler | 実装済み |
+| same-host operation lock | 実装済み |
+| verified ledger index | 実装済み |
 | archive-aware ordered readers | 実装済み |
 | byte-preserving verified rotation | 実装済み |
-| archive-inclusive backup / verify / restore | 実装済み |
-| non-destructive compaction preview / proof | 実装済み |
-| legacy admin token removal | 未実装 |
-| record-rewriting compaction | 未実装・未承認 |
-| retention deletion | 未実装・未承認 |
-| distributed locking | 未実装 |
+| archive-inclusive backup v2 | 実装済み |
+| backup verify／restore | 実装済み |
+| non-destructive compaction preview／proof | 実装済み |
+| public／admin listener isolation | 実装済み |
+| observer／reviewer／operator RBAC | 実装済み |
+| authn／authz audit | 実装済み |
+| legacy token deprecation diagnostic | 実装済み |
 
----
-
-## 2. Runtime state
+## 3. Runtime state
 
 ```text
 quarantine.jsonl
@@ -46,30 +53,52 @@ quarantine-segments/
 .quarantine-operation.lock
 ```
 
-Compaction proofはruntime state外のoperator-selected output directoryへ作成します。
+Derived indexとoperation lockはbackup対象ではありません。Archive-inclusive backup v2はactive ledgers、segment manifest、manifestで列挙されたimmutable segmentsを含みます。
 
----
+## 4. Quarantine lifecycle
 
-## 3. Archive-aware lifecycle
+Persistent terminal states：
+
+```text
+promoted
+dismissed
+permanently-rejected
+```
+
+`Rejected`と`Deferred`はrevalidation時の判定です。元quarantine recordとappend-only lifecycle eventは削除しません。Terminal ledgerのduplicate quarantine IDはcorruptionです。
+
+## 5. Ledger maintenance
 
 Logical read order：
 
 ```text
-segment manifestのsequence順
+verified archive segments in manifest sequence
 → active ledger
 ```
 
-Missing、tampered、duplicate、out-of-order、unlisted segmentはcorruptionです。
-
-Rotation：
+Maintenance CLI：
 
 ```bash
 lingonberry-quarantine-maintenance build-index
+lingonberry-quarantine-maintenance verify-index
 lingonberry-quarantine-maintenance rotate <managed-ledger-name>
 lingonberry-quarantine-maintenance verify-segments
+lingonberry-quarantine-maintenance compaction-preview \
+  <verified-backup-v2-dir> <empty-proof-dir>
+lingonberry-quarantine-maintenance verify-compaction-proof <proof-dir>
 ```
 
-Archive-inclusive backup：
+Compaction policy v1：
+
+```json
+{
+  "mutationAllowed": false,
+  "rewritePerformed": false,
+  "removableLines": 0
+}
+```
+
+## 6. Backup and restore
 
 ```bash
 lingonberry-quarantine-backup export <empty-backup-dir>
@@ -77,67 +106,11 @@ lingonberry-quarantine-backup verify <backup-dir>
 lingonberry-quarantine-backup restore <backup-dir> <empty-state-dir>
 ```
 
-New exportは`lingonberry-quarantine-backup/v2`です。Verify / restoreはv1とv2を受理します。
+New exportは`lingonberry-quarantine-backup/v2`です。Verify／restoreはv1とv2を受理します。
 
----
+## 7. Admin RBAC
 
-## 4. Compaction policy v1
-
-```text
-lingonberry-quarantine-compaction-policy/v1
-mutationAllowed: false
-rewritePerformed: false
-removableLines: 0
-```
-
-Immutable evidence：
-
-```text
-quarantine.jsonl
-quarantine-annotations.jsonl
-admin-auth-audit.jsonl
-```
-
-Terminal single-event evidence：
-
-```text
-quarantine-resolutions.jsonl
-quarantine-dismissals.jsonl
-quarantine-rejections.jsonl
-```
-
-Terminal ledgerのduplicate quarantine IDはcompaction candidateではなくcorruptionです。
-
-Preview：
-
-```bash
-lingonberry-quarantine-maintenance compaction-preview \
-  <verified-backup-v2-dir> \
-  <empty-proof-output-dir>
-
-lingonberry-quarantine-maintenance verify-compaction-proof \
-  <proof-output-dir>
-```
-
----
-
-## 5. HTTP boundary
-
-### Public listener
-
-```bash
-lingonberry-relay serve-http 127.0.0.1:8787
-```
-
-Public listenerはreadiness、capabilities、publish、object retrievalだけを公開します。Quarantine管理pathは`404`です。
-
-### Admin listener
-
-```bash
-lingonberry-relay serve-admin-http 127.0.0.1:8788
-```
-
-Role credential：
+Role credentials：
 
 ```text
 LINGONBERRY_ADMIN_OBSERVER_TOKEN
@@ -145,192 +118,84 @@ LINGONBERRY_ADMIN_REVIEWER_TOKEN
 LINGONBERRY_ADMIN_OPERATOR_TOKEN
 ```
 
-Legacy compatibility：
+Permission hierarchy：
 
 ```text
-LINGONBERRY_ADMIN_TOKEN
-```
-
-明示的operator tokenがない場合のみoperator fallbackとして使用し、起動時にwarningを出します。
-
----
-
-## 6. Admin RBAC
-
-### Observer
-
-Read-only：
-
-```text
-metrics
-quarantine status
-quarantine records
-resolutions
-annotations
-permanent-rejection state
-```
-
-### Reviewer
-
-Observer権限に加えて：
-
-```text
-append-only annotation creation
-```
-
-### Operator
-
-Reviewer権限に加えて：
-
-```text
-single promotion
-batch promotion
-permanent rejection
+observer: read-only
+reviewer: observer + annotation creation
+operator: reviewer + promotion and permanent rejection
 ```
 
 Authorization order：
 
 ```text
-non-admin path check
-→ bearer role resolution
-→ invalid / missing: 401
-→ method + route permission check
-→ insufficient role: 403
-→ request body read / parse
-→ route execution
+non-admin path → 404
+missing／invalid credential → 401
+authenticated but insufficient role → 403
+authorized → read body → parse → execute
 ```
 
-Unauthorized mutation bodyは認可前に読み取らず、validationやmutation handlerへ渡しません。
+`LINGONBERRY_ADMIN_TOKEN`はdeprecated operator fallbackです。次でsecret-free診断を行います。
 
-Audit：
-
-```text
-LB_ADMIN_AUTH_FAILED  role=null
-LB_ADMIN_FORBIDDEN    role=observer|reviewer|operator
+```bash
+lingonberry-admin-auth-config
 ```
 
-Token、body、note、quarantine payloadはauditへ保存しません。
+完全削除はfuture major releaseまで行いません。
 
-関連Issue：#40、#41、#43
+## 8. v0.2.0非対象
 
-関連文書：`docs/operations/QUARANTINE_ADMIN_HTTP.md`
+- record-rewriting compaction
+- retention deletion
+- distributed locking／multi-node shared state
+- remote backup upload
+- backup encryption／signing
+- OAuth／OIDC
+- browser session／per-record ACL
+- legacy admin token fallbackの完全削除
 
----
+## 9. Release gate
 
-## 7. Same-host operation lock
+Release PRで必須：
 
-Mutation、backup export、restore destination write、index build、rotation、admin audit appendを直列化します。Distributed lockやnetwork filesystem leaseではありません。
-
----
-
-## 8. 主要ファイル
-
-```text
-packages/relay/src/admin_auth.rs
-packages/relay/src/main_entry.rs
-packages/core/src/quarantine_compaction.rs
-packages/core/src/quarantine_complete_backup.rs
-packages/core/src/quarantine_segments.rs
-packages/core/src/quarantine_ledger_index.rs
-docs/operations/QUARANTINE_ADMIN_HTTP.md
-docs/operations/QUARANTINE_COMPACTION_PROOF.md
-docs/operations/QUARANTINE_BACKUP_RESTORE.md
-docs/operations/QUARANTINE_JSONL_MAINTENANCE.md
+```bash
+cargo fmt --all -- --check
+cargo clippy --workspace --all-targets -- -D warnings
+cargo test --workspace
 ```
 
----
+JavaScript canonicalization／identity／validation testsも必須です。
 
-## 9. 再開時の確認
+Merge後：
 
 ```bash
 git switch main
 git pull --ff-only
-git status
+cargo fmt --all -- --check
+cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
-
-export LINGONBERRY_STATE_DIR=/var/lib/lingonberry/relay
-export LINGONBERRY_ADMIN_OBSERVER_TOKEN=<observer-secret>
-export LINGONBERRY_ADMIN_REVIEWER_TOKEN=<reviewer-secret>
-export LINGONBERRY_ADMIN_OPERATOR_TOKEN=<operator-secret>
-
-lingonberry-relay serve-admin-http 127.0.0.1:8788
+git tag -a v0.2.0 -m "Lingonberry v0.2.0"
+git push origin v0.2.0
 ```
-
-RBAC smoke test：
-
-```bash
-curl -i -H "Authorization: Bearer $LINGONBERRY_ADMIN_OBSERVER_TOKEN" \
-  http://127.0.0.1:8788/v1/quarantine-status
-
-curl -i -X POST \
-  -H "Authorization: Bearer $LINGONBERRY_ADMIN_OBSERVER_TOKEN" \
-  http://127.0.0.1:8788/v1/quarantine/lb:q:1/promote
-```
-
-後者は`403 Forbidden`でなければなりません。
-
----
 
 ## 10. 絶対に崩さない安全性ルール
 
 1. validation未通過objectをcanonical storageへ保存しない
 2. 元quarantine recordとappend-only lifecycle eventを保持する
 3. corruptionとI/O errorを黙って無視しない
-4. terminal lifecycle競合をoperation lock内で再確認する
+4. terminal競合をsame-host operation lock内で再確認する
 5. same-host lockをdistributed lockとして扱わない
 6. stale indexでrotationしない
 7. archive segmentを上書き・変更・削除しない
 8. verified backup v2なしでcompaction previewを作らない
 9. policy v1 proofでmutationを許可しない
-10. public listenerへadmin routeを戻さない
+10. public listenerへadmin routeを公開しない
 11. missing tokenとinvalid tokenで異なる情報を返さない
-12. authenticated roleの権限不足はmutation handler実行前に拒否する
-13. bearer tokenをauditまたはresponseへ含めない
+12. 権限不足をbody読込・mutation前に拒否する
+13. token、body、note、payloadをaudit／diagnosticへ含めない
 14. explicit replacement policyなしでrecord rewriteを実装しない
-15. retention deletionをrewriteと同時に暗黙実行しない
+15. retention deletionを暗黙実行しない
 
----
+## 11. 次の作業
 
-## 11. 次の推奨作業
-
-### 第一候補
-
-```text
-RBAC-1C: Legacy Admin Token Deprecation and Removal Plan
-```
-
-`LINGONBERRY_ADMIN_TOKEN`利用状況を検出可能にし、移行期間、warning、削除versionを固定します。即時削除はしません。
-
-### 将来候補
-
-```text
-QL-5C3: Verified Rewrite Transaction
-```
-
-具体的なreplacement policyとsemantic equivalenceが承認されるまで開始しません。
-
----
-
-## 12. 実装順序
-
-```text
-#7 acceptance policy
-→ #8 persistent quarantine
-→ #9 promotion
-→ #10 batch promotion
-→ #13 status
-→ #15 metrics
-→ #17 scheduler
-→ #19 annotations
-→ #23 manual dismissal
-→ #25 admin HTTP isolation
-→ #27 permanent rejection
-→ #29 active-ledger backup / restore
-→ #31 concurrent ledger coordination
-→ #33 verified JSONL index and planning
-→ #35 archive-aware verified rotation
-→ #37 archive-inclusive backup / restore
-→ #39 non-destructive compaction preview / proof
-→ #42 RBAC credential model and permission matrix
-→ #43 role-scoped HTTP authorization enforcement
-```
+v0.2.0 release後の第一候補は、release運用結果と利用実績を確認したうえでroadmapを再優先順位付けすることです。QL-5C3は具体的なreplacement policyとsemantic-equivalence contractが承認されるまで開始しません。

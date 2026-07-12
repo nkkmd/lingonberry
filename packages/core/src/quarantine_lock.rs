@@ -53,19 +53,13 @@ pub fn acquire_quarantine_lock(
                             continue
                         }
                         Err(remove_error) => {
-                            return Err(store_error(
-                                "LB_QUARANTINE_IO",
-                                remove_error.to_string(),
-                            ))
+                            return Err(store_error("LB_QUARANTINE_IO", remove_error.to_string()))
                         }
                     }
                 }
                 return Err(store_error(
                     "LB_QUARANTINE_BUSY",
-                    format!(
-                        "another quarantine operation holds {}",
-                        path.display()
-                    ),
+                    format!("another quarantine operation holds {}", path.display()),
                 ));
             }
             Err(error) => {
@@ -83,9 +77,9 @@ fn sanitize_operation(operation: &str) -> Result<String, StoreError> {
     let operation = operation.trim();
     if operation.is_empty()
         || operation.len() > 64
-        || !operation
-            .chars()
-            .all(|character| character.is_ascii_alphanumeric() || matches!(character, '-' | '_' | '.'))
+        || !operation.chars().all(|character| {
+            character.is_ascii_alphanumeric() || matches!(character, '-' | '_' | '.')
+        })
     {
         return Err(store_error(
             "LB_QUARANTINE_LOCK",
@@ -102,12 +96,13 @@ fn lock_is_stale(path: &Path) -> Result<bool, StoreError> {
             .find_map(|line| line.strip_prefix("acquiredAt="))
             .and_then(|value| value.parse::<u64>().ok())
         {
-            return Ok(now_seconds()?.saturating_sub(acquired_at)
-                >= QUARANTINE_LOCK_STALE_AFTER.as_secs());
+            return Ok(
+                now_seconds()?.saturating_sub(acquired_at) >= QUARANTINE_LOCK_STALE_AFTER.as_secs()
+            );
         }
     }
-    let metadata = fs::metadata(path)
-        .map_err(|error| store_error("LB_QUARANTINE_IO", error.to_string()))?;
+    let metadata =
+        fs::metadata(path).map_err(|error| store_error("LB_QUARANTINE_IO", error.to_string()))?;
     let modified = metadata
         .modified()
         .map_err(|error| store_error("LB_QUARANTINE_IO", error.to_string()))?;

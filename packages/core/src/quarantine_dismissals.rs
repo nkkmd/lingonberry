@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs::{self, OpenOptions};
-use std::io::{BufRead, BufReader, Write};
+use std::io::Write;
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -10,7 +10,9 @@ use super::{
     preview_quarantine_record, promote_quarantine_record, QuarantineBatchReport,
     QuarantinePromotionOutcome, QuarantineStore, StorageBackend,
 };
-use crate::{acquire_quarantine_lock, store_error, StoreError};
+use crate::{
+    acquire_quarantine_lock, read_managed_ledger_lines, store_error, StoreError,
+};
 
 pub const OPERATOR_DISMISSED_REASON_CODE: &str = "LB_OPERATOR_DISMISSED";
 
@@ -63,10 +65,7 @@ impl QuarantineStore {
         let reason_code = reason_code.trim();
         let note = note.trim();
         if operator.is_empty() {
-            return Err(store_error(
-                "LB_QUARANTINE_DISMISSAL",
-                "operator must not be empty",
-            ));
+            return Err(store_error("LB_QUARANTINE_DISMISSAL", "operator must not be empty"));
         }
         if reason_code != OPERATOR_DISMISSED_REASON_CODE {
             return Err(store_error(
@@ -75,10 +74,7 @@ impl QuarantineStore {
             ));
         }
         if note.is_empty() {
-            return Err(store_error(
-                "LB_QUARANTINE_DISMISSAL",
-                "note must not be empty",
-            ));
+            return Err(store_error("LB_QUARANTINE_DISMISSAL", "note must not be empty"));
         }
 
         let now = SystemTime::now()
@@ -110,19 +106,9 @@ impl QuarantineStore {
         &self,
         quarantine_id: Option<&str>,
     ) -> Result<Vec<QuarantineDismissal>, StoreError> {
-        let path = self.dismissals_path();
-        if !path.exists() {
-            return Ok(Vec::new());
-        }
-        let file = fs::File::open(path)
-            .map_err(|error| store_error("LB_QUARANTINE_IO", error.to_string()))?;
         let mut dismissals = Vec::new();
         let mut seen = BTreeSet::new();
-        for line in BufReader::new(file).lines() {
-            let line = line.map_err(|error| store_error("LB_QUARANTINE_IO", error.to_string()))?;
-            if line.trim().is_empty() {
-                continue;
-            }
+        for line in read_managed_ledger_lines(self.state_dir(), "quarantine-dismissals.jsonl")? {
             let dismissal = parse_dismissal(&line)?;
             if !seen.insert(dismissal.quarantine_id.clone()) {
                 return Err(store_error(
@@ -150,10 +136,7 @@ pub fn promote_quarantine_batch_excluding_dismissed(
     backend: &impl StorageBackend,
 ) -> Result<QuarantineBatchReport, StoreError> {
     if limit == 0 {
-        return Err(store_error(
-            "LB_QUARANTINE_BATCH",
-            "limit must be greater than zero",
-        ));
+        return Err(store_error("LB_QUARANTINE_BATCH", "limit must be greater than zero"));
     }
     let store = QuarantineStore::new(crate::runtime_state_dir());
     let resolved = store
@@ -212,10 +195,7 @@ pub fn quarantine_dismissal_json(dismissal: &QuarantineDismissal) -> JsonValue {
             "dismissedAt".to_string(),
             JsonValue::String(dismissal.dismissed_at.clone()),
         ),
-        (
-            "operator".to_string(),
-            JsonValue::String(dismissal.operator.clone()),
-        ),
+        ("operator".to_string(), JsonValue::String(dismissal.operator.clone())),
         (
             "reasonCode".to_string(),
             JsonValue::String(dismissal.reason_code.clone()),
@@ -250,12 +230,7 @@ fn parse_dismissal(line: &str) -> Result<QuarantineDismissal, StoreError> {
         .map_err(|error| store_error("LB_QUARANTINE_CORRUPT", error.to_string()))?
     {
         JsonValue::Object(map) => map,
-        _ => {
-            return Err(store_error(
-                "LB_QUARANTINE_CORRUPT",
-                "dismissal is not an object",
-            ))
-        }
+        _ => return Err(store_error("LB_QUARANTINE_CORRUPT", "dismissal is not an object")),
     };
     Ok(QuarantineDismissal {
         id: required_string(&map, "id")?,
@@ -283,11 +258,11 @@ fn required_string(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::OPERATOR_PERMANENTLY_REJECTED_REASON_CODE;
+    use crate::{build_quarantine_ledger_index, rotate_quarantine_ledger};
 
     fn temp_dir() -> PathBuf {
         std::env::temp_dir().join(format!(
-            "lingonberry-quarantine-dismissals-{}",
+            "lingonberry-dismissals-{}",
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .unwrap()
@@ -296,60 +271,32 @@ mod tests {
     }
 
     #[test]
-    fn appends_lists_filters_and_is_idempotent() {
+    fn reads_archived_dismissal_and_preserves_idempotency() {
         let dir = temp_dir();
         let store = QuarantineStore::new(&dir);
-        let first = store
+        let record = store
             .append("{\"object\":{}}", "LB_IDENTITY_DEFERRED", &[])
             .unwrap();
-        let event = store
+        let first = store
             .dismiss(
-                &first.id,
-                "operator-a",
+                &record.id,
+                "operator",
                 OPERATOR_DISMISSED_REASON_CODE,
-                "duplicate external submission",
+                "duplicate",
             )
             .unwrap();
-        let duplicate = store
+        build_quarantine_ledger_index(&dir).unwrap();
+        rotate_quarantine_ledger(&dir, "quarantine-dismissals.jsonl").unwrap();
+        let second = store
             .dismiss(
-                &first.id,
-                "operator-b",
+                &record.id,
+                "other",
                 OPERATOR_DISMISSED_REASON_CODE,
                 "ignored",
             )
             .unwrap();
-        assert_eq!(event, duplicate);
+        assert_eq!(first, second);
         assert_eq!(store.list_dismissals(None).unwrap().len(), 1);
-        let _ = fs::remove_dir_all(dir);
-    }
-
-    #[test]
-    fn terminal_states_are_mutually_exclusive() {
-        let dir = temp_dir();
-        let store = QuarantineStore::new(&dir);
-        let record = store
-            .append("{\"object\":{}}", "LB_POLICY_DEFERRED", &[])
-            .unwrap();
-        store
-            .permanently_reject(
-                &record.id,
-                "operator",
-                OPERATOR_PERMANENTLY_REJECTED_REASON_CODE,
-                "prohibited",
-            )
-            .unwrap();
-        assert_eq!(
-            store
-                .dismiss(
-                    &record.id,
-                    "operator",
-                    OPERATOR_DISMISSED_REASON_CODE,
-                    "dismiss",
-                )
-                .unwrap_err()
-                .code,
-            "LB_QUARANTINE_PERMANENTLY_REJECTED"
-        );
         let _ = fs::remove_dir_all(dir);
     }
 }

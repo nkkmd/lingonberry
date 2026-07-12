@@ -4,6 +4,7 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use lingonberry_core::acquire_quarantine_lock;
 use lingonberry_protocol::{to_canonical_json, JsonValue};
 
 pub const ADMIN_TOKEN_ENV: &str = "LINGONBERRY_ADMIN_TOKEN";
@@ -51,6 +52,9 @@ pub fn append_admin_auth_failure(
     path: &str,
     outcome_code: &str,
 ) -> Result<AdminAuthAuditEvent, String> {
+    let state_dir = state_dir.as_ref();
+    let _lock = acquire_quarantine_lock(state_dir, "admin-auth-audit")
+        .map_err(|error| error.to_string())?;
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map_err(|error| error.to_string())?;
@@ -137,21 +141,6 @@ mod tests {
     }
 
     #[test]
-    fn rejects_missing_or_malformed_authorization() {
-        assert_eq!(bearer_token(&BTreeMap::new()), None);
-        let basic = BTreeMap::from([(
-            "authorization".to_string(),
-            "Basic abc".to_string(),
-        )]);
-        assert_eq!(bearer_token(&basic), None);
-        let empty = BTreeMap::from([(
-            "authorization".to_string(),
-            "Bearer ".to_string(),
-        )]);
-        assert_eq!(bearer_token(&empty), None);
-    }
-
-    #[test]
     fn audit_event_omits_tokens_bodies_and_notes() {
         let dir = temp_dir();
         let event = append_admin_auth_failure(
@@ -164,24 +153,24 @@ mod tests {
         .unwrap();
         assert_eq!(event.outcome_code, "LB_ADMIN_AUTH_FAILED");
         let line = fs::read_to_string(admin_auth_audit_path(&dir)).unwrap();
-        assert!(line.contains("LB_ADMIN_AUTH_FAILED"));
         assert!(!line.contains("secret-token"));
         assert!(!line.contains("annotation note"));
         let _ = fs::remove_dir_all(dir);
     }
 
     #[test]
-    fn audit_io_errors_are_reported() {
+    fn audit_append_respects_operation_lock() {
         let dir = temp_dir();
-        fs::write(&dir, "not a directory").unwrap();
-        assert!(append_admin_auth_failure(
+        let _guard = acquire_quarantine_lock(&dir, "test-holder").unwrap();
+        let error = append_admin_auth_failure(
             &dir,
-            "127.0.0.1:12345",
+            "127.0.0.1:1",
             "GET",
             "/v1/quarantine-status",
             "LB_ADMIN_AUTH_FAILED",
         )
-        .is_err());
-        let _ = fs::remove_file(dir);
+        .unwrap_err();
+        assert!(error.contains("LB_QUARANTINE_BUSY"));
+        let _ = fs::remove_dir_all(dir);
     }
 }

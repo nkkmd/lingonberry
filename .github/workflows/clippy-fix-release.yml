@@ -1,0 +1,44 @@
+name: Fix clippy on release branch
+
+on:
+  push:
+    branches:
+      - release/v0.2.0
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out release branch
+        uses: actions/checkout@v4
+        with:
+          ref: release/v0.2.0
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Apply clippy fixes
+        run: cargo clippy --fix --workspace --all-targets --allow-dirty --allow-staged
+
+      - name: Format workspace
+        run: cargo fmt --all
+
+      - name: Commit fixes
+        shell: bash
+        run: |
+          if git diff --quiet -- '*.rs'; then
+            echo 'No clippy fixes required.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- '*.rs'
+          git commit -m 'Apply clippy fixes for v0.2.0'
+          git push origin HEAD:release/v0.2.0

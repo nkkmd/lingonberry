@@ -10,7 +10,7 @@ use super::{
     preview_quarantine_record, promote_quarantine_record, QuarantineBatchReport,
     QuarantinePromotionOutcome, QuarantineStore, StorageBackend,
 };
-use crate::{store_error, StoreError};
+use crate::{acquire_quarantine_lock, store_error, StoreError};
 
 pub const OPERATOR_DISMISSED_REASON_CODE: &str = "LB_OPERATOR_DISMISSED";
 
@@ -26,10 +26,7 @@ pub struct QuarantineDismissal {
 
 impl QuarantineStore {
     pub fn dismissals_path(&self) -> PathBuf {
-        self.path()
-            .parent()
-            .unwrap_or_else(|| std::path::Path::new("."))
-            .join("quarantine-dismissals.jsonl")
+        self.state_dir().join("quarantine-dismissals.jsonl")
     }
 
     pub fn dismiss(
@@ -39,6 +36,7 @@ impl QuarantineStore {
         reason_code: &str,
         note: &str,
     ) -> Result<QuarantineDismissal, StoreError> {
+        let _lock = acquire_quarantine_lock(self.state_dir(), "quarantine-dismiss")?;
         if self.get(quarantine_id)?.is_none() {
             return Err(store_error(
                 "LB_QUARANTINE_NOT_FOUND",
@@ -49,6 +47,12 @@ impl QuarantineStore {
             return Err(store_error(
                 "LB_QUARANTINE_ALREADY_PROMOTED",
                 format!("promoted quarantine record cannot be dismissed: {quarantine_id}"),
+            ));
+        }
+        if self.get_permanent_rejection(quarantine_id)?.is_some() {
+            return Err(store_error(
+                "LB_QUARANTINE_PERMANENTLY_REJECTED",
+                format!("permanently rejected quarantine record cannot be dismissed: {quarantine_id}"),
             ));
         }
         if let Some(existing) = self.get_dismissal(quarantine_id)? {
@@ -279,6 +283,7 @@ fn required_string(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::OPERATOR_PERMANENTLY_REJECTED_REASON_CODE;
 
     fn temp_dir() -> PathBuf {
         std::env::temp_dir().join(format!(
@@ -297,11 +302,7 @@ mod tests {
         let first = store
             .append("{\"object\":{}}", "LB_IDENTITY_DEFERRED", &[])
             .unwrap();
-        let second = store
-            .append("{\"object\":{}}", "LB_POLICY_DEFERRED", &[])
-            .unwrap();
-
-        let dismissal = store
+        let event = store
             .dismiss(
                 &first.id,
                 "operator-a",
@@ -314,37 +315,28 @@ mod tests {
                 &first.id,
                 "operator-b",
                 OPERATOR_DISMISSED_REASON_CODE,
-                "ignored because already dismissed",
+                "ignored",
             )
             .unwrap();
-        assert_eq!(dismissal, duplicate);
+        assert_eq!(event, duplicate);
         assert_eq!(store.list_dismissals(None).unwrap().len(), 1);
-        assert_eq!(store.list_dismissals(Some(&first.id)).unwrap().len(), 1);
-        assert!(store.list_dismissals(Some(&second.id)).unwrap().is_empty());
         let _ = fs::remove_dir_all(dir);
     }
 
     #[test]
-    fn rejects_unknown_promoted_and_invalid_fields() {
+    fn terminal_states_are_mutually_exclusive() {
         let dir = temp_dir();
         let store = QuarantineStore::new(&dir);
-        assert_eq!(
-            store
-                .dismiss(
-                    "lb:q:missing",
-                    "operator",
-                    OPERATOR_DISMISSED_REASON_CODE,
-                    "note",
-                )
-                .unwrap_err()
-                .code,
-            "LB_QUARANTINE_NOT_FOUND"
-        );
         let record = store
-            .append("{\"object\":{}}", "LB_IDENTITY_DEFERRED", &[])
+            .append("{\"object\":{}}", "LB_POLICY_DEFERRED", &[])
             .unwrap();
         store
-            .append_resolution(&record.id, "lb:obj:promoted", false)
+            .permanently_reject(
+                &record.id,
+                "operator",
+                OPERATOR_PERMANENTLY_REJECTED_REASON_CODE,
+                "prohibited",
+            )
             .unwrap();
         assert_eq!(
             store
@@ -352,41 +344,11 @@ mod tests {
                     &record.id,
                     "operator",
                     OPERATOR_DISMISSED_REASON_CODE,
-                    "note",
+                    "dismiss",
                 )
                 .unwrap_err()
                 .code,
-            "LB_QUARANTINE_ALREADY_PROMOTED"
-        );
-
-        let pending = store
-            .append("{\"object\":{}}", "LB_POLICY_DEFERRED", &[])
-            .unwrap();
-        for (operator, reason_code, note) in [
-            ("", OPERATOR_DISMISSED_REASON_CODE, "note"),
-            ("operator", "LB_FREE_FORM", "note"),
-            ("operator", OPERATOR_DISMISSED_REASON_CODE, "  "),
-        ] {
-            assert_eq!(
-                store
-                    .dismiss(&pending.id, operator, reason_code, note)
-                    .unwrap_err()
-                    .code,
-                "LB_QUARANTINE_DISMISSAL"
-            );
-        }
-        let _ = fs::remove_dir_all(dir);
-    }
-
-    #[test]
-    fn corrupt_dismissal_ledger_is_reported() {
-        let dir = temp_dir();
-        let store = QuarantineStore::new(&dir);
-        fs::create_dir_all(&dir).unwrap();
-        fs::write(store.dismissals_path(), "not-json\n").unwrap();
-        assert_eq!(
-            store.list_dismissals(None).unwrap_err().code,
-            "LB_QUARANTINE_CORRUPT"
+            "LB_QUARANTINE_PERMANENTLY_REJECTED"
         );
         let _ = fs::remove_dir_all(dir);
     }

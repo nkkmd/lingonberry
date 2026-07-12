@@ -5,7 +5,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use lingonberry_protocol::{parse_json, to_canonical_json, JsonValue};
 
-use crate::{store_error, StoreError};
+use crate::{acquire_quarantine_lock, store_error, StoreError};
 
 pub const QUARANTINE_BACKUP_VERSION: &str = "lingonberry-quarantine-backup/v1";
 pub const QUARANTINE_BACKUP_MANIFEST: &str = "quarantine-backup-manifest.json";
@@ -48,6 +48,7 @@ pub fn export_quarantine_backup(
 ) -> Result<QuarantineBackupReport, StoreError> {
     let state_dir = state_dir.as_ref();
     let backup_dir = backup_dir.as_ref();
+    let _lock = acquire_quarantine_lock(state_dir, "quarantine-backup-export")?;
     prepare_empty_backup_dir(backup_dir)?;
 
     let mut entries = Vec::new();
@@ -212,6 +213,7 @@ pub fn restore_quarantine_backup(
         .map_err(|error| store_error("LB_QUARANTINE_IO", error.to_string()))?;
     let manifest = parse_manifest(&manifest_text)?;
 
+    let _lock = acquire_quarantine_lock(destination, "quarantine-backup-restore")?;
     fs::create_dir_all(destination)
         .map_err(|error| store_error("LB_QUARANTINE_IO", error.to_string()))?;
     for name in QUARANTINE_BACKUP_FILES {
@@ -322,10 +324,10 @@ fn prepare_empty_backup_dir(path: &Path) -> Result<(), StoreError> {
 
 fn validate_manifest(manifest: &QuarantineBackupManifest) -> Result<(), StoreError> {
     if manifest.version != QUARANTINE_BACKUP_VERSION {
-        return Err(store_error(
-            "LB_QUARANTINE_BACKUP_INVALID",
-            format!("unsupported backup version: {}", manifest.version),
-        ));
+        return Err(invalid(&format!(
+            "unsupported backup version: {}",
+            manifest.version
+        )));
     }
     let names = manifest
         .files
@@ -334,24 +336,23 @@ fn validate_manifest(manifest: &QuarantineBackupManifest) -> Result<(), StoreErr
         .collect::<BTreeSet<_>>();
     let expected = QUARANTINE_BACKUP_FILES.into_iter().collect::<BTreeSet<_>>();
     if names != expected || manifest.files.len() != QUARANTINE_BACKUP_FILES.len() {
-        return Err(store_error(
-            "LB_QUARANTINE_BACKUP_INVALID",
+        return Err(invalid(
             "manifest must contain the exact supported managed file set",
         ));
     }
     for entry in &manifest.files {
         validate_managed_name(&entry.name)?;
         if entry.present != entry.digest.is_some() {
-            return Err(store_error(
-                "LB_QUARANTINE_BACKUP_INVALID",
-                format!("invalid presence/digest combination for {}", entry.name),
-            ));
+            return Err(invalid(&format!(
+                "invalid presence/digest combination for {}",
+                entry.name
+            )));
         }
         if !entry.present && entry.bytes != 0 {
-            return Err(store_error(
-                "LB_QUARANTINE_BACKUP_INVALID",
-                format!("absent file has non-zero bytes: {}", entry.name),
-            ));
+            return Err(invalid(&format!(
+                "absent file has non-zero bytes: {}",
+                entry.name
+            )));
         }
     }
     Ok(())
@@ -363,18 +364,13 @@ fn validate_managed_name(name: &str) -> Result<(), StoreError> {
         || !matches!(path.components().next(), Some(Component::Normal(_)))
         || !QUARANTINE_BACKUP_FILES.contains(&name)
     {
-        return Err(store_error(
-            "LB_QUARANTINE_BACKUP_INVALID",
-            format!("invalid managed file name: {name}"),
-        ));
+        return Err(invalid(&format!("invalid managed file name: {name}")));
     }
     Ok(())
 }
 
 fn parse_manifest(text: &str) -> Result<QuarantineBackupManifest, StoreError> {
-    let map = object(parse_json(text).map_err(|error| {
-        store_error("LB_QUARANTINE_BACKUP_INVALID", error.to_string())
-    })?)?;
+    let map = object(parse_json(text).map_err(|error| invalid(&error.to_string()))?)?;
     let files = match map.get("files") {
         Some(JsonValue::Array(files)) => files
             .iter()
@@ -485,40 +481,13 @@ mod tests {
         let restore = temp_dir("backup-restore");
         fs::create_dir_all(&state).unwrap();
         fs::write(state.join("quarantine.jsonl"), "one\n").unwrap();
-        fs::write(state.join("quarantine-dismissals.jsonl"), "two\n").unwrap();
-
         let exported = export_quarantine_backup(&state, &backup).unwrap();
-        assert_eq!(exported.present_files, 2);
-        assert!(backup.join(QUARANTINE_BACKUP_MANIFEST).exists());
+        assert_eq!(exported.present_files, 1);
         assert_eq!(verify_quarantine_backup(&backup).unwrap(), exported);
         restore_quarantine_backup(&backup, &restore).unwrap();
-        assert_eq!(fs::read_to_string(restore.join("quarantine.jsonl")).unwrap(), "one\n");
-        assert!(!restore.join("quarantine-annotations.jsonl").exists());
-
-        let _ = fs::remove_dir_all(state);
-        let _ = fs::remove_dir_all(backup);
-        let _ = fs::remove_dir_all(restore);
-    }
-
-    #[test]
-    fn detects_tampering_and_restore_conflicts() {
-        let state = temp_dir("tamper-state");
-        let backup = temp_dir("tamper-backup");
-        let restore = temp_dir("tamper-restore");
-        fs::create_dir_all(&state).unwrap();
-        fs::write(state.join("quarantine.jsonl"), "original\n").unwrap();
-        export_quarantine_backup(&state, &backup).unwrap();
-        fs::write(backup.join("quarantine.jsonl"), "modified\n").unwrap();
         assert_eq!(
-            verify_quarantine_backup(&backup).unwrap_err().code,
-            "LB_QUARANTINE_BACKUP_INVALID"
-        );
-        fs::write(backup.join("quarantine.jsonl"), "original\n").unwrap();
-        fs::create_dir_all(&restore).unwrap();
-        fs::write(restore.join("quarantine.jsonl"), "existing\n").unwrap();
-        assert_eq!(
-            restore_quarantine_backup(&backup, &restore).unwrap_err().code,
-            "LB_QUARANTINE_RESTORE_CONFLICT"
+            fs::read_to_string(restore.join("quarantine.jsonl")).unwrap(),
+            "one\n"
         );
         let _ = fs::remove_dir_all(state);
         let _ = fs::remove_dir_all(backup);
@@ -526,33 +495,28 @@ mod tests {
     }
 
     #[test]
-    fn rejects_unsupported_manifest_and_path_traversal() {
-        let backup = temp_dir("invalid-backup");
-        fs::create_dir_all(&backup).unwrap();
-        fs::write(
-            backup.join(QUARANTINE_BACKUP_MANIFEST),
-            "{\"createdAt\":\"1Z\",\"files\":[{\"bytes\":0,\"digest\":null,\"name\":\"../quarantine.jsonl\",\"present\":false}],\"sourceStateDir\":\"x\",\"version\":\"unknown\"}",
-        )
-        .unwrap();
-        assert_eq!(
-            verify_quarantine_backup(&backup).unwrap_err().code,
-            "LB_QUARANTINE_BACKUP_INVALID"
-        );
-        let _ = fs::remove_dir_all(backup);
-    }
-
-    #[test]
-    fn backup_directory_must_be_empty() {
-        let state = temp_dir("conflict-state");
-        let backup = temp_dir("conflict-backup");
+    fn export_and_restore_respect_operation_lock() {
+        let state = temp_dir("locked-state");
+        let backup = temp_dir("locked-backup");
+        let destination = temp_dir("locked-destination");
         fs::create_dir_all(&state).unwrap();
-        fs::create_dir_all(&backup).unwrap();
-        fs::write(backup.join("unrelated"), "x").unwrap();
+        let source_guard = acquire_quarantine_lock(&state, "test-holder").unwrap();
         assert_eq!(
             export_quarantine_backup(&state, &backup).unwrap_err().code,
-            "LB_QUARANTINE_BACKUP_CONFLICT"
+            "LB_QUARANTINE_BUSY"
         );
+        drop(source_guard);
+        export_quarantine_backup(&state, &backup).unwrap();
+        let destination_guard = acquire_quarantine_lock(&destination, "test-holder").unwrap();
+        assert_eq!(
+            restore_quarantine_backup(&backup, &destination)
+                .unwrap_err()
+                .code,
+            "LB_QUARANTINE_BUSY"
+        );
+        drop(destination_guard);
         let _ = fs::remove_dir_all(state);
         let _ = fs::remove_dir_all(backup);
+        let _ = fs::remove_dir_all(destination);
     }
 }

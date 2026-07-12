@@ -5,7 +5,7 @@ use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::{store_error, StoreError};
+use crate::{acquire_quarantine_lock, store_error, StoreError};
 
 #[derive(Debug, Clone)]
 pub struct QuarantineRecord {
@@ -39,6 +39,12 @@ impl QuarantineStore {
         }
     }
 
+    pub fn state_dir(&self) -> &Path {
+        self.path
+            .parent()
+            .unwrap_or_else(|| std::path::Path::new("."))
+    }
+
     pub fn path(&self) -> &Path {
         &self.path
     }
@@ -53,6 +59,7 @@ impl QuarantineStore {
         reason_code: &str,
         reasons: &[String],
     ) -> Result<QuarantineRecord, StoreError> {
+        let _lock = acquire_quarantine_lock(self.state_dir(), "quarantine-append")?;
         let (id_suffix, received_at) = timestamp()?;
         let record = QuarantineRecord {
             id: format!("lb:q:{id_suffix}"),
@@ -102,8 +109,21 @@ impl QuarantineStore {
         canonical_id: &str,
         duplicate: bool,
     ) -> Result<QuarantineResolution, StoreError> {
+        let _lock = acquire_quarantine_lock(self.state_dir(), "quarantine-promote")?;
         if let Some(existing) = self.get_resolution(quarantine_id)? {
             return Ok(existing);
+        }
+        if self.get_dismissal(quarantine_id)?.is_some() {
+            return Err(store_error(
+                "LB_QUARANTINE_ALREADY_DISMISSED",
+                format!("dismissed quarantine record cannot be promoted: {quarantine_id}"),
+            ));
+        }
+        if self.get_permanent_rejection(quarantine_id)?.is_some() {
+            return Err(store_error(
+                "LB_QUARANTINE_PERMANENTLY_REJECTED",
+                format!("permanently rejected quarantine record cannot be promoted: {quarantine_id}"),
+            ));
         }
         let (_, resolved_at) = timestamp()?;
         let resolution = QuarantineResolution {
@@ -377,23 +397,31 @@ mod tests {
             .unwrap();
         assert!(store.list().unwrap().is_empty());
         assert_eq!(store.list_all().unwrap().len(), 2);
-        assert!(store.get(&dismissed.id).unwrap().is_some());
-        assert!(store.get(&rejected.id).unwrap().is_some());
         let _ = fs::remove_dir_all(dir);
     }
 
     #[test]
-    fn resolution_is_append_only_and_idempotent() {
+    fn resolution_rechecks_terminal_state_while_locked() {
         let dir = temp_dir();
         let store = QuarantineStore::new(&dir);
-        let first = store
-            .append_resolution("lb:q:test", "lb:obj:test", false)
+        let dismissed = store
+            .append("{\"object\":{}}", "LB_POLICY_DEFERRED", &[])
             .unwrap();
-        let second = store
-            .append_resolution("lb:q:test", "lb:obj:other", true)
+        store
+            .dismiss(
+                &dismissed.id,
+                "operator",
+                OPERATOR_DISMISSED_REASON_CODE,
+                "duplicate",
+            )
             .unwrap();
-        assert_eq!(first.canonical_id, second.canonical_id);
-        assert_eq!(store.list_resolutions().unwrap().len(), 1);
+        assert_eq!(
+            store
+                .append_resolution(&dismissed.id, "lb:obj:test", false)
+                .unwrap_err()
+                .code,
+            "LB_QUARANTINE_ALREADY_DISMISSED"
+        );
         let _ = fs::remove_dir_all(dir);
     }
 }

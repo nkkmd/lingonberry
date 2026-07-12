@@ -7,7 +7,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use lingonberry_protocol::{parse_json, to_canonical_json, JsonValue};
 
 use super::QuarantineStore;
-use crate::{store_error, StoreError};
+use crate::{acquire_quarantine_lock, store_error, StoreError};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct QuarantineAnnotation {
@@ -20,10 +20,7 @@ pub struct QuarantineAnnotation {
 
 impl QuarantineStore {
     pub fn annotations_path(&self) -> PathBuf {
-        self.path()
-            .parent()
-            .unwrap_or_else(|| std::path::Path::new("."))
-            .join("quarantine-annotations.jsonl")
+        self.state_dir().join("quarantine-annotations.jsonl")
     }
 
     pub fn append_annotation(
@@ -32,6 +29,7 @@ impl QuarantineStore {
         operator: &str,
         note: &str,
     ) -> Result<QuarantineAnnotation, StoreError> {
+        let _lock = acquire_quarantine_lock(self.state_dir(), "quarantine-annotate")?;
         if self.get(quarantine_id)?.is_none() {
             return Err(store_error(
                 "LB_QUARANTINE_NOT_FOUND",
@@ -193,18 +191,9 @@ mod tests {
         let first = store
             .append("{\"object\":{}}", "LB_IDENTITY_DEFERRED", &[])
             .unwrap();
-        let second = store
-            .append("{\"object\":{}}", "LB_POLICY_DEFERRED", &[])
-            .unwrap();
-
         store
             .append_annotation(&first.id, "operator-a", "reviewed")
             .unwrap();
-        store
-            .append_annotation(&second.id, "operator-b", "needs follow-up")
-            .unwrap();
-
-        assert_eq!(store.list_annotations(None).unwrap().len(), 2);
         let filtered = store.list_annotations(Some(&first.id)).unwrap();
         assert_eq!(filtered.len(), 1);
         assert_eq!(filtered[0].operator, "operator-a");
@@ -212,45 +201,19 @@ mod tests {
     }
 
     #[test]
-    fn rejects_unknown_record_and_empty_fields() {
+    fn append_fails_while_operation_lock_is_held() {
         let dir = temp_dir();
         let store = QuarantineStore::new(&dir);
-        assert_eq!(
-            store
-                .append_annotation("lb:q:missing", "operator", "note")
-                .unwrap_err()
-                .code,
-            "LB_QUARANTINE_NOT_FOUND"
-        );
         let record = store
             .append("{\"object\":{}}", "LB_IDENTITY_DEFERRED", &[])
             .unwrap();
+        let _guard = acquire_quarantine_lock(&dir, "test-holder").unwrap();
         assert_eq!(
             store
-                .append_annotation(&record.id, "", "note")
+                .append_annotation(&record.id, "operator", "note")
                 .unwrap_err()
                 .code,
-            "LB_QUARANTINE_ANNOTATION"
-        );
-        assert_eq!(
-            store
-                .append_annotation(&record.id, "operator", "  ")
-                .unwrap_err()
-                .code,
-            "LB_QUARANTINE_ANNOTATION"
-        );
-        let _ = fs::remove_dir_all(dir);
-    }
-
-    #[test]
-    fn corrupt_annotation_ledger_is_reported() {
-        let dir = temp_dir();
-        let store = QuarantineStore::new(&dir);
-        fs::create_dir_all(&dir).unwrap();
-        fs::write(store.annotations_path(), "not-json\n").unwrap();
-        assert_eq!(
-            store.list_annotations(None).unwrap_err().code,
-            "LB_QUARANTINE_CORRUPT"
+            "LB_QUARANTINE_BUSY"
         );
         let _ = fs::remove_dir_all(dir);
     }

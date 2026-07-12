@@ -13,6 +13,10 @@ path = "src/main_entry.rs"
 name = "lingonberry-quarantine-backup"
 path = "src/quarantine_backup_main.rs"
 
+[[bin]]
+name = "lingonberry-quarantine-maintenance"
+path = "src/quarantine_maintenance_main.rs"
+
 [dependencies]
 lingonberry-core = { path = "../core" }
 lingonberry-indexer = { path = "../indexer" }

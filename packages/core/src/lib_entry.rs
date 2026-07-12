@@ -2,6 +2,7 @@ include!("lib.rs");
 mod quarantine_annotations;
 mod quarantine_backup;
 mod quarantine_dismissals;
+mod quarantine_lock;
 mod quarantine_rejections;
 mod quarantine_status;
 
@@ -14,6 +15,10 @@ pub use quarantine_backup::{
 };
 pub use quarantine_dismissals::{
     quarantine_dismissal_json, QuarantineDismissal, OPERATOR_DISMISSED_REASON_CODE,
+};
+pub use quarantine_lock::{
+    acquire_quarantine_lock, QuarantineOperationLock, QUARANTINE_LOCK_FILE,
+    QUARANTINE_LOCK_STALE_AFTER,
 };
 pub use quarantine_rejections::{
     quarantine_permanent_rejection_json, QuarantinePermanentRejection,

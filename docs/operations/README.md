@@ -32,13 +32,15 @@
 
 障害時の一次参照先は [Node Lifecycle Runbook](./NODE_LIFECYCLE_RUNBOOK.md) とします。
 
-quarantine backlog の一次確認には、CLI の `quarantine-status` または HTTP の `GET /v1/quarantine-status` を使用します。永続状態の契約は [Quarantine Status API](../roadmap/QUARANTINE_STATUS_API.md)、監視指標の原則は [Observability](./OBSERVABILITY.md) を参照します。
+quarantine backlog の一次確認には、CLI の `quarantine-status` または HTTP の `GET /v1/quarantine-status` を使用します。Prometheus 形式の監視値は CLI の `quarantine-metrics` または HTTP の `GET /metrics` から取得します。
 
 - [Access and Retention Policy](./ACCESS_RETENTION_POLICY.md)
 - [Access and Retention Audit Checklist](./ACCESS_RETENTION_AUDIT_CHECKLIST.md)
 - [Caddy Relay Publication](./CADDY_RELAY_PUBLICATION.md)
 - [Secret Management](./SECRET_MANAGEMENT.md)
 - [Observability](./OBSERVABILITY.md)
+- [Quarantine Observability Metrics](./QUARANTINE_OBSERVABILITY_METRICS.md)
+- [Quarantine Status API](../roadmap/QUARANTINE_STATUS_API.md)
 - [storage node runtime](./STORAGE_NODE_RUNTIME.md)
 - [relay / storage separation](./RELAY_STORAGE_SEPARATION.md)
 - [Node Lifecycle Runbook](./NODE_LIFECYCLE_RUNBOOK.md)

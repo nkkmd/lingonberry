@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use lingonberry_protocol::JsonValue;
 
@@ -20,6 +21,15 @@ impl QuarantineStore {
     pub fn status_json(&self) -> Result<JsonValue, StoreError> {
         let status = quarantine_status(self)?;
         Ok(quarantine_status_json(&status))
+    }
+
+    pub fn metrics_text(&self) -> Result<String, StoreError> {
+        let status = quarantine_status(self)?;
+        let now_seconds = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_err(|error| crate::store_error("LB_QUARANTINE_IO", error.to_string()))?
+            .as_secs();
+        Ok(quarantine_metrics_text(&status, now_seconds))
     }
 }
 
@@ -110,6 +120,63 @@ fn quarantine_status_json(status: &QuarantineStatus) -> JsonValue {
             JsonValue::Number(status.total.to_string()),
         ),
     ]))
+}
+
+fn quarantine_metrics_text(status: &QuarantineStatus, now_seconds: u64) -> String {
+    let oldest_pending_age = status
+        .oldest_pending_at
+        .as_deref()
+        .and_then(timestamp_seconds)
+        .map(|received| now_seconds.saturating_sub(received))
+        .unwrap_or(0);
+
+    let mut output = String::from(
+        "# HELP lingonberry_quarantine_records Current quarantine records by persistent lifecycle state.\n\
+# TYPE lingonberry_quarantine_records gauge\n",
+    );
+    output.push_str(&format!(
+        "lingonberry_quarantine_records{{state=\"total\"}} {}\n",
+        status.total
+    ));
+    output.push_str(&format!(
+        "lingonberry_quarantine_records{{state=\"pending\"}} {}\n",
+        status.pending
+    ));
+    output.push_str(&format!(
+        "lingonberry_quarantine_records{{state=\"promoted\"}} {}\n",
+        status.promoted
+    ));
+    output.push_str(
+        "# HELP lingonberry_quarantine_oldest_pending_age_seconds Age of the oldest pending quarantine record.\n\
+# TYPE lingonberry_quarantine_oldest_pending_age_seconds gauge\n",
+    );
+    output.push_str(&format!(
+        "lingonberry_quarantine_oldest_pending_age_seconds {}\n",
+        oldest_pending_age
+    ));
+    output.push_str(
+        "# HELP lingonberry_quarantine_reason_code_records Quarantine records grouped by bounded reason code.\n\
+# TYPE lingonberry_quarantine_reason_code_records gauge\n",
+    );
+    for (reason_code, count) in &status.reason_code_counts {
+        output.push_str(&format!(
+            "lingonberry_quarantine_reason_code_records{{reason_code=\"{}\"}} {}\n",
+            escape_metric_label(reason_code),
+            count
+        ));
+    }
+    output
+}
+
+fn timestamp_seconds(value: &str) -> Option<u64> {
+    value.strip_suffix('Z')?.split('.').next()?.parse().ok()
+}
+
+fn escape_metric_label(value: &str) -> String {
+    value
+        .replace('\\', "\\\\")
+        .replace('\n', "\\n")
+        .replace('"', "\\\"")
 }
 
 fn optional_string_json(value: &Option<String>) -> JsonValue {
@@ -206,6 +273,40 @@ mod tests {
         assert_eq!(status.latest_promoted_at, Some("2.000000000Z".to_string()));
 
         let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn metrics_report_counts_age_and_escaped_reason_codes() {
+        let status = QuarantineStatus {
+            total: 3,
+            pending: 2,
+            promoted: 1,
+            oldest_pending_at: Some("100.000000000Z".to_string()),
+            latest_received_at: None,
+            latest_promoted_at: None,
+            reason_code_counts: BTreeMap::from([("LB_\"TEST\\CODE".to_string(), 2)]),
+        };
+
+        let metrics = quarantine_metrics_text(&status, 145);
+        assert!(metrics.contains("lingonberry_quarantine_records{state=\"pending\"} 2"));
+        assert!(metrics.contains("lingonberry_quarantine_oldest_pending_age_seconds 45"));
+        assert!(metrics.contains("reason_code=\"LB_\\\"TEST\\\\CODE\"} 2"));
+    }
+
+    #[test]
+    fn empty_metrics_have_zero_age() {
+        let status = QuarantineStatus {
+            total: 0,
+            pending: 0,
+            promoted: 0,
+            oldest_pending_at: None,
+            latest_received_at: None,
+            latest_promoted_at: None,
+            reason_code_counts: BTreeMap::new(),
+        };
+
+        let metrics = quarantine_metrics_text(&status, 145);
+        assert!(metrics.contains("lingonberry_quarantine_oldest_pending_age_seconds 0"));
     }
 
     #[test]

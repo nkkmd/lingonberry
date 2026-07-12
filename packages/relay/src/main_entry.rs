@@ -45,6 +45,14 @@ mod legacy {
         let (method, path, _version) = parse_http_request_line(&request_line)?;
         let headers = read_http_headers(&mut reader)?;
         let body = read_http_body(&mut reader, &headers)?;
+
+        if is_quarantine_metrics_route(&method, &path) {
+            let metrics = QuarantineStore::new(runtime_state_dir())
+                .metrics_text()
+                .map_err(|error| error.to_string())?;
+            return write_metrics_response(&mut stream, &metrics).map_err(|error| error.to_string());
+        }
+
         let (status_code, status_text, response_body) = if is_quarantine_status_route(&method, &path)
         {
             let status = QuarantineStore::new(runtime_state_dir())
@@ -58,8 +66,21 @@ mod legacy {
             .map_err(|error| error.to_string())
     }
 
+    fn write_metrics_response(stream: &mut TcpStream, body: &str) -> std::io::Result<()> {
+        write!(
+            stream,
+            "HTTP/1.1 200 OK\r\nContent-Type: text/plain; version=0.0.4; charset=utf-8\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+            body.as_bytes().len(),
+            body
+        )
+    }
+
     pub(crate) fn is_quarantine_status_route(method: &str, path: &str) -> bool {
         method == "GET" && path == "/v1/quarantine-status"
+    }
+
+    pub(crate) fn is_quarantine_metrics_route(method: &str, path: &str) -> bool {
+        method == "GET" && path == "/metrics"
     }
 }
 
@@ -72,6 +93,7 @@ fn main() {
     let args = env::args().skip(1).collect::<Vec<_>>();
     let result = match args.first().map(String::as_str) {
         Some("quarantine-status") => handle_quarantine_status(),
+        Some("quarantine-metrics") => handle_quarantine_metrics(),
         Some("serve-http") => {
             let backend = build_runtime_storage_backend();
             let addr = args.get(1).map(String::as_str).unwrap_or("127.0.0.1:8787");
@@ -94,9 +116,17 @@ fn handle_quarantine_status() -> Result<(), String> {
     Ok(())
 }
 
+fn handle_quarantine_metrics() -> Result<(), String> {
+    let metrics = QuarantineStore::new(runtime_state_dir())
+        .metrics_text()
+        .map_err(|error| error.to_string())?;
+    print!("{}", metrics);
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
-    use super::legacy::is_quarantine_status_route;
+    use super::legacy::{is_quarantine_metrics_route, is_quarantine_status_route};
 
     #[test]
     fn quarantine_status_http_route_is_exact() {
@@ -104,5 +134,13 @@ mod tests {
         assert!(!is_quarantine_status_route("POST", "/v1/quarantine-status"));
         assert!(!is_quarantine_status_route("GET", "/v1/quarantine-status/"));
         assert!(!is_quarantine_status_route("GET", "/v1/quarantine"));
+    }
+
+    #[test]
+    fn quarantine_metrics_http_route_is_exact() {
+        assert!(is_quarantine_metrics_route("GET", "/metrics"));
+        assert!(!is_quarantine_metrics_route("POST", "/metrics"));
+        assert!(!is_quarantine_metrics_route("GET", "/metrics/"));
+        assert!(!is_quarantine_metrics_route("GET", "/v1/metrics"));
     }
 }

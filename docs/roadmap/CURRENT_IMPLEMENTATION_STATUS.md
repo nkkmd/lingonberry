@@ -8,7 +8,7 @@
 
 ## 1. 現在地
 
-2026-07-12 時点で、persistent quarantine lifecycle、same-host concurrency、active-ledger index、archive-aware ordered reads、verified rotation、archive-inclusive backup / verify / restoreまで実装済みです。
+2026-07-12 時点で、persistent quarantine lifecycle、same-host concurrency、active-ledger index、archive-aware ordered reads、verified rotation、archive-inclusive backup、non-destructive compaction preview / proofまで実装済みです。
 
 | 項目 | 状態 |
 |---|---|
@@ -20,8 +20,9 @@
 | archive-aware ordered readers | 実装済み |
 | byte-preserving verified rotation | 実装済み |
 | archive-inclusive backup / verify / restore | 実装済み |
-| record-rewriting compaction | 未実装 |
-| retention deletion | 未実装 |
+| non-destructive compaction preview / proof | 実装済み |
+| record-rewriting compaction | 未実装・未承認 |
+| retention deletion | 未実装・未承認 |
 | multi-role authorization | 未実装 |
 | distributed locking | 未実装 |
 
@@ -42,7 +43,7 @@ quarantine-segments/
 .quarantine-operation.lock
 ```
 
-`quarantine-ledger-index.json`はderived indexです。`quarantine-segments.json`と`quarantine-segments/`はimmutable archive evidenceです。
+Compaction proofはruntime state外のoperator-selected output directoryへ作成します。
 
 ---
 
@@ -55,11 +56,13 @@ segment manifestのsequence順
 → active ledger
 ```
 
-Quarantine records、resolutions、annotations、dismissals、permanent rejectionsはarchive-aware readerを使用します。Missing、tampered、duplicate、out-of-order、unlisted segmentはcorruptionです。
+Missing、tampered、duplicate、out-of-order、unlisted segmentはcorruptionです。
 
 ---
 
-## 4. Verified rotation
+## 4. Rotation and backup
+
+Rotation：
 
 ```bash
 lingonberry-quarantine-maintenance build-index
@@ -67,19 +70,7 @@ lingonberry-quarantine-maintenance rotate <managed-ledger-name>
 lingonberry-quarantine-maintenance verify-segments
 ```
 
-Rotationはfresh active-ledger indexとshared operation lockを要求し、元byte列をimmutable segmentへ移します。前後のlogical line countとordered-stream digestが一致しなければrollbackします。
-
----
-
-## 5. Archive-inclusive backup v2
-
-New export format：
-
-```text
-lingonberry-quarantine-backup/v2
-```
-
-CLIは変更ありません。
+Archive-inclusive backup：
 
 ```bash
 lingonberry-quarantine-backup export <empty-backup-dir>
@@ -87,44 +78,91 @@ lingonberry-quarantine-backup verify <backup-dir>
 lingonberry-quarantine-backup restore <backup-dir> <empty-state-dir>
 ```
 
-V2は以下を保存します。
-
-```text
-six active ledgers
-quarantine-segments.json when present
-all listed quarantine-segments/* files
-```
-
-Derived indexとoperation lockは保存しません。
-
-Compatibility：
-
-- `export`はv2を作成
-- `verify`はv1とv2を受理
-- `restore`はv1とv2を受理
-
-Exportはsource lockとsegment verificationを使用します。Restoreはdestination lock、conflict check、temporary file + atomic rename、final segment verificationを使用し、final verification失敗時はrestoreが書いたfileをrollbackします。
-
-関連Issue：#36
-
-関連文書：`docs/operations/QUARANTINE_BACKUP_RESTORE.md`
+New exportは`lingonberry-quarantine-backup/v2`です。Verify / restoreはv1とv2を受理します。
 
 ---
 
-## 6. Backup対象外
+## 5. Compaction policy v1
 
 ```text
-quarantine-ledger-index.json
-.quarantine-operation.lock
+lingonberry-quarantine-compaction-policy/v1
 ```
 
-Indexはrestore後に再構築します。Lockはruntime coordination stateであり、移送しません。Environment variableとbearer tokenもbackupへ含めません。
+### Immutable evidence
+
+```text
+quarantine.jsonl
+quarantine-annotations.jsonl
+admin-auth-audit.jsonl
+```
+
+### Terminal single-event evidence
+
+```text
+quarantine-resolutions.jsonl
+quarantine-dismissals.jsonl
+quarantine-rejections.jsonl
+```
+
+Terminal ledgerのduplicate quarantine IDはcompaction candidateではなくcorruptionです。
+
+Policy v1の結論：
+
+```json
+{
+  "mutationAllowed": false,
+  "rewritePerformed": false,
+  "removableLines": 0
+}
+```
+
+現時点で安全に削除できるlineは定義されていません。
+
+---
+
+## 6. Compaction preview and proof
+
+```bash
+export LINGONBERRY_STATE_DIR=/var/lib/lingonberry/relay
+
+lingonberry-quarantine-maintenance compaction-preview \
+  <verified-backup-v2-dir> \
+  <empty-proof-output-dir>
+
+lingonberry-quarantine-maintenance verify-compaction-proof \
+  <proof-output-dir>
+```
+
+Output：
+
+```text
+quarantine-compaction-proof.json
+quarantine-compaction-proof.digest
+```
+
+Proofは以下を記録します。
+
+- backup manifest digest
+- segment manifest digest
+- per-ledger line / byte count
+- ordered logical stream digest
+- unique key count
+- retained / removable line count
+- promoted / dismissed / permanently rejected count
+- proof / policy version
+- no mutation / no rewrite statement
+
+Preview前後でruntime fingerprintを比較します。Previewはmutation lockを取得せず、runtime stateを書き換えません。
+
+関連Issue：#38
+
+関連文書：`docs/operations/QUARANTINE_COMPACTION_PROOF.md`
 
 ---
 
 ## 7. Same-host operation lock
 
-Mutation、backup export、restore destination write、index build、rotationを直列化します。Distributed lockやnetwork filesystem leaseではありません。
+Mutation、backup export、restore destination write、index build、rotationを直列化します。Compaction previewはread-onlyでlock-freeです。Distributed lockやnetwork filesystem leaseではありません。
 
 ---
 
@@ -137,12 +175,13 @@ Public listenerへquarantine management routeを公開しません。Backupとma
 ## 9. 主要ファイル
 
 ```text
+packages/core/src/quarantine_compaction.rs
 packages/core/src/quarantine_complete_backup.rs
-packages/core/src/quarantine_backup.rs
 packages/core/src/quarantine_segments.rs
 packages/core/src/quarantine_ledger_index.rs
 packages/relay/src/quarantine_backup_main.rs
 packages/relay/src/quarantine_maintenance_main.rs
+docs/operations/QUARANTINE_COMPACTION_PROOF.md
 docs/operations/QUARANTINE_BACKUP_RESTORE.md
 docs/operations/QUARANTINE_JSONL_MAINTENANCE.md
 docs/roadmap/QUARANTINE_LIFECYCLE_BACKLOG.md
@@ -162,17 +201,11 @@ export LINGONBERRY_STATE_DIR=/var/lib/lingonberry/relay
 lingonberry-quarantine-maintenance verify-segments
 lingonberry-quarantine-backup export /tmp/lingonberry-backup
 lingonberry-quarantine-backup verify /tmp/lingonberry-backup
-```
-
-Restore rehearsal：
-
-```bash
-lingonberry-quarantine-backup restore \
+lingonberry-quarantine-maintenance compaction-preview \
   /tmp/lingonberry-backup \
-  /tmp/lingonberry-restored
-
-LINGONBERRY_STATE_DIR=/tmp/lingonberry-restored \
-  lingonberry-quarantine-maintenance verify-segments
+  /tmp/lingonberry-compaction-proof
+lingonberry-quarantine-maintenance verify-compaction-proof \
+  /tmp/lingonberry-compaction-proof
 ```
 
 ---
@@ -188,12 +221,12 @@ LINGONBERRY_STATE_DIR=/tmp/lingonberry-restored \
 7. archive segmentを上書き・変更・削除しない
 8. manifest未登録segmentを黙って無視しない
 9. rotation前後のlogical stream equivalenceを検証する
-10. v2 backup manifestを全file copy完了前に発行しない
-11. archive-inclusive backupを検証せずrestoreしない
-12. restore destinationの既存stateを上書きしない
-13. derived indexやlock fileをbackupからrestoreしない
-14. compactionのsemantic equivalence検証前にsource evidenceを削除しない
-15. retention deletionをcompactionと同時に暗黙実行しない
+10. verified backup v2なしでcompaction previewを作らない
+11. duplicate terminal eventをremoval candidateとして扱わない
+12. policy v1 proofでmutationを許可しない
+13. preview output以外を変更しない
+14. explicit replacement policyなしでrecord rewriteを実装しない
+15. retention deletionをrewriteと同時に暗黙実行しない
 
 ---
 
@@ -202,18 +235,18 @@ LINGONBERRY_STATE_DIR=/tmp/lingonberry-restored \
 ### 第一候補
 
 ```text
-QL-5C2: Verified Compaction Policy and Proof
-```
-
-まずledger typeごとの「削除可能な情報」と「永久保持する監査証跡」を定義し、実データを書き換えないcompaction previewとsemantic proofから始めます。
-
-### 第二候補
-
-```text
 Multi-role authorization
 ```
 
-単一admin roleをreviewer、operator、observerへ分離します。
+Policy v1ではremovable lineが0のため、具体的なreplacement semanticsが承認されるまでQL-5C3 rewriteへ進むべきではありません。次の独立した改善として、単一admin roleをreviewer、operator、observerへ分離します。
+
+### 将来候補
+
+```text
+QL-5C3: Verified Rewrite Transaction
+```
+
+開始には、lineを除去または置換してよい具体的なpolicy、semantic equivalence、source evidence preservation、interrupted recoveryの承認が必要です。
 
 ---
 
@@ -235,5 +268,6 @@ Multi-role authorization
 → #31 concurrent ledger coordination
 → #33 verified JSONL index and planning
 → #35 archive-aware verified rotation
-→ #36 archive-inclusive backup / restore
+→ #37 archive-inclusive backup / restore
+→ #38 non-destructive compaction preview / proof
 ```

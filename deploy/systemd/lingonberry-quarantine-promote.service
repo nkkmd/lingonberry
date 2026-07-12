@@ -1,0 +1,19 @@
+[Unit]
+Description=Lingonberry quarantine batch promotion
+After=network.target
+
+[Service]
+Type=oneshot
+User=lingonberry
+Group=lingonberry
+Environment=LINGONBERRY_STATE_DIR=/var/lib/lingonberry/relay
+ExecStart=/usr/bin/flock --nonblock /run/lock/lingonberry-quarantine-promote.lock /usr/local/bin/lingonberry-relay quarantine-promote-batch 100
+TimeoutStartSec=10m
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/lingonberry/relay /run/lock
+
+[Install]
+WantedBy=multi-user.target

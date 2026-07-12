@@ -13,7 +13,8 @@
 | same-host concurrent ledger coordination | #30 / #31 | 完了 |
 | verified read-only JSONL index and planning | #32 / #33 | 完了 |
 | archive-aware ordered reads and verified rotation | #34 / #35 | 完了 |
-| archive-inclusive backup / verify / restore | #36 | 実装・PR化 |
+| archive-inclusive backup / verify / restore | #36 / #37 | 完了 |
+| non-destructive compaction preview and proof | #38 | 実装・PR化 |
 
 ---
 
@@ -27,72 +28,94 @@
 
 **状態: completed**
 
-```text
-manifest: quarantine-segments.json
-archive dir: quarantine-segments/
-read order: segment sequence順 → active ledger
-rotation: fresh index + shared lock + semantic equivalence
-archive evidence: immutable
-```
-
 ---
 
 ## QL-5C1: Archive-inclusive Backup / Verify / Restore
 
-**状態: implemented**
-
-### 固定した判断
+**状態: completed**
 
 ```text
-new export version: lingonberry-quarantine-backup/v2
-v1 verify / restore: backward compatible
-v2 contents: six active ledgers + segment manifest + listed segments
-excluded: derived index + operation lock
-export: source lock + segment verification + source re-read
-restore: destination lock + conflict rejection + final segment verification
+export: backup/v2
+verify / restore: v1 and v2
+v2: active ledgers + segment manifest + listed immutable segments
 ```
-
-### 実装済み完了条件
-
-- post-rotation stateを一つのbackupで完全保存
-- active-only stateにも対応
-- v1 backupのverify / restore互換性を維持
-- path traversal、missing、tampered、unlisted archive fileを拒否
-- segment manifestとbackup manifestの不一致を拒否
-- restore後にruntime segment verifierを実行
-- final verification失敗時にrestoreが書いたfileをrollback
-- bearer token、derived index、lock fileをbackupへ含めない
-
-関連文書：`docs/operations/QUARANTINE_BACKUP_RESTORE.md`
 
 ---
 
-## QL-5C2: Verified Compaction Policy and Proof
+## QL-5C2: Non-destructive Compaction Preview and Semantic Proof
+
+**状態: implemented**
+
+### Policy v1
+
+```text
+policy: lingonberry-quarantine-compaction-policy/v1
+mutationAllowed: false
+rewritePerformed: false
+removableLines: 0
+```
+
+### Ledger classification
+
+Immutable evidence：
+
+```text
+quarantine.jsonl
+quarantine-annotations.jsonl
+admin-auth-audit.jsonl
+```
+
+Terminal single-event evidence：
+
+```text
+quarantine-resolutions.jsonl
+quarantine-dismissals.jsonl
+quarantine-rejections.jsonl
+```
+
+Terminal ledgerのduplicate quarantine IDはremoval candidateではなくcorruptionです。
+
+### 実装済み完了条件
+
+- verified archive-inclusive backup v2を必須化
+- archive segment verificationを事前実行
+- 全managed ledgerのordered logical streamをscan
+- line count、byte count、ordered digest、unique key countを記録
+- promoted、dismissed、permanently rejectedのcountを記録
+- backup manifestとsegment manifestのdigestをproofへ記録
+- runtime fingerprintをpreview前後で比較
+- output directory以外を変更しない
+- versioned proofとseparate digestをatomic publish
+- proof tamperingとunsupported policyを拒否
+- policy v1では全line保持、removable lineは常に0
+
+関連文書：`docs/operations/QUARANTINE_COMPACTION_PROOF.md`
+
+---
+
+## QL-5C3: Verified Rewrite Transaction
 
 **優先度: highest**
 
-### 前提
+### 開始条件
 
-1. ledger type別のcompaction policy
+現在のpolicy v1では安全に除去できるlineが存在しないため、QL-5C3で即座にrewriteを実装してはいけません。先に具体的なreplacement policyを承認する必要があります。
+
+### 必須要件
+
+1. ledger type別の明示的replacement semantics
 2. status / metrics / eligibility / idempotencyのsemantic equivalence
-3. source evidenceまたは検証可能なreplacement proof
-4. interrupted compaction recovery
-5. archive-inclusive backupの事前成功
-
-### 完了条件
-
-- unknown / corrupt lineを黙って除外しない
-- compaction前後でstatus、metrics、lifecycle判定が一致する
-- duplicate detectionの意味を維持する
-- source segmentを即時削除しない
-- retention deletionは別の明示的承認段階に分離する
+3. source evidenceを保持するreplacement proof
+4. interrupted rewrite recovery
+5. verified backup v2の事前成功
+6. retention deletionをrewriteから分離
 
 ### 非スコープ
 
+- automatic retention deletion
 - distributed locking
 - remote archive storage
 - cryptographic signing
-- automatic retention deletion
 
 ---
 

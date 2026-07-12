@@ -36,10 +36,7 @@ fn configuration_report() -> Result<JsonValue, String> {
     let legacy_active = credentials.used_legacy_operator_fallback;
 
     Ok(JsonValue::Object(BTreeMap::from([
-        (
-            "actionRequired".to_string(),
-            JsonValue::Bool(legacy_active),
-        ),
+        ("actionRequired".to_string(), JsonValue::Bool(legacy_active)),
         (
             "configuredCredentialCount".to_string(),
             JsonValue::Number(credentials.credentials.len().to_string()),
@@ -84,10 +81,7 @@ fn configuration_report() -> Result<JsonValue, String> {
             "reviewerConfigured".to_string(),
             JsonValue::Bool(reviewer_configured),
         ),
-        (
-            "secretsIncluded".to_string(),
-            JsonValue::Bool(false),
-        ),
+        ("secretsIncluded".to_string(), JsonValue::Bool(false)),
     ])))
 }
 

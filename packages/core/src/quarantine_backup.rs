@@ -68,7 +68,10 @@ pub fn export_quarantine_backup(
         if !source.is_file() {
             return Err(store_error(
                 "LB_QUARANTINE_BACKUP",
-                format!("managed state path is not a regular file: {}", source.display()),
+                format!(
+                    "managed state path is not a regular file: {}",
+                    source.display()
+                ),
             ));
         }
         let before = fs::read(&source)
@@ -229,8 +232,8 @@ pub fn restore_quarantine_backup(
         let source = backup_dir.join(&entry.name);
         let target = destination.join(&entry.name);
         let temporary = destination.join(format!(".{}.restore-tmp", entry.name));
-        let bytes = fs::read(source)
-            .map_err(|error| store_error("LB_QUARANTINE_IO", error.to_string()))?;
+        let bytes =
+            fs::read(source).map_err(|error| store_error("LB_QUARANTINE_IO", error.to_string()))?;
         fs::write(&temporary, bytes)
             .map_err(|error| store_error("LB_QUARANTINE_IO", error.to_string()))?;
         fs::rename(&temporary, &target)
@@ -280,7 +283,10 @@ pub fn quarantine_backup_manifest_json(manifest: &QuarantineBackupManifest) -> J
                     .iter()
                     .map(|entry| {
                         JsonValue::Object(BTreeMap::from([
-                            ("bytes".to_string(), JsonValue::Number(entry.bytes.to_string())),
+                            (
+                                "bytes".to_string(),
+                                JsonValue::Number(entry.bytes.to_string()),
+                            ),
                             (
                                 "digest".to_string(),
                                 entry

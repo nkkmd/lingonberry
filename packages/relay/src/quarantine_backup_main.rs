@@ -40,11 +40,8 @@ fn run(args: Vec<String>) -> Result<(), String> {
             if args.len() != 3 {
                 return Err(usage());
             }
-            restore_any_quarantine_backup(
-                PathBuf::from(backup_dir),
-                PathBuf::from(destination),
-            )
-            .map_err(|error| error.to_string())?
+            restore_any_quarantine_backup(PathBuf::from(backup_dir), PathBuf::from(destination))
+                .map_err(|error| error.to_string())?
         }
         _ => return Err(usage()),
     };

@@ -7,18 +7,15 @@ use lingonberry_protocol::{parse_json, to_canonical_json, JsonValue};
 
 use crate::{
     read_managed_ledger_lines, store_error, verify_any_quarantine_backup,
-    verify_quarantine_segments, StoreError, QUARANTINE_BACKUP_FILES,
-    QUARANTINE_BACKUP_MANIFEST, QUARANTINE_COMPLETE_BACKUP_VERSION,
-    QUARANTINE_SEGMENT_MANIFEST_FILE,
+    verify_quarantine_segments, StoreError, QUARANTINE_BACKUP_FILES, QUARANTINE_BACKUP_MANIFEST,
+    QUARANTINE_COMPLETE_BACKUP_VERSION, QUARANTINE_SEGMENT_MANIFEST_FILE,
 };
 
 pub const QUARANTINE_COMPACTION_POLICY_VERSION: &str =
     "lingonberry-quarantine-compaction-policy/v1";
-pub const QUARANTINE_COMPACTION_PROOF_VERSION: &str =
-    "lingonberry-quarantine-compaction-proof/v1";
+pub const QUARANTINE_COMPACTION_PROOF_VERSION: &str = "lingonberry-quarantine-compaction-proof/v1";
 pub const QUARANTINE_COMPACTION_PROOF_FILE: &str = "quarantine-compaction-proof.json";
-pub const QUARANTINE_COMPACTION_PROOF_DIGEST_FILE: &str =
-    "quarantine-compaction-proof.digest";
+pub const QUARANTINE_COMPACTION_PROOF_DIGEST_FILE: &str = "quarantine-compaction-proof.digest";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct QuarantineCompactionLedgerPreview {
@@ -89,9 +86,7 @@ pub fn create_quarantine_compaction_preview(
         version: QUARANTINE_COMPACTION_PROOF_VERSION.to_string(),
         policy_version: QUARANTINE_COMPACTION_POLICY_VERSION.to_string(),
         generated_at: timestamp()?,
-        source_backup_manifest_digest: file_digest(
-            &backup_dir.join(QUARANTINE_BACKUP_MANIFEST),
-        )?,
+        source_backup_manifest_digest: file_digest(&backup_dir.join(QUARANTINE_BACKUP_MANIFEST))?,
         source_segment_manifest_digest: optional_file_digest(
             &state_dir.join(QUARANTINE_SEGMENT_MANIFEST_FILE),
         )?,
@@ -109,9 +104,7 @@ pub fn create_quarantine_compaction_preview(
     fs::rename(&proof_tmp, &proof_path).map_err(io_error)?;
     let digest = integrity_digest(proof_text.as_bytes());
     let digest_path = output_dir.join(QUARANTINE_COMPACTION_PROOF_DIGEST_FILE);
-    let digest_tmp = output_dir.join(format!(
-        ".{QUARANTINE_COMPACTION_PROOF_DIGEST_FILE}.tmp"
-    ));
+    let digest_tmp = output_dir.join(format!(".{QUARANTINE_COMPACTION_PROOF_DIGEST_FILE}.tmp"));
     fs::write(&digest_tmp, format!("{digest}\n")).map_err(io_error)?;
     fs::rename(&digest_tmp, &digest_path).map_err(io_error)?;
     verify_quarantine_compaction_proof(output_dir)
@@ -124,10 +117,9 @@ pub fn verify_quarantine_compaction_proof(
     let proof_path = proof_dir.join(QUARANTINE_COMPACTION_PROOF_FILE);
     let proof_text = fs::read_to_string(&proof_path)
         .map_err(|error| invalid(&format!("failed to read proof: {error}")))?;
-    let expected_digest = fs::read_to_string(
-        proof_dir.join(QUARANTINE_COMPACTION_PROOF_DIGEST_FILE),
-    )
-    .map_err(|error| invalid(&format!("failed to read proof digest: {error}")))?;
+    let expected_digest =
+        fs::read_to_string(proof_dir.join(QUARANTINE_COMPACTION_PROOF_DIGEST_FILE))
+            .map_err(|error| invalid(&format!("failed to read proof digest: {error}")))?;
     if expected_digest.trim() != integrity_digest(proof_text.as_bytes()) {
         return Err(invalid("compaction proof digest mismatch"));
     }
@@ -222,7 +214,10 @@ fn validate_proof(proof: &QuarantineCompactionProof) -> Result<(), StoreError> {
         .iter()
         .map(|ledger| ledger.ledger.as_str())
         .collect::<BTreeSet<_>>();
-    let expected = QUARANTINE_BACKUP_FILES.iter().copied().collect::<BTreeSet<_>>();
+    let expected = QUARANTINE_BACKUP_FILES
+        .iter()
+        .copied()
+        .collect::<BTreeSet<_>>();
     if names != expected || proof.ledgers.len() != QUARANTINE_BACKUP_FILES.len() {
         return Err(invalid("proof must contain the exact managed ledger set"));
     }
@@ -238,8 +233,7 @@ fn validate_proof(proof: &QuarantineCompactionProof) -> Result<(), StoreError> {
 }
 
 fn require_v2_backup(backup_dir: &Path) -> Result<(), StoreError> {
-    let text = fs::read_to_string(backup_dir.join(QUARANTINE_BACKUP_MANIFEST))
-        .map_err(io_error)?;
+    let text = fs::read_to_string(backup_dir.join(QUARANTINE_BACKUP_MANIFEST)).map_err(io_error)?;
     let value = parse_json(&text).map_err(|error| invalid(&error.to_string()))?;
     if object_string(&value, "version")? != QUARANTINE_COMPLETE_BACKUP_VERSION {
         return Err(store_error(
@@ -261,9 +255,12 @@ fn runtime_fingerprint(state_dir: &Path) -> Result<Vec<(String, Option<String>)>
         let mut archive = fs::read_dir(&archive_dir)
             .map_err(io_error)?
             .map(|entry| {
-                entry
-                    .map_err(io_error)
-                    .map(|entry| format!("quarantine-segments/{}", entry.file_name().to_string_lossy()))
+                entry.map_err(io_error).map(|entry| {
+                    format!(
+                        "quarantine-segments/{}",
+                        entry.file_name().to_string_lossy()
+                    )
+                })
             })
             .collect::<Result<Vec<_>, StoreError>>()?;
         archive.sort();
@@ -484,7 +481,10 @@ fn integrity_digest(bytes: &[u8]) -> String {
 fn object_string(value: &JsonValue, name: &str) -> Result<String, StoreError> {
     match value {
         JsonValue::Object(map) => string(map, name),
-        _ => Err(store_error("LB_QUARANTINE_CORRUPT", "ledger line is not an object")),
+        _ => Err(store_error(
+            "LB_QUARANTINE_CORRUPT",
+            "ledger line is not an object",
+        )),
     }
 }
 
@@ -498,7 +498,10 @@ fn optional_object_string(value: &JsonValue, name: &str) -> Result<Option<String
                 format!("invalid optional string field: {name}"),
             )),
         },
-        _ => Err(store_error("LB_QUARANTINE_CORRUPT", "ledger line is not an object")),
+        _ => Err(store_error(
+            "LB_QUARANTINE_CORRUPT",
+            "ledger line is not an object",
+        )),
     }
 }
 
@@ -562,8 +565,7 @@ fn invalid(message: &str) -> StoreError {
 mod tests {
     use super::*;
     use crate::{
-        build_quarantine_ledger_index, export_complete_quarantine_backup,
-        rotate_quarantine_ledger,
+        build_quarantine_ledger_index, export_complete_quarantine_backup, rotate_quarantine_ledger,
     };
 
     fn temp_dir(label: &str) -> PathBuf {

@@ -103,7 +103,9 @@ fn configured_admin_credentials_from(
         if let Some(value) = read(ADMIN_TOKEN_ENV) {
             let token = value.trim();
             if token.is_empty() {
-                return Err(format!("{ADMIN_TOKEN_ENV} must not be empty when configured"));
+                return Err(format!(
+                    "{ADMIN_TOKEN_ENV} must not be empty when configured"
+                ));
             }
             credentials.push(AdminCredential {
                 role: AdminRole::Operator,
@@ -210,14 +212,7 @@ pub fn append_admin_auth_failure(
     path: &str,
     outcome_code: &str,
 ) -> Result<AdminAuthAuditEvent, String> {
-    append_admin_auth_event(
-        state_dir,
-        remote_addr,
-        method,
-        path,
-        None,
-        outcome_code,
-    )
+    append_admin_auth_event(state_dir, remote_addr, method, path, None, outcome_code)
 }
 
 pub fn append_admin_authorization_failure(
@@ -268,8 +263,12 @@ fn append_admin_auth_event(
         .append(true)
         .open(path)
         .map_err(|error| error.to_string())?;
-    writeln!(file, "{}", to_canonical_json(&admin_auth_audit_json(&event)))
-        .map_err(|error| error.to_string())?;
+    writeln!(
+        file,
+        "{}",
+        to_canonical_json(&admin_auth_audit_json(&event))
+    )
+    .map_err(|error| error.to_string())?;
     Ok(event)
 }
 
@@ -287,10 +286,7 @@ pub fn admin_auth_audit_json(event: &AdminAuthAuditEvent) -> JsonValue {
             "outcomeCode".to_string(),
             JsonValue::String(event.outcome_code.clone()),
         ),
-        (
-            "path".to_string(),
-            JsonValue::String(event.path.clone()),
-        ),
+        ("path".to_string(), JsonValue::String(event.path.clone())),
         (
             "remoteAddr".to_string(),
             JsonValue::String(event.remote_addr.clone()),
@@ -355,8 +351,8 @@ mod tests {
             (ADMIN_REVIEWER_TOKEN_ENV, "review".to_string()),
             (ADMIN_TOKEN_ENV, "legacy-operate".to_string()),
         ]);
-        let credentials = configured_admin_credentials_from(|name| values.get(name).cloned())
-            .unwrap();
+        let credentials =
+            configured_admin_credentials_from(|name| values.get(name).cloned()).unwrap();
         assert!(credentials.used_legacy_operator_fallback);
         assert_eq!(credentials.credentials.len(), 3);
         assert!(credentials
@@ -395,11 +391,11 @@ mod tests {
             ],
             used_legacy_operator_fallback: false,
         };
-        let headers = BTreeMap::from([(
-            "authorization".to_string(),
-            "Bearer observe".to_string(),
-        )]);
-        assert_eq!(resolve_admin_role(&headers, &credentials), Some(AdminRole::Observer));
+        let headers = BTreeMap::from([("authorization".to_string(), "Bearer observe".to_string())]);
+        assert_eq!(
+            resolve_admin_role(&headers, &credentials),
+            Some(AdminRole::Observer)
+        );
         assert!(admin_token_matches(&headers, "observe"));
         assert!(!admin_token_matches(&headers, "operate"));
     }

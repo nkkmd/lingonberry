@@ -10,9 +10,7 @@ use super::{
     preview_quarantine_record, promote_quarantine_record, QuarantineBatchReport,
     QuarantinePromotionOutcome, QuarantineStore, StorageBackend,
 };
-use crate::{
-    acquire_quarantine_lock, read_managed_ledger_lines, store_error, StoreError,
-};
+use crate::{acquire_quarantine_lock, read_managed_ledger_lines, store_error, StoreError};
 
 pub const OPERATOR_DISMISSED_REASON_CODE: &str = "LB_OPERATOR_DISMISSED";
 
@@ -54,7 +52,9 @@ impl QuarantineStore {
         if self.get_permanent_rejection(quarantine_id)?.is_some() {
             return Err(store_error(
                 "LB_QUARANTINE_PERMANENTLY_REJECTED",
-                format!("permanently rejected quarantine record cannot be dismissed: {quarantine_id}"),
+                format!(
+                    "permanently rejected quarantine record cannot be dismissed: {quarantine_id}"
+                ),
             ));
         }
         if let Some(existing) = self.get_dismissal(quarantine_id)? {
@@ -65,7 +65,10 @@ impl QuarantineStore {
         let reason_code = reason_code.trim();
         let note = note.trim();
         if operator.is_empty() {
-            return Err(store_error("LB_QUARANTINE_DISMISSAL", "operator must not be empty"));
+            return Err(store_error(
+                "LB_QUARANTINE_DISMISSAL",
+                "operator must not be empty",
+            ));
         }
         if reason_code != OPERATOR_DISMISSED_REASON_CODE {
             return Err(store_error(
@@ -74,7 +77,10 @@ impl QuarantineStore {
             ));
         }
         if note.is_empty() {
-            return Err(store_error("LB_QUARANTINE_DISMISSAL", "note must not be empty"));
+            return Err(store_error(
+                "LB_QUARANTINE_DISMISSAL",
+                "note must not be empty",
+            ));
         }
 
         let now = SystemTime::now()
@@ -136,7 +142,10 @@ pub fn promote_quarantine_batch_excluding_dismissed(
     backend: &impl StorageBackend,
 ) -> Result<QuarantineBatchReport, StoreError> {
     if limit == 0 {
-        return Err(store_error("LB_QUARANTINE_BATCH", "limit must be greater than zero"));
+        return Err(store_error(
+            "LB_QUARANTINE_BATCH",
+            "limit must be greater than zero",
+        ));
     }
     let store = QuarantineStore::new(crate::runtime_state_dir());
     let resolved = store
@@ -195,12 +204,18 @@ pub fn quarantine_dismissal_json(dismissal: &QuarantineDismissal) -> JsonValue {
             "dismissedAt".to_string(),
             JsonValue::String(dismissal.dismissed_at.clone()),
         ),
-        ("operator".to_string(), JsonValue::String(dismissal.operator.clone())),
+        (
+            "operator".to_string(),
+            JsonValue::String(dismissal.operator.clone()),
+        ),
         (
             "reasonCode".to_string(),
             JsonValue::String(dismissal.reason_code.clone()),
         ),
-        ("note".to_string(), JsonValue::String(dismissal.note.clone())),
+        (
+            "note".to_string(),
+            JsonValue::String(dismissal.note.clone()),
+        ),
     ]))
 }
 
@@ -230,7 +245,12 @@ fn parse_dismissal(line: &str) -> Result<QuarantineDismissal, StoreError> {
         .map_err(|error| store_error("LB_QUARANTINE_CORRUPT", error.to_string()))?
     {
         JsonValue::Object(map) => map,
-        _ => return Err(store_error("LB_QUARANTINE_CORRUPT", "dismissal is not an object")),
+        _ => {
+            return Err(store_error(
+                "LB_QUARANTINE_CORRUPT",
+                "dismissal is not an object",
+            ))
+        }
     };
     Ok(QuarantineDismissal {
         id: required_string(&map, "id")?,
@@ -242,10 +262,7 @@ fn parse_dismissal(line: &str) -> Result<QuarantineDismissal, StoreError> {
     })
 }
 
-fn required_string(
-    map: &BTreeMap<String, JsonValue>,
-    name: &str,
-) -> Result<String, StoreError> {
+fn required_string(map: &BTreeMap<String, JsonValue>, name: &str) -> Result<String, StoreError> {
     match map.get(name) {
         Some(JsonValue::String(value)) => Ok(value.clone()),
         _ => Err(store_error(

@@ -5,9 +5,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use lingonberry_protocol::{parse_json, to_canonical_json, JsonValue};
 
-use crate::{
-    acquire_quarantine_lock, store_error, StoreError, QUARANTINE_BACKUP_FILES,
-};
+use crate::{acquire_quarantine_lock, store_error, StoreError, QUARANTINE_BACKUP_FILES};
 
 pub const QUARANTINE_LEDGER_INDEX_VERSION: &str = "lingonberry-quarantine-ledger-index/v1";
 pub const QUARANTINE_LEDGER_INDEX_FILE: &str = "quarantine-ledger-index.json";
@@ -241,8 +239,8 @@ fn scan_ledger(path: &Path, name: &str) -> Result<QuarantineLedgerIndexEntry, St
             format!("ledger path is not a regular file: {}", path.display()),
         ));
     }
-    let before = fs::read(path)
-        .map_err(|error| store_error("LB_QUARANTINE_IO", error.to_string()))?;
+    let before =
+        fs::read(path).map_err(|error| store_error("LB_QUARANTINE_IO", error.to_string()))?;
     if !before.is_empty() && !before.ends_with(b"\n") {
         return Err(store_error(
             "LB_QUARANTINE_CORRUPT",
@@ -255,9 +253,8 @@ fn scan_ledger(path: &Path, name: &str) -> Result<QuarantineLedgerIndexEntry, St
         if *byte == b'\n' {
             let line = &before[start..index];
             if !line.iter().all(u8::is_ascii_whitespace) {
-                let text = std::str::from_utf8(line).map_err(|error| {
-                    store_error("LB_QUARANTINE_CORRUPT", error.to_string())
-                })?;
+                let text = std::str::from_utf8(line)
+                    .map_err(|error| store_error("LB_QUARANTINE_CORRUPT", error.to_string()))?;
                 parse_json(text)
                     .map_err(|error| store_error("LB_QUARANTINE_CORRUPT", error.to_string()))?;
                 offsets.push(start as u64);
@@ -266,8 +263,8 @@ fn scan_ledger(path: &Path, name: &str) -> Result<QuarantineLedgerIndexEntry, St
         }
     }
     let digest = integrity_digest(&before);
-    let after = fs::read(path)
-        .map_err(|error| store_error("LB_QUARANTINE_IO", error.to_string()))?;
+    let after =
+        fs::read(path).map_err(|error| store_error("LB_QUARANTINE_IO", error.to_string()))?;
     if before.len() != after.len() || digest != integrity_digest(&after) {
         return Err(store_error(
             "LB_QUARANTINE_INDEX_CHANGED",
@@ -299,18 +296,12 @@ fn quarantine_ledger_index_json(index: &QuarantineLedgerIndex) -> JsonValue {
                                 "bytes".to_string(),
                                 JsonValue::Number(entry.bytes.to_string()),
                             ),
-                            (
-                                "digest".to_string(),
-                                optional_string(&entry.digest),
-                            ),
+                            ("digest".to_string(), optional_string(&entry.digest)),
                             (
                                 "firstOffset".to_string(),
                                 optional_number(entry.first_offset),
                             ),
-                            (
-                                "lastOffset".to_string(),
-                                optional_number(entry.last_offset),
-                            ),
+                            ("lastOffset".to_string(), optional_number(entry.last_offset)),
                             (
                                 "lines".to_string(),
                                 JsonValue::Number(entry.lines.to_string()),
@@ -338,9 +329,10 @@ fn quarantine_ledger_index_json(index: &QuarantineLedgerIndex) -> JsonValue {
 }
 
 fn parse_index(text: &str) -> Result<QuarantineLedgerIndex, StoreError> {
-    let map = object(parse_json(text).map_err(|error| {
-        store_error("LB_QUARANTINE_INDEX_INVALID", error.to_string())
-    })?)?;
+    let map = object(
+        parse_json(text)
+            .map_err(|error| store_error("LB_QUARANTINE_INDEX_INVALID", error.to_string()))?,
+    )?;
     let files = match map.get("files") {
         Some(JsonValue::Array(values)) => values
             .iter()
@@ -498,17 +490,16 @@ fn number(map: &BTreeMap<String, JsonValue>, name: &str) -> Result<u64, StoreErr
     }
 }
 
-fn optional_u64(
-    map: &BTreeMap<String, JsonValue>,
-    name: &str,
-) -> Result<Option<u64>, StoreError> {
+fn optional_u64(map: &BTreeMap<String, JsonValue>, name: &str) -> Result<Option<u64>, StoreError> {
     match map.get(name) {
         Some(JsonValue::Number(value)) => value
             .parse()
             .map(Some)
             .map_err(|_| index_invalid(&format!("invalid optional number field: {name}"))),
         Some(JsonValue::Null) => Ok(None),
-        _ => Err(index_invalid(&format!("invalid optional number field: {name}"))),
+        _ => Err(index_invalid(&format!(
+            "invalid optional number field: {name}"
+        ))),
     }
 }
 
@@ -519,7 +510,9 @@ fn optional_text(
     match map.get(name) {
         Some(JsonValue::String(value)) => Ok(Some(value.clone())),
         Some(JsonValue::Null) => Ok(None),
-        _ => Err(index_invalid(&format!("invalid optional string field: {name}"))),
+        _ => Err(index_invalid(&format!(
+            "invalid optional string field: {name}"
+        ))),
     }
 }
 

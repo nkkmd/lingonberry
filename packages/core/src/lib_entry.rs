@@ -5,6 +5,7 @@ mod quarantine_dismissals;
 mod quarantine_ledger_index;
 mod quarantine_lock;
 mod quarantine_rejections;
+mod quarantine_segments;
 mod quarantine_status;
 
 pub use quarantine_annotations::{quarantine_annotation_json, QuarantineAnnotation};
@@ -32,4 +33,11 @@ pub use quarantine_lock::{
 pub use quarantine_rejections::{
     quarantine_permanent_rejection_json, QuarantinePermanentRejection,
     OPERATOR_PERMANENTLY_REJECTED_REASON_CODE,
+};
+pub use quarantine_segments::{
+    quarantine_rotation_report_json, quarantine_segment_report_json,
+    read_managed_ledger_lines, rotate_quarantine_ledger, verify_quarantine_segments,
+    QuarantineLedgerSegment, QuarantineRotationReport, QuarantineSegmentManifest,
+    QuarantineSegmentReport, QUARANTINE_SEGMENT_ARCHIVE_DIR,
+    QUARANTINE_SEGMENT_MANIFEST_FILE, QUARANTINE_SEGMENT_MANIFEST_VERSION,
 };

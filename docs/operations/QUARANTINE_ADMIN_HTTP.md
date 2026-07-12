@@ -1,6 +1,6 @@
-# Quarantine Admin HTTP Isolation
+# Quarantine Admin HTTP Isolation and Authorization
 
-**Status: implemented** | **Last updated: 2026-07-12**
+**Status: authentication implemented; RBAC foundation implemented but not yet wired** | **Last updated: 2026-07-12**
 
 Quarantine administration is served from a dedicated authenticated listener instead of the public relay listener.
 
@@ -21,11 +21,70 @@ export LINGONBERRY_ADMIN_TOKEN='replace-with-a-long-random-secret'
 lingonberry-relay serve-admin-http 127.0.0.1:8788
 ```
 
-The admin listener defaults to loopback. Startup fails when `LINGONBERRY_ADMIN_TOKEN` is missing or empty.
+The active listener still uses the legacy single operator-equivalent token. RBAC-1A adds the credential and permission model; RBAC-1B will connect it to HTTP request handling.
 
-## Authentication
+## RBAC credential model
 
-Send the token as a bearer credential:
+The staged role-token variables are:
+
+```text
+LINGONBERRY_ADMIN_OBSERVER_TOKEN
+LINGONBERRY_ADMIN_REVIEWER_TOKEN
+LINGONBERRY_ADMIN_OPERATOR_TOKEN
+```
+
+`LINGONBERRY_ADMIN_TOKEN` is retained as an operator fallback during migration.
+
+Credential loading rules:
+
+- at least one usable credential is required;
+- configured values must not be empty;
+- all configured role tokens must be pairwise distinct;
+- the legacy token is used only when an explicit operator token is absent;
+- bearer comparison uses constant-time byte comparison;
+- one token resolves to exactly one role.
+
+Do not deploy the role-specific variables as an access-control change until RBAC-1B is merged. The current listener does not yet consume the new credential set.
+
+## Permission matrix
+
+### Observer
+
+Read-only access:
+
+```text
+GET /metrics
+GET /v1/quarantine-status
+GET /v1/quarantine
+GET /v1/quarantine/<id>
+GET /v1/quarantine-resolutions
+GET /v1/quarantine/<id>/annotations
+GET /v1/quarantine/<id>/permanent-rejection
+```
+
+### Reviewer
+
+Observer permissions plus:
+
+```text
+POST /v1/quarantine/<id>/annotations
+```
+
+### Operator
+
+Reviewer permissions plus:
+
+```text
+POST /v1/quarantine/<id>/promote
+POST /v1/quarantine/promote-batch
+POST /v1/quarantine/<id>/permanent-rejection
+```
+
+Unknown methods and routes have no permission assignment and are denied by the matrix.
+
+## Active authentication behavior
+
+Send the current token as a bearer credential:
 
 ```bash
 curl -sS \
@@ -39,45 +98,30 @@ Missing and invalid credentials receive the same response:
 401 Unauthorized
 ```
 
-The initial authorization model has one admin token and one effective role. Fine-grained RBAC is not implemented.
+RBAC-1B will add authenticated-but-forbidden `403 Forbidden` responses without disclosing which credential or role was expected.
 
-## Protected routes
+## Authentication and authorization audit
 
-```text
-GET  /v1/quarantine
-GET  /v1/quarantine/<quarantine-id>
-POST /v1/quarantine/<quarantine-id>/promote
-POST /v1/quarantine/promote-batch
-GET  /v1/quarantine-resolutions
-GET  /v1/quarantine-status
-GET  /metrics
-POST /v1/quarantine/<quarantine-id>/annotations
-GET  /v1/quarantine/<quarantine-id>/annotations
-```
-
-Manual dismissal remains CLI-only in this version.
-
-## Authentication audit
-
-Failed authentication attempts are appended to:
+Events are appended to:
 
 ```text
 <LINGONBERRY_STATE_DIR>/admin-auth-audit.jsonl
 ```
 
-Each event contains only bounded operational metadata:
+The role-aware schema is:
 
 ```json
 {
   "attemptedAt": "...Z",
   "remoteAddr": "127.0.0.1:12345",
-  "method": "GET",
-  "path": "/v1/quarantine-status",
-  "outcomeCode": "LB_ADMIN_AUTH_FAILED"
+  "method": "POST",
+  "path": "/v1/quarantine/lb:q:1/promote",
+  "role": "reviewer",
+  "outcomeCode": "LB_ADMIN_FORBIDDEN"
 }
 ```
 
-The ledger never stores bearer tokens, request bodies, annotation notes, or quarantine payloads. Audit append failures are not silently ignored.
+Authentication failures use `role: null` and `LB_ADMIN_AUTH_FAILED`. The ledger never stores bearer tokens, request bodies, annotation notes, or quarantine payloads. Audit append failures are not silently ignored.
 
 ## systemd
 
@@ -87,7 +131,7 @@ Template:
 deploy/systemd/lingonberry-admin-http.service
 ```
 
-Create the environment file with restrictive permissions:
+Current production environment file:
 
 ```bash
 sudo install -d -m 0750 /etc/lingonberry
@@ -96,21 +140,23 @@ sudo chmod 0600 /etc/lingonberry/admin-http.env
 sudo chown root:root /etc/lingonberry/admin-http.env
 ```
 
-Install and start:
+After RBAC-1B, migrate to independent role credentials and remove the legacy token after confirming all clients use the intended least-privilege role.
 
-```bash
-sudo install -m 0644 deploy/systemd/lingonberry-admin-http.service \
-  /etc/systemd/system/lingonberry-admin-http.service
-sudo systemctl daemon-reload
-sudo systemctl enable --now lingonberry-admin-http.service
+The service binds only to `127.0.0.1:8788`. Remote access should use a separately authenticated and TLS-terminated administrative channel.
+
+## Staged rollout
+
+```text
+RBAC-1A: role types, credential validation, permission matrix, audit schema
+RBAC-1B: HTTP role resolution, 401/403 enforcement, integration tests
+RBAC-1C: legacy token deprecation and removal plan
 ```
-
-The template binds only to `127.0.0.1:8788`. Remote access should be provided through a separately authenticated and TLS-terminated administrative channel, not by changing the default listener to a public address.
 
 ## Non-goals
 
-- TLS termination
-- multiple roles or per-route permissions
-- distributed rate limiting
-- browser session or CSRF protection
+- user accounts
+- browser sessions or CSRF protection
+- per-record ACLs
+- OAuth/OIDC
+- distributed authorization policy
 - remote-by-default binding

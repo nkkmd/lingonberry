@@ -20,7 +20,8 @@
 | append-only permanent rejection lifecycle | #26 / #27 | 完了 |
 | verified backup / export / restore | #28 / #29 | 完了 |
 | same-host concurrent ledger coordination | #30 / #31 | 完了 |
-| verified read-only JSONL index and planning | #32 | 実装・PR化 |
+| verified read-only JSONL index and planning | #32 / #33 | 完了 |
+| archive-aware ordered reads and verified rotation | #34 | 実装・PR化 |
 
 ---
 
@@ -28,86 +29,92 @@
 
 **状態: completed**
 
-関連文書：
-
-```text
-docs/operations/QUARANTINE_DISMISSALS.md
-docs/operations/QUARANTINE_ADMIN_HTTP.md
-docs/operations/QUARANTINE_PERMANENT_REJECTIONS.md
-docs/operations/QUARANTINE_BACKUP_RESTORE.md
-docs/operations/QUARANTINE_CONCURRENCY.md
-```
-
 ---
 
 ## QL-5A: Verified Read-only JSONL Index and Planning
+
+**状態: completed**
+
+関連文書：`docs/operations/QUARANTINE_JSONL_MAINTENANCE.md`
+
+---
+
+## QL-5B: Archive-aware Ordered Reads and Verified Rotation
 
 **状態: implemented**
 
 ### 固定した判断
 
 ```text
-index file: quarantine-ledger-index.json
-index build: shared operation lockを取得
-index verify: read-only、lock不要
-対象: exact managed ledger set
-validation: 全non-empty lineをJSON parse
-partial trailing line: corruptionとして拒否
-planning: threshold超過を報告するだけ
-rotation / compaction: QL-5Bまで禁止
+manifest: quarantine-segments.json
+archive dir: quarantine-segments/
+read order: ledger別segment sequence順 → active ledger
+rotation prerequisite: fresh quarantine-ledger-index.json
+rotation scope: 1 managed ledger
+coordination: state-directory-wide operation lock
+archive evidence: immutable、削除・上書き禁止
+semantic verification: logical line count + ordered-stream digest
+compaction / retention: QL-5Cまで禁止
 ```
 
-### Index fields
+### Archive-aware reader対象
 
-- file presence
-- byte length
-- non-empty JSONL line count
-- first record byte offset
-- last record byte offset
-- integrity digest
+- quarantine records
+- promotion resolutions
+- annotations
+- dismissals
+- permanent rejections
+- admin auth audit向け共通utility
 
 ### 実装済み完了条件
 
-- sparse / complete state directoryに対応
-- malformed JSONとpartial trailing lineを拒否
-- source mutationを再読込で検出
-- versionとexact managed-file setを検証
-- stale / tampered indexを拒否
-- indexをtemporary file + atomic renameで最後に発行
-- byte / line thresholdによるnon-destructive plan
-- plannerは`destructiveActionsBlocked: true`を明示
-- ledger contentsを変更しない
+- active-onlyとarchived + activeを同じ論理streamとして読む
+- ledgerごとのsequenceをstrictly increasingにする
+- segmentのbyte length、line count、digest、JSONL妥当性を検証
+- missing、tampered、duplicate、out-of-order segmentを拒否
+- manifest未登録segmentをcorruptionとして拒否
+- stale indexではrotationしない
+- missing / empty active ledgerをrotationしない
+- original bytesをimmutable segmentへ保存
+- manifestをtemporary file + atomic renameで発行
+- rotation前後の論理line streamを検証
+- equivalence失敗時にactive、manifest、新segmentをrollback
+- repeated rotationに対応
+
+### 明示的制限
+
+現行のQL-4 backup manifestはactive ledgerのみを対象としており、archive segmentを含みません。Post-rotation stateはfilesystem-level snapshot等でactive ledger、segment manifest、archive directoryを一体保存する必要があります。
 
 関連文書：`docs/operations/QUARANTINE_JSONL_MAINTENANCE.md`
 
 ---
 
-## QL-5B: Archive-aware Rotation and Verified Compaction
+## QL-5C: Archive-inclusive Backup, Verified Compaction, and Retention
 
 **優先度: highest**
 
 ### 前提
 
-1. active + archived segmentを順序付きで読む共通reader
-2. segment manifestとprovenance
-3. interrupted transitionのrecovery contract
-4. maintenance前後のsemantic-equivalence verification
+1. archive segmentを含むbackup / verify / restore
+2. ledger type別のcompaction policy
+3. status / metrics / eligibility / idempotencyのsemantic equivalence
+4. source evidenceまたは検証可能なreplacement proof
+5. interrupted compaction recovery
 
 ### 完了条件
 
-- archive segmentを含めてもstatus / metricsが一致する
-- lifecycle eligibilityとduplicate/corruption detectionが一致する
-- original segmentを検証可能なまま保持する
-- rotationをatomic state transitionとして扱う
+- archive-inclusive backupから完全restoreできる
 - compactionでunknown / corrupt lineを黙って除外しない
-- retention enforcementはverified compaction後にのみ許可する
+- compaction前後でstatus、metrics、lifecycle判定が一致する
+- duplicate detectionの意味を維持する
+- retention deletionはverified compaction後にのみ許可する
+- source evidenceの削除条件を明文化する
 
 ### 非スコープのまま維持するもの
 
-- archive-aware reader実装前のactive ledger truncation
-- evidenceの即時削除
 - distributed locking
 - remote archive storage
+- cryptographic signing
 
 ---
 

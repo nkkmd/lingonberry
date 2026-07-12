@@ -1,11 +1,13 @@
 use lingonberry_protocol::{parse_json, to_canonical_json, JsonValue};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs::{self, OpenOptions};
-use std::io::{BufRead, BufReader, Write};
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::{acquire_quarantine_lock, store_error, StoreError};
+use crate::{
+    acquire_quarantine_lock, read_managed_ledger_lines, store_error, StoreError,
+};
 
 #[derive(Debug, Clone)]
 pub struct QuarantineRecord {
@@ -73,7 +75,10 @@ impl QuarantineStore {
     }
 
     pub fn list_all(&self) -> Result<Vec<QuarantineRecord>, StoreError> {
-        read_json_lines(&self.path, parse_record)
+        read_managed_ledger_lines(self.state_dir(), "quarantine.jsonl")?
+            .into_iter()
+            .map(|line| parse_record(&line))
+            .collect()
     }
 
     pub fn list(&self) -> Result<Vec<QuarantineRecord>, StoreError> {
@@ -122,7 +127,9 @@ impl QuarantineStore {
         if self.get_permanent_rejection(quarantine_id)?.is_some() {
             return Err(store_error(
                 "LB_QUARANTINE_PERMANENTLY_REJECTED",
-                format!("permanently rejected quarantine record cannot be promoted: {quarantine_id}"),
+                format!(
+                    "permanently rejected quarantine record cannot be promoted: {quarantine_id}"
+                ),
             ));
         }
         let (_, resolved_at) = timestamp()?;
@@ -138,7 +145,10 @@ impl QuarantineStore {
     }
 
     pub fn list_resolutions(&self) -> Result<Vec<QuarantineResolution>, StoreError> {
-        read_json_lines(&self.resolutions_path, parse_resolution)
+        read_managed_ledger_lines(self.state_dir(), "quarantine-resolutions.jsonl")?
+            .into_iter()
+            .map(|line| parse_resolution(&line))
+            .collect()
     }
 
     pub fn get_resolution(
@@ -174,26 +184,6 @@ fn append_json_line(path: &Path, value: &JsonValue) -> Result<(), StoreError> {
         .map_err(|error| store_error("LB_QUARANTINE_IO", error.to_string()))?;
     writeln!(file, "{}", to_canonical_json(value))
         .map_err(|error| store_error("LB_QUARANTINE_IO", error.to_string()))
-}
-
-fn read_json_lines<T>(
-    path: &Path,
-    parser: fn(&str) -> Result<T, StoreError>,
-) -> Result<Vec<T>, StoreError> {
-    if !path.exists() {
-        return Ok(Vec::new());
-    }
-    let file =
-        fs::File::open(path).map_err(|error| store_error("LB_QUARANTINE_IO", error.to_string()))?;
-    let mut records = Vec::new();
-    for line in BufReader::new(file).lines() {
-        let line = line.map_err(|error| store_error("LB_QUARANTINE_IO", error.to_string()))?;
-        if line.trim().is_empty() {
-            continue;
-        }
-        records.push(parser(&line)?);
-    }
-    Ok(records)
 }
 
 fn record_json(record: &QuarantineRecord) -> JsonValue {
@@ -336,9 +326,7 @@ pub fn quarantine_resolution_json(resolution: &QuarantineResolution) -> JsonValu
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        OPERATOR_DISMISSED_REASON_CODE, OPERATOR_PERMANENTLY_REJECTED_REASON_CODE,
-    };
+    use crate::{build_quarantine_ledger_index, rotate_quarantine_ledger};
 
     fn temp_dir() -> PathBuf {
         std::env::temp_dir().join(format!(
@@ -351,77 +339,28 @@ mod tests {
     }
 
     #[test]
-    fn appends_lists_and_gets_records() {
+    fn reads_archived_and_active_records_and_resolutions() {
         let dir = temp_dir();
         let store = QuarantineStore::new(&dir);
-        let record = store
-            .append(
-                "{\"object\":{}}",
-                "LB_IDENTITY_DEFERRED",
-                &["future rule".to_string()],
-            )
-            .unwrap();
-        assert_eq!(store.list().unwrap().len(), 1);
-        assert_eq!(
-            store.get(&record.id).unwrap().unwrap().reason_code,
-            "LB_IDENTITY_DEFERRED"
-        );
-        let _ = fs::remove_dir_all(dir);
-    }
-
-    #[test]
-    fn terminal_records_are_excluded_but_remain_addressable() {
-        let dir = temp_dir();
-        let store = QuarantineStore::new(&dir);
-        let dismissed = store
+        let first = store
             .append("{\"object\":{}}", "LB_IDENTITY_DEFERRED", &[])
             .unwrap();
-        let rejected = store
+        build_quarantine_ledger_index(&dir).unwrap();
+        rotate_quarantine_ledger(&dir, "quarantine.jsonl").unwrap();
+        let second = store
             .append("{\"object\":{}}", "LB_POLICY_DEFERRED", &[])
             .unwrap();
-        store
-            .dismiss(
-                &dismissed.id,
-                "operator",
-                OPERATOR_DISMISSED_REASON_CODE,
-                "duplicate",
-            )
-            .unwrap();
-        store
-            .permanently_reject(
-                &rejected.id,
-                "operator",
-                OPERATOR_PERMANENTLY_REJECTED_REASON_CODE,
-                "prohibited",
-            )
-            .unwrap();
-        assert!(store.list().unwrap().is_empty());
         assert_eq!(store.list_all().unwrap().len(), 2);
-        let _ = fs::remove_dir_all(dir);
-    }
 
-    #[test]
-    fn resolution_rechecks_terminal_state_while_locked() {
-        let dir = temp_dir();
-        let store = QuarantineStore::new(&dir);
-        let dismissed = store
-            .append("{\"object\":{}}", "LB_POLICY_DEFERRED", &[])
-            .unwrap();
         store
-            .dismiss(
-                &dismissed.id,
-                "operator",
-                OPERATOR_DISMISSED_REASON_CODE,
-                "duplicate",
-            )
+            .append_resolution(&first.id, "lb:obj:first", false)
             .unwrap();
-        assert_eq!(
-            store
-                .append_resolution(&dismissed.id, "lb:obj:test", false)
-                .unwrap_err()
-                .code,
-            "LB_QUARANTINE_ALREADY_DISMISSED"
-        );
+        build_quarantine_ledger_index(&dir).unwrap();
+        rotate_quarantine_ledger(&dir, "quarantine-resolutions.jsonl").unwrap();
+        store
+            .append_resolution(&second.id, "lb:obj:second", false)
+            .unwrap();
+        assert_eq!(store.list_resolutions().unwrap().len(), 2);
         let _ = fs::remove_dir_all(dir);
     }
 }

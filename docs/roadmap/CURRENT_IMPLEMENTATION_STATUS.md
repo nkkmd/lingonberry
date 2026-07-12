@@ -8,19 +8,20 @@
 
 ## 1. 現在地
 
-2026-07-12 時点で、persistent quarantine、promotion、status / metrics、scheduler、annotations、manual dismissal、admin HTTP isolation、permanent rejection、verified backup / restore、same-host concurrency、verified read-only JSONL indexまで実装済みです。
+2026-07-12 時点で、persistent quarantine lifecycle、運用API、same-host concurrency、verified backup、verified active-ledger index、archive-aware ordered reads、byte-preserving verified rotationまで実装済みです。
 
 | 項目 | 状態 |
 |---|---|
 | persistent quarantine lifecycle | 実装済み |
 | status / metrics / scheduler | 実装済み |
 | admin authentication / isolation | 実装済み |
-| verified backup / export / restore | 実装済み |
+| verified active-ledger backup / restore | 実装済み |
 | same-host concurrent ledger coordination | 実装済み |
-| verified read-only JSONL index | 実装済み |
-| non-destructive maintenance planning | 実装済み |
-| archive-aware rotation | 未実装 |
-| verified compaction / retention | 未実装 |
+| verified read-only active-ledger index | 実装済み |
+| archive-aware ordered readers | 実装済み |
+| byte-preserving verified rotation | 実装済み |
+| archive-inclusive backup / restore | 未実装 |
+| record-rewriting compaction / retention | 未実装 |
 | multi-role authorization | 未実装 |
 | distributed locking | 未実装 |
 
@@ -36,64 +37,79 @@ quarantine-dismissals.jsonl
 quarantine-rejections.jsonl
 admin-auth-audit.jsonl
 quarantine-ledger-index.json
+quarantine-segments.json
+quarantine-segments/
 .quarantine-operation.lock
 ```
 
-`quarantine-ledger-index.json`はderived read-only indexであり、監査原本ではありません。Lifecycle ledgerはappend-onlyです。
+`quarantine-ledger-index.json`はactive ledger用derived indexです。`quarantine-segments.json`と`quarantine-segments/`はimmutable archive evidenceです。
 
 ---
 
-## 3. Persistent lifecycle
+## 3. Archive-aware logical ledger
+
+各managed ledgerの論理read orderは次です。
 
 ```text
-pending
-promoted
-dismissed
-permanently-rejected
+manifestに記載されたsegment sequence順
+→ active ledger
 ```
 
-Transientな再検証結果`rejected`はpersistent stateへ自動変換しません。Terminal lifecycle eventの競合はsame-host operation lock内で再確認します。
+Archive-aware readerへ移行済み：
+
+- quarantine records
+- promotion resolutions
+- annotations
+- dismissals
+- permanent rejections
+
+Duplicate lifecycle event、malformed JSONL、missing / tampered / unlisted segmentはcorruptionとして拒否します。
 
 ---
 
-## 4. Same-host operation lock
+## 4. Verified rotation
+
+Manifest：
 
 ```text
-<LINGONBERRY_STATE_DIR>/.quarantine-operation.lock
+<LINGONBERRY_STATE_DIR>/quarantine-segments.json
 ```
 
-- mutation、backup export、restore destination write、index buildを直列化
-- 競合時は`LB_QUARANTINE_BUSY`
-- 15分を超えたlockをstaleとして回収可能
-- read-only status / metrics / backup verify / index verify / planはlock不要
-- distributed lockやnetwork filesystem leaseではない
-
-関連文書：`docs/operations/QUARANTINE_CONCURRENCY.md`
-
----
-
-## 5. Verified JSONL index
-
-Index file：
+Archive directory：
 
 ```text
-<LINGONBERRY_STATE_DIR>/quarantine-ledger-index.json
+<LINGONBERRY_STATE_DIR>/quarantine-segments/
 ```
-
-各managed ledgerについて次を記録します。
-
-```text
-presence
-byte length
-non-empty JSONL line count
-first record byte offset
-last record byte offset
-integrity digest
-```
-
-Index buildは全non-empty lineをprotocol JSON parserで検証し、partial trailing line、malformed JSON、source mutationを拒否します。Indexはtemporary fileからatomic renameで最後に発行します。
 
 CLI：
+
+```bash
+lingonberry-quarantine-maintenance verify-segments
+lingonberry-quarantine-maintenance rotate <managed-ledger-name>
+```
+
+Rotation contract：
+
+1. shared operation lockを取得
+2. fresh active-ledger indexを検証
+3. missing / empty active ledgerを拒否
+4. rotation前のordered logical streamを取得
+5. active bytesを新しいimmutable segmentへ保存
+6. active ledgerを空fileへ置換
+7. manifestをtemporary file + atomic renameで更新
+8. archived + active streamを再読込
+9. logical line countとordered-stream digestを比較
+10. equivalence失敗時はactive、manifest、新segmentをrollback
+
+Rotationはbyte-preservingであり、record rewrite、deduplication、deletionを行いません。
+
+関連Issue：#34
+
+関連文書：`docs/operations/QUARANTINE_JSONL_MAINTENANCE.md`
+
+---
+
+## 5. Index and maintenance planning
 
 ```bash
 lingonberry-quarantine-maintenance build-index
@@ -101,71 +117,54 @@ lingonberry-quarantine-maintenance verify-index
 lingonberry-quarantine-maintenance plan <byte-threshold> <line-threshold>
 ```
 
-Plannerはthreshold超過だけを報告し、ledgerを変更しません。結果には常に次を含めます。
-
-```json
-{"destructiveActionsBlocked":true}
-```
-
-関連文書：`docs/operations/QUARANTINE_JSONL_MAINTENANCE.md`
-
-関連Issue：#32
+Indexはactive ledgerのみを対象とします。Active ledger mutation後、rotation前には必ず再構築してください。
 
 ---
 
-## 6. Rotation / compaction boundary
+## 6. Same-host operation lock
 
-Active ledgerのtruncate、archive segmentへの移動、compaction、retention enforcementは未実装であり禁止です。
+```text
+<LINGONBERRY_STATE_DIR>/.quarantine-operation.lock
+```
 
-QL-5Bの前提：
-
-1. active + archived segmentを順序付きで読む共通reader
-2. segment manifestとprovenance
-3. interrupted transitionのrecovery contract
-4. maintenance前後のsemantic equivalence verification
-5. status / metrics / lifecycle eligibility / corruption detectionの一致
+Mutation、backup export、restore destination write、index build、rotationを直列化します。これはdistributed lockやnetwork filesystem leaseではありません。
 
 ---
 
-## 7. Backup / restore
+## 7. Backup limitation
 
-```bash
-lingonberry-quarantine-backup export <empty-backup-dir>
-lingonberry-quarantine-backup verify <backup-dir>
-lingonberry-quarantine-backup restore <backup-dir> <empty-state-dir>
+QL-4 backup manifestは現在、六つのactive ledger pathのみを対象とします。
+
+Post-rotation stateの完全backupには以下を一体で保存する必要があります。
+
+```text
+six active ledgers
+quarantine-segments.json
+quarantine-segments/
 ```
 
-Backup manifestは`quarantine-backup-manifest.json`です。Backup対象は監査原本ledgerであり、derived indexとlock fileは含みません。
+Archive-inclusive backup / verify / restoreはQL-5Cの最優先作業です。現行の`lingonberry-quarantine-backup`だけをpost-rotation完全backupとして扱ってはいけません。
 
 ---
 
 ## 8. HTTP boundary
 
-Public listenerはreadiness、capabilities、publish、object retrievalのみです。`/metrics`と`/v1/quarantine*`は`404`です。
-
-Admin listener：
-
-```bash
-export LINGONBERRY_ADMIN_TOKEN='<long-random-secret>'
-lingonberry-relay serve-admin-http 127.0.0.1:8788
-```
-
-Maintenanceとbackupはlocal administrative binaryだけで実行します。
+Public listenerはreadiness、capabilities、publish、object retrievalのみです。Quarantine maintenanceとbackupはlocal administrative binaryだけで実行します。
 
 ---
 
 ## 9. 主要ファイル
 
 ```text
-docs/operations/QUARANTINE_JSONL_MAINTENANCE.md
-docs/operations/QUARANTINE_CONCURRENCY.md
-docs/operations/QUARANTINE_BACKUP_RESTORE.md
-docs/roadmap/CURRENT_IMPLEMENTATION_STATUS.md
-docs/roadmap/QUARANTINE_LIFECYCLE_BACKLOG.md
+packages/core/src/quarantine_segments.rs
 packages/core/src/quarantine_ledger_index.rs
-packages/core/src/quarantine_lock.rs
-packages/core/src/quarantine_backup.rs
+packages/core/src/quarantine.rs
+packages/core/src/quarantine_annotations.rs
+packages/core/src/quarantine_dismissals.rs
+packages/core/src/quarantine_rejections.rs
 packages/relay/src/quarantine_maintenance_main.rs
+docs/operations/QUARANTINE_JSONL_MAINTENANCE.md
+docs/roadmap/QUARANTINE_LIFECYCLE_BACKLOG.md
 ```
 
 ---
@@ -179,9 +178,17 @@ git status
 cargo test --workspace
 
 export LINGONBERRY_STATE_DIR=/var/lib/lingonberry/relay
+lingonberry-quarantine-maintenance verify-segments
 lingonberry-quarantine-maintenance build-index
 lingonberry-quarantine-maintenance verify-index
-lingonberry-quarantine-maintenance plan 67108864 100000
+```
+
+Rotation例：
+
+```bash
+lingonberry-quarantine-maintenance build-index
+lingonberry-quarantine-maintenance rotate quarantine.jsonl
+lingonberry-quarantine-maintenance verify-segments
 ```
 
 ---
@@ -189,19 +196,20 @@ lingonberry-quarantine-maintenance plan 67108864 100000
 ## 11. 絶対に崩さない安全性ルール
 
 1. validation未通過objectをcanonical storageへ保存しない
-2. 元quarantine recordとappend-only eventを保持する
+2. 元quarantine recordとappend-only lifecycle eventを保持する
 3. corruptionとI/O errorを黙って無視しない
 4. terminal recordを通常のpromotion対象へ戻さない
 5. transient `rejected`をpermanent rejectionとして自動保存しない
 6. quarantine管理routeを公開listenerへ戻さない
 7. terminal stateはoperation lock保持中に再確認する
 8. same-host lockをdistributed lockとして扱わない
-9. backup manifestをmanaged fileより先に発行しない
-10. index build中のsource mutationを拒否する
-11. malformed JSONLやpartial trailing lineをindexから黙って除外しない
-12. stale indexをmaintenance判断へ使用しない
-13. archive-aware reader完成前にactive ledgerをtruncateしない
-14. semantic equivalence検証前にcompactionやretentionを実行しない
+9. stale active-ledger indexでrotationしない
+10. archive segmentを上書き・変更・削除しない
+11. manifest未登録segmentを黙って読む、または無視しない
+12. rotation前後のlogical stream equivalenceを検証する
+13. equivalence失敗時にpartial transitionを残さない
+14. archive-inclusive backup完成前にretentionやcompactionを実行しない
+15. record rewriteのsemantic equivalence検証前にsource evidenceを削除しない
 
 ---
 
@@ -210,10 +218,10 @@ lingonberry-quarantine-maintenance plan 67108864 100000
 ### 第一候補
 
 ```text
-QL-5B: Archive-aware Rotation and Verified Compaction
+QL-5C: Archive-inclusive Backup, Verified Compaction, and Retention
 ```
 
-まずarchive-aware ordered readerとsegment manifestを導入し、その後にverified rotationを実装します。
+最初にarchive segmentを含むbackup / verify / restoreへ拡張します。その後、ledger type別compaction policyとsemantic equivalence検証を設計します。
 
 ### 第二候補
 
@@ -241,5 +249,6 @@ Multi-role authorization
 → #27 permanent rejection
 → #29 verified backup / restore
 → #31 concurrent ledger coordination
-→ #32 verified JSONL index and planning
+→ #33 verified JSONL index and planning
+→ #35 archive-aware verified rotation
 ```

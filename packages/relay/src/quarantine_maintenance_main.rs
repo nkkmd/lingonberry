@@ -4,7 +4,9 @@ use std::process;
 use lingonberry_core::{
     build_quarantine_ledger_index, plan_quarantine_ledger_maintenance,
     quarantine_ledger_index_report_json, quarantine_ledger_maintenance_plan_json,
-    runtime_state_dir, verify_quarantine_ledger_index,
+    quarantine_rotation_report_json, quarantine_segment_report_json,
+    rotate_quarantine_ledger, runtime_state_dir, verify_quarantine_ledger_index,
+    verify_quarantine_segments,
 };
 use lingonberry_protocol::to_canonical_json;
 
@@ -40,6 +42,29 @@ fn run(args: Vec<String>) -> Result<(), String> {
                 to_canonical_json(&quarantine_ledger_index_report_json(&report))
             );
         }
+        "verify-segments" => {
+            if args.len() != 1 {
+                return Err(usage());
+            }
+            let report = verify_quarantine_segments(runtime_state_dir())
+                .map_err(|error| error.to_string())?;
+            println!(
+                "{}",
+                to_canonical_json(&quarantine_segment_report_json(&report))
+            );
+        }
+        "rotate" => {
+            let ledger = args.get(1).ok_or_else(usage)?;
+            if args.len() != 2 {
+                return Err(usage());
+            }
+            let report = rotate_quarantine_ledger(runtime_state_dir(), ledger)
+                .map_err(|error| error.to_string())?;
+            println!(
+                "{}",
+                to_canonical_json(&quarantine_rotation_report_json(&report))
+            );
+        }
         "plan" => {
             let byte_threshold = args
                 .get(1)
@@ -71,7 +96,7 @@ fn run(args: Vec<String>) -> Result<(), String> {
 }
 
 fn usage() -> String {
-    "usage:\n  lingonberry-quarantine-maintenance build-index\n  lingonberry-quarantine-maintenance verify-index\n  lingonberry-quarantine-maintenance plan <byte-threshold> <line-threshold>"
+    "usage:\n  lingonberry-quarantine-maintenance build-index\n  lingonberry-quarantine-maintenance verify-index\n  lingonberry-quarantine-maintenance verify-segments\n  lingonberry-quarantine-maintenance rotate <managed-ledger-name>\n  lingonberry-quarantine-maintenance plan <byte-threshold> <line-threshold>"
         .to_string()
 }
 
@@ -84,5 +109,6 @@ mod tests {
         assert!(run(vec![]).is_err());
         assert!(run(vec!["unknown".to_string()]).is_err());
         assert!(run(vec!["plan".to_string(), "100".to_string()]).is_err());
+        assert!(run(vec!["rotate".to_string()]).is_err());
     }
 }

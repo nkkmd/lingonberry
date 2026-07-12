@@ -29,13 +29,10 @@ fn configuration_report() -> Result<JsonValue, String> {
         .credentials
         .iter()
         .any(|credential| credential.role == AdminRole::Reviewer);
-    let operator_configured = credentials
-        .credentials
-        .iter()
-        .any(|credential| {
-            credential.role == AdminRole::Operator
-                && credential.source_env == admin_auth::ADMIN_OPERATOR_TOKEN_ENV
-        });
+    let operator_configured = credentials.credentials.iter().any(|credential| {
+        credential.role == AdminRole::Operator
+            && credential.source_env == admin_auth::ADMIN_OPERATOR_TOKEN_ENV
+    });
     let legacy_active = credentials.used_legacy_operator_fallback;
 
     Ok(JsonValue::Object(BTreeMap::from([
@@ -99,10 +96,12 @@ mod tests {
     use super::*;
 
     #[test]
-    fn report_schema_never_contains_token_fields() {
+    fn report_schema_never_contains_secret_fields() {
         let source = include_str!("admin_auth_config_main.rs");
-        assert!(!source.contains("tokenValue"));
-        assert!(!source.contains("tokenDigest"));
+        let token_value = ["token", "Value"].concat();
+        let token_digest = ["token", "Digest"].concat();
+        assert!(!source.contains(&token_value));
+        assert!(!source.contains(&token_digest));
         assert!(source.contains("secretsIncluded"));
     }
 

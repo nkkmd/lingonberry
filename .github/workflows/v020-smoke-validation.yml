@@ -37,7 +37,8 @@ jobs:
           mkdir -p "$LINGONBERRY_STATE_DIR"
 
           cargo run -q -p lingonberry-relay -- capabilities | tee "$RUNNER_TEMP/capabilities.json"
-          grep -q 'capabilities' "$RUNNER_TEMP/capabilities.json"
+          test -s "$RUNNER_TEMP/capabilities.json"
+          grep -q '^{' "$RUNNER_TEMP/capabilities.json"
 
           cargo run -q -p lingonberry-relay -- validate fixtures/http-publish-request/minimal-request.json
           cargo run -q -p lingonberry-relay -- publish fixtures/http-publish-request/minimal-request.json \

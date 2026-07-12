@@ -1,6 +1,6 @@
 # Operations
 
-**Status: active** | **Last updated: 2026-06-23**
+**Status: active** | **Last updated: 2026-07-12**
 
 このディレクトリには、Lingonberry の技術決定と運用正本を置きます。
 
@@ -31,6 +31,8 @@
 ### Policy and Operations
 
 障害時の一次参照先は [Node Lifecycle Runbook](./NODE_LIFECYCLE_RUNBOOK.md) とします。
+
+quarantine backlog の一次確認には、CLI の `quarantine-status` または HTTP の `GET /v1/quarantine-status` を使用します。永続状態の契約は [Quarantine Status API](../roadmap/QUARANTINE_STATUS_API.md)、監視指標の原則は [Observability](./OBSERVABILITY.md) を参照します。
 
 - [Access and Retention Policy](./ACCESS_RETENTION_POLICY.md)
 - [Access and Retention Audit Checklist](./ACCESS_RETENTION_AUDIT_CHECKLIST.md)

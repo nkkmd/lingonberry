@@ -2,6 +2,7 @@ include!("lib.rs");
 mod quarantine_annotations;
 mod quarantine_backup;
 mod quarantine_dismissals;
+mod quarantine_ledger_index;
 mod quarantine_lock;
 mod quarantine_rejections;
 mod quarantine_status;
@@ -15,6 +16,14 @@ pub use quarantine_backup::{
 };
 pub use quarantine_dismissals::{
     quarantine_dismissal_json, QuarantineDismissal, OPERATOR_DISMISSED_REASON_CODE,
+};
+pub use quarantine_ledger_index::{
+    build_quarantine_ledger_index, plan_quarantine_ledger_maintenance,
+    quarantine_ledger_index_report_json, quarantine_ledger_maintenance_plan_json,
+    verify_quarantine_ledger_index, QuarantineLedgerIndex, QuarantineLedgerIndexEntry,
+    QuarantineLedgerIndexReport, QuarantineLedgerMaintenanceEntry,
+    QuarantineLedgerMaintenancePlan, QUARANTINE_LEDGER_INDEX_FILE,
+    QUARANTINE_LEDGER_INDEX_VERSION,
 };
 pub use quarantine_lock::{
     acquire_quarantine_lock, QuarantineOperationLock, QUARANTINE_LOCK_FILE,

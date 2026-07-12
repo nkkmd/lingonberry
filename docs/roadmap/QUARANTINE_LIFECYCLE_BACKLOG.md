@@ -19,113 +19,95 @@
 | admin authentication and network isolation | #24 / #25 | 完了 |
 | append-only permanent rejection lifecycle | #26 / #27 | 完了 |
 | verified backup / export / restore | #28 / #29 | 完了 |
-| same-host concurrent ledger coordination | #30 | 実装・PR化 |
+| same-host concurrent ledger coordination | #30 / #31 | 完了 |
+| verified read-only JSONL index and planning | #32 | 実装・PR化 |
 
 ---
 
-## QL-1: Append-only Manual Dismissal Lifecycle
+## QL-1 — QL-4, QL-6
 
 **状態: completed**
 
-関連文書：`docs/operations/QUARANTINE_DISMISSALS.md`
+関連文書：
+
+```text
+docs/operations/QUARANTINE_DISMISSALS.md
+docs/operations/QUARANTINE_ADMIN_HTTP.md
+docs/operations/QUARANTINE_PERMANENT_REJECTIONS.md
+docs/operations/QUARANTINE_BACKUP_RESTORE.md
+docs/operations/QUARANTINE_CONCURRENCY.md
+```
 
 ---
 
-## QL-2: Admin Authentication and Network Isolation
-
-**状態: completed**
-
-関連文書：`docs/operations/QUARANTINE_ADMIN_HTTP.md`
-
----
-
-## QL-3: Persistent Rejection Decisions
-
-**状態: completed**
-
-関連文書：`docs/operations/QUARANTINE_PERMANENT_REJECTIONS.md`
-
----
-
-## QL-4: Backup / Export / Restore
-
-**状態: completed**
-
-関連文書：`docs/operations/QUARANTINE_BACKUP_RESTORE.md`
-
----
-
-## QL-6: Concurrent Ledger Operations
+## QL-5A: Verified Read-only JSONL Index and Planning
 
 **状態: implemented**
 
 ### 固定した判断
 
 ```text
-lock scope: state directory全体
-lock file: .quarantine-operation.lock
-対象: mutation + backup export + restore destination write
-read-only operation: lock不要
-競合時: LB_QUARANTINE_BUSYでfail closed
-stale recovery: 15分を超えたlockを1回だけ回収
-multi-host / NFS distributed lock: 非スコープ
+index file: quarantine-ledger-index.json
+index build: shared operation lockを取得
+index verify: read-only、lock不要
+対象: exact managed ledger set
+validation: 全non-empty lineをJSON parse
+partial trailing line: corruptionとして拒否
+planning: threshold超過を報告するだけ
+rotation / compaction: QL-5Bまで禁止
 ```
 
-### 対象操作
+### Index fields
 
-- quarantine record append
-- promotion resolution append
-- annotation append
-- dismissal
-- permanent rejection
-- admin authentication failure audit
-- backup export
-- restore destination write
+- file presence
+- byte length
+- non-empty JSONL line count
+- first record byte offset
+- last record byte offset
+- integrity digest
 
 ### 実装済み完了条件
 
-- `create_new`による同一host filesystem exclusion
-- normal scope exitでlock fileを削除
-- stale lock recovery
-- promotion / dismissal / permanent rejectionを同じ排他境界で再確認
-- terminal lifecycle stateの二重commitを拒否
-- backup export中のcooperating mutationを拒否
-- restore中のdestination mutationを拒否
-- lock metadataをoperation、PID、timestampのみに制限
-- bearer token、payload、operator、note、quarantine IDをlockへ保存しない
-- duplicate terminal eventは引き続きcorruption
+- sparse / complete state directoryに対応
+- malformed JSONとpartial trailing lineを拒否
+- source mutationを再読込で検出
+- versionとexact managed-file setを検証
+- stale / tampered indexを拒否
+- indexをtemporary file + atomic renameで最後に発行
+- byte / line thresholdによるnon-destructive plan
+- plannerは`destructiveActionsBlocked: true`を明示
+- ledger contentsを変更しない
 
-### 非スコープ
-
-- distributed locking
-- multi-node consensus
-- network filesystem lease
-- older binaryや手動file editとの協調
-- indefinite wait queue
-
-関連文書：`docs/operations/QUARANTINE_CONCURRENCY.md`
+関連文書：`docs/operations/QUARANTINE_JSONL_MAINTENANCE.md`
 
 ---
 
-## QL-5: JSONL Index / Rotation / Compaction
+## QL-5B: Archive-aware Rotation and Verified Compaction
 
 **優先度: highest**
 
-### 検討順
+### 前提
 
-1. read-only index
-2. archive export
-3. rotation
-4. verified compaction
-5. retention policy
+1. active + archived segmentを順序付きで読む共通reader
+2. segment manifestとprovenance
+3. interrupted transitionのrecovery contract
+4. maintenance前後のsemantic-equivalence verification
 
-### 固定条件
+### 完了条件
 
-- compaction前の原本を検証可能にする
-- lifecycle eventの意味を失わない
-- unknown / corrupt lineを黙って除外しない
-- statusとmetricsの値がcompaction前後で一致する
-- lockとbackup manifestの意味を維持する
+- archive segmentを含めてもstatus / metricsが一致する
+- lifecycle eligibilityとduplicate/corruption detectionが一致する
+- original segmentを検証可能なまま保持する
+- rotationをatomic state transitionとして扱う
+- compactionでunknown / corrupt lineを黙って除外しない
+- retention enforcementはverified compaction後にのみ許可する
+
+### 非スコープのまま維持するもの
+
+- archive-aware reader実装前のactive ledger truncation
+- evidenceの即時削除
+- distributed locking
+- remote archive storage
 
 ---
 

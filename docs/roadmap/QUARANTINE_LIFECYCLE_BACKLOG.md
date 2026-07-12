@@ -18,7 +18,8 @@
 | append-only manual dismissal lifecycle | #22 / #23 | 完了 |
 | admin authentication and network isolation | #24 / #25 | 完了 |
 | append-only permanent rejection lifecycle | #26 / #27 | 完了 |
-| verified backup / export / restore | #28 | 実装・PR化 |
+| verified backup / export / restore | #28 / #29 | 完了 |
+| same-host concurrent ledger coordination | #30 | 実装・PR化 |
 
 ---
 
@@ -48,58 +49,67 @@
 
 ## QL-4: Backup / Export / Restore
 
-**状態: implemented**
-
-### 固定した判断
-
-```text
-対象: 全quarantine関連append-only state
-入口: local administrative binary
-snapshot境界: source copy後にlength + digestを再検証
-manifest: versioned JSON、最後にatomic rename
-restore先: managed fileが存在しないdirectoryのみ
-secret環境変数: backup対象外
-```
-
-### 対象ファイル
-
-```text
-quarantine.jsonl
-quarantine-resolutions.jsonl
-quarantine-annotations.jsonl
-quarantine-dismissals.jsonl
-quarantine-rejections.jsonl
-admin-auth-audit.jsonl
-```
-
-### 実装済み完了条件
-
-- sparse snapshotで不在ファイルを明示
-- source変更検出時にvalid manifestを発行しない
-- exact managed-file setをmanifestで検証
-- byte lengthとintegrity digestを検証
-- path traversal、unsupported version、tamperingを拒否
-- restore前にbackup全体を検証
-- destinationの既存managed fileを上書きしない
-- temporary file + atomic renameでrestore
-- bearer tokenと環境変数を保存しない
-- export / verify / restore CLIを追加
-
-### 非スコープ
-
-- distributed snapshot coordination
-- encryption at rest
-- remote object storage
-- retention scheduling
-- compaction / rotation
+**状態: completed**
 
 関連文書：`docs/operations/QUARANTINE_BACKUP_RESTORE.md`
 
 ---
 
+## QL-6: Concurrent Ledger Operations
+
+**状態: implemented**
+
+### 固定した判断
+
+```text
+lock scope: state directory全体
+lock file: .quarantine-operation.lock
+対象: mutation + backup export + restore destination write
+read-only operation: lock不要
+競合時: LB_QUARANTINE_BUSYでfail closed
+stale recovery: 15分を超えたlockを1回だけ回収
+multi-host / NFS distributed lock: 非スコープ
+```
+
+### 対象操作
+
+- quarantine record append
+- promotion resolution append
+- annotation append
+- dismissal
+- permanent rejection
+- admin authentication failure audit
+- backup export
+- restore destination write
+
+### 実装済み完了条件
+
+- `create_new`による同一host filesystem exclusion
+- normal scope exitでlock fileを削除
+- stale lock recovery
+- promotion / dismissal / permanent rejectionを同じ排他境界で再確認
+- terminal lifecycle stateの二重commitを拒否
+- backup export中のcooperating mutationを拒否
+- restore中のdestination mutationを拒否
+- lock metadataをoperation、PID、timestampのみに制限
+- bearer token、payload、operator、note、quarantine IDをlockへ保存しない
+- duplicate terminal eventは引き続きcorruption
+
+### 非スコープ
+
+- distributed locking
+- multi-node consensus
+- network filesystem lease
+- older binaryや手動file editとの協調
+- indefinite wait queue
+
+関連文書：`docs/operations/QUARANTINE_CONCURRENCY.md`
+
+---
+
 ## QL-5: JSONL Index / Rotation / Compaction
 
-**優先度: medium**
+**優先度: highest**
 
 ### 検討順
 
@@ -115,30 +125,7 @@ admin-auth-audit.jsonl
 - lifecycle eventの意味を失わない
 - unknown / corrupt lineを黙って除外しない
 - statusとmetricsの値がcompaction前後で一致する
-
----
-
-## QL-6: Concurrent Ledger Operations
-
-**優先度: highest**
-
-### 対象
-
-- 同一recordの同時promotion
-- resolution / annotation / dismissal / rejection ledgerへの同時append
-- admin auth auditへの同時append
-- schedulerと手動操作の競合
-- promotion / dismissal / permanent rejectionの競合
-- backup export中のmutation
-
-### 完了条件
-
-- 同一hostとmulti-hostを区別する
-- atomic appendの前提を文書化する
-- duplicate eventの意味を固定する
-- concurrency testを追加する
-- backup snapshot lockとの関係を固定する
-- distributed lockを実装しない場合は明記する
+- lockとbackup manifestの意味を維持する
 
 ---
 

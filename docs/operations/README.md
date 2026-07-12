@@ -34,7 +34,7 @@
 
 障害時の一次参照先は [Node Lifecycle Runbook](./NODE_LIFECYCLE_RUNBOOK.md) とします。
 
-quarantine管理HTTP surfaceは [Quarantine Admin HTTP Isolation](./QUARANTINE_ADMIN_HTTP.md)、同一ホスト上の排他制御は [Quarantine Concurrent Operations](./QUARANTINE_CONCURRENCY.md)、バックアップとrestoreは [Quarantine Backup / Export / Restore](./QUARANTINE_BACKUP_RESTORE.md) を正本とします。
+quarantine管理HTTP surfaceは [Quarantine Admin HTTP Isolation](./QUARANTINE_ADMIN_HTTP.md)、同一ホスト上の排他制御は [Quarantine Concurrent Operations](./QUARANTINE_CONCURRENCY.md)、バックアップとrestoreは [Quarantine Backup / Export / Restore](./QUARANTINE_BACKUP_RESTORE.md)、JSONLのindexとmaintenance判断は [Quarantine JSONL Index and Maintenance Planning](./QUARANTINE_JSONL_MAINTENANCE.md) を正本とします。
 
 - [Access and Retention Policy](./ACCESS_RETENTION_POLICY.md)
 - [Access and Retention Audit Checklist](./ACCESS_RETENTION_AUDIT_CHECKLIST.md)
@@ -44,6 +44,7 @@ quarantine管理HTTP surfaceは [Quarantine Admin HTTP Isolation](./QUARANTINE_A
 - [Quarantine Admin HTTP Isolation](./QUARANTINE_ADMIN_HTTP.md)
 - [Quarantine Backup / Export / Restore](./QUARANTINE_BACKUP_RESTORE.md)
 - [Quarantine Concurrent Operations](./QUARANTINE_CONCURRENCY.md)
+- [Quarantine JSONL Index and Maintenance Planning](./QUARANTINE_JSONL_MAINTENANCE.md)
 - [Quarantine Operator Annotations](./QUARANTINE_ANNOTATIONS.md)
 - [Quarantine Manual Dismissals](./QUARANTINE_DISMISSALS.md)
 - [Quarantine Permanent Rejections](./QUARANTINE_PERMANENT_REJECTIONS.md)

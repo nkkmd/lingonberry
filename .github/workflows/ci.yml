@@ -34,8 +34,25 @@ jobs:
       - name: Check formatting
         run: cargo fmt --all -- --check
 
-      - name: Run clippy
-        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Generate clippy diagnostics
+        shell: bash
+        run: |
+          set +e
+          cargo clippy --workspace --all-targets -- -D warnings > clippy.log 2>&1
+          echo $? > clippy.status
+          exit 0
+
+      - name: Upload clippy diagnostics
+        uses: actions/upload-artifact@v4
+        with:
+          name: clippy-diagnostics
+          path: |
+            clippy.log
+            clippy.status
+
+      - name: Enforce clippy
+        shell: bash
+        run: test "$(cat clippy.status)" -eq 0
 
       - name: Run workspace tests
         run: cargo test --workspace

@@ -6,10 +6,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use lingonberry_protocol::{parse_json, to_canonical_json, JsonValue};
 
-use super::{
-    preview_quarantine_record, promote_quarantine_record, QuarantineBatchReport,
-    QuarantinePromotionOutcome, QuarantineStore, StorageBackend,
-};
+use super::QuarantineStore;
 use crate::{acquire_quarantine_lock, read_managed_ledger_lines, store_error, StoreError};
 
 pub const OPERATOR_DISMISSED_REASON_CODE: &str = "LB_OPERATOR_DISMISSED";
@@ -134,63 +131,6 @@ impl QuarantineStore {
         }
         Ok(dismissals)
     }
-}
-
-pub fn promote_quarantine_batch_excluding_dismissed(
-    limit: usize,
-    dry_run: bool,
-    backend: &impl StorageBackend,
-) -> Result<QuarantineBatchReport, StoreError> {
-    if limit == 0 {
-        return Err(store_error(
-            "LB_QUARANTINE_BATCH",
-            "limit must be greater than zero",
-        ));
-    }
-    let store = QuarantineStore::new(crate::runtime_state_dir());
-    let resolved = store
-        .list_resolutions()?
-        .into_iter()
-        .map(|resolution| resolution.quarantine_id)
-        .collect::<BTreeSet<_>>();
-    let dismissed = store
-        .list_dismissals(None)?
-        .into_iter()
-        .map(|dismissal| dismissal.quarantine_id)
-        .collect::<BTreeSet<_>>();
-    let ids = store
-        .list()?
-        .into_iter()
-        .filter(|record| !resolved.contains(&record.id) && !dismissed.contains(&record.id))
-        .map(|record| record.id)
-        .take(limit)
-        .collect::<Vec<_>>();
-
-    let mut report = QuarantineBatchReport {
-        dry_run,
-        limit,
-        scanned: ids.len(),
-        promoted: 0,
-        already_promoted: 0,
-        deferred: 0,
-        rejected: 0,
-        outcomes: Vec::new(),
-    };
-    for id in ids {
-        let outcome = if dry_run {
-            preview_quarantine_record(&id)?
-        } else {
-            promote_quarantine_record(&id, backend)?
-        };
-        match &outcome {
-            QuarantinePromotionOutcome::Promoted { .. } => report.promoted += 1,
-            QuarantinePromotionOutcome::AlreadyPromoted { .. } => report.already_promoted += 1,
-            QuarantinePromotionOutcome::StillDeferred { .. } => report.deferred += 1,
-            QuarantinePromotionOutcome::Rejected { .. } => report.rejected += 1,
-        }
-        report.outcomes.push(outcome);
-    }
-    Ok(report)
 }
 
 pub fn quarantine_dismissal_json(dismissal: &QuarantineDismissal) -> JsonValue {

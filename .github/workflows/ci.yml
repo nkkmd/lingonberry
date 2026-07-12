@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   rust:
-    name: Rust tests
+    name: Rust checks
     runs-on: ubuntu-latest
 
     steps:
@@ -25,9 +25,17 @@ jobs:
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
 
       - name: Cache Cargo artifacts
         uses: Swatinem/rust-cache@v2
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Run clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
 
       - name: Run workspace tests
         run: cargo test --workspace

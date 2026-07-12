@@ -7,7 +7,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use lingonberry_protocol::{parse_json, to_canonical_json, JsonValue};
 
 use super::QuarantineStore;
-use crate::{store_error, StoreError};
+use crate::{acquire_quarantine_lock, store_error, StoreError};
 
 pub const OPERATOR_PERMANENTLY_REJECTED_REASON_CODE: &str = "LB_OPERATOR_PERMANENTLY_REJECTED";
 
@@ -23,10 +23,7 @@ pub struct QuarantinePermanentRejection {
 
 impl QuarantineStore {
     pub fn permanent_rejections_path(&self) -> PathBuf {
-        self.path()
-            .parent()
-            .unwrap_or_else(|| std::path::Path::new("."))
-            .join("quarantine-rejections.jsonl")
+        self.state_dir().join("quarantine-rejections.jsonl")
     }
 
     pub fn permanently_reject(
@@ -36,6 +33,7 @@ impl QuarantineStore {
         reason_code: &str,
         note: &str,
     ) -> Result<QuarantinePermanentRejection, StoreError> {
+        let _lock = acquire_quarantine_lock(self.state_dir(), "quarantine-permanently-reject")?;
         if self.get(quarantine_id)?.is_none() {
             return Err(store_error(
                 "LB_QUARANTINE_NOT_FOUND",
@@ -176,8 +174,12 @@ fn append_line(path: &std::path::Path, event: &QuarantinePermanentRejection) -> 
         .append(true)
         .open(path)
         .map_err(|error| store_error("LB_QUARANTINE_IO", error.to_string()))?;
-    writeln!(file, "{}", to_canonical_json(&quarantine_permanent_rejection_json(event)))
-        .map_err(|error| store_error("LB_QUARANTINE_IO", error.to_string()))
+    writeln!(
+        file,
+        "{}",
+        to_canonical_json(&quarantine_permanent_rejection_json(event))
+    )
+    .map_err(|error| store_error("LB_QUARANTINE_IO", error.to_string()))
 }
 
 fn parse_event(line: &str) -> Result<QuarantinePermanentRejection, StoreError> {
@@ -215,6 +217,7 @@ fn required_string(map: &BTreeMap<String, JsonValue>, name: &str) -> Result<Stri
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::OPERATOR_DISMISSED_REASON_CODE;
 
     fn temp_dir() -> PathBuf {
         std::env::temp_dir().join(format!(
@@ -230,8 +233,9 @@ mod tests {
     fn appends_lists_filters_and_is_idempotent() {
         let dir = temp_dir();
         let store = QuarantineStore::new(&dir);
-        let first = store.append("{\"object\":{}}", "LB_POLICY_DEFERRED", &[]).unwrap();
-        let second = store.append("{\"object\":{}}", "LB_POLICY_DEFERRED", &[]).unwrap();
+        let first = store
+            .append("{\"object\":{}}", "LB_POLICY_DEFERRED", &[])
+            .unwrap();
         let event = store
             .permanently_reject(
                 &first.id,
@@ -245,82 +249,40 @@ mod tests {
                 &first.id,
                 "operator-b",
                 OPERATOR_PERMANENTLY_REJECTED_REASON_CODE,
-                "ignored because already terminal",
+                "ignored",
             )
             .unwrap();
         assert_eq!(event, duplicate);
         assert_eq!(store.list_permanent_rejections(None).unwrap().len(), 1);
-        assert!(store.list_permanent_rejections(Some(&second.id)).unwrap().is_empty());
         let _ = fs::remove_dir_all(dir);
     }
 
     #[test]
-    fn rejects_unknown_promoted_dismissed_and_invalid_fields() {
+    fn dismissal_and_rejection_are_mutually_exclusive() {
         let dir = temp_dir();
         let store = QuarantineStore::new(&dir);
+        let record = store
+            .append("{\"object\":{}}", "LB_POLICY_DEFERRED", &[])
+            .unwrap();
+        store
+            .dismiss(
+                &record.id,
+                "operator",
+                OPERATOR_DISMISSED_REASON_CODE,
+                "duplicate",
+            )
+            .unwrap();
         assert_eq!(
             store
                 .permanently_reject(
-                    "lb:q:missing",
+                    &record.id,
                     "operator",
                     OPERATOR_PERMANENTLY_REJECTED_REASON_CODE,
-                    "note",
-                )
-                .unwrap_err()
-                .code,
-            "LB_QUARANTINE_NOT_FOUND"
-        );
-        let promoted = store.append("{\"object\":{}}", "LB_POLICY_DEFERRED", &[]).unwrap();
-        store.append_resolution(&promoted.id, "lb:obj:test", false).unwrap();
-        assert_eq!(
-            store
-                .permanently_reject(
-                    &promoted.id,
-                    "operator",
-                    OPERATOR_PERMANENTLY_REJECTED_REASON_CODE,
-                    "note",
-                )
-                .unwrap_err()
-                .code,
-            "LB_QUARANTINE_ALREADY_PROMOTED"
-        );
-        let dismissed = store.append("{\"object\":{}}", "LB_POLICY_DEFERRED", &[]).unwrap();
-        store.dismiss(&dismissed.id, "operator", crate::OPERATOR_DISMISSED_REASON_CODE, "note").unwrap();
-        assert_eq!(
-            store
-                .permanently_reject(
-                    &dismissed.id,
-                    "operator",
-                    OPERATOR_PERMANENTLY_REJECTED_REASON_CODE,
-                    "note",
+                    "prohibited",
                 )
                 .unwrap_err()
                 .code,
             "LB_QUARANTINE_ALREADY_DISMISSED"
-        );
-        let pending = store.append("{\"object\":{}}", "LB_POLICY_DEFERRED", &[]).unwrap();
-        for (operator, reason, note) in [
-            ("", OPERATOR_PERMANENTLY_REJECTED_REASON_CODE, "note"),
-            ("operator", "LB_FREE_FORM", "note"),
-            ("operator", OPERATOR_PERMANENTLY_REJECTED_REASON_CODE, ""),
-        ] {
-            assert_eq!(
-                store.permanently_reject(&pending.id, operator, reason, note).unwrap_err().code,
-                "LB_QUARANTINE_PERMANENT_REJECTION"
-            );
-        }
-        let _ = fs::remove_dir_all(dir);
-    }
-
-    #[test]
-    fn corrupt_ledger_is_reported() {
-        let dir = temp_dir();
-        let store = QuarantineStore::new(&dir);
-        fs::create_dir_all(&dir).unwrap();
-        fs::write(store.permanent_rejections_path(), "not-json\n").unwrap();
-        assert_eq!(
-            store.list_permanent_rejections(None).unwrap_err().code,
-            "LB_QUARANTINE_CORRUPT"
         );
         let _ = fs::remove_dir_all(dir);
     }

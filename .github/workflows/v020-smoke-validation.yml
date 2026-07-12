@@ -11,6 +11,10 @@ on:
 permissions:
   contents: read
 
+env:
+  LINGONBERRY_STATE_DIR: /tmp/lingonberry-v020-state
+  LINGONBERRY_ARCHIVE_DIR: /tmp/lingonberry-v020-archive
+
 jobs:
   smoke:
     runs-on: ubuntu-latest
@@ -28,26 +32,35 @@ jobs:
       - name: Build release binaries
         run: cargo build --workspace --bins
 
-      - name: Core publish and archive smoke
-        shell: bash
+      - name: Initialize isolated runtime
         run: |
-          set -euo pipefail
-          export LINGONBERRY_STATE_DIR="$RUNNER_TEMP/lingonberry-v020-state"
-          rm -rf "$LINGONBERRY_STATE_DIR" "$RUNNER_TEMP/lingonberry-v020-archive"
+          rm -rf "$LINGONBERRY_STATE_DIR" "$LINGONBERRY_ARCHIVE_DIR"
           mkdir -p "$LINGONBERRY_STATE_DIR"
 
-          cargo run -q -p lingonberry-relay -- capabilities | tee "$RUNNER_TEMP/capabilities.json"
-          test -s "$RUNNER_TEMP/capabilities.json"
-          grep -q '^{' "$RUNNER_TEMP/capabilities.json"
+      - name: Capabilities smoke
+        run: |
+          set -euo pipefail
+          cargo run -q -p lingonberry-relay -- capabilities | tee /tmp/capabilities.json
+          test -s /tmp/capabilities.json
+          grep -q '^{' /tmp/capabilities.json
 
-          cargo run -q -p lingonberry-relay -- validate fixtures/http-publish-request/minimal-request.json
+      - name: Validation smoke
+        run: cargo run -q -p lingonberry-relay -- validate fixtures/http-publish-request/minimal-request.json
+
+      - name: Publish smoke
+        run: |
+          set -euo pipefail
           cargo run -q -p lingonberry-relay -- publish fixtures/http-publish-request/minimal-request.json \
-            | tee "$RUNNER_TEMP/publish.json"
-          grep -q 'canonicalId' "$RUNNER_TEMP/publish.json"
+            | tee /tmp/publish.json
+          grep -q 'canonicalId' /tmp/publish.json
 
-          cargo run -q -p lingonberry-relay -- export-archive "$RUNNER_TEMP/lingonberry-v020-archive"
-          test -d "$RUNNER_TEMP/lingonberry-v020-archive"
-          cargo run -q -p lingonberry-relay -- import-archive "$RUNNER_TEMP/lingonberry-v020-archive"
+      - name: Archive export smoke
+        run: |
+          cargo run -q -p lingonberry-relay -- export-archive "$LINGONBERRY_ARCHIVE_DIR"
+          test -d "$LINGONBERRY_ARCHIVE_DIR"
+
+      - name: Archive import smoke
+        run: cargo run -q -p lingonberry-relay -- import-archive "$LINGONBERRY_ARCHIVE_DIR"
 
       - name: Quarantine lifecycle smoke
         run: |
@@ -76,13 +89,13 @@ jobs:
         run: |
           set -euo pipefail
           cargo run -q -p lingonberry-relay --bin lingonberry-admin-auth-config \
-            | tee "$RUNNER_TEMP/admin-auth-explicit.json"
-          grep -q '"legacyOperatorFallbackActive":false' "$RUNNER_TEMP/admin-auth-explicit.json"
-          grep -q '"operatorConfiguredExplicitly":true' "$RUNNER_TEMP/admin-auth-explicit.json"
-          grep -q '"secretsIncluded":false' "$RUNNER_TEMP/admin-auth-explicit.json"
-          ! grep -q 'observer-v020-secret' "$RUNNER_TEMP/admin-auth-explicit.json"
-          ! grep -q 'reviewer-v020-secret' "$RUNNER_TEMP/admin-auth-explicit.json"
-          ! grep -q 'operator-v020-secret' "$RUNNER_TEMP/admin-auth-explicit.json"
+            | tee /tmp/admin-auth-explicit.json
+          grep -q '"legacyOperatorFallbackActive":false' /tmp/admin-auth-explicit.json
+          grep -q '"operatorConfiguredExplicitly":true' /tmp/admin-auth-explicit.json
+          grep -q '"secretsIncluded":false' /tmp/admin-auth-explicit.json
+          ! grep -q 'observer-v020-secret' /tmp/admin-auth-explicit.json
+          ! grep -q 'reviewer-v020-secret' /tmp/admin-auth-explicit.json
+          ! grep -q 'operator-v020-secret' /tmp/admin-auth-explicit.json
 
       - name: Legacy token deprecation diagnostic smoke
         shell: bash
@@ -91,12 +104,12 @@ jobs:
         run: |
           set -euo pipefail
           cargo run -q -p lingonberry-relay --bin lingonberry-admin-auth-config \
-            | tee "$RUNNER_TEMP/admin-auth-legacy.json"
-          grep -q '"legacyOperatorFallbackActive":true' "$RUNNER_TEMP/admin-auth-legacy.json"
-          grep -q 'LB_ADMIN_LEGACY_TOKEN_DEPRECATED' "$RUNNER_TEMP/admin-auth-legacy.json"
-          grep -q '"actionRequired":true' "$RUNNER_TEMP/admin-auth-legacy.json"
-          grep -q '"secretsIncluded":false' "$RUNNER_TEMP/admin-auth-legacy.json"
-          ! grep -q 'legacy-v020-secret' "$RUNNER_TEMP/admin-auth-legacy.json"
+            | tee /tmp/admin-auth-legacy.json
+          grep -q '"legacyOperatorFallbackActive":true' /tmp/admin-auth-legacy.json
+          grep -q 'LB_ADMIN_LEGACY_TOKEN_DEPRECATED' /tmp/admin-auth-legacy.json
+          grep -q '"actionRequired":true' /tmp/admin-auth-legacy.json
+          grep -q '"secretsIncluded":false' /tmp/admin-auth-legacy.json
+          ! grep -q 'legacy-v020-secret' /tmp/admin-auth-legacy.json
 
       - name: Release-version consistency smoke
         shell: bash

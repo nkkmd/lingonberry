@@ -8,26 +8,12 @@
 
 | 項目 | PR / Issue | 状態 |
 |---|---:|---|
-| persistent quarantine store | #8 | 完了 |
-| revalidation / promotion | #9 | 完了 |
-| batch promotion / dry-run | #10 | 完了 |
-| status API | #13 | 完了 |
-| Prometheus metrics | #15 | 完了 |
-| scheduler integration | #17 | 完了 |
-| operator annotations | #19 | 完了 |
-| append-only manual dismissal lifecycle | #22 / #23 | 完了 |
-| admin authentication and network isolation | #24 / #25 | 完了 |
-| append-only permanent rejection lifecycle | #26 / #27 | 完了 |
-| verified backup / export / restore | #28 / #29 | 完了 |
+| persistent quarantine through permanent rejection | #8–#27 | 完了 |
+| active-ledger verified backup / restore | #28 / #29 | 完了 |
 | same-host concurrent ledger coordination | #30 / #31 | 完了 |
 | verified read-only JSONL index and planning | #32 / #33 | 完了 |
-| archive-aware ordered reads and verified rotation | #34 | 実装・PR化 |
-
----
-
-## QL-1 — QL-4, QL-6
-
-**状態: completed**
+| archive-aware ordered reads and verified rotation | #34 / #35 | 完了 |
+| archive-inclusive backup / verify / restore | #36 | 実装・PR化 |
 
 ---
 
@@ -35,86 +21,78 @@
 
 **状態: completed**
 
-関連文書：`docs/operations/QUARANTINE_JSONL_MAINTENANCE.md`
-
 ---
 
 ## QL-5B: Archive-aware Ordered Reads and Verified Rotation
+
+**状態: completed**
+
+```text
+manifest: quarantine-segments.json
+archive dir: quarantine-segments/
+read order: segment sequence順 → active ledger
+rotation: fresh index + shared lock + semantic equivalence
+archive evidence: immutable
+```
+
+---
+
+## QL-5C1: Archive-inclusive Backup / Verify / Restore
 
 **状態: implemented**
 
 ### 固定した判断
 
 ```text
-manifest: quarantine-segments.json
-archive dir: quarantine-segments/
-read order: ledger別segment sequence順 → active ledger
-rotation prerequisite: fresh quarantine-ledger-index.json
-rotation scope: 1 managed ledger
-coordination: state-directory-wide operation lock
-archive evidence: immutable、削除・上書き禁止
-semantic verification: logical line count + ordered-stream digest
-compaction / retention: QL-5Cまで禁止
+new export version: lingonberry-quarantine-backup/v2
+v1 verify / restore: backward compatible
+v2 contents: six active ledgers + segment manifest + listed segments
+excluded: derived index + operation lock
+export: source lock + segment verification + source re-read
+restore: destination lock + conflict rejection + final segment verification
 ```
-
-### Archive-aware reader対象
-
-- quarantine records
-- promotion resolutions
-- annotations
-- dismissals
-- permanent rejections
-- admin auth audit向け共通utility
 
 ### 実装済み完了条件
 
-- active-onlyとarchived + activeを同じ論理streamとして読む
-- ledgerごとのsequenceをstrictly increasingにする
-- segmentのbyte length、line count、digest、JSONL妥当性を検証
-- missing、tampered、duplicate、out-of-order segmentを拒否
-- manifest未登録segmentをcorruptionとして拒否
-- stale indexではrotationしない
-- missing / empty active ledgerをrotationしない
-- original bytesをimmutable segmentへ保存
-- manifestをtemporary file + atomic renameで発行
-- rotation前後の論理line streamを検証
-- equivalence失敗時にactive、manifest、新segmentをrollback
-- repeated rotationに対応
+- post-rotation stateを一つのbackupで完全保存
+- active-only stateにも対応
+- v1 backupのverify / restore互換性を維持
+- path traversal、missing、tampered、unlisted archive fileを拒否
+- segment manifestとbackup manifestの不一致を拒否
+- restore後にruntime segment verifierを実行
+- final verification失敗時にrestoreが書いたfileをrollback
+- bearer token、derived index、lock fileをbackupへ含めない
 
-### 明示的制限
-
-現行のQL-4 backup manifestはactive ledgerのみを対象としており、archive segmentを含みません。Post-rotation stateはfilesystem-level snapshot等でactive ledger、segment manifest、archive directoryを一体保存する必要があります。
-
-関連文書：`docs/operations/QUARANTINE_JSONL_MAINTENANCE.md`
+関連文書：`docs/operations/QUARANTINE_BACKUP_RESTORE.md`
 
 ---
 
-## QL-5C: Archive-inclusive Backup, Verified Compaction, and Retention
+## QL-5C2: Verified Compaction Policy and Proof
 
 **優先度: highest**
 
 ### 前提
 
-1. archive segmentを含むbackup / verify / restore
-2. ledger type別のcompaction policy
-3. status / metrics / eligibility / idempotencyのsemantic equivalence
-4. source evidenceまたは検証可能なreplacement proof
-5. interrupted compaction recovery
+1. ledger type別のcompaction policy
+2. status / metrics / eligibility / idempotencyのsemantic equivalence
+3. source evidenceまたは検証可能なreplacement proof
+4. interrupted compaction recovery
+5. archive-inclusive backupの事前成功
 
 ### 完了条件
 
-- archive-inclusive backupから完全restoreできる
-- compactionでunknown / corrupt lineを黙って除外しない
+- unknown / corrupt lineを黙って除外しない
 - compaction前後でstatus、metrics、lifecycle判定が一致する
 - duplicate detectionの意味を維持する
-- retention deletionはverified compaction後にのみ許可する
-- source evidenceの削除条件を明文化する
+- source segmentを即時削除しない
+- retention deletionは別の明示的承認段階に分離する
 
-### 非スコープのまま維持するもの
+### 非スコープ
 
 - distributed locking
 - remote archive storage
 - cryptographic signing
+- automatic retention deletion
 
 ---
 

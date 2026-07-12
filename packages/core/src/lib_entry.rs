@@ -1,6 +1,7 @@
 include!("lib.rs");
 mod quarantine_annotations;
 mod quarantine_backup;
+mod quarantine_complete_backup;
 mod quarantine_dismissals;
 mod quarantine_ledger_index;
 mod quarantine_lock;
@@ -14,6 +15,10 @@ pub use quarantine_backup::{
     restore_quarantine_backup, verify_quarantine_backup, QuarantineBackupFile,
     QuarantineBackupManifest, QuarantineBackupReport, QUARANTINE_BACKUP_FILES,
     QUARANTINE_BACKUP_MANIFEST, QUARANTINE_BACKUP_VERSION,
+};
+pub use quarantine_complete_backup::{
+    export_complete_quarantine_backup, restore_any_quarantine_backup,
+    verify_any_quarantine_backup, QUARANTINE_COMPLETE_BACKUP_VERSION,
 };
 pub use quarantine_dismissals::{
     quarantine_dismissal_json, QuarantineDismissal, OPERATOR_DISMISSED_REASON_CODE,

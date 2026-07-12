@@ -3,8 +3,8 @@ use std::path::PathBuf;
 use std::process;
 
 use lingonberry_core::{
-    export_quarantine_backup, quarantine_backup_report_json, restore_quarantine_backup,
-    runtime_state_dir, verify_quarantine_backup,
+    export_complete_quarantine_backup, quarantine_backup_report_json,
+    restore_any_quarantine_backup, runtime_state_dir, verify_any_quarantine_backup,
 };
 use lingonberry_protocol::to_canonical_json;
 
@@ -23,7 +23,7 @@ fn run(args: Vec<String>) -> Result<(), String> {
             if args.len() != 2 {
                 return Err(usage());
             }
-            export_quarantine_backup(runtime_state_dir(), PathBuf::from(backup_dir))
+            export_complete_quarantine_backup(runtime_state_dir(), PathBuf::from(backup_dir))
                 .map_err(|error| error.to_string())?
         }
         "verify" => {
@@ -31,7 +31,7 @@ fn run(args: Vec<String>) -> Result<(), String> {
             if args.len() != 2 {
                 return Err(usage());
             }
-            verify_quarantine_backup(PathBuf::from(backup_dir))
+            verify_any_quarantine_backup(PathBuf::from(backup_dir))
                 .map_err(|error| error.to_string())?
         }
         "restore" => {
@@ -40,8 +40,11 @@ fn run(args: Vec<String>) -> Result<(), String> {
             if args.len() != 3 {
                 return Err(usage());
             }
-            restore_quarantine_backup(PathBuf::from(backup_dir), PathBuf::from(destination))
-                .map_err(|error| error.to_string())?
+            restore_any_quarantine_backup(
+                PathBuf::from(backup_dir),
+                PathBuf::from(destination),
+            )
+            .map_err(|error| error.to_string())?
         }
         _ => return Err(usage()),
     };

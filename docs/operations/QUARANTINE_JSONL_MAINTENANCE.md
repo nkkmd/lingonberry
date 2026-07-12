@@ -1,27 +1,12 @@
-# Quarantine JSONL Index and Maintenance Planning
+# Quarantine JSONL Index, Segments, and Rotation
 
-**Status: implemented (QL-5A)** | **Last updated: 2026-07-12**
+**Status: implemented through QL-5B** | **Last updated: 2026-07-12**
 
-This runbook defines the safe first phase of long-term JSONL maintenance. It adds verified indexing and non-destructive planning. It does not truncate, rotate, compact, or delete audit ledgers.
+This runbook covers the verified read-only index, non-destructive maintenance planning, archive-aware ordered reads, and byte-preserving ledger rotation.
 
-## Why destructive maintenance is blocked
+Record-rewriting compaction, retention deletion, compression, and remote archives remain prohibited.
 
-Quarantine ledgers are append-only audit evidence. Rotation or compaction is unsafe until:
-
-1. every reader can consume active and archived segments in a defined order;
-2. archive manifests preserve provenance and integrity;
-3. status, metrics, lifecycle eligibility, and duplicate/corruption detection are proven equivalent before and after maintenance;
-4. recovery from an interrupted segment transition is defined.
-
-QL-5A establishes the index and verification substrate needed for that follow-up work.
-
-## Index file
-
-```text
-<LINGONBERRY_STATE_DIR>/quarantine-ledger-index.json
-```
-
-The versioned index covers the exact managed ledger set:
+## Managed ledgers
 
 ```text
 quarantine.jsonl
@@ -32,88 +17,153 @@ quarantine-rejections.jsonl
 admin-auth-audit.jsonl
 ```
 
-For each ledger it records:
+## Derived index
 
 ```text
-presence
-byte length
-non-empty JSONL line count
-first record byte offset
-last record byte offset
-integrity digest
+<LINGONBERRY_STATE_DIR>/quarantine-ledger-index.json
 ```
 
-The current digest uses `fnv1a64:<hex>` for accidental corruption and staleness detection. It is not a cryptographic authenticity mechanism.
-
-## Build the index
+Build and verify it with:
 
 ```bash
 export LINGONBERRY_STATE_DIR=/var/lib/lingonberry/relay
 lingonberry-quarantine-maintenance build-index
-```
-
-Index construction:
-
-- acquires `.quarantine-operation.lock`;
-- validates every non-empty line with the protocol JSON parser;
-- rejects malformed JSON and partial trailing lines;
-- re-reads each source to detect mutation during indexing;
-- writes the index last through a temporary file and atomic rename.
-
-## Verify the index
-
-```bash
 lingonberry-quarantine-maintenance verify-index
 ```
 
-Verification is read-only and recomputes the full index. It rejects unsupported versions, an incomplete managed-file set, tampering, missing files, changed lengths, changed line offsets, and changed digests.
+The index records presence, byte length, non-empty JSONL line count, first and last record offsets, and an integrity digest. Build acquires the shared operation lock and rejects malformed JSON, partial trailing lines, and source mutation.
 
-A successful verification means the index matches the current active ledgers. It does not certify archived data because archive segments are not yet implemented.
+Rotation requires a fresh index. Rebuild it after every active-ledger mutation.
 
-## Plan maintenance
-
-```bash
-lingonberry-quarantine-maintenance plan 67108864 100000
-```
-
-Arguments are:
+## Segment layout
 
 ```text
-<byte-threshold> <line-threshold>
+<LINGONBERRY_STATE_DIR>/quarantine-segments.json
+<LINGONBERRY_STATE_DIR>/quarantine-segments/
 ```
 
-The command first verifies the index, then reports which present ledgers meet or exceed either threshold. The result always includes:
+Example immutable segment:
 
-```json
-{
-  "destructiveActionsBlocked": true
-}
+```text
+quarantine.00000000000000000001.jsonl
 ```
 
-The planner never changes ledger contents.
+The versioned segment manifest records:
 
-## Operational cadence
+```text
+managed ledger name
+strictly increasing sequence
+segment file name
+creation timestamp
+byte length
+non-empty line count
+integrity digest
+```
 
-A reasonable initial workflow is:
+Archive-aware readers consume matching segments in manifest order and then consume the active ledger. Quarantine records, resolutions, annotations, dismissals, and permanent rejections use this ordered reader.
+
+## Verify segments
+
+```bash
+lingonberry-quarantine-maintenance verify-segments
+```
+
+Verification rejects:
+
+- unsupported manifest versions
+- duplicate or out-of-order sequences
+- duplicate segment file names
+- missing segments
+- modified byte length, line count, or digest
+- malformed JSONL or partial trailing lines
+- path traversal
+- archive files not listed in the manifest
+
+An empty or missing manifest is valid only when the archive directory has no unlisted segment files.
+
+## Rotate a ledger
+
+First build a fresh active-ledger index:
 
 ```bash
 lingonberry-quarantine-maintenance build-index
-lingonberry-quarantine-maintenance verify-index
+```
+
+Then rotate one managed ledger:
+
+```bash
+lingonberry-quarantine-maintenance rotate quarantine.jsonl
+```
+
+The rotation operation:
+
+1. acquires `.quarantine-operation.lock`;
+2. verifies the saved QL-5A index against the active ledgers;
+3. validates the active ledger and refuses missing or empty input;
+4. reads the complete logical stream before rotation;
+5. writes the active bytes to a new immutable segment;
+6. replaces the active ledger with an empty file;
+7. publishes the updated manifest through temporary-file plus atomic rename;
+8. reads archived segments plus the active ledger again;
+9. compares logical line count and ordered-stream digest;
+10. rolls back the active file, new segment, and manifest if equivalence fails.
+
+Successful rotation preserves every source byte. It does not compact or delete lifecycle evidence.
+
+## Repeated rotation
+
+After new records are appended to the active ledger:
+
+```bash
+lingonberry-quarantine-maintenance build-index
+lingonberry-quarantine-maintenance rotate quarantine.jsonl
+lingonberry-quarantine-maintenance verify-segments
+```
+
+Sequences are ledger-specific and strictly increasing.
+
+## Maintenance planning
+
+```bash
 lingonberry-quarantine-maintenance plan 67108864 100000
 ```
 
-Rebuild the index after any ledger mutation before using it for planning.
+The planner verifies the active-ledger index and reports byte or line threshold crossings. It does not rotate automatically and does not modify data.
+
+## Backup boundary
+
+The current backup manifest predates archive segments and covers the six active ledger paths. Do not treat it as a complete post-rotation backup of archived evidence.
+
+Until archive-inclusive backup/restore is implemented, preserve the following together using filesystem-level snapshots or an equivalent operator-controlled mechanism:
+
+```text
+six active ledgers
+quarantine-segments.json
+quarantine-segments/
+```
+
+This limitation is explicit and must be resolved before automated retention or compaction.
 
 ## Error meanings
 
 ```text
-LB_QUARANTINE_BUSY          another mutation/index operation holds the lock
-LB_QUARANTINE_CORRUPT       malformed JSONL or partial trailing line
-LB_QUARANTINE_INDEX_CHANGED source changed during index construction
-LB_QUARANTINE_INDEX_STALE   saved index no longer matches active ledgers
-LB_QUARANTINE_INDEX_INVALID malformed or unsupported index
+LB_QUARANTINE_BUSY                 another coordinated operation holds the lock
+LB_QUARANTINE_CORRUPT              malformed active or archived JSONL
+LB_QUARANTINE_INDEX_STALE          saved active-ledger index is stale
+LB_QUARANTINE_ROTATION_EMPTY       active ledger is missing or empty
+LB_QUARANTINE_ROTATION_CONFLICT    target segment already exists
+LB_QUARANTINE_ROTATION_EQUIVALENCE ordered logical stream changed
+LB_QUARANTINE_SEGMENT_CORRUPT      manifest or archived evidence is inconsistent
 ```
 
-## Follow-up: QL-5B
+## Follow-up: QL-5C
 
-QL-5B must introduce archive-aware ordered readers and verified segment transitions before enabling rotation or compaction. Active ledger truncation and retention enforcement remain prohibited until that work is complete.
+Before record-rewriting compaction or retention deletion, QL-5C must add:
+
+- archive-inclusive backup and restore
+- explicit compaction policy per ledger type
+- semantic equivalence checks for status, metrics, eligibility, idempotency, and corruption detection
+- retained source evidence or a verifiable replacement proof
+- interrupted-compaction recovery
+
+No archived segment may be deleted under QL-5B.

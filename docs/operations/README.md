@@ -34,13 +34,16 @@
 
 障害時の一次参照先は [Node Lifecycle Runbook](./NODE_LIFECYCLE_RUNBOOK.md) とします。
 
-quarantine backlog の一次確認には、CLI の `quarantine-status` または HTTP の `GET /v1/quarantine-status` を使用します。Prometheus 形式の監視値は CLI の `quarantine-metrics` または HTTP の `GET /metrics` から取得します。定期的な batch revalidation は [Quarantine Scheduler](./QUARANTINE_SCHEDULER.md) を正本とし、運用上の確認事項は [Quarantine Operator Annotations](./QUARANTINE_ANNOTATIONS.md) に従って append-only で記録します。pending record を通常の promotion 対象から外す操作は [Quarantine Manual Dismissals](./QUARANTINE_DISMISSALS.md) に従います。
+quarantine 管理HTTP surfaceは [Quarantine Admin HTTP Isolation](./QUARANTINE_ADMIN_HTTP.md) に従い、公開relay listenerから分離したloopback-onlyの管理listenerで提供します。statusとmetricsのHTTP取得にもBearer認証が必要です。CLIは引き続きローカル運用の正本です。
+
+定期的なbatch revalidationは [Quarantine Scheduler](./QUARANTINE_SCHEDULER.md)、運用上の確認事項は [Quarantine Operator Annotations](./QUARANTINE_ANNOTATIONS.md)、pending recordのdismissalは [Quarantine Manual Dismissals](./QUARANTINE_DISMISSALS.md) を正本とします。
 
 - [Access and Retention Policy](./ACCESS_RETENTION_POLICY.md)
 - [Access and Retention Audit Checklist](./ACCESS_RETENTION_AUDIT_CHECKLIST.md)
 - [Caddy Relay Publication](./CADDY_RELAY_PUBLICATION.md)
 - [Secret Management](./SECRET_MANAGEMENT.md)
 - [Observability](./OBSERVABILITY.md)
+- [Quarantine Admin HTTP Isolation](./QUARANTINE_ADMIN_HTTP.md)
 - [Quarantine Operator Annotations](./QUARANTINE_ANNOTATIONS.md)
 - [Quarantine Manual Dismissals](./QUARANTINE_DISMISSALS.md)
 - [Quarantine Observability Metrics](./QUARANTINE_OBSERVABILITY_METRICS.md)

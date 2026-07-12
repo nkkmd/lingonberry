@@ -4,8 +4,18 @@ mod legacy {
     include!("main.rs");
 
     use super::admin_auth::{
-        admin_token_matches, append_admin_auth_failure, configured_admin_token,
+        admin_request_allowed, append_admin_auth_failure,
+        append_admin_authorization_failure, configured_admin_credentials,
+        resolve_admin_role, AdminCredentials, AdminRole,
     };
+
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub(crate) enum AdminHttpAccess {
+        NotFound,
+        Unauthorized,
+        Forbidden(AdminRole),
+        Authorized(AdminRole),
+    }
 
     pub(crate) fn run_existing(args: Vec<String>) -> Result<(), String> {
         run(args)
@@ -39,14 +49,21 @@ mod legacy {
         addr: &str,
         backend: &impl StorageBackend,
     ) -> Result<(), String> {
-        let token = configured_admin_token()?;
+        let credentials = configured_admin_credentials()?;
+        if credentials.used_legacy_operator_fallback {
+            eprintln!(
+                "warning: LINGONBERRY_ADMIN_TOKEN is active as the legacy operator fallback"
+            );
+        }
         let listener = TcpListener::bind(addr)
             .map_err(|error| format!("failed to bind {}: {}", addr, error))?;
         eprintln!("admin API listening on http://{}", addr);
         for stream in listener.incoming() {
             match stream {
                 Ok(stream) => {
-                    if let Err(error) = handle_admin_http_connection(stream, backend, &token) {
+                    if let Err(error) =
+                        handle_admin_http_connection(stream, backend, &credentials)
+                    {
                         eprintln!("{}", error);
                     }
                 }
@@ -80,10 +97,28 @@ mod legacy {
             .map_err(|error| error.to_string())
     }
 
+    pub(crate) fn classify_admin_http_access(
+        method: &str,
+        path: &str,
+        headers: &BTreeMap<String, String>,
+        credentials: &AdminCredentials,
+    ) -> AdminHttpAccess {
+        if !is_admin_path(path) {
+            return AdminHttpAccess::NotFound;
+        }
+        let Some(role) = resolve_admin_role(headers, credentials) else {
+            return AdminHttpAccess::Unauthorized;
+        };
+        if !admin_request_allowed(role, method, path) {
+            return AdminHttpAccess::Forbidden(role);
+        }
+        AdminHttpAccess::Authorized(role)
+    }
+
     fn handle_admin_http_connection(
         mut stream: TcpStream,
         backend: &impl StorageBackend,
-        expected_token: &str,
+        credentials: &AdminCredentials,
     ) -> Result<(), String> {
         let remote_addr = stream
             .peer_addr()
@@ -99,34 +134,53 @@ mod legacy {
         }
         let (method, path, _version) = parse_http_request_line(&request_line)?;
         let headers = read_http_headers(&mut reader)?;
+
+        match classify_admin_http_access(&method, &path, &headers, credentials) {
+            AdminHttpAccess::NotFound => {
+                return write_http_response(
+                    &mut stream,
+                    404,
+                    "Not Found",
+                    &http_error("not_found", "route not found"),
+                )
+                .map_err(|error| error.to_string());
+            }
+            AdminHttpAccess::Unauthorized => {
+                append_admin_auth_failure(
+                    runtime_state_dir(),
+                    &remote_addr,
+                    &method,
+                    &path,
+                    "LB_ADMIN_AUTH_FAILED",
+                )?;
+                return write_http_response(
+                    &mut stream,
+                    401,
+                    "Unauthorized",
+                    &http_error("unauthorized", "admin authentication required"),
+                )
+                .map_err(|error| error.to_string());
+            }
+            AdminHttpAccess::Forbidden(role) => {
+                append_admin_authorization_failure(
+                    runtime_state_dir(),
+                    &remote_addr,
+                    &method,
+                    &path,
+                    role,
+                )?;
+                return write_http_response(
+                    &mut stream,
+                    403,
+                    "Forbidden",
+                    &http_error("forbidden", "admin permission denied"),
+                )
+                .map_err(|error| error.to_string());
+            }
+            AdminHttpAccess::Authorized(_) => {}
+        }
+
         let body = read_http_body(&mut reader, &headers)?;
-
-        if !is_admin_path(&path) {
-            return write_http_response(
-                &mut stream,
-                404,
-                "Not Found",
-                &http_error("not_found", "route not found"),
-            )
-            .map_err(|error| error.to_string());
-        }
-
-        if !admin_token_matches(&headers, expected_token) {
-            append_admin_auth_failure(
-                runtime_state_dir(),
-                &remote_addr,
-                &method,
-                &path,
-                "LB_ADMIN_AUTH_FAILED",
-            )?;
-            return write_http_response(
-                &mut stream,
-                401,
-                "Unauthorized",
-                &http_error("unauthorized", "admin authentication required"),
-            )
-            .map_err(|error| error.to_string());
-        }
 
         if is_quarantine_metrics_route(&method, &path) {
             let metrics = QuarantineStore::new(runtime_state_dir())
@@ -599,10 +653,50 @@ fn handle_quarantine_permanent_rejections(args: &[String]) -> Result<(), String>
 
 #[cfg(test)]
 mod tests {
-    use super::legacy::{
-        annotation_route_id, is_admin_path, is_quarantine_metrics_route,
-        is_quarantine_status_route, permanent_rejection_route_id, promotion_route_id,
+    use super::admin_auth::{
+        AdminCredential, AdminCredentials, AdminRole, ADMIN_OBSERVER_TOKEN_ENV,
+        ADMIN_OPERATOR_TOKEN_ENV, ADMIN_REVIEWER_TOKEN_ENV,
     };
+    use super::legacy::{
+        annotation_route_id, classify_admin_http_access, is_admin_path,
+        is_quarantine_metrics_route, is_quarantine_status_route,
+        permanent_rejection_route_id, promotion_route_id, AdminHttpAccess,
+    };
+    use std::collections::BTreeMap;
+
+    fn credentials() -> AdminCredentials {
+        AdminCredentials {
+            credentials: vec![
+                AdminCredential {
+                    role: AdminRole::Observer,
+                    token: "observe".to_string(),
+                    source_env: ADMIN_OBSERVER_TOKEN_ENV,
+                },
+                AdminCredential {
+                    role: AdminRole::Reviewer,
+                    token: "review".to_string(),
+                    source_env: ADMIN_REVIEWER_TOKEN_ENV,
+                },
+                AdminCredential {
+                    role: AdminRole::Operator,
+                    token: "operate".to_string(),
+                    source_env: ADMIN_OPERATOR_TOKEN_ENV,
+                },
+            ],
+            used_legacy_operator_fallback: false,
+        }
+    }
+
+    fn headers(token: Option<&str>) -> BTreeMap<String, String> {
+        token
+            .map(|token| {
+                BTreeMap::from([(
+                    "authorization".to_string(),
+                    format!("Bearer {token}"),
+                )])
+            })
+            .unwrap_or_default()
+    }
 
     #[test]
     fn public_admin_boundary_is_explicit() {
@@ -616,6 +710,88 @@ mod tests {
         assert!(!is_admin_path("/v1/ready"));
         assert!(!is_admin_path("/v1/capabilities"));
         assert!(!is_admin_path("/v1/objects"));
+    }
+
+    #[test]
+    fn admin_http_access_distinguishes_401_and_403() {
+        let credentials = credentials();
+        assert_eq!(
+            classify_admin_http_access(
+                "GET",
+                "/v1/quarantine-status",
+                &headers(None),
+                &credentials,
+            ),
+            AdminHttpAccess::Unauthorized
+        );
+        assert_eq!(
+            classify_admin_http_access(
+                "GET",
+                "/v1/quarantine-status",
+                &headers(Some("invalid")),
+                &credentials,
+            ),
+            AdminHttpAccess::Unauthorized
+        );
+        assert_eq!(
+            classify_admin_http_access(
+                "POST",
+                "/v1/quarantine/lb:q:1/promote",
+                &headers(Some("observe")),
+                &credentials,
+            ),
+            AdminHttpAccess::Forbidden(AdminRole::Observer)
+        );
+        assert_eq!(
+            classify_admin_http_access(
+                "GET",
+                "/v1/ready",
+                &headers(Some("operate")),
+                &credentials,
+            ),
+            AdminHttpAccess::NotFound
+        );
+    }
+
+    #[test]
+    fn role_permissions_are_enforced_at_http_boundary() {
+        let credentials = credentials();
+        assert_eq!(
+            classify_admin_http_access(
+                "GET",
+                "/metrics",
+                &headers(Some("observe")),
+                &credentials,
+            ),
+            AdminHttpAccess::Authorized(AdminRole::Observer)
+        );
+        assert_eq!(
+            classify_admin_http_access(
+                "POST",
+                "/v1/quarantine/lb:q:1/annotations",
+                &headers(Some("review")),
+                &credentials,
+            ),
+            AdminHttpAccess::Authorized(AdminRole::Reviewer)
+        );
+        assert_eq!(
+            classify_admin_http_access(
+                "POST",
+                "/v1/quarantine/lb:q:1/promote",
+                &headers(Some("review")),
+                &credentials,
+            ),
+            AdminHttpAccess::Forbidden(AdminRole::Reviewer)
+        );
+        assert_eq!(
+            classify_admin_http_access(
+                "POST",
+                "/v1/quarantine/lb:q:1/permanent-rejection",
+                &headers(Some("operate")),
+                &credentials,
+            ),
+            AdminHttpAccess::Authorized(AdminRole::Operator)
+        );
     }
 
     #[test]

@@ -1,28 +1,19 @@
 # Quarantine Admin HTTP Isolation and Authorization
 
-**Status: role-scoped RBAC implemented** | **Last updated: 2026-07-12**
+**Status: role-scoped RBAC implemented; legacy token deprecated** | **Last updated: 2026-07-12**
 
 Quarantine administration is served from a dedicated authenticated listener instead of the public relay listener.
 
 ## Listener separation
 
-Public relay:
-
 ```bash
 lingonberry-relay serve-http 127.0.0.1:8787
-```
-
-The public listener exposes readiness, capabilities, publish, and object retrieval. Requests for `/metrics`, `/v1/quarantine-status`, `/v1/quarantine`, `/v1/quarantine-resolutions`, and `/v1/quarantine/*` return `404`.
-
-Admin listener:
-
-```bash
 lingonberry-relay serve-admin-http 127.0.0.1:8788
 ```
 
-The listener defaults to loopback and now loads role-scoped credentials at startup.
+The public listener returns `404` for quarantine administration paths. The admin listener defaults to loopback.
 
-## Credentials
+## Role credentials
 
 ```text
 LINGONBERRY_ADMIN_OBSERVER_TOKEN
@@ -30,20 +21,48 @@ LINGONBERRY_ADMIN_REVIEWER_TOKEN
 LINGONBERRY_ADMIN_OPERATOR_TOKEN
 ```
 
-`LINGONBERRY_ADMIN_TOKEN` remains available as an operator fallback when an explicit operator token is absent. Startup emits a warning when this compatibility path is active.
+Credential values must be non-empty and pairwise distinct. Bearer comparison is constant-time.
 
-Credential rules:
+`LINGONBERRY_ADMIN_TOKEN` is deprecated. It is accepted only as an operator fallback when an explicit operator token is absent. The admin listener emits a startup warning when fallback is active.
 
-- at least one usable credential is required;
-- configured values must not be empty;
-- configured tokens must be pairwise distinct;
-- one token resolves to exactly one role;
-- bearer comparison uses constant-time byte comparison;
-- the expected token or role is never disclosed in an error response.
+## Secret-free configuration diagnostic
+
+Run in the same environment as the admin listener:
+
+```bash
+lingonberry-admin-auth-config
+```
+
+The command reports only bounded configuration state:
+
+```json
+{
+  "actionRequired": false,
+  "configuredCredentialCount": 3,
+  "deprecationCode": null,
+  "legacyOperatorFallbackActive": false,
+  "migrationAction": "none",
+  "observerConfigured": true,
+  "operatorConfiguredExplicitly": true,
+  "removalTarget": "next-major-release",
+  "reviewerConfigured": true,
+  "secretsIncluded": false
+}
+```
+
+When legacy fallback is active:
+
+```text
+deprecationCode: LB_ADMIN_LEGACY_TOKEN_DEPRECATED
+actionRequired: true
+migrationAction: set LINGONBERRY_ADMIN_OPERATOR_TOKEN and remove LINGONBERRY_ADMIN_TOKEN
+```
+
+No token value, token-derived digest, or credential fingerprint is emitted.
 
 ## Permission matrix
 
-### Observer
+Observer:
 
 ```text
 GET /metrics
@@ -55,17 +74,13 @@ GET /v1/quarantine/<id>/annotations
 GET /v1/quarantine/<id>/permanent-rejection
 ```
 
-### Reviewer
-
-Observer permissions plus:
+Reviewer adds:
 
 ```text
 POST /v1/quarantine/<id>/annotations
 ```
 
-### Operator
-
-Reviewer permissions plus:
+Operator adds:
 
 ```text
 POST /v1/quarantine/<id>/promote
@@ -73,66 +88,18 @@ POST /v1/quarantine/promote-batch
 POST /v1/quarantine/<id>/permanent-rejection
 ```
 
-Unknown method and route combinations receive no permission.
-
-## Authentication and authorization order
-
-For an admin-listener request:
-
-1. non-admin paths return `404 Not Found`;
-2. the bearer credential is resolved to a role;
-3. missing or invalid credentials return `401 Unauthorized`;
-4. the method and route are checked against the role permission matrix;
-5. insufficient permissions return `403 Forbidden`;
-6. only authorized requests have their body read and interpreted;
-7. the existing route handler is executed.
-
-Reading and parsing a mutation body after authorization prevents unauthorized payloads from reaching validation or mutation code.
-
-## Examples
-
-Observer read:
-
-```bash
-curl -sS \
-  -H "Authorization: Bearer $LINGONBERRY_ADMIN_OBSERVER_TOKEN" \
-  http://127.0.0.1:8788/v1/quarantine-status
-```
-
-Reviewer annotation:
-
-```bash
-curl -sS \
-  -H "Authorization: Bearer $LINGONBERRY_ADMIN_REVIEWER_TOKEN" \
-  -H 'Content-Type: application/json' \
-  --data '{"operator":"reviewer-a","note":"manual review complete"}' \
-  http://127.0.0.1:8788/v1/quarantine/lb:q:123/annotations
-```
-
-Operator promotion:
-
-```bash
-curl -sS \
-  -H "Authorization: Bearer $LINGONBERRY_ADMIN_OPERATOR_TOKEN" \
-  -X POST \
-  http://127.0.0.1:8788/v1/quarantine/lb:q:123/promote
-```
-
-Missing and invalid credentials receive the same bounded response:
+## Authorization order
 
 ```text
-401 Unauthorized
+non-admin path -> 404
+missing or invalid credential -> 401
+valid credential without permission -> 403
+authorized request -> read body -> parse -> execute
 ```
 
-Authenticated credentials without permission receive:
+Unauthorized mutation bodies are not read or interpreted before denial.
 
-```text
-403 Forbidden
-```
-
-Neither response identifies the configured role or credential.
-
-## Authentication and authorization audit
+## Audit
 
 Events are appended to:
 
@@ -140,43 +107,28 @@ Events are appended to:
 <LINGONBERRY_STATE_DIR>/admin-auth-audit.jsonl
 ```
 
-Authentication failure:
-
-```json
-{
-  "attemptedAt": "...Z",
-  "remoteAddr": "127.0.0.1:12345",
-  "method": "GET",
-  "path": "/v1/quarantine-status",
-  "role": null,
-  "outcomeCode": "LB_ADMIN_AUTH_FAILED"
-}
+```text
+LB_ADMIN_AUTH_FAILED  role=null
+LB_ADMIN_FORBIDDEN    role=observer|reviewer|operator
 ```
 
-Authorization failure:
+The audit ledger never contains bearer tokens, request bodies, annotation notes, or quarantine payloads.
 
-```json
-{
-  "attemptedAt": "...Z",
-  "remoteAddr": "127.0.0.1:12345",
-  "method": "POST",
-  "path": "/v1/quarantine/lb:q:1/promote",
-  "role": "reviewer",
-  "outcomeCode": "LB_ADMIN_FORBIDDEN"
-}
-```
+## Migration
 
-The ledger never stores bearer tokens, request bodies, annotation notes, or quarantine payloads. Audit append failures are not silently ignored.
+1. Set `LINGONBERRY_ADMIN_OPERATOR_TOKEN` to a new secret.
+2. Restart the admin listener.
+3. Run `lingonberry-admin-auth-config`.
+4. Confirm `legacyOperatorFallbackActive` is `false`.
+5. Smoke-test each role.
+6. Remove `LINGONBERRY_ADMIN_TOKEN`.
+7. Restart and rerun the diagnostic.
+
+The fallback may be removed only in a major release, after role credentials have shipped for at least one release, deployment templates use explicit role tokens, supported deployments report no fallback, and release notes announce removal.
+
+See `docs/roadmap/RBAC_LEGACY_TOKEN_DEPRECATION.md`.
 
 ## systemd environment
-
-Template:
-
-```text
-deploy/systemd/lingonberry-admin-http.service
-```
-
-Create independent credentials with restrictive permissions:
 
 ```bash
 sudo install -d -m 0750 /etc/lingonberry
@@ -189,23 +141,11 @@ sudo chmod 0600 /etc/lingonberry/admin-http.env
 sudo chown root:root /etc/lingonberry/admin-http.env
 ```
 
-The three secrets must be different. Remove `LINGONBERRY_ADMIN_TOKEN` after all clients have migrated to explicit least-privilege credentials.
-
-The service binds only to `127.0.0.1:8788`. Remote access should use a separately authenticated and TLS-terminated administrative channel.
-
-## Remaining migration work
-
-```text
-RBAC-1A: role types, credential validation, permission matrix, audit schema — complete
-RBAC-1B: HTTP role resolution and 401/403 enforcement — complete
-RBAC-1C: legacy token deprecation and removal plan — pending
-```
-
 ## Non-goals
 
 - user accounts
-- browser sessions or CSRF protection
-- per-record ACLs
+- browser sessions
 - OAuth/OIDC
-- distributed authorization policy
-- remote-by-default binding
+- per-record ACLs
+- remote telemetry
+- automatic token rotation

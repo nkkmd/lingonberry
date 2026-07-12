@@ -40,27 +40,27 @@ jobs:
       - name: Capabilities smoke
         run: |
           set -euo pipefail
-          cargo run -q -p lingonberry-relay -- capabilities | tee /tmp/capabilities.json
+          cargo run -q -p lingonberry-relay --bin lingonberry-relay -- capabilities | tee /tmp/capabilities.json
           test -s /tmp/capabilities.json
           grep -q '^{' /tmp/capabilities.json
 
       - name: Validation smoke
-        run: cargo run -q -p lingonberry-relay -- validate fixtures/http-publish-request/minimal-request.json
+        run: cargo run -q -p lingonberry-relay --bin lingonberry-relay -- validate fixtures/http-publish-request/minimal-request.json
 
       - name: Publish smoke
         run: |
           set -euo pipefail
-          cargo run -q -p lingonberry-relay -- publish fixtures/http-publish-request/minimal-request.json \
+          cargo run -q -p lingonberry-relay --bin lingonberry-relay -- publish fixtures/http-publish-request/minimal-request.json \
             | tee /tmp/publish.json
           grep -q 'canonicalId' /tmp/publish.json
 
       - name: Archive export smoke
         run: |
-          cargo run -q -p lingonberry-relay -- export-archive "$LINGONBERRY_ARCHIVE_DIR"
+          cargo run -q -p lingonberry-relay --bin lingonberry-relay -- export-archive "$LINGONBERRY_ARCHIVE_DIR"
           test -d "$LINGONBERRY_ARCHIVE_DIR"
 
       - name: Archive import smoke
-        run: cargo run -q -p lingonberry-relay -- import-archive "$LINGONBERRY_ARCHIVE_DIR"
+        run: cargo run -q -p lingonberry-relay --bin lingonberry-relay -- import-archive "$LINGONBERRY_ARCHIVE_DIR"
 
       - name: Quarantine lifecycle smoke
         run: |

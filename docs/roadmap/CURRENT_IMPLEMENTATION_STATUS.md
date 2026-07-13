@@ -1,18 +1,19 @@
 # 現在の実装状況
 
-**Status: v0.2.0 release candidate** | **Last updated: 2026-07-12**
+**Status: v0.2.0 released / v0.3.0 planning** | **Last updated: 2026-07-13**
 
 この文書は、Lingonberryの実装作業を中断・再開するときの引き継ぎ用正本です。
 
 ## 1. Release state
 
-v0.2.0の機能範囲は固定済みです。残っているrelease gateは、release preparation PRのCI成功、merge後の`main`再検証、annotated tag、GitHub Release公開です。
+v0.2.0は2026-07-12にリリース済みです。現在はv0.3.0の計画・設計フェーズです。
 
 ```text
-version: 0.2.0
+released version: 0.2.0
 release tag: v0.2.0
 release checklist: docs/roadmap/RELEASE_0_2_0_CHECKLIST.md
 release notes: docs/roadmap/RELEASE_0_2_0_RELEASE_NOTE.md
+next roadmap: docs/roadmap/RELEASE_0_3_0_ROADMAP.md
 ```
 
 ## 2. 実装済み
@@ -143,20 +144,35 @@ lingonberry-admin-auth-config
 
 完全削除はfuture major releaseまで行いません。
 
-## 8. v0.2.0非対象
+## 8. v0.3.0の目標
 
-- record-rewriting compaction
-- retention deletion
+v0.3.0は、verified rewrite transactionを安全に実装可能な状態へ進めるリリースです。ただし、具体的なreplacement policyとsemantic-equivalence contractが承認されるまではmutation-capable rewriteを実装しません。
+
+優先順：
+
+1. v0.2.0 release後の文書・運用状態を確定する
+2. ledger type別replacement semanticsを仕様化する
+3. status／metrics／eligibility／idempotencyのsemantic-equivalence contractを仕様化する
+4. replacement proof、transaction journal、interrupted recoveryを設計する
+5. policy v2のpreview／verificationを実装する
+6. 承認済みpolicyだけを対象にverified rewrite transactionを実装する
+
+正本：`docs/roadmap/RELEASE_0_3_0_ROADMAP.md`
+
+## 9. v0.3.0非対象
+
+- automatic retention deletion
 - distributed locking／multi-node shared state
 - remote backup upload
 - backup encryption／signing
 - OAuth／OIDC
 - browser session／per-record ACL
 - legacy admin token fallbackの完全削除
+- replacement policyで明示されていないrecord rewrite
 
-## 9. Release gate
+## 10. 開発時のrelease gate
 
-Release PRで必須：
+各PRで必須：
 
 ```bash
 cargo fmt --all -- --check
@@ -166,19 +182,9 @@ cargo test --workspace
 
 JavaScript canonicalization／identity／validation testsも必須です。
 
-Merge後：
+v0.3.0 release checklistとrelease notesは、実装スコープ確定後に作成します。
 
-```bash
-git switch main
-git pull --ff-only
-cargo fmt --all -- --check
-cargo clippy --workspace --all-targets -- -D warnings
-cargo test --workspace
-git tag -a v0.2.0 -m "Lingonberry v0.2.0"
-git push origin v0.2.0
-```
-
-## 10. 絶対に崩さない安全性ルール
+## 11. 絶対に崩さない安全性ルール
 
 1. validation未通過objectをcanonical storageへ保存しない
 2. 元quarantine recordとappend-only lifecycle eventを保持する
@@ -187,15 +193,17 @@ git push origin v0.2.0
 5. same-host lockをdistributed lockとして扱わない
 6. stale indexでrotationしない
 7. archive segmentを上書き・変更・削除しない
-8. verified backup v2なしでcompaction previewを作らない
+8. verified backup v2なしでcompaction previewまたはrewriteを開始しない
 9. policy v1 proofでmutationを許可しない
 10. public listenerへadmin routeを公開しない
 11. missing tokenとinvalid tokenで異なる情報を返さない
 12. 権限不足をbody読込・mutation前に拒否する
 13. token、body、note、payloadをaudit／diagnosticへ含めない
 14. explicit replacement policyなしでrecord rewriteを実装しない
-15. retention deletionを暗黙実行しない
+15. retention deletionをrewrite transactionへ混在させない
+16. rewrite後のsemantic equivalenceを機械検証できないpolicyを承認しない
+17. interrupted transactionを正常完了として扱わない
 
-## 11. 次の作業
+## 12. 次の作業
 
-v0.2.0 release後の第一候補は、release運用結果と利用実績を確認したうえでroadmapを再優先順位付けすることです。QL-5C3は具体的なreplacement policyとsemantic-equivalence contractが承認されるまで開始しません。
+最初の作業単位はQL-5C3Aです。ledger type別replacement policyとsemantic-equivalence contractを文書化し、policy v2の入力・出力・拒否条件を確定します。QL-5C3B以降の実装は、そのレビューと承認後に開始します。

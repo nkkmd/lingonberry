@@ -1,5 +1,3 @@
-#![cfg_attr(test, allow(clippy::all))]
-
 include!("lib.rs");
 mod quarantine_annotations;
 mod quarantine_backup;

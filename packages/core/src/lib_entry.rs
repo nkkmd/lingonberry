@@ -7,6 +7,7 @@ mod quarantine_dismissals;
 mod quarantine_ledger_index;
 mod quarantine_lock;
 mod quarantine_rejections;
+#[rustfmt::skip]
 mod quarantine_replacement_preview;
 mod quarantine_segments;
 mod quarantine_status;

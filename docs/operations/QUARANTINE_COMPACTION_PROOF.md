@@ -1,6 +1,6 @@
 # Quarantine Compaction Preview and Semantic Proof
 
-**Status: implemented through QL-5C2** | **Last updated: 2026-07-12**
+**Status: implemented through QL-5C2** | **Last updated: 2026-07-13**
 
 This runbook defines the first safe compaction phase. It produces a read-only preview and a versioned proof. It does not rewrite, replace, truncate, or delete runtime state.
 
@@ -101,10 +101,13 @@ Preview is read-only and does not acquire the mutation lock. It detects changes 
 
 QL-5C2 does not authorize compaction. A proof produced under policy v1 demonstrates that no current ledger line is safely removable.
 
-Actual rewrite remains blocked until QL-5C3 defines a policy with:
+The proposed policy v2 boundary is specified in [QUARANTINE_REPLACEMENT_POLICY.md](./QUARANTINE_REPLACEMENT_POLICY.md). Policy v2 initially permits only one-to-one canonical representation replacement for terminal single-event ledgers. It does not permit history deletion, event merging, deduplication, conflict resolution, or changes to immutable evidence.
 
-- explicit replacement semantics
-- lifecycle and metrics equivalence
-- source-evidence preservation
+Actual rewrite remains blocked until later QL-5C3 phases implement and verify:
+
+- the complete replacement-policy contract
+- lifecycle, status, metrics, eligibility, and idempotency equivalence
+- source-to-replacement provenance
+- deterministic planning and proof verification
 - interrupted-transition recovery
-- separate approval for retention deletion
+- separate approval for any retention deletion

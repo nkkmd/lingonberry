@@ -1,0 +1,24 @@
+{
+  "version": "lingonberry-quarantine-replacement-test-vector/v1",
+  "name": "valid canonical representation replacement",
+  "policyVersion": "lingonberry-quarantine-compaction-policy/v2",
+  "ledger": "quarantine-dismissals.jsonl",
+  "sourceLines": [
+    "{\"note\":\"reviewed\",\"quarantineId\":\"q-001\",\"dismissedAt\":\"2026-07-13T00:00:00Z\"}"
+  ],
+  "expectedReplacementLines": [
+    "{\"dismissedAt\":\"2026-07-13T00:00:00Z\",\"note\":\"reviewed\",\"quarantineId\":\"q-001\"}"
+  ],
+  "expected": {
+    "accepted": true,
+    "transformation": "canonical-json-representation",
+    "sourceCount": 1,
+    "replacementCount": 1,
+    "logicalOrderPreserved": true,
+    "parsedValuesEqual": true,
+    "statusEquivalent": true,
+    "metricsEquivalent": true,
+    "eligibilityEquivalent": true,
+    "idempotencyEquivalent": true
+  }
+}

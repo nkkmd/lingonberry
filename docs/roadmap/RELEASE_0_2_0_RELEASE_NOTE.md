@@ -1,6 +1,6 @@
 # Lingonberry v0.2.0 Release Notes
 
-**Status: release candidate** | **Release date: 2026-07-12**
+**Status: released** | **Release date: 2026-07-12**
 
 Lingonberry v0.2.0 advances the project from a protocol and bootstrap implementation release to an operationally safer quarantine lifecycle and administration release.
 
@@ -102,13 +102,6 @@ The following are not release blockers and remain deferred:
 
 ## Tag and release
 
-After the release preparation pull request is merged and `main` passes CI:
+The annotated tag and GitHub Release are published as `v0.2.0` / `Lingonberry v0.2.0`.
 
-```bash
-git switch main
-git pull --ff-only
-git tag -a v0.2.0 -m "Lingonberry v0.2.0"
-git push origin v0.2.0
-```
-
-Create a GitHub Release titled `Lingonberry v0.2.0` using this document as the release-note source.
+Development after this release is tracked in `RELEASE_0_3_0_ROADMAP.md`.

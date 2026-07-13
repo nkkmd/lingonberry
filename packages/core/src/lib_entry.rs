@@ -9,6 +9,7 @@ mod quarantine_lock;
 mod quarantine_rejections;
 #[rustfmt::skip]
 mod quarantine_replacement_preview;
+mod quarantine_replacement_transaction;
 mod quarantine_segments;
 mod quarantine_status;
 
@@ -55,6 +56,16 @@ pub use quarantine_replacement_preview::{
     QUARANTINE_REPLACEMENT_PLAN_VERSION, QUARANTINE_REPLACEMENT_POLICY_VERSION,
     QUARANTINE_REPLACEMENT_PROOF_DIGEST_FILE, QUARANTINE_REPLACEMENT_PROOF_FILE,
     QUARANTINE_REPLACEMENT_PROOF_VERSION,
+};
+pub use quarantine_replacement_transaction::{
+    advance_quarantine_replacement_transaction_journal,
+    create_quarantine_replacement_transaction_journal,
+    read_quarantine_replacement_transaction_journal,
+    validate_quarantine_replacement_transaction_transition,
+    QuarantineReplacementTransactionJournal, QuarantineReplacementTransactionReport,
+    QuarantineReplacementTransactionState, QUARANTINE_REPLACEMENT_TRANSACTION_JOURNAL_DIGEST_FILE,
+    QUARANTINE_REPLACEMENT_TRANSACTION_JOURNAL_FILE,
+    QUARANTINE_REPLACEMENT_TRANSACTION_VERSION,
 };
 pub use quarantine_segments::{
     quarantine_rotation_report_json, quarantine_segment_report_json, read_managed_ledger_lines,

@@ -1,0 +1,36 @@
+name: Diagnose rustfmt
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    name: Rustfmt diagnostic
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - name: Capture rustfmt diff
+        shell: bash
+        run: |
+          set +e
+          cargo fmt --all -- --check >rustfmt.log 2>&1
+          status=$?
+          echo "$status" >rustfmt.status
+          exit 0
+      - name: Upload diagnostic log
+        uses: actions/upload-artifact@v4
+        with:
+          name: rustfmt-diagnostic
+          path: |
+            rustfmt.log
+            rustfmt.status
+      - name: Fail when rustfmt failed
+        shell: bash
+        run: exit "$(cat rustfmt.status)"

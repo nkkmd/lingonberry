@@ -1,0 +1,20 @@
+{
+  "version": "lingonberry-quarantine-replacement-test-vector/v1",
+  "name": "reject changed terminal event value",
+  "policyVersion": "lingonberry-quarantine-compaction-policy/v2",
+  "ledger": "quarantine-rejections.jsonl",
+  "sourceLines": [
+    "{\"quarantineId\":\"q-002\",\"reason\":\"invalid signature\",\"rejectedAt\":\"2026-07-13T00:00:00Z\"}"
+  ],
+  "proposedReplacementLines": [
+    "{\"quarantineId\":\"q-002\",\"reason\":\"schema violation\",\"rejectedAt\":\"2026-07-13T00:00:00Z\"}"
+  ],
+  "expected": {
+    "accepted": false,
+    "errorClass": "policy-violation",
+    "reason": "parsed JSON value changed",
+    "parsedValuesEqual": false,
+    "planProduced": false,
+    "rewriteAuthorized": false
+  }
+}

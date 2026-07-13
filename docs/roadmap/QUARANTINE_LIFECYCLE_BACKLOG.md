@@ -15,6 +15,7 @@
 | archive-aware ordered reads and verified rotation | #34 / #35 | 完了 |
 | archive-inclusive backup / verify / restore | #36 / #37 | 完了 |
 | non-destructive compaction preview and proof | #38 / #39 | 完了 |
+| replacement policy and semantic-equivalence contract | #50 / #51 | 完了 |
 
 ---
 
@@ -101,7 +102,7 @@ QL-5C3は、仕様確定前のrewrite実装を防ぐため、次の4段階へ分
 
 ### QL-5C3A: Replacement Policy and Semantic-equivalence Contract
 
-**状態: next**
+**状態: completed (#50 / #51)**
 
 - ledger type別replacement semantics
 - immutable evidenceとreplaceable representationの境界
@@ -111,17 +112,22 @@ QL-5C3は、仕様確定前のrewrite実装を防ぐため、次の4段階へ分
 - policy v2の入力・出力・拒否条件
 - fixture／test vector
 
-この段階ではproduction ledgerを変更するコードを書きません。
+正本：`docs/operations/QUARANTINE_REPLACEMENT_POLICY.md`
 
 ### QL-5C3B: Policy v2 Preview and Proof
 
-**状態: blocked by QL-5C3A**
+**状態: in progress (#52)**
 
 - deterministic replacement plan
 - source-to-replacement provenance proof
 - semantic-equivalence report
 - proof digest and tamper detection
 - runtime mutationなしのpreview
+- policy-v1 proof verification regression
+
+実装契約：`docs/operations/QUARANTINE_REPLACEMENT_PREVIEW.md`
+
+この段階ではproduction ledgerを変更しません。
 
 ### QL-5C3C: Rewrite Transaction and Recovery
 

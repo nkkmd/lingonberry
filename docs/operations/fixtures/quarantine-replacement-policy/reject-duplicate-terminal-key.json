@@ -1,0 +1,17 @@
+{
+  "version": "lingonberry-quarantine-replacement-test-vector/v1",
+  "name": "reject duplicate terminal replacement key",
+  "policyVersion": "lingonberry-quarantine-compaction-policy/v2",
+  "ledger": "quarantine-resolutions.jsonl",
+  "sourceLines": [
+    "{\"quarantineId\":\"q-001\",\"promotedAt\":\"2026-07-13T00:00:00Z\"}",
+    "{\"quarantineId\":\"q-001\",\"promotedAt\":\"2026-07-13T00:01:00Z\"}"
+  ],
+  "expected": {
+    "accepted": false,
+    "errorClass": "corruption",
+    "reason": "duplicate terminal replacement key",
+    "planProduced": false,
+    "rewriteAuthorized": false
+  }
+}

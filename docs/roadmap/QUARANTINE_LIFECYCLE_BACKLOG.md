@@ -1,8 +1,8 @@
 # Quarantine Lifecycle Backlog
 
-**Status: active** | **Last updated: 2026-07-12**
+**Status: active** | **Last updated: 2026-07-13**
 
-現在地の正本は [CURRENT_IMPLEMENTATION_STATUS.md](./CURRENT_IMPLEMENTATION_STATUS.md) です。
+現在地の正本は [CURRENT_IMPLEMENTATION_STATUS.md](./CURRENT_IMPLEMENTATION_STATUS.md) です。v0.3.0の作業順序は [RELEASE_0_3_0_ROADMAP.md](./RELEASE_0_3_0_ROADMAP.md) を正本とします。
 
 ## 完了済み
 
@@ -14,7 +14,7 @@
 | verified read-only JSONL index and planning | #32 / #33 | 完了 |
 | archive-aware ordered reads and verified rotation | #34 / #35 | 完了 |
 | archive-inclusive backup / verify / restore | #36 / #37 | 完了 |
-| non-destructive compaction preview and proof | #38 | 実装・PR化 |
+| non-destructive compaction preview and proof | #38 / #39 | 完了 |
 
 ---
 
@@ -44,7 +44,7 @@ v2: active ledgers + segment manifest + listed immutable segments
 
 ## QL-5C2: Non-destructive Compaction Preview and Semantic Proof
 
-**状態: implemented**
+**状態: completed**
 
 ### Policy v1
 
@@ -95,22 +95,56 @@ Terminal ledgerのduplicate quarantine IDはremoval candidateではなくcorrupt
 
 ## QL-5C3: Verified Rewrite Transaction
 
-**優先度: highest**
+**優先度: highest** | **Target: v0.3.0**
 
-### 開始条件
+QL-5C3は、仕様確定前のrewrite実装を防ぐため、次の4段階へ分割します。
 
-現在のpolicy v1では安全に除去できるlineが存在しないため、QL-5C3で即座にrewriteを実装してはいけません。先に具体的なreplacement policyを承認する必要があります。
+### QL-5C3A: Replacement Policy and Semantic-equivalence Contract
 
-### 必須要件
+**状態: next**
 
-1. ledger type別の明示的replacement semantics
-2. status / metrics / eligibility / idempotencyのsemantic equivalence
-3. source evidenceを保持するreplacement proof
-4. interrupted rewrite recovery
-5. verified backup v2の事前成功
-6. retention deletionをrewriteから分離
+- ledger type別replacement semantics
+- immutable evidenceとreplaceable representationの境界
+- status／metrics／eligibility／idempotency equivalence
+- source evidence mapping
+- duplicate／conflict／corruption rules
+- policy v2の入力・出力・拒否条件
+- fixture／test vector
 
-### 非スコープ
+この段階ではproduction ledgerを変更するコードを書きません。
+
+### QL-5C3B: Policy v2 Preview and Proof
+
+**状態: blocked by QL-5C3A**
+
+- deterministic replacement plan
+- source-to-replacement provenance proof
+- semantic-equivalence report
+- proof digest and tamper detection
+- runtime mutationなしのpreview
+
+### QL-5C3C: Rewrite Transaction and Recovery
+
+**状態: blocked by QL-5C3B**
+
+- verified backup v2の事前成功
+- same-host operation lock内の再検証
+- transaction journal
+- staging、verification、atomic publication
+- interrupted rewrite recovery
+- stale proof／stale index拒否
+
+### QL-5C3D: Operations and Release Hardening
+
+**状態: blocked by QL-5C3C**
+
+- operator CLI
+- status／metrics／audit
+- failure injection／crash-point tests
+- operations runbook
+- v0.3.0 release checklist and notes
+
+### 全段階共通の非スコープ
 
 - automatic retention deletion
 - distributed locking

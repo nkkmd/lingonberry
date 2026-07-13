@@ -16,11 +16,23 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
-      - name: Print concise test clippy failure
+      - name: Capture concise test clippy failure
+        id: clippy
         shell: bash
         run: |
           set +e
           cargo clippy --workspace --tests --message-format=short -- -D warnings -A dead-code >clippy.log 2>&1
           status=$?
+          echo "$status" >clippy.status
           tail -n 40 clippy.log
-          exit "$status"
+          exit 0
+      - name: Upload diagnostic log
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-clippy-diagnostic
+          path: |
+            clippy.log
+            clippy.status
+      - name: Fail when clippy failed
+        shell: bash
+        run: exit "$(cat clippy.status)"

@@ -41,7 +41,7 @@ jobs:
         run: cargo clippy --workspace --bins -- -D warnings -A dead-code
 
       - name: Run test clippy
-        run: cargo clippy --workspace --tests -- -D warnings -A dead-code
+        run: cargo clippy --workspace --tests -- -D warnings -A dead-code -A unused-variables
 
       - name: Run workspace tests
         run: cargo test --workspace

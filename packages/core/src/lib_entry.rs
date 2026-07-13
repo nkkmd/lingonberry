@@ -15,6 +15,8 @@ mod quarantine_replacement_preview;
 #[rustfmt::skip]
 mod quarantine_replacement_staging;
 #[rustfmt::skip]
+mod quarantine_replacement_staging_verify;
+#[rustfmt::skip]
 mod quarantine_replacement_transaction;
 mod quarantine_segments;
 mod quarantine_status;
@@ -69,6 +71,11 @@ pub use quarantine_replacement_staging::{
     stage_quarantine_replacement_ledgers, QuarantineReplacementStagedLedger,
     QuarantineReplacementStagingReport, QUARANTINE_REPLACEMENT_STAGING_DIR,
     QUARANTINE_REPLACEMENT_STAGING_MANIFEST_FILE, QUARANTINE_REPLACEMENT_STAGING_VERSION,
+};
+#[rustfmt::skip]
+pub use quarantine_replacement_staging_verify::{
+    verify_quarantine_replacement_staging,
+    QuarantineReplacementStagingVerificationReport,
 };
 #[rustfmt::skip]
 pub use quarantine_replacement_transaction::{

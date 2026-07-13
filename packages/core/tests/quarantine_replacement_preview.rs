@@ -191,7 +191,7 @@ fn rejects_semantic_change_even_with_recomputed_digests() {
 
     let error =
         verify_quarantine_replacement_proof(&proof_dir).expect_err("semantic mismatch must fail");
-    assert_eq!(error.code, "LB_QUARANTINE_REPLACEMENT_PROOF");
+    assert_eq!(error.code, "LB_QUARANTINE_REPLACEMENT_SEMANTICS");
 
     let _ = fs::remove_dir_all(state);
     let _ = fs::remove_dir_all(backup);

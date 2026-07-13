@@ -9,6 +9,7 @@ mod quarantine_lock;
 mod quarantine_rejections;
 #[rustfmt::skip]
 mod quarantine_replacement_preview;
+#[rustfmt::skip]
 mod quarantine_replacement_transaction;
 mod quarantine_segments;
 mod quarantine_status;
@@ -57,6 +58,7 @@ pub use quarantine_replacement_preview::{
     QUARANTINE_REPLACEMENT_PROOF_DIGEST_FILE, QUARANTINE_REPLACEMENT_PROOF_FILE,
     QUARANTINE_REPLACEMENT_PROOF_VERSION,
 };
+#[rustfmt::skip]
 pub use quarantine_replacement_transaction::{
     advance_quarantine_replacement_transaction_journal,
     create_quarantine_replacement_transaction_journal,

@@ -64,6 +64,7 @@ pub use quarantine_replacement_preview::{
     QUARANTINE_REPLACEMENT_PROOF_DIGEST_FILE, QUARANTINE_REPLACEMENT_PROOF_FILE,
     QUARANTINE_REPLACEMENT_PROOF_VERSION,
 };
+#[rustfmt::skip]
 pub use quarantine_replacement_staging::{
     stage_quarantine_replacement_ledgers, QuarantineReplacementStagedLedger,
     QuarantineReplacementStagingReport, QUARANTINE_REPLACEMENT_STAGING_DIR,

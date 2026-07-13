@@ -1,0 +1,26 @@
+name: Diagnose test clippy
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    name: Test clippy diagnostic
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - name: Print concise test clippy failure
+        shell: bash
+        run: |
+          set +e
+          cargo clippy --workspace --tests --message-format=short -- -D warnings -A dead-code >clippy.log 2>&1
+          status=$?
+          tail -n 40 clippy.log
+          exit "$status"

@@ -15,6 +15,8 @@ mod quarantine_replacement_prepare;
 #[rustfmt::skip]
 mod quarantine_replacement_preview;
 #[rustfmt::skip]
+mod quarantine_replacement_publication_prepare;
+#[rustfmt::skip]
 mod quarantine_replacement_staging;
 #[rustfmt::skip]
 mod quarantine_replacement_staging_verify;
@@ -80,6 +82,12 @@ pub use quarantine_replacement_preview::{
     QUARANTINE_REPLACEMENT_PLAN_VERSION, QUARANTINE_REPLACEMENT_POLICY_VERSION,
     QUARANTINE_REPLACEMENT_PROOF_DIGEST_FILE, QUARANTINE_REPLACEMENT_PROOF_FILE,
     QUARANTINE_REPLACEMENT_PROOF_VERSION,
+};
+#[rustfmt::skip]
+pub use quarantine_replacement_publication_prepare::{
+    prepare_quarantine_replacement_publication,
+    QuarantineReplacementPublicationPreparationReport,
+    QUARANTINE_REPLACEMENT_PENDING_POINTER_FILE,
 };
 #[rustfmt::skip]
 pub use quarantine_replacement_staging::{

@@ -3,7 +3,7 @@ use std::fs::{self, File, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use lingonberry_protocol::{parse_json, to_canonical_json, JsonValue};
+use lingonberry_protocol::{to_canonical_json, JsonValue};
 
 use crate::{
     acquire_quarantine_lock, advance_quarantine_replacement_transaction_journal,

@@ -7,6 +7,8 @@ mod quarantine_dismissals;
 mod quarantine_ledger_index;
 mod quarantine_lock;
 mod quarantine_rejections;
+#[rustfmt::skip]
+mod quarantine_replacement_generation;
 #[allow(unused_imports)]
 #[rustfmt::skip]
 mod quarantine_replacement_prepare;
@@ -56,6 +58,19 @@ pub use quarantine_lock::{
 pub use quarantine_rejections::{
     quarantine_permanent_rejection_json, QuarantinePermanentRejection,
     OPERATOR_PERMANENTLY_REJECTED_REASON_CODE,
+};
+#[rustfmt::skip]
+pub use quarantine_replacement_generation::{
+    seal_quarantine_replacement_generation,
+    validate_quarantine_current_generation_pointer,
+    verify_quarantine_replacement_generation,
+    QuarantineReplacementGenerationReport,
+    QUARANTINE_CURRENT_GENERATION_POINTER_FILE,
+    QUARANTINE_CURRENT_GENERATION_POINTER_VERSION,
+    QUARANTINE_REPLACEMENT_GENERATION_DIGEST_FILE,
+    QUARANTINE_REPLACEMENT_GENERATION_MANIFEST_FILE,
+    QUARANTINE_REPLACEMENT_GENERATION_VERSION,
+    QUARANTINE_REPLACEMENT_PUBLICATION_DIR,
 };
 pub use quarantine_replacement_prepare::prepare_quarantine_replacement_transaction;
 pub use quarantine_replacement_preview::{

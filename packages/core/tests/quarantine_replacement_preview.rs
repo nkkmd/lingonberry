@@ -101,7 +101,7 @@ fn accepts_valid_canonical_representation_vector() {
 
 #[test]
 fn rejects_duplicate_terminal_key_vector() {
-    assert!(DUPLICATE_VECTOR.contains("duplicate terminal key"));
+    assert!(DUPLICATE_VECTOR.contains("reject duplicate terminal replacement key"));
 
     let state = temp_dir("duplicate-state");
     let backup = temp_dir("duplicate-backup");
@@ -125,7 +125,7 @@ fn rejects_duplicate_terminal_key_vector() {
 
 #[test]
 fn rejects_semantic_change_even_with_recomputed_digests() {
-    assert!(SEMANTIC_CHANGE_VECTOR.contains("semantic change"));
+    assert!(SEMANTIC_CHANGE_VECTOR.contains("reject changed terminal event value"));
 
     let state = temp_dir("semantic-state");
     let backup = temp_dir("semantic-backup");

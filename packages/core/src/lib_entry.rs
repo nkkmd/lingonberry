@@ -1,3 +1,5 @@
+#![cfg_attr(test, allow(clippy::all))]
+
 include!("lib.rs");
 mod quarantine_annotations;
 mod quarantine_backup;
@@ -8,7 +10,6 @@ mod quarantine_ledger_index;
 mod quarantine_lock;
 mod quarantine_rejections;
 #[rustfmt::skip]
-#[cfg_attr(test, allow(clippy::all))]
 mod quarantine_replacement_preview;
 mod quarantine_segments;
 mod quarantine_status;

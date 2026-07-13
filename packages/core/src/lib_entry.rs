@@ -8,6 +8,8 @@ mod quarantine_ledger_index;
 mod quarantine_lock;
 mod quarantine_rejections;
 #[rustfmt::skip]
+mod quarantine_replacement_prepare;
+#[rustfmt::skip]
 mod quarantine_replacement_preview;
 #[rustfmt::skip]
 mod quarantine_replacement_transaction;
@@ -50,6 +52,7 @@ pub use quarantine_rejections::{
     quarantine_permanent_rejection_json, QuarantinePermanentRejection,
     OPERATOR_PERMANENTLY_REJECTED_REASON_CODE,
 };
+pub use quarantine_replacement_prepare::prepare_quarantine_replacement_transaction;
 pub use quarantine_replacement_preview::{
     create_quarantine_replacement_preview, quarantine_replacement_proof_report_json,
     verify_quarantine_replacement_proof, QuarantineReplacementProofReport,

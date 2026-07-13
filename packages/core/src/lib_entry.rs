@@ -7,8 +7,8 @@ mod quarantine_dismissals;
 mod quarantine_ledger_index;
 mod quarantine_lock;
 mod quarantine_rejections;
-#[cfg_attr(test, allow(clippy::all))]
 #[rustfmt::skip]
+#[cfg_attr(test, allow(clippy::all))]
 mod quarantine_replacement_preview;
 mod quarantine_segments;
 mod quarantine_status;

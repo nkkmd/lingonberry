@@ -40,6 +40,13 @@ fn digest(bytes: &[u8]) -> String {
     format!("fnv1a64:{hash:016x}")
 }
 
+fn object(value: &JsonValue) -> &BTreeMap<String, JsonValue> {
+    match value {
+        JsonValue::Object(map) => map,
+        _ => panic!("expected JSON object"),
+    }
+}
+
 fn object_mut(value: &mut JsonValue) -> &mut BTreeMap<String, JsonValue> {
     match value {
         JsonValue::Object(map) => map,
@@ -135,8 +142,8 @@ fn rejects_semantic_change_even_with_recomputed_digests() {
         .expect("create replacement preview");
 
     let plan_path = proof_dir.join(QUARANTINE_REPLACEMENT_PLAN_FILE);
-    let mut plan = parse_json(&fs::read_to_string(&plan_path).expect("read plan"))
-        .expect("parse plan");
+    let mut plan =
+        parse_json(&fs::read_to_string(&plan_path).expect("read plan")).expect("parse plan");
     let ledgers = array_mut(
         object_mut(&mut plan)
             .get_mut("ledgers")
@@ -146,7 +153,7 @@ fn rejects_semantic_change_even_with_recomputed_digests() {
         .iter_mut()
         .find(|ledger| {
             matches!(
-                object_mut(ledger).get("ledger"),
+                object(ledger).get("ledger"),
                 Some(JsonValue::String(name)) if name == "quarantine-dismissals.jsonl"
             )
         })
@@ -173,20 +180,17 @@ fn rejects_semantic_change_even_with_recomputed_digests() {
     );
 
     let proof_path = proof_dir.join(QUARANTINE_REPLACEMENT_PROOF_FILE);
-    let mut proof = parse_json(&fs::read_to_string(&proof_path).expect("read proof"))
-        .expect("parse proof");
-    object_mut(&mut proof).insert(
-        "planDigest".to_string(),
-        JsonValue::String(plan_digest),
-    );
+    let mut proof =
+        parse_json(&fs::read_to_string(&proof_path).expect("read proof")).expect("parse proof");
+    object_mut(&mut proof).insert("planDigest".to_string(), JsonValue::String(plan_digest));
     write_artifact(
         &proof_path,
         &proof,
         &proof_dir.join(QUARANTINE_REPLACEMENT_PROOF_DIGEST_FILE),
     );
 
-    let error = verify_quarantine_replacement_proof(&proof_dir)
-        .expect_err("semantic mismatch must fail");
+    let error =
+        verify_quarantine_replacement_proof(&proof_dir).expect_err("semantic mismatch must fail");
     assert_eq!(error.code, "LB_QUARANTINE_REPLACEMENT_PROOF");
 
     let _ = fs::remove_dir_all(state);

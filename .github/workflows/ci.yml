@@ -1,18 +1,18 @@
-name: Apply completion bundle
+name: Diagnose completion bundle
 
 on:
   pull_request:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: completion-${{ github.ref }}
+  group: completion-diagnostic-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  apply:
+  diagnose:
     if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
@@ -20,87 +20,32 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.head_ref }}
-          fetch-depth: 0
 
-      - name: Apply completion bundle
+      - name: Diagnose bundle
         shell: bash
         run: |
-          set -euo pipefail
-          cat .github/lingonberry-completion.part* | base64 --decode > /tmp/lingonberry-completion.tgz
-          tar -xzf /tmp/lingonberry-completion.tgz -C .
-          rm -f .github/lingonberry-completion.part*
-          cat > .github/workflows/ci.yml <<'YAML'
-          name: CI
+          set +e
+          {
+            echo '== files =='
+            ls -l .github/lingonberry-completion.part*
+            echo '== sizes =='
+            wc -c .github/lingonberry-completion.part*
+            cat .github/lingonberry-completion.part* > /tmp/completion.b64
+            echo '== concatenated =='
+            wc -c /tmp/completion.b64
+            base64 --decode /tmp/completion.b64 > /tmp/completion.tgz
+            echo "base64_status=$?"
+            ls -l /tmp/completion.tgz
+            gzip -t /tmp/completion.tgz
+            echo "gzip_status=$?"
+            tar -tzf /tmp/completion.tgz | head -100
+            echo "tar_status=${PIPESTATUS[0]}"
+          } > /tmp/completion-diagnostic.log 2>&1
+          cat /tmp/completion-diagnostic.log
 
-          on:
-            pull_request:
-            push:
-              branches:
-                - main
-            workflow_dispatch:
-
-          permissions:
-            contents: read
-
-          concurrency:
-            group: ci-${{ github.workflow }}-${{ github.ref }}
-            cancel-in-progress: true
-
-          jobs:
-            rust:
-              name: Rust checks
-              runs-on: ubuntu-latest
-
-              steps:
-                - name: Check out repository
-                  uses: actions/checkout@v4
-
-                - name: Install Rust toolchain
-                  uses: dtolnay/rust-toolchain@stable
-                  with:
-                    components: rustfmt, clippy
-
-                - name: Cache Cargo artifacts
-                  uses: Swatinem/rust-cache@v2
-
-                - name: Check formatting
-                  run: cargo fmt --all -- --check
-
-                - name: Run library clippy
-                  run: cargo clippy --workspace --lib -- -D warnings
-
-                - name: Run binary clippy
-                  run: cargo clippy --workspace --bins -- -D warnings -A dead-code
-
-                - name: Run test clippy
-                  run: cargo clippy --workspace --tests -- -D warnings -A dead-code -A unused-variables
-
-                - name: Run workspace tests
-                  run: cargo test --workspace
-
-            javascript:
-              name: JavaScript tests
-              runs-on: ubuntu-latest
-
-              steps:
-                - name: Check out repository
-                  uses: actions/checkout@v4
-
-                - name: Set up Node.js
-                  uses: actions/setup-node@v4
-                  with:
-                    node-version: '22'
-
-                - name: Run JavaScript tests
-                  run: >-
-                    node --test
-                    packages/codecs/test/canonicalization.test.mjs
-                    packages/identity/test/identity-key-v2.test.mjs
-                    packages/identity/test/identity-claim-validator.test.mjs
-                    packages/validation/test/validation.test.mjs
-          YAML
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add -A
-          git commit -m "feat: complete generation-based replacement transaction"
-          git push origin HEAD:${{ github.head_ref }}
+      - name: Upload diagnostic
+        uses: actions/upload-artifact@v4
+        with:
+          name: completion-diagnostic
+          path: /tmp/completion-diagnostic.log
+          if-no-files-found: error

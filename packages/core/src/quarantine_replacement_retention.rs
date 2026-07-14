@@ -35,36 +35,12 @@ pub fn inspect_quarantine_replacement_generations(
     transaction_dirs: &[PathBuf],
 ) -> Result<QuarantineReplacementRetentionReport, StoreError> {
     let state_dir = state_dir.as_ref();
-    let active = resolve_quarantine_active_generation(state_dir)?;
-    let active_transaction = active.transaction_id;
-    let mut journals = BTreeMap::new();
-
-    for transaction_dir in transaction_dirs {
-        let report = read_quarantine_replacement_transaction_journal(transaction_dir)?;
-        if journals
-            .insert(report.transaction_id.clone(), report.state)
-            .is_some()
-        {
-            return Err(retention_error(
-                "duplicate transaction ID supplied to generation inspection",
-            ));
-        }
-    }
-
+    let active_transaction = resolve_quarantine_active_generation(state_dir)?.transaction_id;
+    let journals = read_journals(transaction_dirs)?;
     let generations_dir = state_dir.join(QUARANTINE_GENERATIONS_DIR);
+
     if !generations_dir.exists() {
-        return Ok(QuarantineReplacementRetentionReport {
-            layout: "legacy".to_string(),
-            generations: vec![QuarantineReplacementGenerationInspection {
-                generation: None,
-                classification: "legacy-root-layout".to_string(),
-                referenced_by_pointer: false,
-                referenced_by_journal: false,
-                terminal_transaction_state: None,
-                verification_status: "not-applicable".to_string(),
-                manual_review_required: false,
-            }],
-        });
+        return Ok(legacy_report());
     }
     if !generations_dir.is_dir() {
         return Err(retention_error(
@@ -88,46 +64,23 @@ pub fn inspect_quarantine_replacement_generations(
         if !seen.insert(name.clone()) {
             return Err(retention_error("duplicate generation directory name"));
         }
+
         let path = entry.path();
         let referenced_by_pointer = active_transaction.as_deref() == Some(name.as_str());
         let journal_state = journals.get(&name).copied();
-        let referenced_by_journal = journal_state.is_some();
         let verification_status = generation_verification_status(&path);
-
-        let classification = if !path.is_dir() {
-            "unknown-or-corrupt"
-        } else if verification_status != "metadata-present" {
-            "unknown-or-corrupt"
-        } else if referenced_by_pointer {
-            match journal_state {
-                Some(QuarantineReplacementTransactionState::Committed) => {
-                    "active-committed-generation"
-                }
-                _ => "unknown-or-corrupt",
-            }
-        } else {
-            match journal_state {
-                Some(QuarantineReplacementTransactionState::Committed) => {
-                    "previous-committed-generation"
-                }
-                Some(QuarantineReplacementTransactionState::RolledBack) => "rolled-back-generation",
-                Some(_) => "incomplete-transaction-generation",
-                None => "orphan-unreferenced-generation",
-            }
-        };
+        let classification = classify_generation(
+            verification_status,
+            referenced_by_pointer,
+            journal_state,
+        );
 
         generations.push(QuarantineReplacementGenerationInspection {
             generation: Some(name),
             classification: classification.to_string(),
             referenced_by_pointer,
-            referenced_by_journal,
-            terminal_transaction_state: journal_state.and_then(|state| match state {
-                QuarantineReplacementTransactionState::Committed
-                | QuarantineReplacementTransactionState::RolledBack => {
-                    Some(state.as_str().to_string())
-                }
-                _ => None,
-            }),
+            referenced_by_journal: journal_state.is_some(),
+            terminal_transaction_state: terminal_state(journal_state),
             verification_status: verification_status.to_string(),
             manual_review_required: matches!(
                 classification,
@@ -136,12 +89,13 @@ pub fn inspect_quarantine_replacement_generations(
         });
     }
 
-    if let Some(active_transaction) = active_transaction {
-        if !seen.contains(&active_transaction) {
-            return Err(retention_error(
-                "active generation pointer references a missing generation directory",
-            ));
-        }
+    if active_transaction
+        .as_ref()
+        .is_some_and(|transaction| !seen.contains(transaction))
+    {
+        return Err(retention_error(
+            "active generation pointer references a missing generation directory",
+        ));
     }
 
     Ok(QuarantineReplacementRetentionReport {
@@ -173,6 +127,77 @@ pub fn quarantine_replacement_retention_report_json(
             JsonValue::String(QUARANTINE_REPLACEMENT_RETENTION_REPORT_VERSION.to_string()),
         ),
     ]))
+}
+
+fn read_journals(
+    transaction_dirs: &[PathBuf],
+) -> Result<BTreeMap<String, QuarantineReplacementTransactionState>, StoreError> {
+    let mut journals = BTreeMap::new();
+    for transaction_dir in transaction_dirs {
+        let report = read_quarantine_replacement_transaction_journal(transaction_dir)?;
+        if journals
+            .insert(report.transaction_id.clone(), report.state)
+            .is_some()
+        {
+            return Err(retention_error(
+                "duplicate transaction ID supplied to generation inspection",
+            ));
+        }
+    }
+    Ok(journals)
+}
+
+fn legacy_report() -> QuarantineReplacementRetentionReport {
+    QuarantineReplacementRetentionReport {
+        layout: "legacy".to_string(),
+        generations: vec![QuarantineReplacementGenerationInspection {
+            generation: None,
+            classification: "legacy-root-layout".to_string(),
+            referenced_by_pointer: false,
+            referenced_by_journal: false,
+            terminal_transaction_state: None,
+            verification_status: "not-applicable".to_string(),
+            manual_review_required: false,
+        }],
+    }
+}
+
+fn classify_generation(
+    verification_status: &str,
+    referenced_by_pointer: bool,
+    journal_state: Option<QuarantineReplacementTransactionState>,
+) -> &'static str {
+    if verification_status != "metadata-present" {
+        return "unknown-or-corrupt";
+    }
+    if referenced_by_pointer {
+        return match journal_state {
+            Some(QuarantineReplacementTransactionState::Committed) => {
+                "active-committed-generation"
+            }
+            _ => "unknown-or-corrupt",
+        };
+    }
+    match journal_state {
+        Some(QuarantineReplacementTransactionState::Committed) => {
+            "previous-committed-generation"
+        }
+        Some(QuarantineReplacementTransactionState::RolledBack) => "rolled-back-generation",
+        Some(_) => "incomplete-transaction-generation",
+        None => "orphan-unreferenced-generation",
+    }
+}
+
+fn terminal_state(
+    state: Option<QuarantineReplacementTransactionState>,
+) -> Option<String> {
+    state.and_then(|state| match state {
+        QuarantineReplacementTransactionState::Committed
+        | QuarantineReplacementTransactionState::RolledBack => {
+            Some(state.as_str().to_string())
+        }
+        _ => None,
+    })
 }
 
 fn generation_inspection_json(inspection: &QuarantineReplacementGenerationInspection) -> JsonValue {

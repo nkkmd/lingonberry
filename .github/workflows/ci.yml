@@ -34,16 +34,6 @@ jobs:
       - name: Check formatting
         run: cargo fmt --all -- --check
 
-      - name: Capture library clippy diagnostics
-        run: cargo clippy --workspace --lib -- -D warnings > library-clippy.log 2>&1 || true
-
-      - name: Upload library clippy diagnostics
-        uses: actions/upload-artifact@v4
-        with:
-          name: library-clippy-log
-          path: library-clippy.log
-          if-no-files-found: error
-
       - name: Run library clippy
         run: cargo clippy --workspace --lib -- -D warnings
 

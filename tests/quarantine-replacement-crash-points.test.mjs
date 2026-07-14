@@ -13,10 +13,9 @@ const inventoryPath = path.join(
   'docs/operations/quarantine-replacement-crash-points.v1.json',
 );
 
-function registryIds(source) {
-  return [...source.matchAll(/pub const FAILURE_POINT_[A-Z0-9_]+: &str =\s*"([a-z0-9.-]+)";/g)]
-    .map((match) => match[1])
-    .sort();
+function registryEntries(source) {
+  return [...source.matchAll(/pub const (FAILURE_POINT_[A-Z0-9_]+): &str =\s*"([a-z0-9.-]+)";/g)]
+    .map((match) => ({ symbol: match[1], id: match[2] }));
 }
 
 function productionSources() {
@@ -30,7 +29,9 @@ function productionSources() {
 }
 
 test('crash-point inventory exactly matches the production registry', () => {
-  const registry = registryIds(fs.readFileSync(registryPath, 'utf8'));
+  const registry = registryEntries(fs.readFileSync(registryPath, 'utf8'))
+    .map((entry) => entry.id)
+    .sort();
   const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'));
   const inventoryIds = inventory.points.map((point) => point.id).sort();
 
@@ -42,14 +43,19 @@ test('crash-point inventory exactly matches the production registry', () => {
 
 test('implemented crash points have a production connection or explicit alias', () => {
   const registrySource = fs.readFileSync(registryPath, 'utf8');
+  const registry = new Map(registryEntries(registrySource).map((entry) => [entry.id, entry.symbol]));
   const sources = productionSources();
   const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'));
 
   for (const point of inventory.points.filter((entry) => entry.implemented)) {
-    const escaped = point.id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const directConnection = new RegExp(`"${escaped}"`).test(sources);
-    const explicitAlias = registrySource.includes(`FAILURE_POINT_POINTER_TEMPORARY_WRITE`)
-      && point.id === 'publication.pointer-temporary-write';
+    const symbol = registry.get(point.id);
+    assert.ok(symbol, `implemented crash point is missing from registry: ${point.id}`);
+
+    const directConnection = sources.includes(symbol);
+    const explicitAlias = point.id === 'publication.pointer-temporary-write'
+      && registrySource.includes(
+        '(FAILURE_POINT_POINTER_RENAME, FAILURE_POINT_POINTER_TEMPORARY_WRITE)',
+      );
 
     assert.ok(
       directConnection || explicitAlias,

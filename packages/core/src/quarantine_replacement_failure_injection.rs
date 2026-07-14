@@ -58,20 +58,29 @@ pub(crate) fn inject_quarantine_replacement_failure(point: &str) -> Result<(), S
     if std::env::var(QUARANTINE_REPLACEMENT_FAILURE_INJECTION_ENABLE_ENV).as_deref() != Ok("1") {
         return Ok(());
     }
-    if std::env::var(QUARANTINE_REPLACEMENT_FAILURE_INJECTION_POINT_ENV).as_deref() != Ok(point) {
-        return Ok(());
-    }
+
+    let requested = match std::env::var(QUARANTINE_REPLACEMENT_FAILURE_INJECTION_POINT_ENV) {
+        Ok(requested) => requested,
+        Err(_) => return Ok(()),
+    };
+    let triggered_point = match (point, requested.as_str()) {
+        (FAILURE_POINT_POINTER_RENAME, FAILURE_POINT_POINTER_TEMPORARY_WRITE) => {
+            FAILURE_POINT_POINTER_TEMPORARY_WRITE
+        }
+        (_, requested) if requested == point => point,
+        _ => return Ok(()),
+    };
 
     let mut triggered = TRIGGERED_POINTS
         .get_or_init(|| Mutex::new(BTreeSet::new()))
         .lock()
         .map_err(|_| failure_injection_error("failure-injection state lock is poisoned"))?;
-    if !triggered.insert(point.to_string()) {
+    if !triggered.insert(triggered_point.to_string()) {
         return Ok(());
     }
 
     Err(failure_injection_error(&format!(
-        "injected replacement failure at {point}"
+        "injected replacement failure at {triggered_point}"
     )))
 }
 
@@ -84,6 +93,11 @@ mod tests {
     use super::*;
 
     static ENV_LOCK: Mutex<()> = Mutex::new(());
+
+    fn clear_env() {
+        std::env::remove_var(QUARANTINE_REPLACEMENT_FAILURE_INJECTION_ENABLE_ENV);
+        std::env::remove_var(QUARANTINE_REPLACEMENT_FAILURE_INJECTION_POINT_ENV);
+    }
 
     #[test]
     fn registry_is_unique_and_bounded() {
@@ -108,10 +122,26 @@ mod tests {
     }
 
     #[test]
+    fn temporary_pointer_write_uses_the_atomic_pointer_boundary() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        clear_env();
+        std::env::set_var(QUARANTINE_REPLACEMENT_FAILURE_INJECTION_ENABLE_ENV, "1");
+        std::env::set_var(
+            QUARANTINE_REPLACEMENT_FAILURE_INJECTION_POINT_ENV,
+            FAILURE_POINT_POINTER_TEMPORARY_WRITE,
+        );
+
+        let error = inject_quarantine_replacement_failure(FAILURE_POINT_POINTER_RENAME).unwrap_err();
+        assert_eq!(error.code, "LB_QUARANTINE_REPLACEMENT_FAILURE_INJECTION");
+        assert!(error.message.contains(FAILURE_POINT_POINTER_TEMPORARY_WRITE));
+        assert!(inject_quarantine_replacement_failure(FAILURE_POINT_POINTER_RENAME).is_ok());
+        clear_env();
+    }
+
+    #[test]
     fn requires_explicit_double_opt_in_and_triggers_once() {
         let _guard = ENV_LOCK.lock().unwrap();
-        std::env::remove_var(QUARANTINE_REPLACEMENT_FAILURE_INJECTION_ENABLE_ENV);
-        std::env::remove_var(QUARANTINE_REPLACEMENT_FAILURE_INJECTION_POINT_ENV);
+        clear_env();
         assert!(inject_quarantine_replacement_failure(FAILURE_POINT_POINTER_RENAME).is_ok());
 
         std::env::set_var(QUARANTINE_REPLACEMENT_FAILURE_INJECTION_ENABLE_ENV, "1");
@@ -123,8 +153,6 @@ mod tests {
             inject_quarantine_replacement_failure(FAILURE_POINT_POINTER_RENAME).unwrap_err();
         assert_eq!(first.code, "LB_QUARANTINE_REPLACEMENT_FAILURE_INJECTION");
         assert!(inject_quarantine_replacement_failure(FAILURE_POINT_POINTER_RENAME).is_ok());
-
-        std::env::remove_var(QUARANTINE_REPLACEMENT_FAILURE_INJECTION_ENABLE_ENV);
-        std::env::remove_var(QUARANTINE_REPLACEMENT_FAILURE_INJECTION_POINT_ENV);
+        clear_env();
     }
 }

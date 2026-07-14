@@ -1,4 +1,4 @@
-name: Diagnose replacement failure-injection tests
+name: Diagnose replacement workspace tests
 
 on:
   pull_request:
@@ -17,18 +17,18 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Capture transaction test diagnostics
+      - name: Capture workspace test diagnostics
         shell: bash
         run: |
           set +e
-          cargo test -p lingonberry-core --test quarantine_replacement_transaction -- --nocapture > transaction-tests.txt 2>&1
+          cargo test --workspace -- --nocapture > workspace-tests.txt 2>&1
           status=$?
-          cat transaction-tests.txt
+          cat workspace-tests.txt
           exit $status
 
       - name: Upload diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: replacement-failure-injection-tests
-          path: transaction-tests.txt
+          name: replacement-workspace-tests
+          path: workspace-tests.txt

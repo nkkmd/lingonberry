@@ -77,18 +77,24 @@
     {
       "id": "journal.write",
       "registered": true,
-      "implemented": false,
-      "boundary": "transaction journal temporary file write",
+      "implemented": true,
+      "boundary": "before transaction journal temporary file creation and write",
       "readerVisibleTarget": false,
-      "allowedRecovery": ["resume", "rollback"]
+      "expectedJournalState": "absent-or-previous-durable-state",
+      "expectedClassification": "retryable-before-publication",
+      "allowedRecovery": ["retry", "resume", "rollback"],
+      "test": "injected_journal_failures_leave_a_retryable_empty_workspace"
     },
     {
       "id": "journal.fsync",
       "registered": true,
-      "implemented": false,
-      "boundary": "transaction journal temporary file fsync",
+      "implemented": true,
+      "boundary": "after transaction journal temporary file write and before file fsync",
       "readerVisibleTarget": false,
-      "allowedRecovery": ["resume", "rollback"]
+      "expectedJournalState": "absent-or-previous-durable-state",
+      "expectedClassification": "retryable-before-publication",
+      "allowedRecovery": ["retry", "resume", "rollback"],
+      "test": "injected_journal_failures_leave_a_retryable_empty_workspace"
     },
     {
       "id": "staging.ledger-write",

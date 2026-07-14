@@ -132,18 +132,24 @@
     {
       "id": "generation.manifest-write",
       "registered": true,
-      "implemented": false,
-      "boundary": "sealed generation manifest publication",
+      "implemented": true,
+      "boundary": "before sealed generation manifest publication begins",
       "readerVisibleTarget": false,
-      "allowedRecovery": ["resume", "rollback"]
+      "expectedJournalState": "verified",
+      "expectedClassification": "resumable-before-publication",
+      "allowedRecovery": ["retry", "resume", "rollback"],
+      "test": "injected_generation_failures_remove_publication_state_and_retry_to_committed"
     },
     {
       "id": "generation.manifest-fsync",
       "registered": true,
-      "implemented": false,
-      "boundary": "sealed generation manifest directory fsync",
+      "implemented": true,
+      "boundary": "after sealed generation files are durable but before sealing returns success",
       "readerVisibleTarget": false,
-      "allowedRecovery": ["resume", "rollback"]
+      "expectedJournalState": "recovery-required",
+      "expectedClassification": "resumable-or-rollback-before-publication",
+      "allowedRecovery": ["resume", "rollback"],
+      "test": "injected_generation_failures_remove_publication_state_and_retry_to_committed"
     },
     {
       "id": "publication.generation-materialize-rename",

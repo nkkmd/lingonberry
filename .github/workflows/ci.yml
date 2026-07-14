@@ -1,131 +1,68 @@
-name: Add transaction crash-state tests
+name: CI
 
 on:
   pull_request:
+  push:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  update:
-    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+  rust:
+    name: Rust checks
     runs-on: ubuntu-latest
+
     steps:
-      - name: Check out feature branch
+      - name: Check out repository
         uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
         with:
-          ref: ${{ github.head_ref }}
-          fetch-depth: 0
+          components: rustfmt, clippy
 
-      - name: Add tests, format, and commit
-        shell: bash
-        run: |
-          set -euo pipefail
-          python - <<'PY'
-          from pathlib import Path
-          path = Path('packages/core/src/quarantine_replacement_publication.inc')
-          text = path.read_text()
-          marker = '\n}\n'
-          insert = r'''
+      - name: Cache Cargo artifacts
+        uses: Swatinem/rust-cache@v2
 
-    #[test]
-    fn resumes_after_atomic_switch_before_commit() {
-        let (state, backup, proof, transaction) = fixture();
-        prepare_quarantine_replacement_transaction(
-            &state,
-            &backup,
-            &proof,
-            &transaction,
-            "tx-resume-after-switch",
-        )
-        .unwrap();
-        stage_quarantine_replacement_ledgers(&state, &proof, &transaction).unwrap();
-        verify_quarantine_replacement_staging(&state, &proof, &transaction).unwrap();
-        seal_quarantine_replacement_generation(&transaction).unwrap();
-        prepare_quarantine_replacement_publication(&state, &proof, &transaction).unwrap();
-        let generation = verify_quarantine_replacement_generation(&transaction).unwrap();
-        let intent = create_or_read_intent(
-            &state,
-            &transaction,
-            &generation.generation_digest,
-        )
-        .unwrap();
-        materialize_generation(&state, &transaction, &intent).unwrap();
-        advance_quarantine_replacement_transaction_journal(
-            &transaction,
-            QuarantineReplacementTransactionState::Publishing,
-        )
-        .unwrap();
-        atomic_write_pointer(&state, &intent.target_pointer).unwrap();
+      - name: Check formatting
+        run: cargo fmt --all -- --check
 
-        let report = resume_quarantine_replacement_transaction(&state, &transaction).unwrap();
-        assert_eq!(report.state, QuarantineReplacementTransactionState::Committed);
-        assert_eq!(
-            report.active_generation.as_deref(),
-            Some("tx-resume-after-switch")
-        );
-        let _ = fs::remove_dir_all(state);
-        let _ = fs::remove_dir_all(backup);
-        let _ = fs::remove_dir_all(proof);
-        let _ = fs::remove_dir_all(transaction);
-    }
+      - name: Run library clippy
+        run: cargo clippy --workspace --lib -- -D warnings
 
-    #[test]
-    fn repeated_resume_after_commit_is_idempotent() {
-        let (state, backup, proof, transaction) = fixture();
-        apply_quarantine_replacement_transaction(
-            &state,
-            &backup,
-            &proof,
-            &transaction,
-            "tx-repeat-resume",
-        )
-        .unwrap();
-        let report = resume_quarantine_replacement_transaction(&state, &transaction).unwrap();
-        assert_eq!(report.state, QuarantineReplacementTransactionState::Committed);
-        assert_eq!(report.active_generation.as_deref(), Some("tx-repeat-resume"));
-        let _ = fs::remove_dir_all(state);
-        let _ = fs::remove_dir_all(backup);
-        let _ = fs::remove_dir_all(proof);
-        let _ = fs::remove_dir_all(transaction);
-    }
+      - name: Run binary clippy
+        run: cargo clippy --workspace --bins -- -D warnings -A dead-code
 
-    #[test]
-    fn repeated_rollback_is_idempotent() {
-        let (state, backup, proof, transaction) = fixture();
-        prepare_quarantine_replacement_transaction(
-            &state,
-            &backup,
-            &proof,
-            &transaction,
-            "tx-repeat-rollback",
-        )
-        .unwrap();
-        advance_quarantine_replacement_transaction_journal(
-            &transaction,
-            QuarantineReplacementTransactionState::RecoveryRequired,
-        )
-        .unwrap();
-        rollback_quarantine_replacement_transaction(&state, &transaction).unwrap();
-        let report = rollback_quarantine_replacement_transaction(&state, &transaction).unwrap();
-        assert_eq!(report.state, QuarantineReplacementTransactionState::RolledBack);
-        let _ = fs::remove_dir_all(state);
-        let _ = fs::remove_dir_all(backup);
-        let _ = fs::remove_dir_all(proof);
-        let _ = fs::remove_dir_all(transaction);
-    }
-'''
-          pos = text.rfind(marker)
-          if pos < 0:
-              raise SystemExit('test module closing marker not found')
-          if 'fn resumes_after_atomic_switch_before_commit' not in text:
-              text = text[:pos] + insert + text[pos:]
-          path.write_text(text)
-          PY
-          cargo fmt --all
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add packages/core/src/quarantine_replacement_publication.inc packages/relay/src/quarantine_maintenance_main.rs
-          git commit -m "test: cover replacement crash-state recovery"
-          git push origin HEAD:${{ github.head_ref }}
+      - name: Run test clippy
+        run: cargo clippy --workspace --tests -- -D warnings -A dead-code -A unused-variables
+
+      - name: Run workspace tests
+        run: cargo test --workspace
+
+  javascript:
+    name: JavaScript tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Run JavaScript tests
+        run: >-
+          node --test
+          packages/codecs/test/canonicalization.test.mjs
+          packages/identity/test/identity-key-v2.test.mjs
+          packages/identity/test/identity-claim-validator.test.mjs
+          packages/validation/test/validation.test.mjs

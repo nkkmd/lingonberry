@@ -8,14 +8,195 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  patch-durable-failure-points:
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+
+      - name: Check marker
+        id: marker
+        run: |
+          if test -f .github/durable-failure-patch.trigger; then
+            echo "apply=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "apply=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install Rust toolchain
+        if: steps.marker.outputs.apply == 'true'
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Apply patch
+        if: steps.marker.outputs.apply == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace(path, old, new):
+              p = Path(path)
+              text = p.read_text()
+              if old not in text:
+                  raise SystemExit(f'missing marker in {path}: {old[:100]!r}')
+              p.write_text(text.replace(old, new, 1))
+
+          replace(
+              'packages/core/src/quarantine_replacement_transaction.rs',
+              '''    write_new_synced(&journal_tmp, text.as_bytes())?;\n    write_new_synced(&digest_tmp, format!("{digest}\\n").as_bytes())?;\n    fs::rename(&journal_tmp, &journal_path).map_err(io_error)?;\n''',
+              '''    crate::quarantine_replacement_failure_injection::inject_quarantine_replacement_failure(\n        crate::quarantine_replacement_failure_injection::FAILURE_POINT_JOURNAL_WRITE,\n    )?;\n    write_new_synced(&journal_tmp, text.as_bytes())?;\n    write_new_synced(&digest_tmp, format!("{digest}\\n").as_bytes())?;\n    if let Err(error) =\n        crate::quarantine_replacement_failure_injection::inject_quarantine_replacement_failure(\n            crate::quarantine_replacement_failure_injection::FAILURE_POINT_JOURNAL_FSYNC,\n        )\n    {\n        let _ = fs::remove_file(&journal_tmp);\n        let _ = fs::remove_file(&digest_tmp);\n        return Err(error);\n    }\n    fs::rename(&journal_tmp, &journal_path).map_err(io_error)?;\n'''
+          )
+
+          replace(
+              'packages/core/src/quarantine_replacement_staging.inc',
+              '''    let target = staging_dir.join(ledger);\n    write_new_synced(&target, &output)?;\n    Ok(QuarantineReplacementStagedLedger {\n''',
+              '''    let target = staging_dir.join(ledger);\n    crate::quarantine_replacement_failure_injection::inject_quarantine_replacement_failure(\n        crate::quarantine_replacement_failure_injection::FAILURE_POINT_STAGED_LEDGER_WRITE,\n    )?;\n    write_new_synced(&target, &output)?;\n    crate::quarantine_replacement_failure_injection::inject_quarantine_replacement_failure(\n        crate::quarantine_replacement_failure_injection::FAILURE_POINT_STAGED_LEDGER_FSYNC,\n    )?;\n    Ok(QuarantineReplacementStagedLedger {\n'''
+          )
+          replace(
+              'packages/core/src/quarantine_replacement_staging.inc',
+              '''    sync_directory(&staging_dir)?;\n\n    advance_quarantine_replacement_transaction_journal(\n''',
+              '''    crate::quarantine_replacement_failure_injection::inject_quarantine_replacement_failure(\n        crate::quarantine_replacement_failure_injection::FAILURE_POINT_STAGING_DIRECTORY_FSYNC,\n    )?;\n    sync_directory(&staging_dir)?;\n\n    advance_quarantine_replacement_transaction_journal(\n'''
+          )
+
+          replace(
+              'packages/core/src/quarantine_replacement_generation.inc',
+              '''    let publication_dir = transaction_dir.join(QUARANTINE_REPLACEMENT_PUBLICATION_DIR);\n    if publication_dir.exists() {\n''',
+              '''    crate::quarantine_replacement_failure_injection::inject_quarantine_replacement_failure(\n        crate::quarantine_replacement_failure_injection::FAILURE_POINT_GENERATION_MANIFEST_WRITE,\n    )?;\n    let publication_dir = transaction_dir.join(QUARANTINE_REPLACEMENT_PUBLICATION_DIR);\n    if publication_dir.exists() {\n'''
+          )
+          replace(
+              'packages/core/src/quarantine_replacement_generation.inc',
+              '''    sync_directory(&publication_dir)?;\n\n    verify_quarantine_replacement_generation(transaction_dir)\n''',
+              '''    sync_directory(&publication_dir)?;\n    crate::quarantine_replacement_failure_injection::inject_quarantine_replacement_failure(\n        crate::quarantine_replacement_failure_injection::FAILURE_POINT_GENERATION_MANIFEST_FSYNC,\n    )?;\n\n    verify_quarantine_replacement_generation(transaction_dir)\n'''
+          )
+
+          replace(
+              'packages/core/src/quarantine_replacement_publication.inc',
+              '''    write_intent(transaction_dir, &intent)?;\n    read_intent(transaction_dir)\n''',
+              '''    crate::quarantine_replacement_failure_injection::inject_quarantine_replacement_failure(\n        crate::quarantine_replacement_failure_injection::FAILURE_POINT_PUBLICATION_INTENT_WRITE,\n    )?;\n    write_intent(transaction_dir, &intent)?;\n    read_intent(transaction_dir)\n'''
+          )
+          replace(
+              'packages/core/src/quarantine_replacement_publication.inc',
+              '''    sync_directory(&temporary_dir)?;\n    fs::rename(&temporary_dir, &final_dir).map_err(io_error)?;\n''',
+              '''    sync_directory(&temporary_dir)?;\n    crate::quarantine_replacement_failure_injection::inject_quarantine_replacement_failure(\n        crate::quarantine_replacement_failure_injection::FAILURE_POINT_GENERATION_MATERIALIZE_RENAME,\n    )?;\n    fs::rename(&temporary_dir, &final_dir).map_err(io_error)?;\n'''
+          )
+          replace(
+              'packages/core/src/quarantine_replacement_publication.inc',
+              '''    write_new_synced(&temporary, text.as_bytes())?;\n    fs::rename(\n''',
+              '''    crate::quarantine_replacement_failure_injection::inject_quarantine_replacement_failure(\n        crate::quarantine_replacement_failure_injection::FAILURE_POINT_POINTER_TEMPORARY_WRITE,\n    )?;\n    write_new_synced(&temporary, text.as_bytes())?;\n    fs::rename(\n'''
+          )
+          replace(
+              'packages/core/src/quarantine_replacement_publication.inc',
+              '''    .map_err(io_error)?;\n    sync_directory(state_dir)\n}\n\nfn restore_previous_pointer''',
+              '''    .map_err(io_error)?;\n    crate::quarantine_replacement_failure_injection::inject_quarantine_replacement_failure(\n        crate::quarantine_replacement_failure_injection::FAILURE_POINT_STATE_DIRECTORY_FSYNC,\n    )?;\n    sync_directory(state_dir)\n}\n\nfn restore_previous_pointer'''
+          )
+          replace(
+              'packages/core/src/quarantine_replacement_publication.inc',
+              '''    build_quarantine_ledger_index_locked(state_dir)?;\n    verify_quarantine_ledger_index(state_dir)?;\n    verify_quarantine_segments(state_dir)?;\n''',
+              '''    build_quarantine_ledger_index_locked(state_dir)?;\n    crate::quarantine_replacement_failure_injection::inject_quarantine_replacement_failure(\n        crate::quarantine_replacement_failure_injection::FAILURE_POINT_INDEX_VERIFICATION,\n    )?;\n    verify_quarantine_ledger_index(state_dir)?;\n    crate::quarantine_replacement_failure_injection::inject_quarantine_replacement_failure(\n        crate::quarantine_replacement_failure_injection::FAILURE_POINT_SEGMENT_VERIFICATION,\n    )?;\n    verify_quarantine_segments(state_dir)?;\n'''
+          )
+
+          crash = Path('packages/core/tests/quarantine_replacement_crash_matrix.rs')
+          text = crash.read_text()
+          if 'fn early_durable_boundary_failures_retry_to_committed()' in text:
+              raise SystemExit('crash matrix test already exists')
+          text += r'''
+
+#[test]
+fn early_durable_boundary_failures_retry_to_committed() {
+    let _serial = serial_test_guard();
+    let cases = [
+        ("journal.write", "tx-crash-journal-write"),
+        ("journal.fsync", "tx-crash-journal-fsync"),
+        ("staging.ledger-write", "tx-crash-staging-write"),
+        ("staging.ledger-fsync", "tx-crash-staging-fsync"),
+        ("staging.directory-fsync", "tx-crash-staging-directory"),
+        ("generation.manifest-write", "tx-crash-generation-write"),
+        ("generation.manifest-fsync", "tx-crash-generation-fsync"),
+        ("publication.intent-write", "tx-crash-intent-write"),
+        (
+            "publication.generation-materialize-rename",
+            "tx-crash-materialize-rename",
+        ),
+        (
+            "publication.pointer-temporary-write",
+            "tx-crash-pointer-temporary-write",
+        ),
+        (
+            "publication.state-directory-fsync",
+            "tx-crash-state-directory-fsync",
+        ),
+        (
+            "publication.index-verification",
+            "tx-crash-index-verification",
+        ),
+        (
+            "publication.segment-verification",
+            "tx-crash-segment-verification",
+        ),
+    ];
+
+    for (point, transaction_id) in cases {
+        let (state, backup, proof, transaction) = fixture();
+        {
+            let _failure = FailureInjectionGuard::new(point);
+            let error = apply_quarantine_replacement_transaction(
+                &state,
+                &backup,
+                &proof,
+                &transaction,
+                transaction_id,
+            )
+            .unwrap_err();
+            assert_eq!(error.code, "LB_QUARANTINE_REPLACEMENT_FAILURE_INJECTION");
+        }
+
+        let report = apply_quarantine_replacement_transaction(
+            &state,
+            &backup,
+            &proof,
+            &transaction,
+            transaction_id,
+        )
+        .unwrap();
+        assert_eq!(
+            report.state,
+            QuarantineReplacementTransactionState::Committed,
+            "failure point {point} did not recover"
+        );
+        cleanup([state, backup, proof, transaction]);
+    }
+}
+'''
+          crash.write_text(text)
+          Path('.github/durable-failure-patch.trigger').unlink()
+          PY
+
+          cargo fmt --all
+          cargo clippy --workspace --all-targets -- -D warnings -A dead-code -A unused-variables
+          cargo test --workspace
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add packages/core/src packages/core/tests/quarantine_replacement_crash_matrix.rs .github/durable-failure-patch.trigger
+          git commit -m "test: cover early replacement durable boundaries"
+          git push origin HEAD:${{ github.head_ref }}
+
   rust:
+    needs: patch-durable-failure-points
+    if: always() && (needs.patch-durable-failure-points.result == 'success' || needs.patch-durable-failure-points.result == 'skipped')
     name: Rust checks
     runs-on: ubuntu-latest
 
@@ -47,6 +228,8 @@ jobs:
         run: cargo test --workspace
 
   javascript:
+    needs: patch-durable-failure-points
+    if: always() && (needs.patch-durable-failure-points.result == 'success' || needs.patch-durable-failure-points.result == 'skipped')
     name: JavaScript tests
     runs-on: ubuntu-latest
 

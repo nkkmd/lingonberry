@@ -1,5 +1,6 @@
 use std::fs;
 use std::path::PathBuf;
+use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use lingonberry_core::{
@@ -9,6 +10,30 @@ use lingonberry_core::{
     rollback_quarantine_replacement_transaction, QuarantineReplacementTransactionState,
     QUARANTINE_CURRENT_GENERATION_POINTER_FILE, QUARANTINE_LEDGER_INDEX_FILE,
 };
+
+const FAILURE_ENABLE_ENV: &str = "LINGONBERRY_ENABLE_REPLACEMENT_FAILURE_INJECTION";
+const FAILURE_POINT_ENV: &str = "LINGONBERRY_REPLACEMENT_FAILURE_POINT";
+const POINTER_RENAME_FAILURE: &str = "publication.pointer-rename";
+const INDEX_REBUILD_FAILURE: &str = "publication.index-rebuild";
+
+static FAILURE_ENV_LOCK: Mutex<()> = Mutex::new(());
+
+struct FailureInjectionGuard;
+
+impl FailureInjectionGuard {
+    fn new(point: &str) -> Self {
+        std::env::set_var(FAILURE_ENABLE_ENV, "1");
+        std::env::set_var(FAILURE_POINT_ENV, point);
+        Self
+    }
+}
+
+impl Drop for FailureInjectionGuard {
+    fn drop(&mut self) {
+        std::env::remove_var(FAILURE_ENABLE_ENV);
+        std::env::remove_var(FAILURE_POINT_ENV);
+    }
+}
 
 fn temp_dir(label: &str) -> PathBuf {
     std::env::temp_dir().join(format!(
@@ -119,6 +144,85 @@ fn resumes_after_failure_following_atomic_pointer_switch() {
     assert_eq!(
         report.active_generation.as_deref(),
         Some("tx-integration-after-switch")
+    );
+    cleanup([state, backup, proof, transaction]);
+}
+
+#[test]
+fn injected_pointer_rename_failure_preserves_legacy_root_and_resumes() {
+    let _serial = FAILURE_ENV_LOCK.lock().unwrap();
+    let (state, backup, proof, transaction) = fixture();
+    {
+        let _failure = FailureInjectionGuard::new(POINTER_RENAME_FAILURE);
+        let error = apply_quarantine_replacement_transaction(
+            &state,
+            &backup,
+            &proof,
+            &transaction,
+            "tx-integration-pointer-rename-failure",
+        )
+        .unwrap_err();
+        assert_eq!(error.code, "LB_QUARANTINE_REPLACEMENT_FAILURE_INJECTION");
+    }
+
+    assert!(!state
+        .join(QUARANTINE_CURRENT_GENERATION_POINTER_FILE)
+        .exists());
+    assert!(state.join("quarantine.jsonl").is_file());
+    assert_eq!(
+        read_quarantine_replacement_transaction_journal(&transaction)
+            .unwrap()
+            .state,
+        QuarantineReplacementTransactionState::RecoveryRequired
+    );
+
+    let report = resume_quarantine_replacement_transaction(&state, &transaction).unwrap();
+    assert_eq!(
+        report.state,
+        QuarantineReplacementTransactionState::Committed
+    );
+    assert_eq!(
+        report.active_generation.as_deref(),
+        Some("tx-integration-pointer-rename-failure")
+    );
+    cleanup([state, backup, proof, transaction]);
+}
+
+#[test]
+fn injected_index_rebuild_failure_is_resumable_after_switch() {
+    let _serial = FAILURE_ENV_LOCK.lock().unwrap();
+    let (state, backup, proof, transaction) = fixture();
+    {
+        let _failure = FailureInjectionGuard::new(INDEX_REBUILD_FAILURE);
+        let error = apply_quarantine_replacement_transaction(
+            &state,
+            &backup,
+            &proof,
+            &transaction,
+            "tx-integration-index-rebuild-failure",
+        )
+        .unwrap_err();
+        assert_eq!(error.code, "LB_QUARANTINE_REPLACEMENT_FAILURE_INJECTION");
+    }
+
+    assert!(state
+        .join(QUARANTINE_CURRENT_GENERATION_POINTER_FILE)
+        .is_file());
+    assert_eq!(
+        read_quarantine_replacement_transaction_journal(&transaction)
+            .unwrap()
+            .state,
+        QuarantineReplacementTransactionState::RecoveryRequired
+    );
+
+    let report = resume_quarantine_replacement_transaction(&state, &transaction).unwrap();
+    assert_eq!(
+        report.state,
+        QuarantineReplacementTransactionState::Committed
+    );
+    assert_eq!(
+        report.active_generation.as_deref(),
+        Some("tx-integration-index-rebuild-failure")
     );
     cleanup([state, backup, proof, transaction]);
 }

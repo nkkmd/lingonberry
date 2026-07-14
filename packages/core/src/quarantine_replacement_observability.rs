@@ -72,12 +72,10 @@ pub fn quarantine_replacement_metrics_text(report: &QuarantineReplacementStatusR
     } else {
         "legacy"
     };
-    let recovery_required = usize::from(
-        report.state == QuarantineReplacementTransactionState::RecoveryRequired,
-    );
-    let target_active = usize::from(
-        report.active_generation.as_deref() == Some(report.transaction_id.as_str()),
-    );
+    let recovery_required =
+        usize::from(report.state == QuarantineReplacementTransactionState::RecoveryRequired);
+    let target_active =
+        usize::from(report.active_generation.as_deref() == Some(report.transaction_id.as_str()));
 
     format!(
         "# HELP lingonberry_quarantine_replacement_transactions Replacement transactions by bounded journal state.\n\

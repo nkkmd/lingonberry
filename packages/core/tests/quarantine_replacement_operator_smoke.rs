@@ -52,7 +52,10 @@ fn operator_smoke_covers_backup_preview_apply_observe_and_verify() {
         applied.state,
         QuarantineReplacementTransactionState::Committed
     );
-    assert_eq!(applied.active_generation.as_deref(), Some("tx-operator-smoke"));
+    assert_eq!(
+        applied.active_generation.as_deref(),
+        Some("tx-operator-smoke")
+    );
 
     let status = quarantine_replacement_status(&state, &transaction).unwrap();
     assert_eq!(
@@ -62,7 +65,9 @@ fn operator_smoke_covers_backup_preview_apply_observe_and_verify() {
     assert_eq!(status.classification, "committed");
 
     let metrics = quarantine_replacement_metrics_text(&status);
-    assert!(metrics.contains("lingonberry_quarantine_replacement_transactions"));
+    assert!(metrics.contains(
+        "lingonberry_quarantine_replacement_transactions"
+    ));
     assert!(metrics.contains("state=\"committed\""));
     assert!(!metrics.contains("tx-operator-smoke"));
 

@@ -316,9 +316,7 @@ fn audit_result(
                 },
                 Some(&error.code),
             )
-            .map_err(|audit_error| {
-                format!("{}; audit failure: {}", error, audit_error)
-            })?;
+            .map_err(|audit_error| format!("{}; audit failure: {}", error, audit_error))?;
             Err(error.to_string())
         }
     }

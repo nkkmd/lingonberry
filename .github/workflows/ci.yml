@@ -1,130 +1,68 @@
-name: Apply journal and staging failure points
+name: CI
 
 on:
   pull_request:
+  push:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  patch:
-    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+  rust:
+    name: Rust checks
     runs-on: ubuntu-latest
+
     steps:
-      - name: Check out feature branch
+      - name: Check out repository
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref }}
-          fetch-depth: 0
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
 
-      - name: Patch and verify
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -f .github/journal-staging-failure-points.trigger
-          python3 - <<'PY'
-          from pathlib import Path
+      - name: Cache Cargo artifacts
+        uses: Swatinem/rust-cache@v2
 
-          def replace(path, old, new):
-              p = Path(path)
-              text = p.read_text()
-              if old not in text:
-                  raise SystemExit(f'missing marker in {path}: {old[:100]!r}')
-              p.write_text(text.replace(old, new, 1))
+      - name: Check formatting
+        run: cargo fmt --all -- --check
 
-          replace(
-              'packages/core/src/quarantine_replacement_transaction.rs',
-              '''    write_new_synced(&journal_tmp, text.as_bytes())?;\n    write_new_synced(&digest_tmp, format!("{digest}\\n").as_bytes())?;\n    fs::rename(&journal_tmp, &journal_path).map_err(io_error)?;\n    fs::rename(&digest_tmp, &digest_path).map_err(io_error)?;\n    sync_directory(transaction_dir)?;\n    Ok(())\n''',
-              '''    let result = (|| {\n        write_new_synced_with_failure_points(\n            &journal_tmp,\n            text.as_bytes(),\n            crate::quarantine_replacement_failure_injection::FAILURE_POINT_JOURNAL_WRITE,\n            crate::quarantine_replacement_failure_injection::FAILURE_POINT_JOURNAL_FSYNC,\n        )?;\n        write_new_synced(&digest_tmp, format!("{digest}\\n").as_bytes())?;\n        fs::rename(&journal_tmp, &journal_path).map_err(io_error)?;\n        fs::rename(&digest_tmp, &digest_path).map_err(io_error)?;\n        sync_directory(transaction_dir)\n    })();\n    if result.is_err() {\n        let _ = fs::remove_file(&journal_tmp);\n        let _ = fs::remove_file(&digest_tmp);\n    }\n    result\n'''
-          )
-          replace(
-              'packages/core/src/quarantine_replacement_transaction.rs',
-              '''fn write_new_synced(path: &Path, bytes: &[u8]) -> Result<(), StoreError> {\n''',
-              '''fn write_new_synced_with_failure_points(\n    path: &Path,\n    bytes: &[u8],\n    write_point: &str,\n    fsync_point: &str,\n) -> Result<(), StoreError> {\n    crate::quarantine_replacement_failure_injection::inject_quarantine_replacement_failure(\n        write_point,\n    )?;\n    let mut file = OpenOptions::new()\n        .write(true)\n        .create_new(true)\n        .open(path)\n        .map_err(io_error)?;\n    file.write_all(bytes).map_err(io_error)?;\n    crate::quarantine_replacement_failure_injection::inject_quarantine_replacement_failure(\n        fsync_point,\n    )?;\n    file.sync_all().map_err(io_error)\n}\n\nfn write_new_synced(path: &Path, bytes: &[u8]) -> Result<(), StoreError> {\n'''
-          )
+      - name: Run library clippy
+        run: cargo clippy --workspace --lib -- -D warnings
 
-          replace(
-              'packages/core/src/quarantine_replacement_staging.inc',
-              '''    let target = staging_dir.join(ledger);\n    write_new_synced(&target, &output)?;\n''',
-              '''    let target = staging_dir.join(ledger);\n    write_new_synced_with_failure_points(\n        &target,\n        &output,\n        crate::quarantine_replacement_failure_injection::FAILURE_POINT_STAGED_LEDGER_WRITE,\n        crate::quarantine_replacement_failure_injection::FAILURE_POINT_STAGED_LEDGER_FSYNC,\n    )?;\n'''
-          )
-          replace(
-              'packages/core/src/quarantine_replacement_staging.inc',
-              '''    write_new_synced(&manifest_path, to_canonical_json(&manifest).as_bytes())?;\n    sync_directory(&staging_dir)?;\n''',
-              '''    write_new_synced(&manifest_path, to_canonical_json(&manifest).as_bytes())?;\n    crate::quarantine_replacement_failure_injection::inject_quarantine_replacement_failure(\n        crate::quarantine_replacement_failure_injection::FAILURE_POINT_STAGING_DIRECTORY_FSYNC,\n    )?;\n    sync_directory(&staging_dir)?;\n'''
-          )
-          replace(
-              'packages/core/src/quarantine_replacement_staging.inc',
-              '''fn write_new_synced(path: &Path, bytes: &[u8]) -> Result<(), StoreError> {\n''',
-              '''fn write_new_synced_with_failure_points(\n    path: &Path,\n    bytes: &[u8],\n    write_point: &str,\n    fsync_point: &str,\n) -> Result<(), StoreError> {\n    crate::quarantine_replacement_failure_injection::inject_quarantine_replacement_failure(\n        write_point,\n    )?;\n    let mut file = OpenOptions::new()\n        .write(true)\n        .create_new(true)\n        .open(path)\n        .map_err(io_error)?;\n    file.write_all(bytes).map_err(io_error)?;\n    crate::quarantine_replacement_failure_injection::inject_quarantine_replacement_failure(\n        fsync_point,\n    )?;\n    file.sync_all().map_err(io_error)\n}\n\nfn write_new_synced(path: &Path, bytes: &[u8]) -> Result<(), StoreError> {\n'''
-          )
+      - name: Run binary clippy
+        run: cargo clippy --workspace --bins -- -D warnings -A dead-code
 
-          crash = Path('packages/core/tests/quarantine_replacement_crash_matrix.rs')
-          text = crash.read_text()
-          marker = 'fn early_journal_and_staging_failures_retry_to_committed()'
-          if marker not in text:
-              text += r'''
+      - name: Run test clippy
+        run: cargo clippy --workspace --tests -- -D warnings -A dead-code -A unused-variables
 
-#[test]
-fn early_journal_and_staging_failures_retry_to_committed() {
-    let _serial = serial_test_guard();
-    let cases = [
-        ("journal.write", "tx-crash-journal-write"),
-        ("journal.fsync", "tx-crash-journal-fsync"),
-        ("staging.ledger-write", "tx-crash-staging-write"),
-        ("staging.ledger-fsync", "tx-crash-staging-fsync"),
-        ("staging.directory-fsync", "tx-crash-staging-directory-fsync"),
-    ];
+      - name: Run workspace tests
+        run: cargo test --workspace
 
-    for (point, transaction_id) in cases {
-        let (state, backup, proof, transaction) = fixture();
-        {
-            let _failure = FailureInjectionGuard::new(point);
-            let error = apply_quarantine_replacement_transaction(
-                &state,
-                &backup,
-                &proof,
-                &transaction,
-                transaction_id,
-            )
-            .unwrap_err();
-            assert_eq!(error.code, "LB_QUARANTINE_REPLACEMENT_FAILURE_INJECTION");
-        }
+  javascript:
+    name: JavaScript tests
+    runs-on: ubuntu-latest
 
-        let report = apply_quarantine_replacement_transaction(
-            &state,
-            &backup,
-            &proof,
-            &transaction,
-            transaction_id,
-        )
-        .unwrap();
-        assert_eq!(
-            report.state,
-            QuarantineReplacementTransactionState::Committed,
-            "failure point {point} did not recover"
-        );
-        cleanup([state, backup, proof, transaction]);
-    }
-}
-'''
-              crash.write_text(text)
-          PY
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
 
-          cargo fmt --all
-          cargo clippy --workspace --lib -- -D warnings
-          cargo clippy --workspace --bins -- -D warnings -A dead-code
-          cargo clippy --workspace --tests -- -D warnings -A dead-code -A unused-variables
-          cargo test --workspace
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          rm .github/journal-staging-failure-points.trigger
-          git add packages/core/src/quarantine_replacement_transaction.rs packages/core/src/quarantine_replacement_staging.inc packages/core/tests/quarantine_replacement_crash_matrix.rs .github/journal-staging-failure-points.trigger
-          git commit -m "test: cover journal and staging durable boundaries"
-          git push origin HEAD:${{ github.head_ref }}
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Run JavaScript tests
+        run: >-
+          node --test
+          packages/codecs/test/canonicalization.test.mjs
+          packages/identity/test/identity-key-v2.test.mjs
+          packages/identity/test/identity-claim-validator.test.mjs
+          packages/validation/test/validation.test.mjs

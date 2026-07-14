@@ -1,37 +1,40 @@
-name: Diagnose test clippy
+name: Fix generation-aware status test
 
 on:
   pull_request:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  diagnose:
+  fix:
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
-      - name: Check out repository
+      - name: Check out feature branch
         uses: actions/checkout@v4
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
         with:
-          components: clippy
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
 
-      - name: Capture diagnostics
+      - name: Fix test and commit
         shell: bash
         run: |
-          set +e
-          cargo clippy --workspace --tests -- -D warnings -A dead-code -A unused-variables > /tmp/test-clippy.log 2>&1
-          status=$?
-          echo "status=$status" >> /tmp/test-clippy.log
-          cat /tmp/test-clippy.log
-          exit 0
-
-      - name: Upload diagnostics
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-clippy-diagnostics
-          path: /tmp/test-clippy.log
-          if-no-files-found: error
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('packages/core/src/quarantine_status.rs')
+          text = path.read_text()
+          old = 'fs::write(store.permanent_rejections_path(), "not-json\\n").unwrap();'
+          new = 'fs::write(store.permanent_rejections_path().unwrap(), "not-json\\n").unwrap();'
+          if old not in text:
+              raise SystemExit('expected status test line not found')
+          path.write_text(text.replace(old, new, 1))
+          PY
+          cargo fmt --all
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add packages/core/src/quarantine_status.rs
+          git commit -m "test: resolve generation-aware rejection path"
+          git push origin HEAD:${{ github.head_ref }}

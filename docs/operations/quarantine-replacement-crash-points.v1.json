@@ -5,11 +5,13 @@
     "pointEnvironment": "LINGONBERRY_REPLACEMENT_FAILURE_POINT",
     "requiredEnableValue": "1",
     "oneShotPerProcess": true,
-    "enabledByDefault": false
+    "enabledByDefault": false,
+    "unknownPointRejected": true
   },
   "points": [
     {
       "id": "publication.pointer-rename",
+      "registered": true,
       "implemented": true,
       "boundary": "before atomic current-generation pointer rename",
       "readerVisibleTarget": false,
@@ -20,6 +22,7 @@
     },
     {
       "id": "publication.index-rebuild",
+      "registered": true,
       "implemented": true,
       "boundary": "after target pointer switch and before derived index rebuild",
       "readerVisibleTarget": true,
@@ -30,6 +33,7 @@
     },
     {
       "id": "publication.commit-transition",
+      "registered": true,
       "implemented": true,
       "boundary": "after post-publication verification and before committed journal transition",
       "readerVisibleTarget": true,
@@ -40,6 +44,7 @@
     },
     {
       "id": "rollback.pointer-restore",
+      "registered": true,
       "implemented": true,
       "boundary": "before restoring the previous current-generation pointer",
       "readerVisibleTarget": true,
@@ -50,6 +55,7 @@
     },
     {
       "id": "rollback.rolled-back-transition",
+      "registered": true,
       "implemented": true,
       "boundary": "after previous pointer restoration and before rolled-back journal transition",
       "readerVisibleTarget": false,
@@ -59,21 +65,24 @@
       "test": "injected_rolled_back_transition_failure_retries_after_pointer_restore"
     },
     {
-      "id": "transaction.journal-write",
+      "id": "journal.write",
+      "registered": true,
       "implemented": false,
       "boundary": "transaction journal temporary file write",
       "readerVisibleTarget": false,
-      "allowedRecovery": ["resume", "rollback"]
+      "allowedRecovery": ["retry-apply"]
     },
     {
-      "id": "transaction.journal-fsync",
+      "id": "journal.fsync",
+      "registered": true,
       "implemented": false,
       "boundary": "transaction journal temporary file fsync",
       "readerVisibleTarget": false,
-      "allowedRecovery": ["resume", "rollback"]
+      "allowedRecovery": ["retry-apply"]
     },
     {
       "id": "staging.ledger-write",
+      "registered": true,
       "implemented": false,
       "boundary": "staged managed-ledger file write",
       "readerVisibleTarget": false,
@@ -81,6 +90,7 @@
     },
     {
       "id": "staging.ledger-fsync",
+      "registered": true,
       "implemented": false,
       "boundary": "staged managed-ledger file fsync",
       "readerVisibleTarget": false,
@@ -88,6 +98,7 @@
     },
     {
       "id": "staging.directory-fsync",
+      "registered": true,
       "implemented": false,
       "boundary": "staging directory fsync",
       "readerVisibleTarget": false,
@@ -95,27 +106,39 @@
     },
     {
       "id": "generation.manifest-write",
+      "registered": true,
       "implemented": false,
       "boundary": "sealed generation manifest publication",
       "readerVisibleTarget": false,
       "allowedRecovery": ["resume", "rollback"]
     },
     {
-      "id": "publication.materialized-generation-rename",
+      "id": "generation.manifest-fsync",
+      "registered": true,
       "implemented": false,
-      "boundary": "complete temporary generation directory rename",
+      "boundary": "sealed generation publication directory fsync",
       "readerVisibleTarget": false,
       "allowedRecovery": ["resume", "rollback"]
     },
     {
       "id": "publication.intent-write",
+      "registered": true,
       "implemented": false,
       "boundary": "publication intent durable write",
       "readerVisibleTarget": false,
       "allowedRecovery": ["resume", "rollback"]
     },
     {
+      "id": "publication.generation-materialize-rename",
+      "registered": true,
+      "implemented": false,
+      "boundary": "complete temporary generation directory rename",
+      "readerVisibleTarget": false,
+      "allowedRecovery": ["resume", "rollback"]
+    },
+    {
       "id": "publication.pointer-temporary-write",
+      "registered": true,
       "implemented": false,
       "boundary": "current-generation temporary pointer write and fsync",
       "readerVisibleTarget": false,
@@ -123,6 +146,7 @@
     },
     {
       "id": "publication.state-directory-fsync",
+      "registered": true,
       "implemented": false,
       "boundary": "state directory fsync after pointer rename",
       "readerVisibleTarget": true,
@@ -130,6 +154,7 @@
     },
     {
       "id": "publication.index-verification",
+      "registered": true,
       "implemented": false,
       "boundary": "post-publication derived index verification",
       "readerVisibleTarget": true,
@@ -137,6 +162,7 @@
     },
     {
       "id": "publication.segment-verification",
+      "registered": true,
       "implemented": false,
       "boundary": "post-publication archive segment verification",
       "readerVisibleTarget": true,

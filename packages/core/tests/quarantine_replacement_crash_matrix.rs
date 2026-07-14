@@ -77,14 +77,9 @@ fn leave_target_active_recovery_required(
     transaction_id: &str,
 ) {
     let _failure = FailureInjectionGuard::new(INDEX_REBUILD_FAILURE);
-    let error = apply_quarantine_replacement_transaction(
-        state,
-        backup,
-        proof,
-        transaction,
-        transaction_id,
-    )
-    .unwrap_err();
+    let error =
+        apply_quarantine_replacement_transaction(state, backup, proof, transaction, transaction_id)
+            .unwrap_err();
     assert_eq!(error.code, "LB_QUARANTINE_REPLACEMENT_FAILURE_INJECTION");
     assert!(state
         .join(QUARANTINE_CURRENT_GENERATION_POINTER_FILE)
@@ -129,7 +124,10 @@ fn injected_commit_transition_failure_resumes_without_second_switch() {
     );
 
     let report = resume_quarantine_replacement_transaction(&state, &transaction).unwrap();
-    assert_eq!(report.state, QuarantineReplacementTransactionState::Committed);
+    assert_eq!(
+        report.state,
+        QuarantineReplacementTransactionState::Committed
+    );
     assert_eq!(
         pointer_before,
         fs::read(state.join(QUARANTINE_CURRENT_GENERATION_POINTER_FILE)).unwrap()
@@ -167,7 +165,10 @@ fn injected_rollback_pointer_restore_failure_keeps_target_until_retry() {
     );
 
     let report = rollback_quarantine_replacement_transaction(&state, &transaction).unwrap();
-    assert_eq!(report.state, QuarantineReplacementTransactionState::RolledBack);
+    assert_eq!(
+        report.state,
+        QuarantineReplacementTransactionState::RolledBack
+    );
     assert!(!state
         .join(QUARANTINE_CURRENT_GENERATION_POINTER_FILE)
         .exists());
@@ -202,7 +203,10 @@ fn injected_rolled_back_transition_failure_retries_after_pointer_restore() {
     );
 
     let report = rollback_quarantine_replacement_transaction(&state, &transaction).unwrap();
-    assert_eq!(report.state, QuarantineReplacementTransactionState::RolledBack);
+    assert_eq!(
+        report.state,
+        QuarantineReplacementTransactionState::RolledBack
+    );
     assert!(!state
         .join(QUARANTINE_CURRENT_GENERATION_POINTER_FILE)
         .exists());

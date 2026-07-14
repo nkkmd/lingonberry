@@ -7,12 +7,13 @@ use lingonberry_core::{
     create_quarantine_compaction_preview, create_quarantine_replacement_preview,
     plan_quarantine_ledger_maintenance, quarantine_compaction_proof_report_json,
     quarantine_ledger_index_report_json, quarantine_ledger_maintenance_plan_json,
-    quarantine_replacement_proof_report_json, quarantine_replacement_status,
-    quarantine_replacement_status_json, quarantine_rotation_report_json,
-    quarantine_segment_report_json, resume_quarantine_replacement_transaction,
-    rollback_quarantine_replacement_transaction, rotate_quarantine_ledger, runtime_state_dir,
-    verify_quarantine_compaction_proof, verify_quarantine_ledger_index,
-    verify_quarantine_replacement_proof, verify_quarantine_segments,
+    quarantine_replacement_metrics_text, quarantine_replacement_proof_report_json,
+    quarantine_replacement_status, quarantine_replacement_status_v1_json,
+    quarantine_rotation_report_json, quarantine_segment_report_json,
+    resume_quarantine_replacement_transaction, rollback_quarantine_replacement_transaction,
+    rotate_quarantine_ledger, runtime_state_dir, verify_quarantine_compaction_proof,
+    verify_quarantine_ledger_index, verify_quarantine_replacement_proof,
+    verify_quarantine_segments,
 };
 use lingonberry_protocol::to_canonical_json;
 
@@ -147,7 +148,7 @@ fn run(args: Vec<String>) -> Result<(), String> {
             .map_err(|error| error.to_string())?;
             println!(
                 "{}",
-                to_canonical_json(&quarantine_replacement_status_json(&report))
+                to_canonical_json(&quarantine_replacement_status_v1_json(&report))
             );
         }
         "replacement-status" => {
@@ -160,8 +161,18 @@ fn run(args: Vec<String>) -> Result<(), String> {
                     .map_err(|error| error.to_string())?;
             println!(
                 "{}",
-                to_canonical_json(&quarantine_replacement_status_json(&report))
+                to_canonical_json(&quarantine_replacement_status_v1_json(&report))
             );
+        }
+        "replacement-metrics" => {
+            let transaction_dir = args.get(1).ok_or_else(usage)?;
+            if args.len() != 2 {
+                return Err(usage());
+            }
+            let report =
+                quarantine_replacement_status(runtime_state_dir(), PathBuf::from(transaction_dir))
+                    .map_err(|error| error.to_string())?;
+            print!("{}", quarantine_replacement_metrics_text(&report));
         }
         "replacement-recover" => {
             let transaction_dir = args.get(1).ok_or_else(usage)?;
@@ -183,7 +194,7 @@ fn run(args: Vec<String>) -> Result<(), String> {
             .map_err(|error| error.to_string())?;
             println!(
                 "{}",
-                to_canonical_json(&quarantine_replacement_status_json(&report))
+                to_canonical_json(&quarantine_replacement_status_v1_json(&report))
             );
         }
         "plan" => {
@@ -225,7 +236,7 @@ fn transaction_id_from_dir(path: &Path) -> Result<String, String> {
 }
 
 fn usage() -> String {
-    "usage:\n  lingonberry-quarantine-maintenance build-index\n  lingonberry-quarantine-maintenance verify-index\n  lingonberry-quarantine-maintenance verify-segments\n  lingonberry-quarantine-maintenance rotate <managed-ledger-name>\n  lingonberry-quarantine-maintenance compaction-preview <verified-backup-v2-dir> <empty-output-dir>\n  lingonberry-quarantine-maintenance verify-compaction-proof <proof-dir>\n  lingonberry-quarantine-maintenance replacement-preview <verified-backup-v2-dir> <empty-output-dir>\n  lingonberry-quarantine-maintenance verify-replacement-proof <proof-dir>\n  lingonberry-quarantine-maintenance replacement-apply <verified-backup-v2-dir> <verified-proof-dir> <transaction-dir>\n  lingonberry-quarantine-maintenance replacement-status <transaction-dir>\n  lingonberry-quarantine-maintenance replacement-recover <transaction-dir> --resume|--rollback\n  lingonberry-quarantine-maintenance plan <byte-threshold> <line-threshold>"
+    "usage:\n  lingonberry-quarantine-maintenance build-index\n  lingonberry-quarantine-maintenance verify-index\n  lingonberry-quarantine-maintenance verify-segments\n  lingonberry-quarantine-maintenance rotate <managed-ledger-name>\n  lingonberry-quarantine-maintenance compaction-preview <verified-backup-v2-dir> <empty-output-dir>\n  lingonberry-quarantine-maintenance verify-compaction-proof <proof-dir>\n  lingonberry-quarantine-maintenance replacement-preview <verified-backup-v2-dir> <empty-output-dir>\n  lingonberry-quarantine-maintenance verify-replacement-proof <proof-dir>\n  lingonberry-quarantine-maintenance replacement-apply <verified-backup-v2-dir> <verified-proof-dir> <transaction-dir>\n  lingonberry-quarantine-maintenance replacement-status <transaction-dir>\n  lingonberry-quarantine-maintenance replacement-metrics <transaction-dir>\n  lingonberry-quarantine-maintenance replacement-recover <transaction-dir> --resume|--rollback\n  lingonberry-quarantine-maintenance plan <byte-threshold> <line-threshold>"
         .to_string()
 }
 
@@ -245,6 +256,7 @@ mod tests {
         assert!(run(vec!["verify-replacement-proof".to_string()]).is_err());
         assert!(run(vec!["replacement-apply".to_string()]).is_err());
         assert!(run(vec!["replacement-status".to_string()]).is_err());
+        assert!(run(vec!["replacement-metrics".to_string()]).is_err());
         assert!(run(vec!["replacement-recover".to_string()]).is_err());
     }
 
@@ -254,5 +266,12 @@ mod tests {
             transaction_id_from_dir(Path::new("/tmp/tx-example-001")).unwrap(),
             "tx-example-001"
         );
+    }
+
+    #[test]
+    fn usage_lists_replacement_observability_commands() {
+        let usage = usage();
+        assert!(usage.contains("replacement-status <transaction-dir>"));
+        assert!(usage.contains("replacement-metrics <transaction-dir>"));
     }
 }

@@ -1,4 +1,4 @@
-name: Diagnose completion bundle
+name: Export partial completion bundle
 
 on:
   pull_request:
@@ -8,11 +8,11 @@ permissions:
   contents: read
 
 concurrency:
-  group: completion-diagnostic-${{ github.ref }}
+  group: completion-export-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  diagnose:
+  export:
     if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
@@ -21,31 +21,15 @@ jobs:
         with:
           ref: ${{ github.head_ref }}
 
-      - name: Diagnose bundle
+      - name: Decode available bundle
         shell: bash
         run: |
-          set +e
-          {
-            echo '== files =='
-            ls -l .github/lingonberry-completion.part*
-            echo '== sizes =='
-            wc -c .github/lingonberry-completion.part*
-            cat .github/lingonberry-completion.part* > /tmp/completion.b64
-            echo '== concatenated =='
-            wc -c /tmp/completion.b64
-            base64 --decode /tmp/completion.b64 > /tmp/completion.tgz
-            echo "base64_status=$?"
-            ls -l /tmp/completion.tgz
-            gzip -t /tmp/completion.tgz
-            echo "gzip_status=$?"
-            tar -tzf /tmp/completion.tgz | head -100
-            echo "tar_status=${PIPESTATUS[0]}"
-          } > /tmp/completion-diagnostic.log 2>&1
-          cat /tmp/completion-diagnostic.log
+          set -euo pipefail
+          cat .github/lingonberry-completion.part* | base64 --decode > /tmp/completion-partial.tgz
 
-      - name: Upload diagnostic
+      - name: Upload partial bundle
         uses: actions/upload-artifact@v4
         with:
-          name: completion-diagnostic
-          path: /tmp/completion-diagnostic.log
+          name: completion-partial
+          path: /tmp/completion-partial.tgz
           if-no-files-found: error

@@ -3,7 +3,7 @@ use std::fs::{self, File, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use lingonberry_protocol::{to_canonical_json, JsonValue};
+use lingonberry_protocol::{parse_json, to_canonical_json, JsonValue};
 
 use crate::{
     acquire_quarantine_lock, advance_quarantine_replacement_transaction_journal,
@@ -12,8 +12,9 @@ use crate::{
     verify_quarantine_replacement_proof, QuarantineReplacementTransactionState, StoreError,
     QUARANTINE_BACKUP_FILES, QUARANTINE_CURRENT_GENERATION_POINTER_VERSION,
     QUARANTINE_REPLACEMENT_PLAN_DIGEST_FILE, QUARANTINE_REPLACEMENT_PROOF_DIGEST_FILE,
-    QUARANTINE_REPLACEMENT_PUBLICATION_DIR, QUARANTINE_SEGMENT_ARCHIVE_DIR,
-    QUARANTINE_SEGMENT_MANIFEST_FILE,
+    QUARANTINE_REPLACEMENT_PUBLICATION_DIR, QUARANTINE_REPLACEMENT_TRANSACTION_JOURNAL_DIGEST_FILE,
+    QUARANTINE_REPLACEMENT_TRANSACTION_JOURNAL_FILE, QUARANTINE_REPLACEMENT_TRANSACTION_VERSION,
+    QUARANTINE_SEGMENT_ARCHIVE_DIR, QUARANTINE_SEGMENT_MANIFEST_FILE,
 };
 
 pub const QUARANTINE_REPLACEMENT_PENDING_POINTER_FILE: &str =
@@ -25,6 +26,12 @@ pub struct QuarantineReplacementPublicationPreparationReport {
     pub transaction_id: String,
     pub generation_digest: String,
     pub runtime_fingerprint_digest: String,
+}
+
+struct BoundJournalDigests {
+    plan_digest: String,
+    proof_digest: String,
+    runtime_fingerprint_digest: String,
 }
 
 pub fn prepare_quarantine_replacement_publication(
@@ -71,6 +78,12 @@ fn prepare_publication_locked(
             "transaction must be verified before publication preparation",
         ));
     }
+    let bound = read_bound_journal_digests(
+        transaction_dir,
+        &journal.transaction_id,
+        journal.state,
+        journal.sequence,
+    )?;
 
     verify_quarantine_replacement_proof(proof_dir)?;
     let plan_digest = read_bound_digest(
@@ -81,15 +94,15 @@ fn prepare_publication_locked(
         &proof_dir.join(QUARANTINE_REPLACEMENT_PROOF_DIGEST_FILE),
         "replacement proof digest",
     )?;
-    if plan_digest != journal.plan_digest || proof_digest != journal.proof_digest {
+    if plan_digest != bound.plan_digest || proof_digest != bound.proof_digest {
         return Err(publication_error(
             "replacement proof inputs do not match the transaction journal",
         ));
     }
 
     let generation = verify_quarantine_replacement_generation(transaction_dir)?;
-    let runtime_fingerprint_digest = runtime_fingerprint_digest(state_dir)?;
-    if runtime_fingerprint_digest != journal.runtime_fingerprint_digest {
+    let initial_runtime_digest = runtime_fingerprint_digest(state_dir)?;
+    if initial_runtime_digest != bound.runtime_fingerprint_digest {
         return Err(publication_error(
             "runtime fingerprint changed before publication",
         ));
@@ -139,7 +152,7 @@ fn prepare_publication_locked(
     )?;
     verify_quarantine_replacement_generation(transaction_dir)?;
     let final_runtime_fingerprint_digest = runtime_fingerprint_digest(state_dir)?;
-    if final_runtime_fingerprint_digest != journal.runtime_fingerprint_digest {
+    if final_runtime_fingerprint_digest != bound.runtime_fingerprint_digest {
         return Err(publication_error(
             "runtime fingerprint changed while preparing publication",
         ));
@@ -150,6 +163,50 @@ fn prepare_publication_locked(
         transaction_id: journal.transaction_id,
         generation_digest: generation.generation_digest,
         runtime_fingerprint_digest: final_runtime_fingerprint_digest,
+    })
+}
+
+fn read_bound_journal_digests(
+    transaction_dir: &Path,
+    expected_transaction_id: &str,
+    expected_state: QuarantineReplacementTransactionState,
+    expected_sequence: u64,
+) -> Result<BoundJournalDigests, StoreError> {
+    let journal_path = transaction_dir.join(QUARANTINE_REPLACEMENT_TRANSACTION_JOURNAL_FILE);
+    let digest_path = transaction_dir.join(QUARANTINE_REPLACEMENT_TRANSACTION_JOURNAL_DIGEST_FILE);
+    let text = fs::read_to_string(journal_path).map_err(io_error)?;
+    let expected_digest = fs::read_to_string(digest_path).map_err(io_error)?;
+    let expected_digest = expected_digest.trim();
+    validate_digest(expected_digest, "transaction journal digest")?;
+    if expected_digest != integrity_digest(text.as_bytes()) {
+        return Err(publication_error("transaction journal digest mismatch"));
+    }
+
+    let journal = parse_json(&text)
+        .map_err(|error| publication_error(&format!("invalid transaction journal JSON: {error}")))?;
+    if object_string(&journal, "version")? != QUARANTINE_REPLACEMENT_TRANSACTION_VERSION
+        || object_string(&journal, "transactionId")? != expected_transaction_id
+        || object_string(&journal, "state")? != expected_state.as_str()
+        || object_number(&journal, "sequence")? != expected_sequence
+    {
+        return Err(publication_error(
+            "transaction journal changed during publication preparation",
+        ));
+    }
+
+    let plan_digest = object_string(&journal, "planDigest")?;
+    let proof_digest = object_string(&journal, "proofDigest")?;
+    let runtime_fingerprint_digest = object_string(&journal, "runtimeFingerprintDigest")?;
+    validate_digest(&plan_digest, "journal plan digest")?;
+    validate_digest(&proof_digest, "journal proof digest")?;
+    validate_digest(
+        &runtime_fingerprint_digest,
+        "journal runtime fingerprint digest",
+    )?;
+    Ok(BoundJournalDigests {
+        plan_digest,
+        proof_digest,
+        runtime_fingerprint_digest,
     })
 }
 
@@ -197,6 +254,35 @@ fn runtime_fingerprint_digest(state_dir: &Path) -> Result<String, StoreError> {
     Ok(integrity_digest(
         to_canonical_json(&JsonValue::Array(values)).as_bytes(),
     ))
+}
+
+fn object_map(value: &JsonValue) -> Result<&BTreeMap<String, JsonValue>, StoreError> {
+    match value {
+        JsonValue::Object(map) => Ok(map),
+        _ => Err(publication_error("expected JSON object")),
+    }
+}
+
+fn object_field<'a>(value: &'a JsonValue, name: &str) -> Result<&'a JsonValue, StoreError> {
+    object_map(value)?
+        .get(name)
+        .ok_or_else(|| publication_error(&format!("missing field: {name}")))
+}
+
+fn object_string(value: &JsonValue, name: &str) -> Result<String, StoreError> {
+    match object_field(value, name)? {
+        JsonValue::String(value) => Ok(value.clone()),
+        _ => Err(publication_error(&format!("invalid string field: {name}"))),
+    }
+}
+
+fn object_number(value: &JsonValue, name: &str) -> Result<u64, StoreError> {
+    match object_field(value, name)? {
+        JsonValue::Number(value) => value
+            .parse()
+            .map_err(|_| publication_error(&format!("invalid number field: {name}"))),
+        _ => Err(publication_error(&format!("invalid number field: {name}"))),
+    }
 }
 
 fn read_bound_digest(path: &Path, name: &str) -> Result<String, StoreError> {

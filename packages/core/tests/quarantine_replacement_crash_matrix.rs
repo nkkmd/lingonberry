@@ -8,11 +8,11 @@ use lingonberry_core::{
     export_complete_quarantine_backup, read_quarantine_replacement_transaction_journal,
     resume_quarantine_replacement_transaction, rollback_quarantine_replacement_transaction,
     QuarantineReplacementTransactionState, QUARANTINE_CURRENT_GENERATION_POINTER_FILE,
+    QUARANTINE_LEDGER_INDEX_FILE,
 };
 
 const FAILURE_ENABLE_ENV: &str = "LINGONBERRY_ENABLE_REPLACEMENT_FAILURE_INJECTION";
 const FAILURE_POINT_ENV: &str = "LINGONBERRY_REPLACEMENT_FAILURE_POINT";
-const INDEX_REBUILD_FAILURE: &str = "publication.index-rebuild";
 const COMMIT_TRANSITION_FAILURE: &str = "publication.commit-transition";
 const ROLLBACK_POINTER_RESTORE_FAILURE: &str = "rollback.pointer-restore";
 const ROLLED_BACK_TRANSITION_FAILURE: &str = "rollback.rolled-back-transition";
@@ -76,11 +76,15 @@ fn leave_target_active_recovery_required(
     transaction: &PathBuf,
     transaction_id: &str,
 ) {
-    let _failure = FailureInjectionGuard::new(INDEX_REBUILD_FAILURE);
+    fs::create_dir(state.join(QUARANTINE_LEDGER_INDEX_FILE)).unwrap();
     let error =
         apply_quarantine_replacement_transaction(state, backup, proof, transaction, transaction_id)
             .unwrap_err();
-    assert_eq!(error.code, "LB_QUARANTINE_REPLACEMENT_FAILURE_INJECTION");
+    assert!(matches!(
+        error.code,
+        "LB_QUARANTINE_IO" | "LB_QUARANTINE_REPLACEMENT_PUBLICATION"
+    ));
+    fs::remove_dir(state.join(QUARANTINE_LEDGER_INDEX_FILE)).unwrap();
     assert!(state
         .join(QUARANTINE_CURRENT_GENERATION_POINTER_FILE)
         .is_file());

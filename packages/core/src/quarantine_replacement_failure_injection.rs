@@ -131,9 +131,12 @@ mod tests {
             FAILURE_POINT_POINTER_TEMPORARY_WRITE,
         );
 
-        let error = inject_quarantine_replacement_failure(FAILURE_POINT_POINTER_RENAME).unwrap_err();
+        let error =
+            inject_quarantine_replacement_failure(FAILURE_POINT_POINTER_RENAME).unwrap_err();
         assert_eq!(error.code, "LB_QUARANTINE_REPLACEMENT_FAILURE_INJECTION");
-        assert!(error.message.contains(FAILURE_POINT_POINTER_TEMPORARY_WRITE));
+        assert!(error
+            .message
+            .contains(FAILURE_POINT_POINTER_TEMPORARY_WRITE));
         assert!(inject_quarantine_replacement_failure(FAILURE_POINT_POINTER_RENAME).is_ok());
         clear_env();
     }

@@ -5,8 +5,7 @@
     "pointEnvironment": "LINGONBERRY_REPLACEMENT_FAILURE_POINT",
     "requiredEnableValue": "1",
     "oneShotPerProcess": true,
-    "enabledByDefault": false,
-    "unknownPointRejected": true
+    "enabledByDefault": false
   },
   "points": [
     {
@@ -19,6 +18,17 @@
       "expectedClassification": "resumable-or-rollback-before-switch",
       "allowedRecovery": ["resume", "rollback"],
       "test": "injected_pointer_rename_failure_preserves_legacy_root_and_resumes"
+    },
+    {
+      "id": "publication.pointer-temporary-write",
+      "registered": true,
+      "implemented": true,
+      "boundary": "before current-generation temporary pointer write and fsync",
+      "readerVisibleTarget": false,
+      "expectedJournalState": "recovery-required",
+      "expectedClassification": "resumable-or-rollback-before-switch",
+      "allowedRecovery": ["resume", "rollback"],
+      "test": "temporary_pointer_write_uses_the_atomic_pointer_boundary"
     },
     {
       "id": "publication.index-rebuild",
@@ -70,7 +80,7 @@
       "implemented": false,
       "boundary": "transaction journal temporary file write",
       "readerVisibleTarget": false,
-      "allowedRecovery": ["retry-apply"]
+      "allowedRecovery": ["resume", "rollback"]
     },
     {
       "id": "journal.fsync",
@@ -78,7 +88,7 @@
       "implemented": false,
       "boundary": "transaction journal temporary file fsync",
       "readerVisibleTarget": false,
-      "allowedRecovery": ["retry-apply"]
+      "allowedRecovery": ["resume", "rollback"]
     },
     {
       "id": "staging.ledger-write",
@@ -116,15 +126,7 @@
       "id": "generation.manifest-fsync",
       "registered": true,
       "implemented": false,
-      "boundary": "sealed generation publication directory fsync",
-      "readerVisibleTarget": false,
-      "allowedRecovery": ["resume", "rollback"]
-    },
-    {
-      "id": "publication.intent-write",
-      "registered": true,
-      "implemented": false,
-      "boundary": "publication intent durable write",
+      "boundary": "sealed generation manifest directory fsync",
       "readerVisibleTarget": false,
       "allowedRecovery": ["resume", "rollback"]
     },
@@ -137,10 +139,10 @@
       "allowedRecovery": ["resume", "rollback"]
     },
     {
-      "id": "publication.pointer-temporary-write",
+      "id": "publication.intent-write",
       "registered": true,
       "implemented": false,
-      "boundary": "current-generation temporary pointer write and fsync",
+      "boundary": "publication intent durable write",
       "readerVisibleTarget": false,
       "allowedRecovery": ["resume", "rollback"]
     },

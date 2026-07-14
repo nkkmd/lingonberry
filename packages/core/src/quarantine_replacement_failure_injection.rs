@@ -59,7 +59,8 @@ mod tests {
             QUARANTINE_REPLACEMENT_FAILURE_INJECTION_POINT_ENV,
             FAILURE_POINT_POINTER_RENAME,
         );
-        let first = inject_quarantine_replacement_failure(FAILURE_POINT_POINTER_RENAME).unwrap_err();
+        let first =
+            inject_quarantine_replacement_failure(FAILURE_POINT_POINTER_RENAME).unwrap_err();
         assert_eq!(first.code, "LB_QUARANTINE_REPLACEMENT_FAILURE_INJECTION");
         assert!(inject_quarantine_replacement_failure(FAILURE_POINT_POINTER_RENAME).is_ok());
 

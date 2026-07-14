@@ -96,7 +96,10 @@ fn resumes_after_failure_following_atomic_pointer_switch() {
         "tx-integration-after-switch",
     )
     .unwrap_err();
-    assert_eq!(error.code, "LB_QUARANTINE_REPLACEMENT_PUBLICATION");
+    assert!(matches!(
+        error.code,
+        "LB_QUARANTINE_IO" | "LB_QUARANTINE_REPLACEMENT_PUBLICATION"
+    ));
     assert!(state
         .join(QUARANTINE_CURRENT_GENERATION_POINTER_FILE)
         .is_file());

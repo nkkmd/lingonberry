@@ -1,75 +1,68 @@
-name: Wire replacement failure injection
+name: CI
 
 on:
   pull_request:
+  push:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  wire:
-    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+  rust:
+    name: Rust checks
     runs-on: ubuntu-latest
+
     steps:
-      - name: Check out feature branch
+      - name: Check out repository
         uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
         with:
-          ref: ${{ github.head_ref }}
-          fetch-depth: 0
+          components: rustfmt, clippy
 
-      - name: Wire failure points
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 - <<'PY'
-          from pathlib import Path
+      - name: Cache Cargo artifacts
+        uses: Swatinem/rust-cache@v2
 
-          lib = Path('packages/core/src/lib_entry.rs')
-          text = lib.read_text()
-          needle = 'mod quarantine_replacement_audit;\n'
-          replacement = needle + 'mod quarantine_replacement_failure_injection;\n'
-          if 'mod quarantine_replacement_failure_injection;' not in text:
-              if needle not in text:
-                  raise SystemExit('lib_entry insertion point missing')
-              text = text.replace(needle, replacement, 1)
-              lib.write_text(text)
+      - name: Check formatting
+        run: cargo fmt --all -- --check
 
-          publication = Path('packages/core/src/quarantine_replacement_publication.inc')
-          text = publication.read_text()
-          replacements = [
-              (
-                  '    if !target_is_active {\n        atomic_write_pointer(state_dir, &intent.target_pointer)?;\n    }',
-                  '    if !target_is_active {\n        crate::quarantine_replacement_failure_injection::inject_quarantine_replacement_failure(\n            crate::quarantine_replacement_failure_injection::FAILURE_POINT_POINTER_RENAME,\n        )?;\n        atomic_write_pointer(state_dir, &intent.target_pointer)?;\n    }',
-              ),
-              (
-                  '    build_quarantine_ledger_index_locked(state_dir)?;\n    verify_quarantine_ledger_index(state_dir)?;',
-                  '    crate::quarantine_replacement_failure_injection::inject_quarantine_replacement_failure(\n        crate::quarantine_replacement_failure_injection::FAILURE_POINT_INDEX_REBUILD,\n    )?;\n    build_quarantine_ledger_index_locked(state_dir)?;\n    verify_quarantine_ledger_index(state_dir)?;',
-              ),
-              (
-                  '    advance_quarantine_replacement_transaction_journal(\n        transaction_dir,\n        QuarantineReplacementTransactionState::Committed,\n    )?;',
-                  '    crate::quarantine_replacement_failure_injection::inject_quarantine_replacement_failure(\n        crate::quarantine_replacement_failure_injection::FAILURE_POINT_COMMIT_TRANSITION,\n    )?;\n    advance_quarantine_replacement_transaction_journal(\n        transaction_dir,\n        QuarantineReplacementTransactionState::Committed,\n    )?;',
-              ),
-              (
-                  '        if current.as_deref() == Some(intent.target_pointer.as_str()) {\n            restore_previous_pointer(state_dir, intent.previous_pointer.as_deref())?;',
-                  '        if current.as_deref() == Some(intent.target_pointer.as_str()) {\n            crate::quarantine_replacement_failure_injection::inject_quarantine_replacement_failure(\n                crate::quarantine_replacement_failure_injection::FAILURE_POINT_ROLLBACK_POINTER_RESTORE,\n            )?;\n            restore_previous_pointer(state_dir, intent.previous_pointer.as_deref())?;',
-              ),
-              (
-                  '    advance_quarantine_replacement_transaction_journal(\n        transaction_dir,\n        QuarantineReplacementTransactionState::RolledBack,\n    )?;',
-                  '    crate::quarantine_replacement_failure_injection::inject_quarantine_replacement_failure(\n        crate::quarantine_replacement_failure_injection::FAILURE_POINT_ROLLED_BACK_TRANSITION,\n    )?;\n    advance_quarantine_replacement_transaction_journal(\n        transaction_dir,\n        QuarantineReplacementTransactionState::RolledBack,\n    )?;',
-              ),
-          ]
-          for old, new in replacements:
-              if new in text:
-                  continue
-              if old not in text:
-                  raise SystemExit(f'publication insertion point missing: {old[:60]!r}')
-              text = text.replace(old, new, 1)
-          publication.write_text(text)
-          PY
+      - name: Run library clippy
+        run: cargo clippy --workspace --lib -- -D warnings
 
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add packages/core/src/lib_entry.rs packages/core/src/quarantine_replacement_publication.inc
-          git commit -m "feat: wire replacement publication failure points"
-          git push origin HEAD:${{ github.head_ref }}
+      - name: Run binary clippy
+        run: cargo clippy --workspace --bins -- -D warnings -A dead-code
+
+      - name: Run test clippy
+        run: cargo clippy --workspace --tests -- -D warnings -A dead-code -A unused-variables
+
+      - name: Run workspace tests
+        run: cargo test --workspace
+
+  javascript:
+    name: JavaScript tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Run JavaScript tests
+        run: >-
+          node --test
+          packages/codecs/test/canonicalization.test.mjs
+          packages/identity/test/identity-key-v2.test.mjs
+          packages/identity/test/identity-claim-validator.test.mjs
+          packages/validation/test/validation.test.mjs

@@ -13,6 +13,8 @@ use lingonberry_core::{
 
 const FAILURE_ENABLE_ENV: &str = "LINGONBERRY_ENABLE_REPLACEMENT_FAILURE_INJECTION";
 const FAILURE_POINT_ENV: &str = "LINGONBERRY_REPLACEMENT_FAILURE_POINT";
+const JOURNAL_WRITE_FAILURE: &str = "journal.write";
+const JOURNAL_FSYNC_FAILURE: &str = "journal.fsync";
 const COMMIT_TRANSITION_FAILURE: &str = "publication.commit-transition";
 const ROLLBACK_POINTER_RESTORE_FAILURE: &str = "rollback.pointer-restore";
 const ROLLED_BACK_TRANSITION_FAILURE: &str = "rollback.rolled-back-transition";
@@ -99,6 +101,46 @@ fn leave_target_active_recovery_required(
 fn cleanup(paths: impl IntoIterator<Item = PathBuf>) {
     for path in paths {
         let _ = fs::remove_dir_all(path);
+    }
+}
+
+#[test]
+fn injected_journal_failures_leave_a_retryable_empty_workspace() {
+    let _serial = serial_test_guard();
+    for (point, transaction_id) in [
+        (JOURNAL_WRITE_FAILURE, "tx-crash-journal-write"),
+        (JOURNAL_FSYNC_FAILURE, "tx-crash-journal-fsync"),
+    ] {
+        let (state, backup, proof, transaction) = fixture();
+        {
+            let _failure = FailureInjectionGuard::new(point);
+            let error = apply_quarantine_replacement_transaction(
+                &state,
+                &backup,
+                &proof,
+                &transaction,
+                transaction_id,
+            )
+            .unwrap_err();
+            assert_eq!(error.code, "LB_QUARANTINE_REPLACEMENT_FAILURE_INJECTION");
+        }
+        assert!(transaction.is_dir());
+        assert!(fs::read_dir(&transaction).unwrap().next().is_none());
+
+        let report = apply_quarantine_replacement_transaction(
+            &state,
+            &backup,
+            &proof,
+            &transaction,
+            transaction_id,
+        )
+        .unwrap();
+        assert_eq!(
+            report.state,
+            QuarantineReplacementTransactionState::Committed,
+            "failure point {point} did not recover"
+        );
+        cleanup([state, backup, proof, transaction]);
     }
 }
 

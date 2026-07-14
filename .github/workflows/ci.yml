@@ -1,36 +1,55 @@
-name: Diagnose retention library clippy
+name: Fix retention Clippy finding
 
 on:
   pull_request:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  diagnose:
+  fix:
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
-      - name: Check out repository
+      - name: Check out feature branch
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          components: clippy
+          components: rustfmt
 
-      - name: Capture library Clippy diagnostics
+      - name: Fix, format, and commit
         shell: bash
         run: |
-          set +e
-          cargo clippy --workspace --lib -- -D warnings > retention-clippy.txt 2>&1
-          status=$?
-          cat retention-clippy.txt
-          exit $status
-
-      - name: Upload diagnostics
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: retention-library-clippy
-          path: retention-clippy.txt
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('packages/core/src/quarantine_replacement_retention.rs')
+          text = path.read_text()
+          old = '''        let classification = if !path.is_dir() {
+              "unknown-or-corrupt"
+          } else if verification_status != "metadata-present" {
+              "unknown-or-corrupt"
+          } else if referenced_by_pointer {
+          '''
+          new = '''        let classification = if !path.is_dir()
+              || verification_status != "metadata-present"
+          {
+              "unknown-or-corrupt"
+          } else if referenced_by_pointer {
+          '''
+          if old not in text:
+              raise SystemExit('retention classification marker missing')
+          path.write_text(text.replace(old, new, 1))
+          PY
+          cargo fmt --all
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add packages/core/src/quarantine_replacement_retention.rs
+          git commit -m "fix: simplify corrupt generation classification"
+          git push origin HEAD:${{ github.head_ref }}

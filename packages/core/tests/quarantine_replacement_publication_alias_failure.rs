@@ -13,8 +13,7 @@ use lingonberry_core::{
 const FAILURE_ENABLE_ENV: &str = "LINGONBERRY_ENABLE_REPLACEMENT_FAILURE_INJECTION";
 const FAILURE_POINT_ENV: &str = "LINGONBERRY_REPLACEMENT_FAILURE_POINT";
 const PUBLICATION_INTENT_WRITE_FAILURE: &str = "publication.intent-write";
-const GENERATION_MATERIALIZE_RENAME_FAILURE: &str =
-    "publication.generation-materialize-rename";
+const GENERATION_MATERIALIZE_RENAME_FAILURE: &str = "publication.generation-materialize-rename";
 const STATE_DIRECTORY_FSYNC_FAILURE: &str = "publication.state-directory-fsync";
 const INDEX_VERIFICATION_FAILURE: &str = "publication.index-verification";
 const SEGMENT_VERIFICATION_FAILURE: &str = "publication.segment-verification";
@@ -93,11 +92,7 @@ fn injected_publication_post_boundary_failures_resume_to_committed() {
             "tx-state-directory-fsync",
             true,
         ),
-        (
-            INDEX_VERIFICATION_FAILURE,
-            "tx-index-verification",
-            true,
-        ),
+        (INDEX_VERIFICATION_FAILURE, "tx-index-verification", true),
         (
             SEGMENT_VERIFICATION_FAILURE,
             "tx-segment-verification",

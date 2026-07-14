@@ -3,12 +3,11 @@ use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use lingonberry_core::{
-    advance_quarantine_replacement_transaction_journal,
-    apply_quarantine_replacement_transaction, create_quarantine_replacement_preview,
-    export_complete_quarantine_backup, read_quarantine_replacement_transaction_journal,
-    resume_quarantine_replacement_transaction, rollback_quarantine_replacement_transaction,
-    QuarantineReplacementTransactionState, QUARANTINE_CURRENT_GENERATION_POINTER_FILE,
-    QUARANTINE_LEDGER_INDEX_FILE,
+    advance_quarantine_replacement_transaction_journal, apply_quarantine_replacement_transaction,
+    create_quarantine_replacement_preview, export_complete_quarantine_backup,
+    read_quarantine_replacement_transaction_journal, resume_quarantine_replacement_transaction,
+    rollback_quarantine_replacement_transaction, QuarantineReplacementTransactionState,
+    QUARANTINE_CURRENT_GENERATION_POINTER_FILE, QUARANTINE_LEDGER_INDEX_FILE,
 };
 
 fn temp_dir(label: &str) -> PathBuf {
@@ -65,9 +64,18 @@ fn repeated_apply_and_resume_are_idempotent_after_commit() {
     .unwrap();
     let resumed = resume_quarantine_replacement_transaction(&state, &transaction).unwrap();
 
-    assert_eq!(first.state, QuarantineReplacementTransactionState::Committed);
-    assert_eq!(second.state, QuarantineReplacementTransactionState::Committed);
-    assert_eq!(resumed.state, QuarantineReplacementTransactionState::Committed);
+    assert_eq!(
+        first.state,
+        QuarantineReplacementTransactionState::Committed
+    );
+    assert_eq!(
+        second.state,
+        QuarantineReplacementTransactionState::Committed
+    );
+    assert_eq!(
+        resumed.state,
+        QuarantineReplacementTransactionState::Committed
+    );
     assert_eq!(
         resumed.active_generation.as_deref(),
         Some("tx-integration-idempotent")
@@ -101,7 +109,10 @@ fn resumes_after_failure_following_atomic_pointer_switch() {
 
     fs::remove_dir(state.join(QUARANTINE_LEDGER_INDEX_FILE)).unwrap();
     let report = resume_quarantine_replacement_transaction(&state, &transaction).unwrap();
-    assert_eq!(report.state, QuarantineReplacementTransactionState::Committed);
+    assert_eq!(
+        report.state,
+        QuarantineReplacementTransactionState::Committed
+    );
     assert_eq!(
         report.active_generation.as_deref(),
         Some("tx-integration-after-switch")
@@ -128,8 +139,14 @@ fn rollback_before_publication_is_idempotent_and_preserves_legacy_root() {
 
     let first = rollback_quarantine_replacement_transaction(&state, &transaction).unwrap();
     let second = rollback_quarantine_replacement_transaction(&state, &transaction).unwrap();
-    assert_eq!(first.state, QuarantineReplacementTransactionState::RolledBack);
-    assert_eq!(second.state, QuarantineReplacementTransactionState::RolledBack);
+    assert_eq!(
+        first.state,
+        QuarantineReplacementTransactionState::RolledBack
+    );
+    assert_eq!(
+        second.state,
+        QuarantineReplacementTransactionState::RolledBack
+    );
     assert!(!state
         .join(QUARANTINE_CURRENT_GENERATION_POINTER_FILE)
         .exists());

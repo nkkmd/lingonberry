@@ -155,11 +155,9 @@ fn run(args: Vec<String>) -> Result<(), String> {
             if args.len() != 2 {
                 return Err(usage());
             }
-            let report = quarantine_replacement_status(
-                runtime_state_dir(),
-                PathBuf::from(transaction_dir),
-            )
-            .map_err(|error| error.to_string())?;
+            let report =
+                quarantine_replacement_status(runtime_state_dir(), PathBuf::from(transaction_dir))
+                    .map_err(|error| error.to_string())?;
             println!(
                 "{}",
                 to_canonical_json(&quarantine_replacement_status_json(&report))

@@ -143,16 +143,18 @@ fn run(args: Vec<String>) -> Result<(), String> {
             }
             let transaction_id = transaction_id_from_dir(Path::new(transaction_dir))?;
             let state_dir = runtime_state_dir();
+            let transaction_path = PathBuf::from(transaction_dir);
             audit_started(&state_dir, QuarantineReplacementAuditOperation::Apply)?;
             let result = apply_quarantine_replacement_transaction(
                 &state_dir,
                 PathBuf::from(backup_dir),
                 PathBuf::from(proof_dir),
-                PathBuf::from(transaction_dir),
+                &transaction_path,
                 &transaction_id,
             );
             let report = audit_result(
                 &state_dir,
+                &transaction_path,
                 QuarantineReplacementAuditOperation::Apply,
                 result,
             )?;
@@ -164,9 +166,11 @@ fn run(args: Vec<String>) -> Result<(), String> {
                 return Err(usage());
             }
             let state_dir = runtime_state_dir();
-            let result = quarantine_replacement_status(&state_dir, PathBuf::from(transaction_dir));
+            let transaction_path = PathBuf::from(transaction_dir);
+            let result = quarantine_replacement_status(&state_dir, &transaction_path);
             let report = audit_result(
                 &state_dir,
+                &transaction_path,
                 QuarantineReplacementAuditOperation::Status,
                 result,
             )?;
@@ -199,6 +203,7 @@ fn run(args: Vec<String>) -> Result<(), String> {
                 return Err(usage());
             }
             let state_dir = runtime_state_dir();
+            let transaction_path = PathBuf::from(transaction_dir);
             let operation = match mode {
                 "--resume" => QuarantineReplacementAuditOperation::Resume,
                 "--rollback" => QuarantineReplacementAuditOperation::Rollback,
@@ -207,21 +212,15 @@ fn run(args: Vec<String>) -> Result<(), String> {
             audit_started(&state_dir, operation)?;
             let result = match operation {
                 QuarantineReplacementAuditOperation::Resume => {
-                    resume_quarantine_replacement_transaction(
-                        &state_dir,
-                        PathBuf::from(transaction_dir),
-                    )
+                    resume_quarantine_replacement_transaction(&state_dir, &transaction_path)
                 }
                 QuarantineReplacementAuditOperation::Rollback => {
-                    rollback_quarantine_replacement_transaction(
-                        &state_dir,
-                        PathBuf::from(transaction_dir),
-                    )
+                    rollback_quarantine_replacement_transaction(&state_dir, &transaction_path)
                 }
                 QuarantineReplacementAuditOperation::Apply
                 | QuarantineReplacementAuditOperation::Status => unreachable!(),
             };
-            let report = audit_result(&state_dir, operation, result)?;
+            let report = audit_result(&state_dir, &transaction_path, operation, result)?;
             print_status(&report);
         }
         "plan" => {
@@ -273,6 +272,7 @@ fn audit_started(
 
 fn audit_result(
     state_dir: &Path,
+    transaction_dir: &Path,
     operation: QuarantineReplacementAuditOperation,
     result: Result<QuarantineReplacementStatusReport, StoreError>,
 ) -> Result<QuarantineReplacementStatusReport, String> {
@@ -309,22 +309,45 @@ fn audit_result(
             Ok(report)
         }
         Err(error) => {
-            let event_type = if operation == QuarantineReplacementAuditOperation::Status {
-                QuarantineReplacementAuditEventType::StatusCorrupt
+            let recovery_report = if operation == QuarantineReplacementAuditOperation::Status {
+                None
             } else {
-                QuarantineReplacementAuditEventType::OperationRejected
+                quarantine_replacement_status(state_dir, transaction_dir)
+                    .ok()
+                    .filter(|report| {
+                        report.state == QuarantineReplacementTransactionState::RecoveryRequired
+                    })
             };
+            let (event_type, outcome, transaction_state, classification) =
+                if let Some(report) = recovery_report.as_ref() {
+                    (
+                        QuarantineReplacementAuditEventType::RecoveryRequired,
+                        QuarantineReplacementAuditOutcome::Failed,
+                        Some(report.state),
+                        Some(report.classification.as_str()),
+                    )
+                } else if operation == QuarantineReplacementAuditOperation::Status {
+                    (
+                        QuarantineReplacementAuditEventType::StatusCorrupt,
+                        QuarantineReplacementAuditOutcome::Rejected,
+                        None,
+                        Some("corrupt"),
+                    )
+                } else {
+                    (
+                        QuarantineReplacementAuditEventType::OperationRejected,
+                        QuarantineReplacementAuditOutcome::Rejected,
+                        None,
+                        None,
+                    )
+                };
             append_quarantine_replacement_audit_event(
                 state_dir,
                 event_type,
                 operation,
-                QuarantineReplacementAuditOutcome::Rejected,
-                None,
-                if operation == QuarantineReplacementAuditOperation::Status {
-                    Some("corrupt")
-                } else {
-                    None
-                },
+                outcome,
+                transaction_state,
+                classification,
                 Some(error.code),
             )
             .map_err(|audit_error| format!("{error}; audit failure: {audit_error}"))?;

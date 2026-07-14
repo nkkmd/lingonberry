@@ -99,26 +99,35 @@
     {
       "id": "staging.ledger-write",
       "registered": true,
-      "implemented": false,
-      "boundary": "staged managed-ledger file write",
+      "implemented": true,
+      "boundary": "before staging implementation begins writing managed ledgers",
       "readerVisibleTarget": false,
-      "allowedRecovery": ["resume", "rollback"]
+      "expectedJournalState": "prepared",
+      "expectedClassification": "resumable-before-publication",
+      "allowedRecovery": ["retry", "resume", "rollback"],
+      "test": "injected_staging_failures_clean_partial_state_and_retry_to_committed"
     },
     {
       "id": "staging.ledger-fsync",
       "registered": true,
-      "implemented": false,
-      "boundary": "staged managed-ledger file fsync",
+      "implemented": true,
+      "boundary": "after staged ledgers and manifest are durable but before staging returns success",
       "readerVisibleTarget": false,
-      "allowedRecovery": ["resume", "rollback"]
+      "expectedJournalState": "recovery-required",
+      "expectedClassification": "resumable-or-rollback-before-publication",
+      "allowedRecovery": ["resume", "rollback"],
+      "test": "injected_staging_failures_clean_partial_state_and_retry_to_committed"
     },
     {
       "id": "staging.directory-fsync",
       "registered": true,
-      "implemented": false,
-      "boundary": "staging directory fsync",
+      "implemented": true,
+      "boundary": "after staging directory durability completes but before staging returns success",
       "readerVisibleTarget": false,
-      "allowedRecovery": ["resume", "rollback"]
+      "expectedJournalState": "recovery-required",
+      "expectedClassification": "resumable-or-rollback-before-publication",
+      "allowedRecovery": ["resume", "rollback"],
+      "test": "injected_staging_failures_clean_partial_state_and_retry_to_committed"
     },
     {
       "id": "generation.manifest-write",

@@ -35,6 +35,12 @@ impl Drop for FailureInjectionGuard {
     }
 }
 
+fn serial_test_guard() -> std::sync::MutexGuard<'static, ()> {
+    FAILURE_ENV_LOCK
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+}
+
 fn temp_dir(label: &str) -> PathBuf {
     std::env::temp_dir().join(format!(
         "lingonberry-{label}-{}",
@@ -70,6 +76,7 @@ fn cleanup(paths: impl IntoIterator<Item = PathBuf>) {
 
 #[test]
 fn repeated_apply_and_resume_are_idempotent_after_commit() {
+    let _serial = serial_test_guard();
     let (state, backup, proof, transaction) = fixture();
     let first = apply_quarantine_replacement_transaction(
         &state,
@@ -110,6 +117,7 @@ fn repeated_apply_and_resume_are_idempotent_after_commit() {
 
 #[test]
 fn resumes_after_failure_following_atomic_pointer_switch() {
+    let _serial = serial_test_guard();
     let (state, backup, proof, transaction) = fixture();
     fs::create_dir(state.join(QUARANTINE_LEDGER_INDEX_FILE)).unwrap();
 
@@ -150,7 +158,7 @@ fn resumes_after_failure_following_atomic_pointer_switch() {
 
 #[test]
 fn injected_pointer_rename_failure_preserves_legacy_root_and_resumes() {
-    let _serial = FAILURE_ENV_LOCK.lock().unwrap();
+    let _serial = serial_test_guard();
     let (state, backup, proof, transaction) = fixture();
     {
         let _failure = FailureInjectionGuard::new(POINTER_RENAME_FAILURE);
@@ -190,7 +198,7 @@ fn injected_pointer_rename_failure_preserves_legacy_root_and_resumes() {
 
 #[test]
 fn injected_index_rebuild_failure_is_resumable_after_switch() {
-    let _serial = FAILURE_ENV_LOCK.lock().unwrap();
+    let _serial = serial_test_guard();
     let (state, backup, proof, transaction) = fixture();
     {
         let _failure = FailureInjectionGuard::new(INDEX_REBUILD_FAILURE);
@@ -229,6 +237,7 @@ fn injected_index_rebuild_failure_is_resumable_after_switch() {
 
 #[test]
 fn rollback_before_publication_is_idempotent_and_preserves_legacy_root() {
+    let _serial = serial_test_guard();
     let (state, backup, proof, transaction) = fixture();
     lingonberry_core::prepare_quarantine_replacement_transaction(
         &state,

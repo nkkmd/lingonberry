@@ -3,16 +3,21 @@ use std::path::{Path, PathBuf};
 use std::process;
 
 use lingonberry_core::{
-    apply_quarantine_replacement_transaction, build_quarantine_ledger_index,
-    create_quarantine_compaction_preview, create_quarantine_replacement_preview,
+    append_quarantine_replacement_audit_event, apply_quarantine_replacement_transaction,
+    build_quarantine_ledger_index, create_quarantine_compaction_preview,
+    create_quarantine_replacement_preview, inspect_quarantine_replacement_generations,
     plan_quarantine_ledger_maintenance, quarantine_compaction_proof_report_json,
     quarantine_ledger_index_report_json, quarantine_ledger_maintenance_plan_json,
-    quarantine_replacement_proof_report_json, quarantine_replacement_status,
-    quarantine_replacement_status_json, quarantine_rotation_report_json,
+    quarantine_replacement_metrics_text, quarantine_replacement_proof_report_json,
+    quarantine_replacement_retention_report_json, quarantine_replacement_status,
+    quarantine_replacement_status_v1_json, quarantine_rotation_report_json,
     quarantine_segment_report_json, resume_quarantine_replacement_transaction,
     rollback_quarantine_replacement_transaction, rotate_quarantine_ledger, runtime_state_dir,
     verify_quarantine_compaction_proof, verify_quarantine_ledger_index,
     verify_quarantine_replacement_proof, verify_quarantine_segments,
+    QuarantineReplacementAuditEventType, QuarantineReplacementAuditOperation,
+    QuarantineReplacementAuditOutcome, QuarantineReplacementStatusReport,
+    QuarantineReplacementTransactionState, StoreError,
 };
 use lingonberry_protocol::to_canonical_json;
 
@@ -137,20 +142,41 @@ fn run(args: Vec<String>) -> Result<(), String> {
                 return Err(usage());
             }
             let transaction_id = transaction_id_from_dir(Path::new(transaction_dir))?;
-            let report = apply_quarantine_replacement_transaction(
-                runtime_state_dir(),
+            let state_dir = runtime_state_dir();
+            let transaction_path = PathBuf::from(transaction_dir);
+            audit_started(&state_dir, QuarantineReplacementAuditOperation::Apply)?;
+            let result = apply_quarantine_replacement_transaction(
+                &state_dir,
                 PathBuf::from(backup_dir),
                 PathBuf::from(proof_dir),
-                PathBuf::from(transaction_dir),
+                &transaction_path,
                 &transaction_id,
-            )
-            .map_err(|error| error.to_string())?;
-            println!(
-                "{}",
-                to_canonical_json(&quarantine_replacement_status_json(&report))
             );
+            let report = audit_result(
+                &state_dir,
+                &transaction_path,
+                QuarantineReplacementAuditOperation::Apply,
+                result,
+            )?;
+            print_status(&report);
         }
         "replacement-status" => {
+            let transaction_dir = args.get(1).ok_or_else(usage)?;
+            if args.len() != 2 {
+                return Err(usage());
+            }
+            let state_dir = runtime_state_dir();
+            let transaction_path = PathBuf::from(transaction_dir);
+            let result = quarantine_replacement_status(&state_dir, &transaction_path);
+            let report = audit_result(
+                &state_dir,
+                &transaction_path,
+                QuarantineReplacementAuditOperation::Status,
+                result,
+            )?;
+            print_status(&report);
+        }
+        "replacement-metrics" => {
             let transaction_dir = args.get(1).ok_or_else(usage)?;
             if args.len() != 2 {
                 return Err(usage());
@@ -158,9 +184,16 @@ fn run(args: Vec<String>) -> Result<(), String> {
             let report =
                 quarantine_replacement_status(runtime_state_dir(), PathBuf::from(transaction_dir))
                     .map_err(|error| error.to_string())?;
+            print!("{}", quarantine_replacement_metrics_text(&report));
+        }
+        "replacement-inspect-generations" => {
+            let transaction_dirs = args.iter().skip(1).map(PathBuf::from).collect::<Vec<_>>();
+            let report =
+                inspect_quarantine_replacement_generations(runtime_state_dir(), &transaction_dirs)
+                    .map_err(|error| error.to_string())?;
             println!(
                 "{}",
-                to_canonical_json(&quarantine_replacement_status_json(&report))
+                to_canonical_json(&quarantine_replacement_retention_report_json(&report))
             );
         }
         "replacement-recover" => {
@@ -169,22 +202,26 @@ fn run(args: Vec<String>) -> Result<(), String> {
             if args.len() != 3 {
                 return Err(usage());
             }
-            let report = match mode {
-                "--resume" => resume_quarantine_replacement_transaction(
-                    runtime_state_dir(),
-                    PathBuf::from(transaction_dir),
-                ),
-                "--rollback" => rollback_quarantine_replacement_transaction(
-                    runtime_state_dir(),
-                    PathBuf::from(transaction_dir),
-                ),
+            let state_dir = runtime_state_dir();
+            let transaction_path = PathBuf::from(transaction_dir);
+            let operation = match mode {
+                "--resume" => QuarantineReplacementAuditOperation::Resume,
+                "--rollback" => QuarantineReplacementAuditOperation::Rollback,
                 _ => return Err(usage()),
-            }
-            .map_err(|error| error.to_string())?;
-            println!(
-                "{}",
-                to_canonical_json(&quarantine_replacement_status_json(&report))
-            );
+            };
+            audit_started(&state_dir, operation)?;
+            let result = match operation {
+                QuarantineReplacementAuditOperation::Resume => {
+                    resume_quarantine_replacement_transaction(&state_dir, &transaction_path)
+                }
+                QuarantineReplacementAuditOperation::Rollback => {
+                    rollback_quarantine_replacement_transaction(&state_dir, &transaction_path)
+                }
+                QuarantineReplacementAuditOperation::Apply
+                | QuarantineReplacementAuditOperation::Status => unreachable!(),
+            };
+            let report = audit_result(&state_dir, &transaction_path, operation, result)?;
+            print_status(&report);
         }
         "plan" => {
             let byte_threshold = args
@@ -216,6 +253,116 @@ fn run(args: Vec<String>) -> Result<(), String> {
     Ok(())
 }
 
+fn audit_started(
+    state_dir: &Path,
+    operation: QuarantineReplacementAuditOperation,
+) -> Result<(), String> {
+    append_quarantine_replacement_audit_event(
+        state_dir,
+        QuarantineReplacementAuditEventType::OperationStarted,
+        operation,
+        QuarantineReplacementAuditOutcome::Started,
+        None,
+        None,
+        None,
+    )
+    .map(|_| ())
+    .map_err(|error| error.to_string())
+}
+
+fn audit_result(
+    state_dir: &Path,
+    transaction_dir: &Path,
+    operation: QuarantineReplacementAuditOperation,
+    result: Result<QuarantineReplacementStatusReport, StoreError>,
+) -> Result<QuarantineReplacementStatusReport, String> {
+    match result {
+        Ok(report) => {
+            let event_type = match report.state {
+                QuarantineReplacementTransactionState::Committed => {
+                    QuarantineReplacementAuditEventType::Committed
+                }
+                QuarantineReplacementTransactionState::RolledBack => {
+                    QuarantineReplacementAuditEventType::RolledBack
+                }
+                QuarantineReplacementTransactionState::RecoveryRequired => {
+                    QuarantineReplacementAuditEventType::RecoveryRequired
+                }
+                _ => QuarantineReplacementAuditEventType::OperationCompleted,
+            };
+            let outcome = if report.state == QuarantineReplacementTransactionState::RecoveryRequired
+            {
+                QuarantineReplacementAuditOutcome::Failed
+            } else {
+                QuarantineReplacementAuditOutcome::Success
+            };
+            append_quarantine_replacement_audit_event(
+                state_dir,
+                event_type,
+                operation,
+                outcome,
+                Some(report.state),
+                Some(&report.classification),
+                None,
+            )
+            .map_err(|error| error.to_string())?;
+            Ok(report)
+        }
+        Err(error) => {
+            let recovery_report = if operation == QuarantineReplacementAuditOperation::Status {
+                None
+            } else {
+                quarantine_replacement_status(state_dir, transaction_dir)
+                    .ok()
+                    .filter(|report| {
+                        report.state == QuarantineReplacementTransactionState::RecoveryRequired
+                    })
+            };
+            let (event_type, outcome, transaction_state, classification) =
+                if let Some(report) = recovery_report.as_ref() {
+                    (
+                        QuarantineReplacementAuditEventType::RecoveryRequired,
+                        QuarantineReplacementAuditOutcome::Failed,
+                        Some(report.state),
+                        Some(report.classification.as_str()),
+                    )
+                } else if operation == QuarantineReplacementAuditOperation::Status {
+                    (
+                        QuarantineReplacementAuditEventType::StatusCorrupt,
+                        QuarantineReplacementAuditOutcome::Rejected,
+                        None,
+                        Some("corrupt"),
+                    )
+                } else {
+                    (
+                        QuarantineReplacementAuditEventType::OperationRejected,
+                        QuarantineReplacementAuditOutcome::Rejected,
+                        None,
+                        None,
+                    )
+                };
+            append_quarantine_replacement_audit_event(
+                state_dir,
+                event_type,
+                operation,
+                outcome,
+                transaction_state,
+                classification,
+                Some(error.code),
+            )
+            .map_err(|audit_error| format!("{error}; audit failure: {audit_error}"))?;
+            Err(error.to_string())
+        }
+    }
+}
+
+fn print_status(report: &QuarantineReplacementStatusReport) {
+    println!(
+        "{}",
+        to_canonical_json(&quarantine_replacement_status_v1_json(report))
+    );
+}
+
 fn transaction_id_from_dir(path: &Path) -> Result<String, String> {
     path.file_name()
         .and_then(|name| name.to_str())
@@ -225,7 +372,7 @@ fn transaction_id_from_dir(path: &Path) -> Result<String, String> {
 }
 
 fn usage() -> String {
-    "usage:\n  lingonberry-quarantine-maintenance build-index\n  lingonberry-quarantine-maintenance verify-index\n  lingonberry-quarantine-maintenance verify-segments\n  lingonberry-quarantine-maintenance rotate <managed-ledger-name>\n  lingonberry-quarantine-maintenance compaction-preview <verified-backup-v2-dir> <empty-output-dir>\n  lingonberry-quarantine-maintenance verify-compaction-proof <proof-dir>\n  lingonberry-quarantine-maintenance replacement-preview <verified-backup-v2-dir> <empty-output-dir>\n  lingonberry-quarantine-maintenance verify-replacement-proof <proof-dir>\n  lingonberry-quarantine-maintenance replacement-apply <verified-backup-v2-dir> <verified-proof-dir> <transaction-dir>\n  lingonberry-quarantine-maintenance replacement-status <transaction-dir>\n  lingonberry-quarantine-maintenance replacement-recover <transaction-dir> --resume|--rollback\n  lingonberry-quarantine-maintenance plan <byte-threshold> <line-threshold>"
+    "usage:\n  lingonberry-quarantine-maintenance build-index\n  lingonberry-quarantine-maintenance verify-index\n  lingonberry-quarantine-maintenance verify-segments\n  lingonberry-quarantine-maintenance rotate <managed-ledger-name>\n  lingonberry-quarantine-maintenance compaction-preview <verified-backup-v2-dir> <empty-output-dir>\n  lingonberry-quarantine-maintenance verify-compaction-proof <proof-dir>\n  lingonberry-quarantine-maintenance replacement-preview <verified-backup-v2-dir> <empty-output-dir>\n  lingonberry-quarantine-maintenance verify-replacement-proof <proof-dir>\n  lingonberry-quarantine-maintenance replacement-apply <verified-backup-v2-dir> <verified-proof-dir> <transaction-dir>\n  lingonberry-quarantine-maintenance replacement-status <transaction-dir>\n  lingonberry-quarantine-maintenance replacement-metrics <transaction-dir>\n  lingonberry-quarantine-maintenance replacement-inspect-generations [transaction-dir ...]\n  lingonberry-quarantine-maintenance replacement-recover <transaction-dir> --resume|--rollback\n  lingonberry-quarantine-maintenance plan <byte-threshold> <line-threshold>"
         .to_string()
 }
 
@@ -245,6 +392,7 @@ mod tests {
         assert!(run(vec!["verify-replacement-proof".to_string()]).is_err());
         assert!(run(vec!["replacement-apply".to_string()]).is_err());
         assert!(run(vec!["replacement-status".to_string()]).is_err());
+        assert!(run(vec!["replacement-metrics".to_string()]).is_err());
         assert!(run(vec!["replacement-recover".to_string()]).is_err());
     }
 
@@ -254,5 +402,13 @@ mod tests {
             transaction_id_from_dir(Path::new("/tmp/tx-example-001")).unwrap(),
             "tx-example-001"
         );
+    }
+
+    #[test]
+    fn usage_lists_replacement_observability_commands() {
+        let usage = usage();
+        assert!(usage.contains("replacement-status <transaction-dir>"));
+        assert!(usage.contains("replacement-metrics <transaction-dir>"));
+        assert!(usage.contains("replacement-inspect-generations [transaction-dir ...]"));
     }
 }

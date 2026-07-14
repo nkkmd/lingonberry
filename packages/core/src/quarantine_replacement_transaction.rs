@@ -237,12 +237,44 @@ fn publish_journal(
     let journal_path = transaction_dir.join(QUARANTINE_REPLACEMENT_TRANSACTION_JOURNAL_FILE);
     let digest_path = transaction_dir.join(QUARANTINE_REPLACEMENT_TRANSACTION_JOURNAL_DIGEST_FILE);
 
-    write_new_synced(&journal_tmp, text.as_bytes())?;
-    write_new_synced(&digest_tmp, format!("{digest}\n").as_bytes())?;
-    fs::rename(&journal_tmp, &journal_path).map_err(io_error)?;
-    fs::rename(&digest_tmp, &digest_path).map_err(io_error)?;
-    sync_directory(transaction_dir)?;
-    Ok(())
+    let result = (|| {
+        write_new_synced_with_failure_points(
+            &journal_tmp,
+            text.as_bytes(),
+            crate::quarantine_replacement_failure_injection::FAILURE_POINT_JOURNAL_WRITE,
+            crate::quarantine_replacement_failure_injection::FAILURE_POINT_JOURNAL_FSYNC,
+        )?;
+        write_new_synced(&digest_tmp, format!("{digest}\n").as_bytes())?;
+        fs::rename(&journal_tmp, &journal_path).map_err(io_error)?;
+        fs::rename(&digest_tmp, &digest_path).map_err(io_error)?;
+        sync_directory(transaction_dir)
+    })();
+    if result.is_err() {
+        let _ = fs::remove_file(&journal_tmp);
+        let _ = fs::remove_file(&digest_tmp);
+    }
+    result
+}
+
+fn write_new_synced_with_failure_points(
+    path: &Path,
+    bytes: &[u8],
+    write_point: &str,
+    fsync_point: &str,
+) -> Result<(), StoreError> {
+    crate::quarantine_replacement_failure_injection::inject_quarantine_replacement_failure(
+        write_point,
+    )?;
+    let mut file = OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(path)
+        .map_err(io_error)?;
+    file.write_all(bytes).map_err(io_error)?;
+    crate::quarantine_replacement_failure_injection::inject_quarantine_replacement_failure(
+        fsync_point,
+    )?;
+    file.sync_all().map_err(io_error)
 }
 
 fn write_new_synced(path: &Path, bytes: &[u8]) -> Result<(), StoreError> {

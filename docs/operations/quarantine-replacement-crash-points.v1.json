@@ -1,0 +1,210 @@
+{
+  "version": "lingonberry-quarantine-replacement-crash-points/v1",
+  "failureInjection": {
+    "enableEnvironment": "LINGONBERRY_ENABLE_REPLACEMENT_FAILURE_INJECTION",
+    "pointEnvironment": "LINGONBERRY_REPLACEMENT_FAILURE_POINT",
+    "requiredEnableValue": "1",
+    "oneShotPerProcess": true,
+    "enabledByDefault": false
+  },
+  "points": [
+    {
+      "id": "publication.pointer-rename",
+      "registered": true,
+      "implemented": true,
+      "boundary": "before atomic current-generation pointer rename",
+      "readerVisibleTarget": false,
+      "expectedJournalState": "recovery-required",
+      "expectedClassification": "resumable-or-rollback-before-switch",
+      "allowedRecovery": ["resume", "rollback"],
+      "test": "injected_pointer_rename_failure_preserves_legacy_root_and_resumes"
+    },
+    {
+      "id": "publication.pointer-temporary-write",
+      "registered": true,
+      "implemented": true,
+      "boundary": "before current-generation temporary pointer write and fsync",
+      "readerVisibleTarget": false,
+      "expectedJournalState": "recovery-required",
+      "expectedClassification": "resumable-or-rollback-before-switch",
+      "allowedRecovery": ["resume", "rollback"],
+      "test": "temporary_pointer_write_uses_the_atomic_pointer_boundary"
+    },
+    {
+      "id": "publication.index-rebuild",
+      "registered": true,
+      "implemented": true,
+      "boundary": "after target pointer switch and before derived index rebuild",
+      "readerVisibleTarget": true,
+      "expectedJournalState": "recovery-required",
+      "expectedClassification": "resumable-or-rollback-after-switch",
+      "allowedRecovery": ["resume", "rollback"],
+      "test": "injected_index_rebuild_failure_is_resumable_after_switch"
+    },
+    {
+      "id": "publication.commit-transition",
+      "registered": true,
+      "implemented": true,
+      "boundary": "after post-publication verification and before committed journal transition",
+      "readerVisibleTarget": true,
+      "expectedJournalState": "recovery-required",
+      "expectedClassification": "resumable-or-rollback-after-switch",
+      "allowedRecovery": ["resume", "rollback"],
+      "test": "injected_commit_transition_failure_resumes_without_second_switch"
+    },
+    {
+      "id": "rollback.pointer-restore",
+      "registered": true,
+      "implemented": true,
+      "boundary": "before restoring the previous current-generation pointer",
+      "readerVisibleTarget": true,
+      "expectedJournalState": "recovery-required",
+      "expectedClassification": "resumable-or-rollback-after-switch",
+      "allowedRecovery": ["rollback"],
+      "test": "injected_rollback_pointer_restore_failure_keeps_target_until_retry"
+    },
+    {
+      "id": "rollback.rolled-back-transition",
+      "registered": true,
+      "implemented": true,
+      "boundary": "after previous pointer restoration and before rolled-back journal transition",
+      "readerVisibleTarget": false,
+      "expectedJournalState": "recovery-required",
+      "expectedClassification": "resumable-or-rollback-before-switch",
+      "allowedRecovery": ["rollback"],
+      "test": "injected_rolled_back_transition_failure_retries_after_pointer_restore"
+    },
+    {
+      "id": "journal.write",
+      "registered": true,
+      "implemented": true,
+      "boundary": "before transaction journal temporary file creation and write",
+      "readerVisibleTarget": false,
+      "expectedJournalState": "absent-or-previous-durable-state",
+      "expectedClassification": "retryable-before-publication",
+      "allowedRecovery": ["retry", "resume", "rollback"],
+      "test": "injected_journal_failures_leave_a_retryable_empty_workspace"
+    },
+    {
+      "id": "journal.fsync",
+      "registered": true,
+      "implemented": true,
+      "boundary": "after transaction journal temporary file write and before file fsync",
+      "readerVisibleTarget": false,
+      "expectedJournalState": "absent-or-previous-durable-state",
+      "expectedClassification": "retryable-before-publication",
+      "allowedRecovery": ["retry", "resume", "rollback"],
+      "test": "injected_journal_failures_leave_a_retryable_empty_workspace"
+    },
+    {
+      "id": "staging.ledger-write",
+      "registered": true,
+      "implemented": true,
+      "boundary": "before staging implementation begins writing managed ledgers",
+      "readerVisibleTarget": false,
+      "expectedJournalState": "prepared",
+      "expectedClassification": "resumable-before-publication",
+      "allowedRecovery": ["retry", "resume", "rollback"],
+      "test": "injected_staging_failures_clean_partial_state_and_retry_to_committed"
+    },
+    {
+      "id": "staging.ledger-fsync",
+      "registered": true,
+      "implemented": true,
+      "boundary": "after staged ledgers and manifest are durable but before staging returns success",
+      "readerVisibleTarget": false,
+      "expectedJournalState": "recovery-required",
+      "expectedClassification": "resumable-or-rollback-before-publication",
+      "allowedRecovery": ["resume", "rollback"],
+      "test": "injected_staging_failures_clean_partial_state_and_retry_to_committed"
+    },
+    {
+      "id": "staging.directory-fsync",
+      "registered": true,
+      "implemented": true,
+      "boundary": "after staging directory durability completes but before staging returns success",
+      "readerVisibleTarget": false,
+      "expectedJournalState": "recovery-required",
+      "expectedClassification": "resumable-or-rollback-before-publication",
+      "allowedRecovery": ["resume", "rollback"],
+      "test": "injected_staging_failures_clean_partial_state_and_retry_to_committed"
+    },
+    {
+      "id": "generation.manifest-write",
+      "registered": true,
+      "implemented": true,
+      "boundary": "before sealed generation manifest publication begins",
+      "readerVisibleTarget": false,
+      "expectedJournalState": "verified",
+      "expectedClassification": "resumable-before-publication",
+      "allowedRecovery": ["retry", "resume", "rollback"],
+      "test": "injected_generation_failures_remove_publication_state_and_retry_to_committed"
+    },
+    {
+      "id": "generation.manifest-fsync",
+      "registered": true,
+      "implemented": true,
+      "boundary": "after sealed generation files are durable but before sealing returns success",
+      "readerVisibleTarget": false,
+      "expectedJournalState": "recovery-required",
+      "expectedClassification": "resumable-or-rollback-before-publication",
+      "allowedRecovery": ["resume", "rollback"],
+      "test": "injected_generation_failures_remove_publication_state_and_retry_to_committed"
+    },
+    {
+      "id": "publication.generation-materialize-rename",
+      "registered": true,
+      "implemented": true,
+      "boundary": "after complete generation directory rename and before pointer switch",
+      "readerVisibleTarget": false,
+      "expectedJournalState": "recovery-required",
+      "expectedClassification": "resumable-or-rollback-before-switch",
+      "allowedRecovery": ["resume", "rollback"],
+      "test": "injected_publication_post_boundary_failures_resume_to_committed"
+    },
+    {
+      "id": "publication.intent-write",
+      "registered": true,
+      "implemented": true,
+      "boundary": "after publication intent is durable and before pointer switch",
+      "readerVisibleTarget": false,
+      "expectedJournalState": "recovery-required",
+      "expectedClassification": "resumable-or-rollback-before-switch",
+      "allowedRecovery": ["resume", "rollback"],
+      "test": "injected_publication_post_boundary_failures_resume_to_committed"
+    },
+    {
+      "id": "publication.state-directory-fsync",
+      "registered": true,
+      "implemented": true,
+      "boundary": "after pointer rename and state-directory fsync, before index rebuild",
+      "readerVisibleTarget": true,
+      "expectedJournalState": "recovery-required",
+      "expectedClassification": "resumable-or-rollback-after-switch",
+      "allowedRecovery": ["resume", "rollback"],
+      "test": "injected_publication_post_boundary_failures_resume_to_committed"
+    },
+    {
+      "id": "publication.index-verification",
+      "registered": true,
+      "implemented": true,
+      "boundary": "after derived index verification and before committed transition",
+      "readerVisibleTarget": true,
+      "expectedJournalState": "recovery-required",
+      "expectedClassification": "resumable-or-rollback-after-switch",
+      "allowedRecovery": ["resume", "rollback"],
+      "test": "injected_publication_post_boundary_failures_resume_to_committed"
+    },
+    {
+      "id": "publication.segment-verification",
+      "registered": true,
+      "implemented": true,
+      "boundary": "after archive segment verification and before committed transition",
+      "readerVisibleTarget": true,
+      "expectedJournalState": "recovery-required",
+      "expectedClassification": "resumable-or-rollback-after-switch",
+      "allowedRecovery": ["resume", "rollback"],
+      "test": "injected_publication_post_boundary_failures_resume_to_committed"
+    }
+  ]
+}

@@ -8,9 +8,13 @@ mod quarantine_generation;
 mod quarantine_ledger_index;
 mod quarantine_lock;
 mod quarantine_rejections;
+mod quarantine_replacement_audit;
+mod quarantine_replacement_failure_injection;
 #[rustfmt::skip]
 mod quarantine_replacement_generation;
 mod quarantine_replacement_inputs;
+mod quarantine_replacement_observability;
+mod quarantine_replacement_retention;
 #[allow(unused_imports)]
 #[rustfmt::skip]
 mod quarantine_replacement_prepare;
@@ -69,6 +73,13 @@ pub use quarantine_rejections::{
     quarantine_permanent_rejection_json, QuarantinePermanentRejection,
     OPERATOR_PERMANENTLY_REJECTED_REASON_CODE,
 };
+pub use quarantine_replacement_audit::{
+    append_quarantine_replacement_audit_event, quarantine_replacement_audit_event_json,
+    quarantine_replacement_audit_path, QuarantineReplacementAuditEvent,
+    QuarantineReplacementAuditEventType, QuarantineReplacementAuditOperation,
+    QuarantineReplacementAuditOutcome, QUARANTINE_REPLACEMENT_AUDIT_FILE,
+    QUARANTINE_REPLACEMENT_AUDIT_VERSION,
+};
 #[rustfmt::skip]
 pub use quarantine_replacement_generation::{
     seal_quarantine_replacement_generation,
@@ -87,6 +98,10 @@ pub use quarantine_replacement_inputs::{
     QuarantineReplacementInputs, QUARANTINE_REPLACEMENT_INPUTS_FILE,
     QUARANTINE_REPLACEMENT_INPUTS_VERSION,
 };
+pub use quarantine_replacement_observability::{
+    quarantine_replacement_metrics_text, quarantine_replacement_status_v1_json,
+    QUARANTINE_REPLACEMENT_STATUS_VERSION,
+};
 pub use quarantine_replacement_prepare::prepare_quarantine_replacement_transaction;
 pub use quarantine_replacement_preview::{
     create_quarantine_replacement_preview, quarantine_replacement_proof_report_json,
@@ -95,6 +110,11 @@ pub use quarantine_replacement_preview::{
     QUARANTINE_REPLACEMENT_PLAN_VERSION, QUARANTINE_REPLACEMENT_POLICY_VERSION,
     QUARANTINE_REPLACEMENT_PROOF_DIGEST_FILE, QUARANTINE_REPLACEMENT_PROOF_FILE,
     QUARANTINE_REPLACEMENT_PROOF_VERSION,
+};
+pub use quarantine_replacement_retention::{
+    inspect_quarantine_replacement_generations, quarantine_replacement_retention_report_json,
+    QuarantineReplacementGenerationInspection, QuarantineReplacementRetentionReport,
+    QUARANTINE_REPLACEMENT_RETENTION_REPORT_VERSION,
 };
 #[rustfmt::skip]
 pub use quarantine_replacement_publication_prepare::{

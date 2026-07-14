@@ -41,7 +41,7 @@
 - [x] Staged ledger write failure injection
 - [x] Staged ledger fsync failure injection
 - [x] Staging-directory fsync failure injection
-- [ ] Generation manifest failure injection
+- [x] Generation manifest failure injection
 - [ ] Generation materialization failure injection
 - [ ] Publication-intent failure injection
 - [x] Pointer temporary-write failure injection

@@ -7,7 +7,7 @@ use lingonberry_protocol::{parse_json, to_canonical_json, JsonValue};
 
 use crate::{
     acquire_quarantine_lock, advance_quarantine_replacement_transaction_journal,
-    read_quarantine_replacement_transaction_journal, store_error,
+    read_quarantine_replacement_transaction_journal, resolve_quarantine_active_path, store_error,
     validate_quarantine_current_generation_pointer, verify_quarantine_replacement_generation,
     verify_quarantine_replacement_proof, QuarantineReplacementTransactionState, StoreError,
     QUARANTINE_BACKUP_FILES, QUARANTINE_CURRENT_GENERATION_POINTER_VERSION,
@@ -237,7 +237,11 @@ fn runtime_fingerprint_digest(state_dir: &Path) -> Result<String, StoreError> {
     let values = paths
         .into_iter()
         .map(|relative| {
-            let path = state_dir.join(&relative);
+            let path = if QUARANTINE_BACKUP_FILES.contains(&relative.as_str()) {
+                resolve_quarantine_active_path(state_dir, &relative)?
+            } else {
+                state_dir.join(&relative)
+            };
             Ok(JsonValue::Object(BTreeMap::from([
                 (
                     "digest".to_string(),

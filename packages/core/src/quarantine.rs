@@ -6,7 +6,8 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::{
-    acquire_quarantine_lock, read_managed_ledger_lines, store_error, StoreError,
+    acquire_quarantine_lock, read_managed_ledger_lines, resolve_quarantine_active_path,
+    store_error, StoreError,
 };
 
 #[derive(Debug, Clone)]
@@ -29,30 +30,26 @@ pub struct QuarantineResolution {
 
 #[derive(Debug, Clone)]
 pub struct QuarantineStore {
-    path: PathBuf,
-    resolutions_path: PathBuf,
+    state_dir: PathBuf,
 }
 
 impl QuarantineStore {
     pub fn new(state_dir: impl AsRef<Path>) -> Self {
         Self {
-            path: state_dir.as_ref().join("quarantine.jsonl"),
-            resolutions_path: state_dir.as_ref().join("quarantine-resolutions.jsonl"),
+            state_dir: state_dir.as_ref().to_path_buf(),
         }
     }
 
     pub fn state_dir(&self) -> &Path {
-        self.path
-            .parent()
-            .unwrap_or_else(|| std::path::Path::new("."))
+        &self.state_dir
     }
 
-    pub fn path(&self) -> &Path {
-        &self.path
+    pub fn path(&self) -> Result<PathBuf, StoreError> {
+        resolve_quarantine_active_path(&self.state_dir, "quarantine.jsonl")
     }
 
-    pub fn resolutions_path(&self) -> &Path {
-        &self.resolutions_path
+    pub fn resolutions_path(&self) -> Result<PathBuf, StoreError> {
+        resolve_quarantine_active_path(&self.state_dir, "quarantine-resolutions.jsonl")
     }
 
     pub fn append(
@@ -70,7 +67,7 @@ impl QuarantineStore {
             reasons: reasons.to_vec(),
             request_json: request_json.to_string(),
         };
-        append_json_line(&self.path, &record_json(&record))?;
+        append_json_line(&self.path()?, &record_json(&record))?;
         Ok(record)
     }
 
@@ -140,7 +137,7 @@ impl QuarantineStore {
             canonical_id: canonical_id.to_string(),
             duplicate,
         };
-        append_json_line(&self.resolutions_path, &resolution_json(&resolution))?;
+        append_json_line(&self.resolutions_path()?, &resolution_json(&resolution))?;
         Ok(resolution)
     }
 

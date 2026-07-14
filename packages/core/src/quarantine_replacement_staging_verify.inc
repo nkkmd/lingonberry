@@ -6,7 +6,7 @@ use lingonberry_protocol::{parse_json, to_canonical_json, JsonValue};
 
 use crate::{
     advance_quarantine_replacement_transaction_journal, acquire_quarantine_lock,
-    read_quarantine_replacement_transaction_journal, store_error,
+    read_quarantine_replacement_transaction_journal, resolve_quarantine_active_path, store_error,
     verify_quarantine_replacement_proof, QuarantineReplacementStagedLedger,
     QuarantineReplacementTransactionState, StoreError, QUARANTINE_BACKUP_FILES,
     QUARANTINE_REPLACEMENT_PLAN_FILE, QUARANTINE_REPLACEMENT_STAGING_DIR,
@@ -199,7 +199,7 @@ fn verify_staged_ledger(
     let lines = object_number(ledger_manifest, "lines")?;
     let replacements = object_number(ledger_manifest, "replacements")?;
     let digest = object_optional_string(ledger_manifest, "digest")?;
-    let active_path = state_dir.join(ledger);
+    let active_path = resolve_quarantine_active_path(state_dir, ledger)?;
     let staged_path = staging_dir.join(ledger);
 
     if !present {

@@ -7,7 +7,10 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use lingonberry_protocol::{parse_json, to_canonical_json, JsonValue};
 
 use super::QuarantineStore;
-use crate::{acquire_quarantine_lock, read_managed_ledger_lines, store_error, StoreError};
+use crate::{
+    acquire_quarantine_lock, read_managed_ledger_lines, resolve_quarantine_active_path,
+    store_error, StoreError,
+};
 
 pub const OPERATOR_DISMISSED_REASON_CODE: &str = "LB_OPERATOR_DISMISSED";
 
@@ -22,8 +25,8 @@ pub struct QuarantineDismissal {
 }
 
 impl QuarantineStore {
-    pub fn dismissals_path(&self) -> PathBuf {
-        self.state_dir().join("quarantine-dismissals.jsonl")
+    pub fn dismissals_path(&self) -> Result<PathBuf, StoreError> {
+        resolve_quarantine_active_path(self.state_dir(), "quarantine-dismissals.jsonl")
     }
 
     pub fn dismiss(
@@ -91,7 +94,7 @@ impl QuarantineStore {
             reason_code: reason_code.to_string(),
             note: note.to_string(),
         };
-        append_dismissal_line(&self.dismissals_path(), &dismissal)?;
+        append_dismissal_line(&self.dismissals_path()?, &dismissal)?;
         Ok(dismissal)
     }
 

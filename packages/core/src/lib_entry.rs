@@ -4,11 +4,13 @@ mod quarantine_backup;
 mod quarantine_compaction;
 mod quarantine_complete_backup;
 mod quarantine_dismissals;
+mod quarantine_generation;
 mod quarantine_ledger_index;
 mod quarantine_lock;
 mod quarantine_rejections;
 #[rustfmt::skip]
 mod quarantine_replacement_generation;
+mod quarantine_replacement_inputs;
 #[allow(unused_imports)]
 #[rustfmt::skip]
 mod quarantine_replacement_prepare;
@@ -16,6 +18,8 @@ mod quarantine_replacement_prepare;
 mod quarantine_replacement_preview;
 #[rustfmt::skip]
 mod quarantine_replacement_publication_prepare;
+#[rustfmt::skip]
+mod quarantine_replacement_publication;
 #[rustfmt::skip]
 mod quarantine_replacement_staging;
 #[rustfmt::skip]
@@ -46,6 +50,10 @@ pub use quarantine_complete_backup::{
 pub use quarantine_dismissals::{
     quarantine_dismissal_json, QuarantineDismissal, OPERATOR_DISMISSED_REASON_CODE,
 };
+pub use quarantine_generation::{
+    resolve_quarantine_active_dir, resolve_quarantine_active_generation,
+    resolve_quarantine_active_path, QuarantineActiveGeneration, QUARANTINE_GENERATIONS_DIR,
+};
 pub use quarantine_ledger_index::{
     build_quarantine_ledger_index, plan_quarantine_ledger_maintenance,
     quarantine_ledger_index_report_json, quarantine_ledger_maintenance_plan_json,
@@ -74,6 +82,11 @@ pub use quarantine_replacement_generation::{
     QUARANTINE_REPLACEMENT_GENERATION_VERSION,
     QUARANTINE_REPLACEMENT_PUBLICATION_DIR,
 };
+pub use quarantine_replacement_inputs::{
+    read_quarantine_replacement_inputs, write_quarantine_replacement_inputs,
+    QuarantineReplacementInputs, QUARANTINE_REPLACEMENT_INPUTS_FILE,
+    QUARANTINE_REPLACEMENT_INPUTS_VERSION,
+};
 pub use quarantine_replacement_prepare::prepare_quarantine_replacement_transaction;
 pub use quarantine_replacement_preview::{
     create_quarantine_replacement_preview, quarantine_replacement_proof_report_json,
@@ -90,6 +103,19 @@ pub use quarantine_replacement_publication_prepare::{
     QUARANTINE_REPLACEMENT_PENDING_POINTER_FILE,
 };
 #[rustfmt::skip]
+pub use quarantine_replacement_publication::{
+    apply_quarantine_replacement_transaction,
+    publish_quarantine_replacement_generation,
+    quarantine_replacement_status,
+    quarantine_replacement_status_json,
+    resume_quarantine_replacement_transaction,
+    rollback_quarantine_replacement_transaction,
+    QuarantineReplacementStatusReport,
+    QUARANTINE_REPLACEMENT_PUBLICATION_INTENT_DIGEST_FILE,
+    QUARANTINE_REPLACEMENT_PUBLICATION_INTENT_FILE,
+    QUARANTINE_REPLACEMENT_PUBLICATION_INTENT_VERSION,
+};
+#[rustfmt::skip]
 pub use quarantine_replacement_staging::{
     stage_quarantine_replacement_ledgers, QuarantineReplacementStagedLedger,
     QuarantineReplacementStagingReport, QUARANTINE_REPLACEMENT_STAGING_DIR,
@@ -104,6 +130,7 @@ pub use quarantine_replacement_staging_verify::{
 pub use quarantine_replacement_transaction::{
     advance_quarantine_replacement_transaction_journal,
     create_quarantine_replacement_transaction_journal,
+    read_quarantine_replacement_transaction_details,
     read_quarantine_replacement_transaction_journal,
     validate_quarantine_replacement_transaction_transition,
     QuarantineReplacementTransactionJournal, QuarantineReplacementTransactionReport,

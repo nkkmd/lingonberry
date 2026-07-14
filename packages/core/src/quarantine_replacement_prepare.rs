@@ -6,7 +6,9 @@ use lingonberry_protocol::{parse_json, to_canonical_json, JsonValue};
 
 use crate::{
     acquire_quarantine_lock, create_quarantine_replacement_transaction_journal, store_error,
-    verify_any_quarantine_backup, verify_quarantine_replacement_proof, verify_quarantine_segments,
+    resolve_quarantine_active_path, verify_any_quarantine_backup,
+    verify_quarantine_replacement_proof, verify_quarantine_segments,
+    write_quarantine_replacement_inputs,
     QuarantineReplacementTransactionJournal, QuarantineReplacementTransactionReport,
     QuarantineReplacementTransactionState, StoreError, QUARANTINE_BACKUP_FILES,
     QUARANTINE_BACKUP_MANIFEST, QUARANTINE_COMPLETE_BACKUP_VERSION,
@@ -84,7 +86,7 @@ pub fn prepare_quarantine_replacement_transaction(
     let runtime_fingerprint_digest =
         integrity_digest(to_canonical_json(&runtime_fingerprint).as_bytes());
 
-    create_quarantine_replacement_transaction_journal(
+    let report = create_quarantine_replacement_transaction_journal(
         transaction_dir,
         &QuarantineReplacementTransactionJournal {
             transaction_id: transaction_id.to_string(),
@@ -96,7 +98,16 @@ pub fn prepare_quarantine_replacement_transaction(
             proof_digest,
             runtime_fingerprint_digest,
         },
-    )
+    )?;
+    if let Err(error) = write_quarantine_replacement_inputs(transaction_dir, backup_dir, proof_dir)
+    {
+        let _ = crate::advance_quarantine_replacement_transaction_journal(
+            transaction_dir,
+            QuarantineReplacementTransactionState::RecoveryRequired,
+        );
+        return Err(error);
+    }
+    Ok(report)
 }
 
 fn require_v2_backup(backup_dir: &Path) -> Result<(), StoreError> {
@@ -144,7 +155,11 @@ fn runtime_fingerprint_json(state_dir: &Path) -> Result<JsonValue, StoreError> {
     let values = paths
         .into_iter()
         .map(|relative| {
-            let path = state_dir.join(&relative);
+            let path = if QUARANTINE_BACKUP_FILES.contains(&relative.as_str()) {
+                resolve_quarantine_active_path(state_dir, &relative)?
+            } else {
+                state_dir.join(&relative)
+            };
             Ok(JsonValue::Object(BTreeMap::from([
                 (
                     "digest".to_string(),

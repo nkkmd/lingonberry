@@ -5,7 +5,9 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use lingonberry_protocol::{parse_json, to_canonical_json, JsonValue};
 
-use crate::{acquire_quarantine_lock, store_error, StoreError};
+use crate::{
+    acquire_quarantine_lock, resolve_quarantine_active_path, store_error, StoreError,
+};
 
 pub const QUARANTINE_BACKUP_VERSION: &str = "lingonberry-quarantine-backup/v1";
 pub const QUARANTINE_BACKUP_MANIFEST: &str = "quarantine-backup-manifest.json";
@@ -54,7 +56,7 @@ pub fn export_quarantine_backup(
     let mut entries = Vec::new();
     for name in QUARANTINE_BACKUP_FILES {
         validate_managed_name(name)?;
-        let source = state_dir.join(name);
+        let source = resolve_quarantine_active_path(state_dir, name)?;
         let destination = backup_dir.join(name);
         if !source.exists() {
             entries.push(QuarantineBackupFile {

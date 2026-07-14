@@ -7,7 +7,10 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use lingonberry_protocol::{parse_json, to_canonical_json, JsonValue};
 
 use super::QuarantineStore;
-use crate::{acquire_quarantine_lock, read_managed_ledger_lines, store_error, StoreError};
+use crate::{
+    acquire_quarantine_lock, read_managed_ledger_lines, resolve_quarantine_active_path,
+    store_error, StoreError,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct QuarantineAnnotation {
@@ -19,8 +22,8 @@ pub struct QuarantineAnnotation {
 }
 
 impl QuarantineStore {
-    pub fn annotations_path(&self) -> PathBuf {
-        self.state_dir().join("quarantine-annotations.jsonl")
+    pub fn annotations_path(&self) -> Result<PathBuf, StoreError> {
+        resolve_quarantine_active_path(self.state_dir(), "quarantine-annotations.jsonl")
     }
 
     pub fn append_annotation(
@@ -54,7 +57,7 @@ impl QuarantineStore {
             operator: operator.to_string(),
             note: note.to_string(),
         };
-        append_annotation_line(&self.annotations_path(), &annotation)?;
+        append_annotation_line(&self.annotations_path()?, &annotation)?;
         Ok(annotation)
     }
 

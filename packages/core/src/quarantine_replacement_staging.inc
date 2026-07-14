@@ -7,7 +7,7 @@ use lingonberry_protocol::{parse_json, to_canonical_json, JsonValue};
 
 use crate::{
     advance_quarantine_replacement_transaction_journal, acquire_quarantine_lock,
-    read_quarantine_replacement_transaction_journal, store_error,
+    read_quarantine_replacement_transaction_journal, resolve_quarantine_active_path, store_error,
     verify_quarantine_replacement_proof, QuarantineReplacementTransactionState, StoreError,
     QUARANTINE_BACKUP_FILES, QUARANTINE_REPLACEMENT_PLAN_FILE,
 };
@@ -53,10 +53,25 @@ pub fn stage_quarantine_replacement_ledgers(
     let _lock = acquire_quarantine_lock(state_dir, "quarantine-replacement-stage-v1")?;
 
     let journal = read_quarantine_replacement_transaction_journal(transaction_dir)?;
-    if journal.state != QuarantineReplacementTransactionState::Prepared {
-        return Err(staging_error(
-            "transaction must be prepared before staging",
-        ));
+    match journal.state {
+        QuarantineReplacementTransactionState::Prepared => {
+            advance_quarantine_replacement_transaction_journal(
+                transaction_dir,
+                QuarantineReplacementTransactionState::Writing,
+            )?;
+        }
+        QuarantineReplacementTransactionState::Writing => {}
+        QuarantineReplacementTransactionState::RecoveryRequired => {
+            advance_quarantine_replacement_transaction_journal(
+                transaction_dir,
+                QuarantineReplacementTransactionState::Writing,
+            )?;
+        }
+        _ => {
+            return Err(staging_error(
+                "transaction must be prepared, writing, or recovery-required before staging",
+            ))
+        }
     }
     verify_quarantine_replacement_proof(proof_dir)?;
     let plan_text = fs::read_to_string(proof_dir.join(QUARANTINE_REPLACEMENT_PLAN_FILE))
@@ -66,13 +81,9 @@ pub fn stage_quarantine_replacement_ledgers(
 
     let staging_dir = transaction_dir.join(QUARANTINE_REPLACEMENT_STAGING_DIR);
     if staging_dir.exists() {
-        return Err(staging_error("staging directory already exists"));
+        fs::remove_dir_all(&staging_dir).map_err(io_error)?;
+        sync_directory(transaction_dir)?;
     }
-
-    advance_quarantine_replacement_transaction_journal(
-        transaction_dir,
-        QuarantineReplacementTransactionState::Writing,
-    )?;
 
     let result = build_staging_set(state_dir, &staging_dir, &plan);
     let ledgers = match result {
@@ -145,7 +156,7 @@ fn stage_active_ledger(
     ledger: &str,
     ledger_plan: &JsonValue,
 ) -> Result<QuarantineReplacementStagedLedger, StoreError> {
-    let source_path = state_dir.join(ledger);
+    let source_path = resolve_quarantine_active_path(state_dir, ledger)?;
     if !source_path.exists() {
         reject_active_entries_for_absent_ledger(ledger_plan)?;
         return Ok(QuarantineReplacementStagedLedger {

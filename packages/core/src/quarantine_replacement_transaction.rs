@@ -141,6 +141,12 @@ pub fn read_quarantine_replacement_transaction_journal(
     })
 }
 
+pub fn read_quarantine_replacement_transaction_details(
+    transaction_dir: impl AsRef<Path>,
+) -> Result<QuarantineReplacementTransactionJournal, StoreError> {
+    read_journal(transaction_dir.as_ref())
+}
+
 pub fn validate_quarantine_replacement_transaction_transition(
     current: QuarantineReplacementTransactionState,
     next: QuarantineReplacementTransactionState,

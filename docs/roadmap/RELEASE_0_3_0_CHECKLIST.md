@@ -44,7 +44,7 @@
 - [ ] Generation manifest failure injection
 - [ ] Generation materialization failure injection
 - [ ] Publication-intent failure injection
-- [ ] Pointer temporary-write failure injection
+- [x] Pointer temporary-write failure injection
 - [x] Pointer rename failure injection
 - [ ] State-directory fsync failure injection
 - [x] Index rebuild failure injection
@@ -53,7 +53,8 @@
 - [x] Commit-transition failure injection
 - [x] Rollback pointer-restoration failure injection
 - [x] Rolled-back transition failure injection
-- [ ] Crash-point matrix is table-driven or machine-readable
+- [x] Crash-point matrix is table-driven or machine-readable
+- [x] Crash-point registry and inventory consistency are enforced by CI
 - [x] Post-switch/pre-commit recovery test passes
 - [x] Repeated apply/resume/rollback idempotency tests pass
 - [x] Contradictory pointer state fails closed
@@ -104,9 +105,9 @@
 - [x] Generation-directory contract
 - [x] Recovery runbook
 - [x] Operations-hardening contract
-- [ ] Current implementation status updated for QL-5C3D
-- [ ] Quarantine lifecycle backlog updated for QL-5C3D
-- [ ] v0.3.0 roadmap updated to actual transaction states and deliverables
+- [x] Current implementation status updated for QL-5C3D
+- [x] Quarantine lifecycle backlog updated for QL-5C3D
+- [x] v0.3.0 roadmap updated to actual transaction states and deliverables
 - [x] v0.3.0 release note finalized
 - [ ] README or top-level operator documentation updated if required
 
@@ -120,6 +121,7 @@
 - [x] JavaScript canonicalization tests
 - [x] JavaScript identity tests
 - [x] JavaScript validation tests
+- [x] Crash-point registry/inventory contract test
 - [x] No temporary diagnostic workflow remains
 - [ ] Main-branch CI passes after merge
 

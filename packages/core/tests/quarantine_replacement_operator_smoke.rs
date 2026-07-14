@@ -65,20 +65,16 @@ fn operator_smoke_covers_backup_preview_apply_observe_and_verify() {
     assert_eq!(status.classification, "committed");
 
     let metrics = quarantine_replacement_metrics_text(&status);
-    assert!(metrics.contains(
-        "lingonberry_quarantine_replacement_transactions"
-    ));
+    assert!(metrics.contains("lingonberry_quarantine_replacement_transactions"));
     assert!(metrics.contains("state=\"committed\""));
     assert!(!metrics.contains("tx-operator-smoke"));
 
     verify_quarantine_ledger_index(&state).unwrap();
     verify_quarantine_segments(&state).unwrap();
 
-    let retention = inspect_quarantine_replacement_generations(
-        &state,
-        std::slice::from_ref(&transaction),
-    )
-    .unwrap();
+    let retention =
+        inspect_quarantine_replacement_generations(&state, std::slice::from_ref(&transaction))
+            .unwrap();
     assert_eq!(retention.layout, "generation");
     assert_eq!(retention.generations.len(), 1);
     assert_eq!(

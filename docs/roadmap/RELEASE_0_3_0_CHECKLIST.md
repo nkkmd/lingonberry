@@ -125,8 +125,8 @@
 
 ## 10. Release preparation
 
-- [ ] Version fields updated to `0.3.0` where applicable
-- [ ] `Cargo.lock` reviewed
+- [x] Version fields updated to `0.3.0` where applicable
+- [x] `Cargo.lock` reviewed through a successful full workspace CI run
 - [x] Release note includes migration/compatibility behavior
 - [x] Release note includes generation-directory layout
 - [x] Release note includes recovery and rollback limits

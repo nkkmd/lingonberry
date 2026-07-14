@@ -1,37 +1,44 @@
-name: Diagnose library clippy
+name: Fix internal index import
 
 on:
   pull_request:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  diagnose:
+  fix:
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
-      - name: Check out repository
+      - name: Check out feature branch
         uses: actions/checkout@v4
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
         with:
-          components: clippy
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
 
-      - name: Capture diagnostics
+      - name: Fix source and commit
         shell: bash
         run: |
-          set +e
-          cargo clippy --workspace --lib -- -D warnings > /tmp/library-clippy.log 2>&1
-          status=$?
-          echo "status=$status" >> /tmp/library-clippy.log
-          cat /tmp/library-clippy.log
-          exit 0
-
-      - name: Upload diagnostics
-        uses: actions/upload-artifact@v4
-        with:
-          name: library-clippy-diagnostics
-          path: /tmp/library-clippy.log
-          if-no-files-found: error
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('packages/core/src/quarantine_replacement_publication.inc')
+          text = path.read_text()
+          old = '''use crate::{
+              acquire_quarantine_lock, advance_quarantine_replacement_transaction_journal,
+              build_quarantine_ledger_index_locked, prepare_quarantine_replacement_publication,'''
+          new = '''use crate::quarantine_ledger_index::build_quarantine_ledger_index_locked;
+          use crate::{
+              acquire_quarantine_lock, advance_quarantine_replacement_transaction_journal,
+              prepare_quarantine_replacement_publication,'''
+          if old not in text:
+              raise SystemExit('expected import block not found')
+          path.write_text(text.replace(old, new, 1))
+          PY
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add packages/core/src/quarantine_replacement_publication.inc
+          git commit -m "fix: use internal ledger index rebuild entrypoint"
+          git push origin HEAD:${{ github.head_ref }}

@@ -1,1 +1,1 @@
-trigger operator smoke rustfmt
+trigger operator smoke rustfmt 2

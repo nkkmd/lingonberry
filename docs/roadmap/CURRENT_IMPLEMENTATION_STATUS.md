@@ -1,22 +1,22 @@
 # 現在の実装状況
 
-**Status: v0.2.0 released / v0.3.0 QL-5C3C completed** | **Last updated: 2026-07-14**
+**Status: v0.2.0 released / v0.3.0 QL-5C3D in progress** | **Last updated: 2026-07-14**
 
 この文書は、Lingonberryの実装作業を中断・再開するときの引き継ぎ用正本です。
 
 ## 1. Release state
 
-v0.2.0は2026-07-12にリリース済みです。v0.3.0ではreplacement policy、policy-v2 preview／proof、generation-directory方式のverified rewrite transaction／recoveryまで完了しました。次の段階はQL-5C3D operations and release hardeningです。
+v0.2.0は2026-07-12にリリース済みです。v0.3.0ではreplacement policy、policy-v2 preview／proof、generation-directory方式のverified rewrite transaction／recoveryを完了し、現在はQL-5C3D operations、observability、failure injection、release hardeningを実装中です。
 
 ```text
 released version: 0.2.0
 release tag: v0.2.0
-release checklist: docs/roadmap/RELEASE_0_2_0_CHECKLIST.md
-release notes: docs/roadmap/RELEASE_0_2_0_RELEASE_NOTE.md
-next roadmap: docs/roadmap/RELEASE_0_3_0_ROADMAP.md
-completed issue: #54
-completed PR: #55
-next target: QL-5C3D operations and release hardening
+release candidate workspace version: 0.3.0
+v0.3.0 issue: #56
+v0.3.0 draft PR: #60
+release checklist: docs/roadmap/RELEASE_0_3_0_CHECKLIST.md
+release notes: docs/roadmap/RELEASE_0_3_0_RELEASE_NOTE.md
+remaining target: early durable write/fsync failure injection and final release closure
 ```
 
 ## 2. 実装済み
@@ -43,6 +43,13 @@ next target: QL-5C3D operations and release hardening
 | generation-directory active-ledger resolution | 実装済み |
 | atomic current-generation pointer publication | 実装済み |
 | resumable／rollback-capable transaction | 実装済み |
+| versioned replacement status v1 | PR #60で実装済み |
+| bounded replacement Prometheus metrics | PR #60で実装済み |
+| secret-free append-only replacement audit | PR #60で実装済み |
+| deterministic failure injection | PR #60で実装中 |
+| read-only generation retention inspection | PR #60で実装済み |
+| end-to-end operator smoke test | PR #60で実装済み |
+| workspace package version 0.3.0 | PR #60で更新済み |
 | public／admin listener isolation | 実装済み |
 | observer／reviewer／operator RBAC | 実装済み |
 | authn／authz audit | 実装済み |
@@ -111,13 +118,18 @@ lingonberry-quarantine-maintenance verify-replacement-proof <proof-dir>
 lingonberry-quarantine-maintenance replacement-apply \
   <verified-backup-v2-dir> <verified-proof-dir> <transaction-dir>
 lingonberry-quarantine-maintenance replacement-status <transaction-dir>
+lingonberry-quarantine-maintenance replacement-metrics <transaction-dir>
+lingonberry-quarantine-maintenance replacement-inspect-generations \
+  [transaction-dir ...]
 lingonberry-quarantine-maintenance replacement-recover \
   <transaction-dir> --resume|--rollback
 ```
 
 `replacement-apply`ではtransaction directoryのbasenameをtransaction ID／generation IDとして使用します。IDはcore journal validatorがbounded ASCII identifierとして検証します。
 
-## 6. QL-5C3C transaction model
+`replacement-inspect-generations`はread-onlyです。generation、pointer、journalを分類しますが、delete、rename、truncate、repair、pointer mutationを行いません。
+
+## 6. Replacement transaction model
 
 Transaction states：
 
@@ -150,10 +162,43 @@ recovery-required
 14. committed／rolled-back terminal state
 15. legacy root layout互換
 16. invalid pointer／mixed generationのfail-closed rejection
+17. versioned structured statusとbounded metrics
+18. secret-free append-only operation audit
+19. read-only generation retention classification
 
 `committed`後のtransactionはterminalです。以前のgenerationへ戻す場合もpointerを手動編集せず、新しいverified transactionとして実行します。
 
-## 7. 正本文書
+## 7. QL-5C3D observability and hardening
+
+実装済み：
+
+- `lingonberry-quarantine-replacement-status/v1`
+- bounded-cardinality Prometheus metrics
+- append-only audit JSONLとfsync
+- apply／status／resume／rollback audit integration
+- double opt-in、one-shot failure injection
+- pointer rename failure
+- index rebuild failure
+- commit transition failure
+- rollback pointer restoration failure
+- rolled-back transition failure
+- pre-switch／post-switch／commit／rollback crash recovery tests
+- `lingonberry-quarantine-replacement-retention-report/v1`
+- active、previous、rolled-back、incomplete、orphan、legacy、corrupt分類
+- backup → preview/proof → apply → observe → verify operator smoke test
+- v0.3.0 release checklist／release notes
+
+未完了：
+
+- journal write／fsync failure injection
+- staging write／fsync failure injection
+- generation manifest／materialization failure injection
+- publication-intent／pointer temporary-write／state-directory fsync failure injection
+- index／segment verification failure injection
+- machine-readable crash-point inventory
+- PR merge後のmain CI、release commit確定、tag／GitHub Release
+
+## 8. 正本文書
 
 ```text
 docs/operations/QUARANTINE_REPLACEMENT_POLICY.md
@@ -162,9 +207,12 @@ docs/operations/QUARANTINE_REPLACEMENT_PREVIEW_RUNBOOK.md
 docs/operations/QUARANTINE_REPLACEMENT_TRANSACTION.md
 docs/operations/QUARANTINE_REPLACEMENT_GENERATION.md
 docs/operations/QUARANTINE_REPLACEMENT_RECOVERY_RUNBOOK.md
+docs/operations/QUARANTINE_REPLACEMENT_OPERATIONS_HARDENING.md
+docs/roadmap/RELEASE_0_3_0_CHECKLIST.md
+docs/roadmap/RELEASE_0_3_0_RELEASE_NOTE.md
 ```
 
-## 8. Backup and restore
+## 9. Backup and restore
 
 ```bash
 lingonberry-quarantine-backup export <empty-backup-dir>
@@ -173,17 +221,6 @@ lingonberry-quarantine-backup restore <backup-dir> <empty-state-dir>
 ```
 
 New exportは`lingonberry-quarantine-backup/v2`です。Verify／restoreはv1とv2を受理します。Policy-v2 previewとreplacement applyはverified backup v2だけを受理します。
-
-## 9. v0.3.0次段階
-
-QL-5C3D operations and release hardening：
-
-- status／metrics／auditの運用面強化
-- filesystem failure-injection coverageの拡張
-- crash-point matrixの拡張
-- generation retention／cleanup policyの仕様化（automatic deletionは別途承認が必要）
-- v0.3.0 release checklistとrelease notes
-- operator documentationの最終review
 
 ## 10. v0.3.0非対象
 
@@ -213,7 +250,7 @@ cargo test --workspace
 
 JavaScript canonicalization／identity／validation testsも必須です。
 
-QL-5C3C testsは、valid apply、legacy compatibility、pointer／generation validation、immutable byte identity、staged verification、runtime change rejection、atomic switch後のindex failureからのresume、repeat apply／resume／rollback idempotencyを含みます。
+PR #60のoperator smoke testは、backup v2 export／verify、replacement preview／proof verification、committed apply、status、bounded metrics、index／segment verification、retention classification、repeat apply／resume idempotencyを含みます。
 
 ## 12. 絶対に崩さない安全性ルール
 
@@ -237,3 +274,5 @@ QL-5C3C testsは、valid apply、legacy compatibility、pointer／generation val
 18. ambiguous recovery stateを自動修復または成功扱いしない
 19. pointerが存在する状態でlegacy rootへfallbackしない
 20. committed generationのpointerを手動で巻き戻さない
+21. generation／workspaceを自動削除しない
+22. audit／metricsへsecret、path、transaction ID、free-form errorを出さない

@@ -11,6 +11,7 @@ mod quarantine_rejections;
 #[rustfmt::skip]
 mod quarantine_replacement_generation;
 mod quarantine_replacement_inputs;
+mod quarantine_replacement_observability;
 #[allow(unused_imports)]
 #[rustfmt::skip]
 mod quarantine_replacement_prepare;
@@ -86,6 +87,10 @@ pub use quarantine_replacement_inputs::{
     read_quarantine_replacement_inputs, write_quarantine_replacement_inputs,
     QuarantineReplacementInputs, QUARANTINE_REPLACEMENT_INPUTS_FILE,
     QUARANTINE_REPLACEMENT_INPUTS_VERSION,
+};
+pub use quarantine_replacement_observability::{
+    quarantine_replacement_metrics_text, quarantine_replacement_status_v1_json,
+    QUARANTINE_REPLACEMENT_STATUS_VERSION,
 };
 pub use quarantine_replacement_prepare::prepare_quarantine_replacement_transaction;
 pub use quarantine_replacement_preview::{

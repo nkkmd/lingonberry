@@ -8,6 +8,7 @@ mod quarantine_generation;
 mod quarantine_ledger_index;
 mod quarantine_lock;
 mod quarantine_rejections;
+mod quarantine_replacement_audit;
 #[rustfmt::skip]
 mod quarantine_replacement_generation;
 mod quarantine_replacement_inputs;
@@ -69,6 +70,13 @@ pub use quarantine_lock::{
 pub use quarantine_rejections::{
     quarantine_permanent_rejection_json, QuarantinePermanentRejection,
     OPERATOR_PERMANENTLY_REJECTED_REASON_CODE,
+};
+pub use quarantine_replacement_audit::{
+    append_quarantine_replacement_audit_event, quarantine_replacement_audit_event_json,
+    quarantine_replacement_audit_path, QuarantineReplacementAuditEvent,
+    QuarantineReplacementAuditEventType, QuarantineReplacementAuditOperation,
+    QuarantineReplacementAuditOutcome, QUARANTINE_REPLACEMENT_AUDIT_FILE,
+    QUARANTINE_REPLACEMENT_AUDIT_VERSION,
 };
 #[rustfmt::skip]
 pub use quarantine_replacement_generation::{

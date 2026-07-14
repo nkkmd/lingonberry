@@ -5,9 +5,10 @@ use std::path::{Path, PathBuf};
 
 use lingonberry_protocol::{parse_json, to_canonical_json, JsonValue};
 
+use crate::quarantine_ledger_index::build_quarantine_ledger_index_locked;
 use crate::{
     acquire_quarantine_lock, advance_quarantine_replacement_transaction_journal,
-    build_quarantine_ledger_index_locked, prepare_quarantine_replacement_publication,
+    prepare_quarantine_replacement_publication,
     prepare_quarantine_replacement_transaction, read_quarantine_replacement_inputs,
     read_quarantine_replacement_transaction_details,
     read_quarantine_replacement_transaction_journal, resolve_quarantine_active_generation,

@@ -1,8 +1,8 @@
 # Quarantine Lifecycle Backlog
 
-**Status: active** | **Last updated: 2026-07-14**
+**Status: v0.3.0 implementation complete / release closure pending** | **Last updated: 2026-07-14**
 
-現在地の正本は [CURRENT_IMPLEMENTATION_STATUS.md](./CURRENT_IMPLEMENTATION_STATUS.md) です。v0.3.0の作業順序とrelease gateは [RELEASE_0_3_0_ROADMAP.md](./RELEASE_0_3_0_ROADMAP.md) と [RELEASE_0_3_0_CHECKLIST.md](./RELEASE_0_3_0_CHECKLIST.md) を正本とします。
+現在地の正本は [CURRENT_IMPLEMENTATION_STATUS.md](./CURRENT_IMPLEMENTATION_STATUS.md) です。v0.3.0のrelease gateは [RELEASE_0_3_0_CHECKLIST.md](./RELEASE_0_3_0_CHECKLIST.md) を正本とします。
 
 ## 完了済み
 
@@ -18,71 +18,11 @@
 | replacement policy and semantic-equivalence contract | #50 / #51 | 完了 |
 | policy-v2 replacement preview and proof | #52 / #53 | 完了 |
 | generation-based rewrite transaction and recovery | #54 / #55 | 完了 |
-
----
-
-## QL-5A: Verified Read-only JSONL Index and Planning
-
-**状態: completed**
-
----
-
-## QL-5B: Archive-aware Ordered Reads and Verified Rotation
-
-**状態: completed**
-
----
-
-## QL-5C1: Archive-inclusive Backup / Verify / Restore
-
-**状態: completed**
-
-```text
-export: backup/v2
-verify / restore: v1 and v2
-v2: active ledgers + segment manifest + listed immutable segments
-```
-
----
-
-## QL-5C2: Non-destructive Compaction Preview and Semantic Proof
-
-**状態: completed**
-
-Policy v1はmutationを許可しません。
-
-```text
-policy: lingonberry-quarantine-compaction-policy/v1
-mutationAllowed: false
-rewritePerformed: false
-removableLines: 0
-```
-
-Immutable evidence：
-
-```text
-quarantine.jsonl
-quarantine-annotations.jsonl
-admin-auth-audit.jsonl
-```
-
-Terminal single-event evidence：
-
-```text
-quarantine-resolutions.jsonl
-quarantine-dismissals.jsonl
-quarantine-rejections.jsonl
-```
-
-Terminal ledgerのduplicate quarantine IDはremoval candidateではなくcorruptionです。
-
-正本：`docs/operations/QUARANTINE_COMPACTION_PROOF.md`
-
----
+| operations, observability, failure injection, release hardening | #56 / #60 | 実装完了 |
 
 ## QL-5C3: Verified Rewrite Transaction
 
-**優先度: highest** | **Target: v0.3.0**
+**Priority: highest** | **Target: v0.3.0** | **Implementation: complete**
 
 ### QL-5C3A: Replacement Policy and Semantic-equivalence Contract
 
@@ -94,7 +34,6 @@ Terminal ledgerのduplicate quarantine IDはremoval candidateではなくcorrupt
 - source evidence mapping
 - duplicate／conflict／corruption rules
 - policy v2の入力・出力・拒否条件
-- fixture／test vector
 
 正本：`docs/operations/QUARANTINE_REPLACEMENT_POLICY.md`
 
@@ -102,9 +41,6 @@ Terminal ledgerのduplicate quarantine IDはremoval candidateではなくcorrupt
 
 **状態: completed (#52 / PR #53)**
 
-実装済み：
-
-- policy v2専用の非破壊replacement preview
 - deterministic replacement plan
 - plan／proofの個別digest
 - archive segmentからactive ledgerまでのone-to-one provenance
@@ -114,11 +50,7 @@ Terminal ledgerのduplicate quarantine IDはremoval candidateではなくcorrupt
 - semantic-equivalence検証
 - tamper検出
 - runtime fingerprint前後検証
-- empty output directoryへのatomic proof publication
-- maintenance CLI：`replacement-preview` / `verify-replacement-proof`
-- fixture-backed integration tests
-- operator runbook
-- policy-v1互換性維持
+- non-destructive maintenance CLIとoperator runbook
 
 正本：
 
@@ -131,54 +63,19 @@ docs/operations/QUARANTINE_REPLACEMENT_PREVIEW_RUNBOOK.md
 
 **状態: completed (#54 / PR #55)**
 
-実装済み：
-
-- QL-5C3B verifierのpre-apply gate強制
-- verified backup v2、plan、proof、segment manifest、runtime fingerprintのjournal binding
-- versioned transaction journalとdigest
-- validated state transitions
-- transaction-local complete ledger staging
+- QL-5C3B verifierとverified backup v2のpre-apply gate
+- versioned transaction journalとbound digests
+- complete stagingとsemantic／membership／digest verification
 - immutable evidence ledgerのbyte identity
-- staged semantic-equivalence／membership／digest verification
-- sealed generation manifestとgeneration digest
-- generation-directory active-ledger resolver
-- pointerなしの場合のlegacy root互換
-- invalid pointer／invalid generation時のfail-closed rejection
+- sealed generation manifest
+- generation-directory resolverとlegacy root互換
 - publication intentとprevious-pointer binding
-- complete generation directoryのmaterializationとfsync
+- complete generation materialization
 - current-generation pointerの1回のatomic rename
-- mixed generationをhealthyとして受理しないresolver
-- pointer switch前後のdeterministic recovery classification
+- deterministic recovery classification
 - idempotent apply／resume／rollback
-- atomic switch後／commit前のresume
-- commit前のprevious-generation rollback
-- post-publication index rebuild／verification
-- archive segment verification
-- maintenance CLI：`replacement-apply` / `replacement-status` / `replacement-recover`
-- generation contractとoperator recovery runbook
-- policy-v1互換性維持
-
-Transaction states：
-
-```text
-prepared
-writing
-staged
-verified
-publishing
-committed
-rolled-back
-recovery-required
-```
-
-Reader-visible layout：
-
-```text
-quarantine-current-generation.json
-quarantine-generations/<transaction-id>/
-```
-
-`committed`と`rolled-back`はterminalです。Committed generationのrollbackは行わず、新しいverified transactionでsupersedeします。
+- post-publication index／segment verification
+- committed／rolled-back terminal states
 
 正本：
 
@@ -190,39 +87,59 @@ docs/operations/QUARANTINE_REPLACEMENT_RECOVERY_RUNBOOK.md
 
 ### QL-5C3D: Operations and Release Hardening
 
-**状態: in progress (#56 / Draft PR #60)**
+**状態: implementation completed (#56 / PR #60)**
 
 実装済み：
 
 - versioned structured status `lingonberry-quarantine-replacement-status/v1`
 - bounded-cardinality Prometheus metrics
-- `replacement-metrics <transaction-dir>` CLI
 - secret-free append-only audit JSONL
 - apply／status／resume／rollback audit integration
-- explicit double-opt-in、one-shot failure injection
-- failure points：pointer rename、index rebuild、commit transition、rollback pointer restoration、rolled-back transition
-- pre-switch／post-switch／commit／rollback crash recovery tests
 - read-only retention report `lingonberry-quarantine-replacement-retention-report/v1`
-- active committed／previous committed／rolled-back／incomplete／orphan／legacy／corrupt classification
-- `replacement-inspect-generations [transaction-dir ...]` CLI
-- backup v2 → preview／proof → apply → status／metrics → index／segments → retention operator smoke test
-- v0.3.0 release checklistとrelease notes
+- active／previous／rolled-back／incomplete／orphan／legacy／corrupt classification
+- `replacement-metrics`／`replacement-inspect-generations` CLI
+- end-to-end operator smoke test
 - workspace package version 0.3.0とCargo.lock更新
+- versioned failure-point registry
+- machine-readable crash-point inventory
+- registry／inventory consistency CI contract
+- explicit double-opt-in、one-shot failure injection
+- 全18 durable／publication／rollback failure points
+- early write／fsync、pre-switch、post-switch、commit、rollback recovery tests
 
-残作業：
+Failure points：
 
-- journal write／fsync failure injection
-- staged ledger write／fsync、staging-directory fsync failure injection
-- generation manifest／materialization failure injection
-- publication-intent、pointer temporary-write、state-directory fsync failure injection
-- index verification／segment verification failure injection
-- machine-readableまたはtable-driven crash-point inventory
-- PR本文／正本文書／CLI helpの最終整合性確認
-- Draft解除、merge、main CI確認、release commit／tag／GitHub Release
+```text
+journal.write
+journal.fsync
+staging.ledger-write
+staging.ledger-fsync
+staging.directory-fsync
+generation.manifest-write
+generation.manifest-fsync
+publication.intent-write
+publication.generation-materialize-rename
+publication.pointer-temporary-write
+publication.pointer-rename
+publication.state-directory-fsync
+publication.index-rebuild
+publication.index-verification
+publication.segment-verification
+publication.commit-transition
+rollback.pointer-restore
+rollback.rolled-back-transition
+```
 
-Generation cleanupでautomatic deletionを導入する場合は、既存のretention非スコープとは別にpolicy／recovery evidence要件を承認する必要があります。
+Release closure：
 
-### 全段階共通の非スコープ
+- PR #60 Draft解除／merge
+- main branch CI確認
+- release commit確定
+- `v0.3.0` tagとGitHub Release
+
+Generation cleanupでautomatic deletionを導入する場合は、別Issueでpolicy／recovery evidence要件を承認する必要があります。
+
+## 全段階共通の非スコープ
 
 - automatic retention deletion
 - automatic generation／workspace deletion
@@ -234,20 +151,6 @@ Generation cleanupでautomatic deletionを導入する場合は、既存のreten
 - remote archive／backup storage
 - cryptographic signing
 
----
+## 次段階
 
-## 再開時のIssue作成テンプレート
-
-```markdown
-## Goal
-## Persistent state changes
-## CLI / HTTP changes
-## Lifecycle semantics
-## Idempotency and concurrency
-## Error handling
-## Tests
-## Documentation updates
-## Non-goals
-```
-
-各quarantine関連PRでは、`CURRENT_IMPLEMENTATION_STATUS.md`を更新するか、更新不要の理由をPR本文へ記載します。
+v0.3.0リリース後の新規作業は、既存のrewrite transactionへ暗黙に混在させず、個別Issueとして安全境界・persistent state・recovery semanticsを定義します。

@@ -1,117 +1,68 @@
-name: Wire replacement retention inspection
+name: CI
 
 on:
   pull_request:
+  push:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  wire:
-    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+  rust:
+    name: Rust checks
     runs-on: ubuntu-latest
+
     steps:
-      - name: Check out feature branch
+      - name: Check out repository
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref }}
-          fetch-depth: 0
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          components: rustfmt
+          components: rustfmt, clippy
 
-      - name: Wire API and CLI
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 - <<'PY'
-          from pathlib import Path
+      - name: Cache Cargo artifacts
+        uses: Swatinem/rust-cache@v2
 
-          lib = Path('packages/core/src/lib_entry.rs')
-          text = lib.read_text()
-          if 'mod quarantine_replacement_retention;' not in text:
-              text = text.replace(
-                  'mod quarantine_replacement_observability;\n',
-                  'mod quarantine_replacement_observability;\nmod quarantine_replacement_retention;\n',
-                  1,
-              )
-          export = '''pub use quarantine_replacement_retention::{
-              inspect_quarantine_replacement_generations,
-              quarantine_replacement_retention_report_json,
-              QuarantineReplacementGenerationInspection,
-              QuarantineReplacementRetentionReport,
-              QUARANTINE_REPLACEMENT_RETENTION_REPORT_VERSION,
-          };
-          '''
-          if 'pub use quarantine_replacement_retention::' not in text:
-              marker = '''pub use quarantine_replacement_observability::{
-              quarantine_replacement_metrics_text, quarantine_replacement_status_v1_json,
-              QUARANTINE_REPLACEMENT_STATUS_VERSION,
-          };
-          '''
-              if marker not in text:
-                  raise SystemExit('observability export marker missing')
-              text = text.replace(marker, marker + export, 1)
-          lib.write_text(text)
+      - name: Check formatting
+        run: cargo fmt --all -- --check
 
-          cli = Path('packages/relay/src/quarantine_maintenance_main.rs')
-          text = cli.read_text()
-          if 'inspect_quarantine_replacement_generations' not in text:
-              text = text.replace(
-                  '    build_quarantine_ledger_index, create_quarantine_compaction_preview,\n',
-                  '    build_quarantine_ledger_index, create_quarantine_compaction_preview,\n    inspect_quarantine_replacement_generations,\n',
-                  1,
-              )
-              text = text.replace(
-                  '    quarantine_replacement_proof_report_json, quarantine_replacement_status,\n',
-                  '    quarantine_replacement_proof_report_json,\n    quarantine_replacement_retention_report_json, quarantine_replacement_status,\n',
-                  1,
-              )
-          command = '''        "replacement-inspect-generations" => {
-              let transaction_dirs = args
-                  .iter()
-                  .skip(1)
-                  .map(PathBuf::from)
-                  .collect::<Vec<_>>();
-              let report = inspect_quarantine_replacement_generations(
-                  runtime_state_dir(),
-                  &transaction_dirs,
-              )
-              .map_err(|error| error.to_string())?;
-              println!(
-                  "{}",
-                  to_canonical_json(&quarantine_replacement_retention_report_json(&report))
-              );
-          }
-          '''
-          if '"replacement-inspect-generations" =>' not in text:
-              marker = '        "replacement-recover" => {\n'
-              if marker not in text:
-                  raise SystemExit('replacement-recover marker missing')
-              text = text.replace(marker, command + marker, 1)
-          usage_old = '  lingonberry-quarantine-maintenance replacement-metrics <transaction-dir>\\n  lingonberry-quarantine-maintenance replacement-recover'
-          usage_new = '  lingonberry-quarantine-maintenance replacement-metrics <transaction-dir>\\n  lingonberry-quarantine-maintenance replacement-inspect-generations [transaction-dir ...]\\n  lingonberry-quarantine-maintenance replacement-recover'
-          if 'replacement-inspect-generations [transaction-dir ...]' not in text:
-              if usage_old not in text:
-                  raise SystemExit('usage marker missing')
-              text = text.replace(usage_old, usage_new, 1)
-          test_marker = '        assert!(usage.contains("replacement-metrics <transaction-dir>"));\n'
-          if 'usage.contains("replacement-inspect-generations' not in text:
-              if test_marker not in text:
-                  raise SystemExit('usage test marker missing')
-              text = text.replace(
-                  test_marker,
-                  test_marker + '        assert!(usage.contains("replacement-inspect-generations [transaction-dir ...]"));\n',
-                  1,
-              )
-          cli.write_text(text)
-          PY
-          cargo fmt --all
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add packages/core/src/lib_entry.rs packages/core/src/quarantine_replacement_retention.rs packages/relay/src/quarantine_maintenance_main.rs
-          git commit -m "feat: expose generation retention inspection"
-          git push origin HEAD:${{ github.head_ref }}
+      - name: Run library clippy
+        run: cargo clippy --workspace --lib -- -D warnings
+
+      - name: Run binary clippy
+        run: cargo clippy --workspace --bins -- -D warnings -A dead-code
+
+      - name: Run test clippy
+        run: cargo clippy --workspace --tests -- -D warnings -A dead-code -A unused-variables
+
+      - name: Run workspace tests
+        run: cargo test --workspace
+
+  javascript:
+    name: JavaScript tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Run JavaScript tests
+        run: >-
+          node --test
+          packages/codecs/test/canonicalization.test.mjs
+          packages/identity/test/identity-key-v2.test.mjs
+          packages/identity/test/identity-claim-validator.test.mjs
+          packages/validation/test/validation.test.mjs

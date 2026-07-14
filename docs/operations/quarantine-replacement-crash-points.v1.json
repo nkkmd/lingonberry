@@ -154,42 +154,57 @@
     {
       "id": "publication.generation-materialize-rename",
       "registered": true,
-      "implemented": false,
-      "boundary": "complete temporary generation directory rename",
+      "implemented": true,
+      "boundary": "after complete generation directory rename and before pointer switch",
       "readerVisibleTarget": false,
-      "allowedRecovery": ["resume", "rollback"]
+      "expectedJournalState": "recovery-required",
+      "expectedClassification": "resumable-or-rollback-before-switch",
+      "allowedRecovery": ["resume", "rollback"],
+      "test": "injected_publication_post_boundary_failures_resume_to_committed"
     },
     {
       "id": "publication.intent-write",
       "registered": true,
-      "implemented": false,
-      "boundary": "publication intent durable write",
+      "implemented": true,
+      "boundary": "after publication intent is durable and before pointer switch",
       "readerVisibleTarget": false,
-      "allowedRecovery": ["resume", "rollback"]
+      "expectedJournalState": "recovery-required",
+      "expectedClassification": "resumable-or-rollback-before-switch",
+      "allowedRecovery": ["resume", "rollback"],
+      "test": "injected_publication_post_boundary_failures_resume_to_committed"
     },
     {
       "id": "publication.state-directory-fsync",
       "registered": true,
-      "implemented": false,
-      "boundary": "state directory fsync after pointer rename",
+      "implemented": true,
+      "boundary": "after pointer rename and state-directory fsync, before index rebuild",
       "readerVisibleTarget": true,
-      "allowedRecovery": ["resume", "rollback"]
+      "expectedJournalState": "recovery-required",
+      "expectedClassification": "resumable-or-rollback-after-switch",
+      "allowedRecovery": ["resume", "rollback"],
+      "test": "injected_publication_post_boundary_failures_resume_to_committed"
     },
     {
       "id": "publication.index-verification",
       "registered": true,
-      "implemented": false,
-      "boundary": "post-publication derived index verification",
+      "implemented": true,
+      "boundary": "after derived index verification and before committed transition",
       "readerVisibleTarget": true,
-      "allowedRecovery": ["resume", "rollback"]
+      "expectedJournalState": "recovery-required",
+      "expectedClassification": "resumable-or-rollback-after-switch",
+      "allowedRecovery": ["resume", "rollback"],
+      "test": "injected_publication_post_boundary_failures_resume_to_committed"
     },
     {
       "id": "publication.segment-verification",
       "registered": true,
-      "implemented": false,
-      "boundary": "post-publication archive segment verification",
+      "implemented": true,
+      "boundary": "after archive segment verification and before committed transition",
       "readerVisibleTarget": true,
-      "allowedRecovery": ["resume", "rollback"]
+      "expectedJournalState": "recovery-required",
+      "expectedClassification": "resumable-or-rollback-after-switch",
+      "allowedRecovery": ["resume", "rollback"],
+      "test": "injected_publication_post_boundary_failures_resume_to_committed"
     }
   ]
 }

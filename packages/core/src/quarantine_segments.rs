@@ -6,8 +6,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use lingonberry_protocol::{parse_json, to_canonical_json, JsonValue};
 
 use crate::{
-    acquire_quarantine_lock, store_error, verify_quarantine_ledger_index, StoreError,
-    QUARANTINE_BACKUP_FILES,
+    acquire_quarantine_lock, resolve_quarantine_active_path, store_error,
+    verify_quarantine_ledger_index, StoreError, QUARANTINE_BACKUP_FILES,
 };
 
 pub const QUARANTINE_SEGMENT_MANIFEST_VERSION: &str = "lingonberry-quarantine-segments/v1";
@@ -71,7 +71,10 @@ pub fn read_managed_ledger_lines(
             .join(&segment.file);
         lines.extend(read_valid_jsonl_lines(&path, &segment.file)?);
     }
-    lines.extend(read_valid_jsonl_lines(&state_dir.join(ledger), ledger)?);
+    lines.extend(read_valid_jsonl_lines(
+        &resolve_quarantine_active_path(state_dir, ledger)?,
+        ledger,
+    )?);
     Ok(lines)
 }
 
@@ -98,7 +101,7 @@ pub fn rotate_quarantine_ledger(
     let _lock = acquire_quarantine_lock(state_dir, "quarantine-ledger-rotate")?;
     verify_quarantine_ledger_index(state_dir)?;
 
-    let active_path = state_dir.join(ledger);
+    let active_path = resolve_quarantine_active_path(state_dir, ledger)?;
     if !active_path.exists() {
         return Err(store_error(
             "LB_QUARANTINE_ROTATION_EMPTY",
@@ -162,7 +165,10 @@ pub fn rotate_quarantine_ledger(
         .segments
         .sort_by(|left, right| (&left.ledger, left.sequence).cmp(&(&right.ledger, right.sequence)));
 
-    let temporary_active = state_dir.join(format!(".{ledger}.rotate-empty"));
+    let active_parent = active_path
+        .parent()
+        .ok_or_else(|| store_error("LB_QUARANTINE_IO", "active ledger parent is missing"))?;
+    let temporary_active = active_parent.join(format!(".{ledger}.rotate-empty"));
     fs::write(&temporary_active, b"")
         .map_err(|error| store_error("LB_QUARANTINE_IO", error.to_string()))?;
     fs::rename(&temporary_active, &active_path)
@@ -171,7 +177,7 @@ pub fn rotate_quarantine_ledger(
     if let Err(error) = write_manifest(state_dir, &manifest) {
         rollback_rotation(
             state_dir,
-            ledger,
+            &active_path,
             &segment_path,
             &active_bytes,
             old_manifest_text.as_deref(),
@@ -184,7 +190,7 @@ pub fn rotate_quarantine_ledger(
         Err(error) => {
             rollback_rotation(
                 state_dir,
-                ledger,
+                &active_path,
                 &segment_path,
                 &active_bytes,
                 old_manifest_text.as_deref(),
@@ -196,7 +202,7 @@ pub fn rotate_quarantine_ledger(
     if before_lines.len() != after_lines.len() || before_digest != after_digest {
         rollback_rotation(
             state_dir,
-            ledger,
+            &active_path,
             &segment_path,
             &active_bytes,
             old_manifest_text.as_deref(),
@@ -408,12 +414,12 @@ fn validate_jsonl_bytes(bytes: &[u8], label: &str) -> Result<u64, StoreError> {
 
 fn rollback_rotation(
     state_dir: &Path,
-    ledger: &str,
+    active_path: &Path,
     segment_path: &Path,
     active_bytes: &[u8],
     old_manifest_text: Option<&str>,
 ) {
-    let _ = fs::write(state_dir.join(ledger), active_bytes);
+    let _ = fs::write(active_path, active_bytes);
     let _ = fs::remove_file(segment_path);
     let manifest_path = state_dir.join(QUARANTINE_SEGMENT_MANIFEST_FILE);
     match old_manifest_text {

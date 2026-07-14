@@ -338,7 +338,7 @@ mod tests {
         let dir = temp_dir();
         let store = QuarantineStore::new(&dir);
         fs::create_dir_all(&dir).unwrap();
-        fs::write(store.permanent_rejections_path(), "not-json\n").unwrap();
+        fs::write(store.permanent_rejections_path().unwrap(), "not-json\n").unwrap();
         assert_eq!(
             quarantine_status(&store).unwrap_err().code,
             "LB_QUARANTINE_CORRUPT"

@@ -1,6 +1,6 @@
 # Quarantine Lifecycle Backlog
 
-**Status: active** | **Last updated: 2026-07-13**
+**Status: active** | **Last updated: 2026-07-14**
 
 現在地の正本は [CURRENT_IMPLEMENTATION_STATUS.md](./CURRENT_IMPLEMENTATION_STATUS.md) です。v0.3.0の作業順序は [RELEASE_0_3_0_ROADMAP.md](./RELEASE_0_3_0_ROADMAP.md) を正本とします。
 
@@ -16,6 +16,8 @@
 | archive-inclusive backup / verify / restore | #36 / #37 | 完了 |
 | non-destructive compaction preview and proof | #38 / #39 | 完了 |
 | replacement policy and semantic-equivalence contract | #50 / #51 | 完了 |
+| policy-v2 replacement preview and proof | #52 / #53 | 完了 |
+| generation-based rewrite transaction and recovery | #54 / #55 | 完了 |
 
 ---
 
@@ -47,7 +49,7 @@ v2: active ledgers + segment manifest + listed immutable segments
 
 **状態: completed**
 
-### Policy v1
+Policy v1はmutationを許可しません。
 
 ```text
 policy: lingonberry-quarantine-compaction-policy/v1
@@ -55,8 +57,6 @@ mutationAllowed: false
 rewritePerformed: false
 removableLines: 0
 ```
-
-### Ledger classification
 
 Immutable evidence：
 
@@ -76,21 +76,7 @@ quarantine-rejections.jsonl
 
 Terminal ledgerのduplicate quarantine IDはremoval candidateではなくcorruptionです。
 
-### 実装済み完了条件
-
-- verified archive-inclusive backup v2を必須化
-- archive segment verificationを事前実行
-- 全managed ledgerのordered logical streamをscan
-- line count、byte count、ordered digest、unique key countを記録
-- promoted、dismissed、permanently rejectedのcountを記録
-- backup manifestとsegment manifestのdigestをproofへ記録
-- runtime fingerprintをpreview前後で比較
-- output directory以外を変更しない
-- versioned proofとseparate digestをatomic publish
-- proof tamperingとunsupported policyを拒否
-- policy v1では全line保持、removable lineは常に0
-
-関連文書：`docs/operations/QUARANTINE_COMPACTION_PROOF.md`
+正本：`docs/operations/QUARANTINE_COMPACTION_PROOF.md`
 
 ---
 
@@ -98,11 +84,9 @@ Terminal ledgerのduplicate quarantine IDはremoval candidateではなくcorrupt
 
 **優先度: highest** | **Target: v0.3.0**
 
-QL-5C3は、仕様確定前のrewrite実装を防ぐため、次の4段階へ分割します。
-
 ### QL-5C3A: Replacement Policy and Semantic-equivalence Contract
 
-**状態: completed (#50 / #51)**
+**状態: completed (#50 / PR #51)**
 
 - ledger type別replacement semantics
 - immutable evidenceとreplaceable representationの境界
@@ -116,45 +100,119 @@ QL-5C3は、仕様確定前のrewrite実装を防ぐため、次の4段階へ分
 
 ### QL-5C3B: Policy v2 Preview and Proof
 
-**状態: in progress (#52)**
+**状態: completed (#52 / PR #53)**
 
+実装済み：
+
+- policy v2専用の非破壊replacement preview
 - deterministic replacement plan
-- source-to-replacement provenance proof
-- semantic-equivalence report
-- proof digest and tamper detection
-- runtime mutationなしのpreview
-- policy-v1 proof verification regression
+- plan／proofの個別digest
+- archive segmentからactive ledgerまでのone-to-one provenance
+- immutable evidence ledgerのbyte retention
+- terminal ledgerのcanonical JSON representation replacement判定
+- duplicate terminal key拒否
+- semantic-equivalence検証
+- tamper検出
+- runtime fingerprint前後検証
+- empty output directoryへのatomic proof publication
+- maintenance CLI：`replacement-preview` / `verify-replacement-proof`
+- fixture-backed integration tests
+- operator runbook
+- policy-v1互換性維持
 
-実装契約：`docs/operations/QUARANTINE_REPLACEMENT_PREVIEW.md`
+正本：
 
-この段階ではproduction ledgerを変更しません。
+```text
+docs/operations/QUARANTINE_REPLACEMENT_PREVIEW.md
+docs/operations/QUARANTINE_REPLACEMENT_PREVIEW_RUNBOOK.md
+```
 
 ### QL-5C3C: Rewrite Transaction and Recovery
 
-**状態: blocked by QL-5C3B**
+**状態: completed (#54 / PR #55)**
 
-- verified backup v2の事前成功
-- same-host operation lock内の再検証
-- transaction journal
-- staging、verification、atomic publication
-- interrupted rewrite recovery
-- stale proof／stale index拒否
+実装済み：
+
+- QL-5C3B verifierのpre-apply gate強制
+- verified backup v2、plan、proof、segment manifest、runtime fingerprintのjournal binding
+- versioned transaction journalとdigest
+- validated state transitions
+- transaction-local complete ledger staging
+- immutable evidence ledgerのbyte identity
+- staged semantic-equivalence／membership／digest verification
+- sealed generation manifestとgeneration digest
+- generation-directory active-ledger resolver
+- pointerなしの場合のlegacy root互換
+- invalid pointer／invalid generation時のfail-closed rejection
+- publication intentとprevious-pointer binding
+- complete generation directoryのmaterializationとfsync
+- current-generation pointerの1回のatomic rename
+- mixed generationをhealthyとして受理しないresolver
+- pointer switch前後のdeterministic recovery classification
+- idempotent apply／resume／rollback
+- atomic switch後／commit前のresume
+- commit前のprevious-generation rollback
+- post-publication index rebuild／verification
+- archive segment verification
+- maintenance CLI：`replacement-apply` / `replacement-status` / `replacement-recover`
+- generation contractとoperator recovery runbook
+- policy-v1互換性維持
+
+Transaction states：
+
+```text
+prepared
+writing
+staged
+verified
+publishing
+committed
+rolled-back
+recovery-required
+```
+
+Reader-visible layout：
+
+```text
+quarantine-current-generation.json
+quarantine-generations/<transaction-id>/
+```
+
+`committed`と`rolled-back`はterminalです。Committed generationのrollbackは行わず、新しいverified transactionでsupersedeします。
+
+正本：
+
+```text
+docs/operations/QUARANTINE_REPLACEMENT_TRANSACTION.md
+docs/operations/QUARANTINE_REPLACEMENT_GENERATION.md
+docs/operations/QUARANTINE_REPLACEMENT_RECOVERY_RUNBOOK.md
+```
 
 ### QL-5C3D: Operations and Release Hardening
 
-**状態: blocked by QL-5C3C**
+**状態: ready after QL-5C3C**
 
-- operator CLI
-- status／metrics／audit
-- failure injection／crash-point tests
-- operations runbook
+次の範囲：
+
+- operator CLI hardening
+- status／metrics／auditの拡張
+- filesystem fsync／rename failure-injection matrixの拡張
+- crash-point matrixの拡張
+- generation retention／cleanup policyの仕様化
 - v0.3.0 release checklist and notes
+- operator documentationの最終review
+
+Generation cleanupでautomatic deletionを導入する場合は、既存のretention非スコープとは別にpolicy／recovery evidence要件を承認する必要があります。
 
 ### 全段階共通の非スコープ
 
 - automatic retention deletion
+- deduplication／event collapse
+- schema migration／conflict resolution
+- archive-segment rewrite／deletion
+- immutable evidence mutation
 - distributed locking
-- remote archive storage
+- remote archive／backup storage
 - cryptographic signing
 
 ---

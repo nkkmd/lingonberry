@@ -7,7 +7,10 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use lingonberry_protocol::{parse_json, to_canonical_json, JsonValue};
 
 use super::QuarantineStore;
-use crate::{acquire_quarantine_lock, read_managed_ledger_lines, store_error, StoreError};
+use crate::{
+    acquire_quarantine_lock, read_managed_ledger_lines, resolve_quarantine_active_path,
+    store_error, StoreError,
+};
 
 pub const OPERATOR_PERMANENTLY_REJECTED_REASON_CODE: &str = "LB_OPERATOR_PERMANENTLY_REJECTED";
 
@@ -22,8 +25,8 @@ pub struct QuarantinePermanentRejection {
 }
 
 impl QuarantineStore {
-    pub fn permanent_rejections_path(&self) -> PathBuf {
-        self.state_dir().join("quarantine-rejections.jsonl")
+    pub fn permanent_rejections_path(&self) -> Result<PathBuf, StoreError> {
+        resolve_quarantine_active_path(self.state_dir(), "quarantine-rejections.jsonl")
     }
 
     pub fn permanently_reject(
@@ -93,7 +96,7 @@ impl QuarantineStore {
             reason_code: reason_code.to_string(),
             note: note.to_string(),
         };
-        append_line(&self.permanent_rejections_path(), &event)?;
+        append_line(&self.permanent_rejections_path()?, &event)?;
         Ok(event)
     }
 

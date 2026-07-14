@@ -6,8 +6,9 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use lingonberry_protocol::{parse_json, to_canonical_json, JsonValue};
 
 use crate::{
-    store_error, verify_any_quarantine_backup, verify_quarantine_segments, StoreError,
-    QUARANTINE_BACKUP_FILES, QUARANTINE_BACKUP_MANIFEST, QUARANTINE_COMPLETE_BACKUP_VERSION,
+    resolve_quarantine_active_path, store_error, verify_any_quarantine_backup,
+    verify_quarantine_segments, StoreError, QUARANTINE_BACKUP_FILES,
+    QUARANTINE_BACKUP_MANIFEST, QUARANTINE_COMPLETE_BACKUP_VERSION,
     QUARANTINE_SEGMENT_ARCHIVE_DIR, QUARANTINE_SEGMENT_MANIFEST_FILE,
 };
 
@@ -512,7 +513,10 @@ fn read_located_lines(state_dir: &Path, ledger: &str) -> Result<Vec<LocatedLine>
             }
         }
     }
-    lines.extend(read_file_lines(&state_dir.join(ledger), "active-ledger")?);
+    lines.extend(read_file_lines(
+        &resolve_quarantine_active_path(state_dir, ledger)?,
+        "active-ledger",
+    )?);
     Ok(lines)
 }
 
@@ -630,7 +634,11 @@ fn runtime_fingerprint(state_dir: &Path) -> Result<Vec<(String, Option<String>)>
     paths
         .into_iter()
         .map(|relative| {
-            let path = state_dir.join(&relative);
+            let path = if QUARANTINE_BACKUP_FILES.contains(&relative.as_str()) {
+                resolve_quarantine_active_path(state_dir, &relative)?
+            } else {
+                state_dir.join(&relative)
+            };
             Ok((
                 relative,
                 if path.exists() {

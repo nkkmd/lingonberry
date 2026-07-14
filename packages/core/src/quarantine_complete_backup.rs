@@ -6,9 +6,10 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use lingonberry_protocol::{parse_json, to_canonical_json, JsonValue};
 
 use crate::{
-    acquire_quarantine_lock, restore_quarantine_backup, store_error, verify_quarantine_backup,
-    verify_quarantine_segments, QuarantineBackupReport, StoreError, QUARANTINE_BACKUP_FILES,
-    QUARANTINE_BACKUP_MANIFEST, QUARANTINE_SEGMENT_ARCHIVE_DIR, QUARANTINE_SEGMENT_MANIFEST_FILE,
+    acquire_quarantine_lock, resolve_quarantine_active_path, restore_quarantine_backup,
+    store_error, verify_quarantine_backup, verify_quarantine_segments, QuarantineBackupReport,
+    StoreError, QUARANTINE_BACKUP_FILES, QUARANTINE_BACKUP_MANIFEST,
+    QUARANTINE_SEGMENT_ARCHIVE_DIR, QUARANTINE_SEGMENT_MANIFEST_FILE,
 };
 
 pub const QUARANTINE_COMPLETE_BACKUP_VERSION: &str = "lingonberry-quarantine-backup/v2";
@@ -65,7 +66,11 @@ pub fn export_complete_quarantine_backup(
     let mut files = Vec::new();
     for relative in paths {
         validate_relative_path(&relative)?;
-        let source = state_dir.join(&relative);
+        let source = if QUARANTINE_BACKUP_FILES.contains(&relative.as_str()) {
+            resolve_quarantine_active_path(state_dir, &relative)?
+        } else {
+            state_dir.join(&relative)
+        };
         if !source.exists() {
             files.push(BackupEntry {
                 path: relative,

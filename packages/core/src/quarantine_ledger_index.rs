@@ -5,7 +5,10 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use lingonberry_protocol::{parse_json, to_canonical_json, JsonValue};
 
-use crate::{acquire_quarantine_lock, store_error, StoreError, QUARANTINE_BACKUP_FILES};
+use crate::{
+    acquire_quarantine_lock, resolve_quarantine_active_path, store_error, StoreError,
+    QUARANTINE_BACKUP_FILES,
+};
 
 pub const QUARANTINE_LEDGER_INDEX_VERSION: &str = "lingonberry-quarantine-ledger-index/v1";
 pub const QUARANTINE_LEDGER_INDEX_FILE: &str = "quarantine-ledger-index.json";
@@ -60,9 +63,15 @@ pub fn build_quarantine_ledger_index(
 ) -> Result<QuarantineLedgerIndexReport, StoreError> {
     let state_dir = state_dir.as_ref();
     let _lock = acquire_quarantine_lock(state_dir, "quarantine-ledger-index-build")?;
+    build_quarantine_ledger_index_locked(state_dir)
+}
+
+pub(crate) fn build_quarantine_ledger_index_locked(
+    state_dir: &Path,
+) -> Result<QuarantineLedgerIndexReport, StoreError> {
     let mut files = Vec::new();
     for name in QUARANTINE_BACKUP_FILES {
-        let path = state_dir.join(name);
+        let path = resolve_quarantine_active_path(state_dir, name)?;
         files.push(scan_ledger(&path, name)?);
     }
     let index = QuarantineLedgerIndex {
@@ -97,7 +106,10 @@ pub fn verify_quarantine_ledger_index(
     let index = parse_index(&text)?;
     validate_index_shape(&index)?;
     for expected in &index.files {
-        let actual = scan_ledger(&state_dir.join(&expected.name), &expected.name)?;
+        let actual = scan_ledger(
+            &resolve_quarantine_active_path(state_dir, &expected.name)?,
+            &expected.name,
+        )?;
         if &actual != expected {
             return Err(store_error(
                 "LB_QUARANTINE_INDEX_STALE",

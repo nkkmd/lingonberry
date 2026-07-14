@@ -6,9 +6,8 @@ use lingonberry_protocol::JsonValue;
 
 use crate::{
     read_quarantine_replacement_transaction_journal, resolve_quarantine_active_generation,
-    store_error, QuarantineReplacementTransactionState, StoreError,
-    QUARANTINE_GENERATIONS_DIR, QUARANTINE_REPLACEMENT_GENERATION_DIGEST_FILE,
-    QUARANTINE_REPLACEMENT_GENERATION_MANIFEST_FILE,
+    store_error, QuarantineReplacementTransactionState, StoreError, QUARANTINE_GENERATIONS_DIR,
+    QUARANTINE_REPLACEMENT_GENERATION_DIGEST_FILE, QUARANTINE_REPLACEMENT_GENERATION_MANIFEST_FILE,
 };
 
 pub const QUARANTINE_REPLACEMENT_RETENTION_REPORT_VERSION: &str =
@@ -111,9 +110,7 @@ pub fn inspect_quarantine_replacement_generations(
                 Some(QuarantineReplacementTransactionState::Committed) => {
                     "previous-committed-generation"
                 }
-                Some(QuarantineReplacementTransactionState::RolledBack) => {
-                    "rolled-back-generation"
-                }
+                Some(QuarantineReplacementTransactionState::RolledBack) => "rolled-back-generation",
                 Some(_) => "incomplete-transaction-generation",
                 None => "orphan-unreferenced-generation",
             }
@@ -178,9 +175,7 @@ pub fn quarantine_replacement_retention_report_json(
     ]))
 }
 
-fn generation_inspection_json(
-    inspection: &QuarantineReplacementGenerationInspection,
-) -> JsonValue {
+fn generation_inspection_json(inspection: &QuarantineReplacementGenerationInspection) -> JsonValue {
     JsonValue::Object(BTreeMap::from([
         (
             "classification".to_string(),

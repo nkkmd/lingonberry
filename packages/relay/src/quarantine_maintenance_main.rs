@@ -5,10 +5,11 @@ use std::process;
 use lingonberry_core::{
     append_quarantine_replacement_audit_event, apply_quarantine_replacement_transaction,
     build_quarantine_ledger_index, create_quarantine_compaction_preview,
-    create_quarantine_replacement_preview, plan_quarantine_ledger_maintenance,
-    quarantine_compaction_proof_report_json, quarantine_ledger_index_report_json,
-    quarantine_ledger_maintenance_plan_json, quarantine_replacement_metrics_text,
-    quarantine_replacement_proof_report_json, quarantine_replacement_status,
+    create_quarantine_replacement_preview, inspect_quarantine_replacement_generations,
+    plan_quarantine_ledger_maintenance, quarantine_compaction_proof_report_json,
+    quarantine_ledger_index_report_json, quarantine_ledger_maintenance_plan_json,
+    quarantine_replacement_metrics_text, quarantine_replacement_proof_report_json,
+    quarantine_replacement_retention_report_json, quarantine_replacement_status,
     quarantine_replacement_status_v1_json, quarantine_rotation_report_json,
     quarantine_segment_report_json, resume_quarantine_replacement_transaction,
     rollback_quarantine_replacement_transaction, rotate_quarantine_ledger, runtime_state_dir,
@@ -181,6 +182,16 @@ fn run(args: Vec<String>) -> Result<(), String> {
                     .map_err(|error| error.to_string())?;
             print!("{}", quarantine_replacement_metrics_text(&report));
         }
+        "replacement-inspect-generations" => {
+            let transaction_dirs = args.iter().skip(1).map(PathBuf::from).collect::<Vec<_>>();
+            let report =
+                inspect_quarantine_replacement_generations(runtime_state_dir(), &transaction_dirs)
+                    .map_err(|error| error.to_string())?;
+            println!(
+                "{}",
+                to_canonical_json(&quarantine_replacement_retention_report_json(&report))
+            );
+        }
         "replacement-recover" => {
             let transaction_dir = args.get(1).ok_or_else(usage)?;
             let mode = args.get(2).map(String::as_str).ok_or_else(usage)?;
@@ -338,7 +349,7 @@ fn transaction_id_from_dir(path: &Path) -> Result<String, String> {
 }
 
 fn usage() -> String {
-    "usage:\n  lingonberry-quarantine-maintenance build-index\n  lingonberry-quarantine-maintenance verify-index\n  lingonberry-quarantine-maintenance verify-segments\n  lingonberry-quarantine-maintenance rotate <managed-ledger-name>\n  lingonberry-quarantine-maintenance compaction-preview <verified-backup-v2-dir> <empty-output-dir>\n  lingonberry-quarantine-maintenance verify-compaction-proof <proof-dir>\n  lingonberry-quarantine-maintenance replacement-preview <verified-backup-v2-dir> <empty-output-dir>\n  lingonberry-quarantine-maintenance verify-replacement-proof <proof-dir>\n  lingonberry-quarantine-maintenance replacement-apply <verified-backup-v2-dir> <verified-proof-dir> <transaction-dir>\n  lingonberry-quarantine-maintenance replacement-status <transaction-dir>\n  lingonberry-quarantine-maintenance replacement-metrics <transaction-dir>\n  lingonberry-quarantine-maintenance replacement-recover <transaction-dir> --resume|--rollback\n  lingonberry-quarantine-maintenance plan <byte-threshold> <line-threshold>"
+    "usage:\n  lingonberry-quarantine-maintenance build-index\n  lingonberry-quarantine-maintenance verify-index\n  lingonberry-quarantine-maintenance verify-segments\n  lingonberry-quarantine-maintenance rotate <managed-ledger-name>\n  lingonberry-quarantine-maintenance compaction-preview <verified-backup-v2-dir> <empty-output-dir>\n  lingonberry-quarantine-maintenance verify-compaction-proof <proof-dir>\n  lingonberry-quarantine-maintenance replacement-preview <verified-backup-v2-dir> <empty-output-dir>\n  lingonberry-quarantine-maintenance verify-replacement-proof <proof-dir>\n  lingonberry-quarantine-maintenance replacement-apply <verified-backup-v2-dir> <verified-proof-dir> <transaction-dir>\n  lingonberry-quarantine-maintenance replacement-status <transaction-dir>\n  lingonberry-quarantine-maintenance replacement-metrics <transaction-dir>\n  lingonberry-quarantine-maintenance replacement-inspect-generations [transaction-dir ...]\n  lingonberry-quarantine-maintenance replacement-recover <transaction-dir> --resume|--rollback\n  lingonberry-quarantine-maintenance plan <byte-threshold> <line-threshold>"
         .to_string()
 }
 
@@ -375,5 +386,6 @@ mod tests {
         let usage = usage();
         assert!(usage.contains("replacement-status <transaction-dir>"));
         assert!(usage.contains("replacement-metrics <transaction-dir>"));
+        assert!(usage.contains("replacement-inspect-generations [transaction-dir ...]"));
     }
 }

@@ -6,7 +6,9 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use lingonberry_protocol::{to_canonical_json, JsonValue};
 
-use crate::{acquire_quarantine_lock, store_error, QuarantineReplacementTransactionState, StoreError};
+use crate::{
+    acquire_quarantine_lock, store_error, QuarantineReplacementTransactionState, StoreError,
+};
 
 pub const QUARANTINE_REPLACEMENT_AUDIT_FILE: &str = "quarantine-replacement-audit.jsonl";
 pub const QUARANTINE_REPLACEMENT_AUDIT_VERSION: &str =
@@ -192,7 +194,9 @@ fn validate_classification(value: &str) -> Result<String, StoreError> {
     if ALLOWED.contains(&value) {
         Ok(value.to_string())
     } else {
-        Err(audit_error("audit classification is not in the bounded allowlist"))
+        Err(audit_error(
+            "audit classification is not in the bounded allowlist",
+        ))
     }
 }
 

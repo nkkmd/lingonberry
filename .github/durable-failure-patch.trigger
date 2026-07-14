@@ -1,1 +1,1 @@
-apply durable failure injection coverage
+apply durable failure injection coverage 2

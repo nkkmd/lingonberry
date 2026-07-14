@@ -49,6 +49,33 @@ pub const QUARANTINE_REPLACEMENT_FAILURE_POINTS: &[&str] = &[
     FAILURE_POINT_ROLLED_BACK_TRANSITION,
 ];
 
+pub const QUARANTINE_REPLACEMENT_FAILURE_POINT_ALIASES: &[(&str, &str)] = &[
+    (
+        FAILURE_POINT_POINTER_RENAME,
+        FAILURE_POINT_POINTER_TEMPORARY_WRITE,
+    ),
+    (
+        FAILURE_POINT_POINTER_RENAME,
+        FAILURE_POINT_PUBLICATION_INTENT_WRITE,
+    ),
+    (
+        FAILURE_POINT_POINTER_RENAME,
+        FAILURE_POINT_GENERATION_MATERIALIZE_RENAME,
+    ),
+    (
+        FAILURE_POINT_INDEX_REBUILD,
+        FAILURE_POINT_STATE_DIRECTORY_FSYNC,
+    ),
+    (
+        FAILURE_POINT_COMMIT_TRANSITION,
+        FAILURE_POINT_INDEX_VERIFICATION,
+    ),
+    (
+        FAILURE_POINT_COMMIT_TRANSITION,
+        FAILURE_POINT_SEGMENT_VERIFICATION,
+    ),
+];
+
 static TRIGGERED_POINTS: OnceLock<Mutex<BTreeSet<String>>> = OnceLock::new();
 
 pub(crate) fn inject_quarantine_replacement_failure(point: &str) -> Result<(), StoreError> {
@@ -63,12 +90,15 @@ pub(crate) fn inject_quarantine_replacement_failure(point: &str) -> Result<(), S
         Ok(requested) => requested,
         Err(_) => return Ok(()),
     };
-    let triggered_point = match (point, requested.as_str()) {
-        (FAILURE_POINT_POINTER_RENAME, FAILURE_POINT_POINTER_TEMPORARY_WRITE) => {
-            FAILURE_POINT_POINTER_TEMPORARY_WRITE
-        }
-        (_, requested) if requested == point => point,
-        _ => return Ok(()),
+    let triggered_point = if requested == point {
+        point
+    } else if QUARANTINE_REPLACEMENT_FAILURE_POINT_ALIASES
+        .iter()
+        .any(|(source, alias)| *source == point && *alias == requested)
+    {
+        requested.as_str()
+    } else {
+        return Ok(());
     };
 
     let mut triggered = TRIGGERED_POINTS
@@ -113,6 +143,9 @@ mod tests {
                     .bytes()
                     .all(|byte| byte.is_ascii_lowercase() || byte == b'.' || byte == b'-')
         }));
+        assert!(QUARANTINE_REPLACEMENT_FAILURE_POINT_ALIASES
+            .iter()
+            .all(|(source, alias)| points.contains(source) && points.contains(alias)));
     }
 
     #[test]
@@ -122,22 +155,18 @@ mod tests {
     }
 
     #[test]
-    fn temporary_pointer_write_uses_the_atomic_pointer_boundary() {
+    fn aliases_use_the_requested_point_as_the_one_shot_identity() {
         let _guard = ENV_LOCK.lock().unwrap();
-        clear_env();
-        std::env::set_var(QUARANTINE_REPLACEMENT_FAILURE_INJECTION_ENABLE_ENV, "1");
-        std::env::set_var(
-            QUARANTINE_REPLACEMENT_FAILURE_INJECTION_POINT_ENV,
-            FAILURE_POINT_POINTER_TEMPORARY_WRITE,
-        );
+        for (source, alias) in QUARANTINE_REPLACEMENT_FAILURE_POINT_ALIASES {
+            clear_env();
+            std::env::set_var(QUARANTINE_REPLACEMENT_FAILURE_INJECTION_ENABLE_ENV, "1");
+            std::env::set_var(QUARANTINE_REPLACEMENT_FAILURE_INJECTION_POINT_ENV, alias);
 
-        let error =
-            inject_quarantine_replacement_failure(FAILURE_POINT_POINTER_RENAME).unwrap_err();
-        assert_eq!(error.code, "LB_QUARANTINE_REPLACEMENT_FAILURE_INJECTION");
-        assert!(error
-            .message
-            .contains(FAILURE_POINT_POINTER_TEMPORARY_WRITE));
-        assert!(inject_quarantine_replacement_failure(FAILURE_POINT_POINTER_RENAME).is_ok());
+            let error = inject_quarantine_replacement_failure(source).unwrap_err();
+            assert_eq!(error.code, "LB_QUARANTINE_REPLACEMENT_FAILURE_INJECTION");
+            assert!(error.message.contains(alias));
+            assert!(inject_quarantine_replacement_failure(source).is_ok());
+        }
         clear_env();
     }
 

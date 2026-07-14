@@ -69,11 +69,8 @@ pub fn inspect_quarantine_replacement_generations(
         let referenced_by_pointer = active_transaction.as_deref() == Some(name.as_str());
         let journal_state = journals.get(&name).copied();
         let verification_status = generation_verification_status(&path);
-        let classification = classify_generation(
-            verification_status,
-            referenced_by_pointer,
-            journal_state,
-        );
+        let classification =
+            classify_generation(verification_status, referenced_by_pointer, journal_state);
 
         generations.push(QuarantineReplacementGenerationInspection {
             generation: Some(name),
@@ -172,30 +169,22 @@ fn classify_generation(
     }
     if referenced_by_pointer {
         return match journal_state {
-            Some(QuarantineReplacementTransactionState::Committed) => {
-                "active-committed-generation"
-            }
+            Some(QuarantineReplacementTransactionState::Committed) => "active-committed-generation",
             _ => "unknown-or-corrupt",
         };
     }
     match journal_state {
-        Some(QuarantineReplacementTransactionState::Committed) => {
-            "previous-committed-generation"
-        }
+        Some(QuarantineReplacementTransactionState::Committed) => "previous-committed-generation",
         Some(QuarantineReplacementTransactionState::RolledBack) => "rolled-back-generation",
         Some(_) => "incomplete-transaction-generation",
         None => "orphan-unreferenced-generation",
     }
 }
 
-fn terminal_state(
-    state: Option<QuarantineReplacementTransactionState>,
-) -> Option<String> {
+fn terminal_state(state: Option<QuarantineReplacementTransactionState>) -> Option<String> {
     state.and_then(|state| match state {
         QuarantineReplacementTransactionState::Committed
-        | QuarantineReplacementTransactionState::RolledBack => {
-            Some(state.as_str().to_string())
-        }
+        | QuarantineReplacementTransactionState::RolledBack => Some(state.as_str().to_string()),
         _ => None,
     })
 }

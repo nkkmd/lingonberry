@@ -32,17 +32,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
 
       - name: Check formatting
-        run: |
-          cargo fmt --all
-          git diff > /tmp/rustfmt.patch
-          test ! -s /tmp/rustfmt.patch
-
-      - name: Upload formatting patch
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: rustfmt-patch
-          path: /tmp/rustfmt.patch
+        run: cargo fmt --all -- --check
 
       - name: Run library clippy
         run: cargo clippy --workspace --lib -- -D warnings

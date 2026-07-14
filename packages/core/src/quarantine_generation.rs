@@ -5,11 +5,9 @@ use std::path::{Path, PathBuf};
 use lingonberry_protocol::{parse_json, JsonValue};
 
 use crate::{
-    store_error, StoreError, QUARANTINE_BACKUP_FILES,
-    QUARANTINE_CURRENT_GENERATION_POINTER_FILE, QUARANTINE_CURRENT_GENERATION_POINTER_VERSION,
-    QUARANTINE_REPLACEMENT_GENERATION_DIGEST_FILE,
-    QUARANTINE_REPLACEMENT_GENERATION_MANIFEST_FILE,
-    QUARANTINE_REPLACEMENT_GENERATION_VERSION,
+    store_error, StoreError, QUARANTINE_BACKUP_FILES, QUARANTINE_CURRENT_GENERATION_POINTER_FILE,
+    QUARANTINE_CURRENT_GENERATION_POINTER_VERSION, QUARANTINE_REPLACEMENT_GENERATION_DIGEST_FILE,
+    QUARANTINE_REPLACEMENT_GENERATION_MANIFEST_FILE, QUARANTINE_REPLACEMENT_GENERATION_VERSION,
 };
 
 pub const QUARANTINE_GENERATIONS_DIR: &str = "quarantine-generations";
@@ -34,12 +32,15 @@ pub fn resolve_quarantine_active_generation(
         });
     }
     if !pointer_path.is_file() {
-        return Err(generation_error("current-generation pointer is not a regular file"));
+        return Err(generation_error(
+            "current-generation pointer is not a regular file",
+        ));
     }
 
     let pointer_text = fs::read_to_string(&pointer_path).map_err(io_error)?;
-    let pointer = parse_json(&pointer_text)
-        .map_err(|error| generation_error(&format!("invalid current-generation pointer JSON: {error}")))?;
+    let pointer = parse_json(&pointer_text).map_err(|error| {
+        generation_error(&format!("invalid current-generation pointer JSON: {error}"))
+    })?;
     require_string(
         &pointer,
         "version",
@@ -70,14 +71,17 @@ pub fn resolve_quarantine_active_generation(
     let persisted_digest = fs::read_to_string(&digest_path).map_err(io_error)?;
     let persisted_digest = persisted_digest.trim();
     validate_digest(persisted_digest)?;
-    if persisted_digest != generation_digest || integrity_digest(manifest_text.as_bytes()) != generation_digest {
+    if persisted_digest != generation_digest
+        || integrity_digest(manifest_text.as_bytes()) != generation_digest
+    {
         return Err(generation_error(
             "current generation metadata does not match the pointer",
         ));
     }
 
-    let manifest = parse_json(&manifest_text)
-        .map_err(|error| generation_error(&format!("invalid current generation manifest: {error}")))?;
+    let manifest = parse_json(&manifest_text).map_err(|error| {
+        generation_error(&format!("invalid current generation manifest: {error}"))
+    })?;
     require_string(
         &manifest,
         "version",
@@ -96,9 +100,7 @@ pub fn resolve_quarantine_active_generation(
     })
 }
 
-pub fn resolve_quarantine_active_dir(
-    state_dir: impl AsRef<Path>,
-) -> Result<PathBuf, StoreError> {
+pub fn resolve_quarantine_active_dir(state_dir: impl AsRef<Path>) -> Result<PathBuf, StoreError> {
     resolve_quarantine_active_generation(state_dir).map(|generation| generation.active_dir)
 }
 
@@ -141,7 +143,9 @@ fn validate_transaction_id(value: &str) -> Result<(), StoreError> {
             .chars()
             .all(|character| character.is_ascii_alphanumeric() || matches!(character, '-' | '_'))
     {
-        return Err(generation_error("invalid generation transaction identifier"));
+        return Err(generation_error(
+            "invalid generation transaction identifier",
+        ));
     }
     Ok(())
 }
@@ -233,10 +237,7 @@ mod tests {
         )
         .unwrap();
         let pointer = JsonValue::Object(BTreeMap::from([
-            (
-                "generationDigest".to_string(),
-                JsonValue::String(digest),
-            ),
+            ("generationDigest".to_string(), JsonValue::String(digest)),
             (
                 "transactionId".to_string(),
                 JsonValue::String(transaction_id.to_string()),
@@ -251,7 +252,10 @@ mod tests {
             to_canonical_json(&pointer),
         )
         .unwrap();
-        assert_eq!(resolve_quarantine_active_dir(&state).unwrap(), generation_dir);
+        assert_eq!(
+            resolve_quarantine_active_dir(&state).unwrap(),
+            generation_dir
+        );
         let _ = fs::remove_dir_all(state);
     }
 

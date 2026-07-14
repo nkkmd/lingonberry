@@ -5,9 +5,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use lingonberry_protocol::{parse_json, to_canonical_json, JsonValue};
 
-use crate::{
-    acquire_quarantine_lock, resolve_quarantine_active_path, store_error, StoreError,
-};
+use crate::{acquire_quarantine_lock, resolve_quarantine_active_path, store_error, StoreError};
 
 pub const QUARANTINE_BACKUP_VERSION: &str = "lingonberry-quarantine-backup/v1";
 pub const QUARANTINE_BACKUP_MANIFEST: &str = "quarantine-backup-manifest.json";

@@ -36,8 +36,8 @@
 
 ## 4. Failure and crash hardening
 
-- [ ] Journal write failure injection
-- [ ] Journal fsync failure injection
+- [x] Journal write failure injection
+- [x] Journal fsync failure injection
 - [ ] Staged ledger write failure injection
 - [ ] Staged ledger fsync failure injection
 - [ ] Staging-directory fsync failure injection

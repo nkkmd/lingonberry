@@ -18,6 +18,16 @@ function registryEntries(source) {
     .map((match) => ({ symbol: match[1], id: match[2] }));
 }
 
+function aliasSymbols(source) {
+  const match = source.match(
+    /pub const QUARANTINE_REPLACEMENT_FAILURE_POINT_ALIASES:[\s\S]*?= &\[([\s\S]*?)\n\];/,
+  );
+  assert.ok(match, 'failure-point alias table is missing');
+  return new Set(
+    [...match[1].matchAll(/FAILURE_POINT_[A-Z0-9_]+/g)].map((entry) => entry[0]),
+  );
+}
+
 function productionSources() {
   const sourceDir = path.join(root, 'packages/core/src');
   return fs
@@ -44,6 +54,7 @@ test('crash-point inventory exactly matches the production registry', () => {
 test('implemented crash points have a production connection or explicit alias', () => {
   const registrySource = fs.readFileSync(registryPath, 'utf8');
   const registry = new Map(registryEntries(registrySource).map((entry) => [entry.id, entry.symbol]));
+  const aliases = aliasSymbols(registrySource);
   const sources = productionSources();
   const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'));
 
@@ -52,10 +63,7 @@ test('implemented crash points have a production connection or explicit alias', 
     assert.ok(symbol, `implemented crash point is missing from registry: ${point.id}`);
 
     const directConnection = sources.includes(symbol);
-    const explicitAlias = point.id === 'publication.pointer-temporary-write'
-      && registrySource.includes(
-        '(FAILURE_POINT_POINTER_RENAME, FAILURE_POINT_POINTER_TEMPORARY_WRITE)',
-      );
+    const explicitAlias = aliases.has(symbol);
 
     assert.ok(
       directConnection || explicitAlias,

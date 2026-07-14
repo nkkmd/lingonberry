@@ -2,7 +2,7 @@
 
 **Status: active** | **Last updated: 2026-07-14**
 
-現在地の正本は [CURRENT_IMPLEMENTATION_STATUS.md](./CURRENT_IMPLEMENTATION_STATUS.md) です。v0.3.0の作業順序は [RELEASE_0_3_0_ROADMAP.md](./RELEASE_0_3_0_ROADMAP.md) を正本とします。
+現在地の正本は [CURRENT_IMPLEMENTATION_STATUS.md](./CURRENT_IMPLEMENTATION_STATUS.md) です。v0.3.0の作業順序とrelease gateは [RELEASE_0_3_0_ROADMAP.md](./RELEASE_0_3_0_ROADMAP.md) と [RELEASE_0_3_0_CHECKLIST.md](./RELEASE_0_3_0_CHECKLIST.md) を正本とします。
 
 ## 完了済み
 
@@ -190,23 +190,42 @@ docs/operations/QUARANTINE_REPLACEMENT_RECOVERY_RUNBOOK.md
 
 ### QL-5C3D: Operations and Release Hardening
 
-**状態: ready after QL-5C3C**
+**状態: in progress (#56 / Draft PR #60)**
 
-次の範囲：
+実装済み：
 
-- operator CLI hardening
-- status／metrics／auditの拡張
-- filesystem fsync／rename failure-injection matrixの拡張
-- crash-point matrixの拡張
-- generation retention／cleanup policyの仕様化
-- v0.3.0 release checklist and notes
-- operator documentationの最終review
+- versioned structured status `lingonberry-quarantine-replacement-status/v1`
+- bounded-cardinality Prometheus metrics
+- `replacement-metrics <transaction-dir>` CLI
+- secret-free append-only audit JSONL
+- apply／status／resume／rollback audit integration
+- explicit double-opt-in、one-shot failure injection
+- failure points：pointer rename、index rebuild、commit transition、rollback pointer restoration、rolled-back transition
+- pre-switch／post-switch／commit／rollback crash recovery tests
+- read-only retention report `lingonberry-quarantine-replacement-retention-report/v1`
+- active committed／previous committed／rolled-back／incomplete／orphan／legacy／corrupt classification
+- `replacement-inspect-generations [transaction-dir ...]` CLI
+- backup v2 → preview／proof → apply → status／metrics → index／segments → retention operator smoke test
+- v0.3.0 release checklistとrelease notes
+- workspace package version 0.3.0とCargo.lock更新
+
+残作業：
+
+- journal write／fsync failure injection
+- staged ledger write／fsync、staging-directory fsync failure injection
+- generation manifest／materialization failure injection
+- publication-intent、pointer temporary-write、state-directory fsync failure injection
+- index verification／segment verification failure injection
+- machine-readableまたはtable-driven crash-point inventory
+- PR本文／正本文書／CLI helpの最終整合性確認
+- Draft解除、merge、main CI確認、release commit／tag／GitHub Release
 
 Generation cleanupでautomatic deletionを導入する場合は、既存のretention非スコープとは別にpolicy／recovery evidence要件を承認する必要があります。
 
 ### 全段階共通の非スコープ
 
 - automatic retention deletion
+- automatic generation／workspace deletion
 - deduplication／event collapse
 - schema migration／conflict resolution
 - archive-segment rewrite／deletion

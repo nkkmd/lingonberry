@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use lingonberry_protocol::{to_canonical_json, JsonValue};
+use lingonberry_protocol::JsonValue;
 
 use crate::{QuarantineReplacementStatusReport, QuarantineReplacementTransactionState};
 
@@ -130,6 +130,7 @@ fn optional_string_json(value: &Option<String>) -> JsonValue {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use lingonberry_protocol::to_canonical_json;
 
     fn report(state: QuarantineReplacementTransactionState) -> QuarantineReplacementStatusReport {
         QuarantineReplacementStatusReport {

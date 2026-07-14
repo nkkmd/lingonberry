@@ -23,6 +23,16 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Capture source snapshot
+        run: tar --exclude=.git --exclude=target -czf lingonberry-source.tgz .
+
+      - name: Upload source snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: lingonberry-source
+          path: lingonberry-source.tgz
+          if-no-files-found: error
+
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:

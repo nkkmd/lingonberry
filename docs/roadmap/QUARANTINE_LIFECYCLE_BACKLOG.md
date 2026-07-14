@@ -17,6 +17,7 @@
 | non-destructive compaction preview and proof | #38 / #39 | 完了 |
 | replacement policy and semantic-equivalence contract | #50 / #51 | 完了 |
 | policy-v2 replacement preview and proof | #52 / #53 | 完了 |
+| generation-based rewrite transaction and recovery | #54 / #55 | 完了 |
 
 ---
 
@@ -48,7 +49,7 @@ v2: active ledgers + segment manifest + listed immutable segments
 
 **状態: completed**
 
-### Policy v1
+Policy v1はmutationを許可しません。
 
 ```text
 policy: lingonberry-quarantine-compaction-policy/v1
@@ -56,8 +57,6 @@ mutationAllowed: false
 rewritePerformed: false
 removableLines: 0
 ```
-
-### Ledger classification
 
 Immutable evidence：
 
@@ -84,8 +83,6 @@ Terminal ledgerのduplicate quarantine IDはremoval candidateではなくcorrupt
 ## QL-5C3: Verified Rewrite Transaction
 
 **優先度: highest** | **Target: v0.3.0**
-
-QL-5C3は、仕様確定前のrewrite実装を防ぐため、次の4段階へ分割します。
 
 ### QL-5C3A: Replacement Policy and Semantic-equivalence Contract
 
@@ -123,8 +120,6 @@ QL-5C3は、仕様確定前のrewrite実装を防ぐため、次の4段階へ分
 - operator runbook
 - policy-v1互換性維持
 
-CI run #130 passed：Rust formatting、library／binary／test Clippy、workspace Rust tests、JavaScript tests。
-
 正本：
 
 ```text
@@ -132,31 +127,36 @@ docs/operations/QUARANTINE_REPLACEMENT_PREVIEW.md
 docs/operations/QUARANTINE_REPLACEMENT_PREVIEW_RUNBOOK.md
 ```
 
-この段階ではproduction ledgerを変更しません。
-
 ### QL-5C3C: Rewrite Transaction and Recovery
 
-**状態: in progress (#54)**
+**状態: completed (#54 / PR #55)**
 
-作業ブランチ：`agent/ql-5c3c-rewrite-transaction`
+実装済み：
 
-設計正本：`docs/operations/QUARANTINE_REPLACEMENT_TRANSACTION.md`
-
-必須範囲：
-
-- QL-5C3B verifierをpre-apply gateとして強制
-- verified backup v2の事前検証とjournal binding
-- same-host operation lock内でのruntime fingerprint再検証
-- versioned transaction journalとstate-transition validation
-- existing ledgerを直接上書きしないstaging-only generation
-- immutable evidence ledgerのbyte identity維持
-- staged semantic-equivalence verification
-- fsyncとatomic renameを用いたdurable publication
-- mixed-generationを正常状態として受理しないpublication model
-- interrupted transactionのdeterministic classification
-- idempotent resume／rollback
-- post-commit index rebuild／verification
-- policy-v1 regression維持
+- QL-5C3B verifierのpre-apply gate強制
+- verified backup v2、plan、proof、segment manifest、runtime fingerprintのjournal binding
+- versioned transaction journalとdigest
+- validated state transitions
+- transaction-local complete ledger staging
+- immutable evidence ledgerのbyte identity
+- staged semantic-equivalence／membership／digest verification
+- sealed generation manifestとgeneration digest
+- generation-directory active-ledger resolver
+- pointerなしの場合のlegacy root互換
+- invalid pointer／invalid generation時のfail-closed rejection
+- publication intentとprevious-pointer binding
+- complete generation directoryのmaterializationとfsync
+- current-generation pointerの1回のatomic rename
+- mixed generationをhealthyとして受理しないresolver
+- pointer switch前後のdeterministic recovery classification
+- idempotent apply／resume／rollback
+- atomic switch後／commit前のresume
+- commit前のprevious-generation rollback
+- post-publication index rebuild／verification
+- archive segment verification
+- maintenance CLI：`replacement-apply` / `replacement-status` / `replacement-recover`
+- generation contractとoperator recovery runbook
+- policy-v1互換性維持
 
 Transaction states：
 
@@ -171,28 +171,38 @@ rolled-back
 recovery-required
 ```
 
-初期実装順：
+Reader-visible layout：
 
-1. journal schema／serializer／digest
-2. transition validator
-3. pre-apply gates
-4. staging writer
-5. staged verifier
-6. publication generation model
-7. resume／rollback
-8. failure injection／crash-point tests
+```text
+quarantine-current-generation.json
+quarantine-generations/<transaction-id>/
+```
 
-Active ledger publicationは、generation boundaryとmixed-generation rejectionをテストで固定するまで開始しません。
+`committed`と`rolled-back`はterminalです。Committed generationのrollbackは行わず、新しいverified transactionでsupersedeします。
+
+正本：
+
+```text
+docs/operations/QUARANTINE_REPLACEMENT_TRANSACTION.md
+docs/operations/QUARANTINE_REPLACEMENT_GENERATION.md
+docs/operations/QUARANTINE_REPLACEMENT_RECOVERY_RUNBOOK.md
+```
 
 ### QL-5C3D: Operations and Release Hardening
 
-**状態: blocked by QL-5C3C**
+**状態: ready after QL-5C3C**
+
+次の範囲：
 
 - operator CLI hardening
-- status／metrics／audit
-- failure injection／crash-point test expansion
-- operations runbook
+- status／metrics／auditの拡張
+- filesystem fsync／rename failure-injection matrixの拡張
+- crash-point matrixの拡張
+- generation retention／cleanup policyの仕様化
 - v0.3.0 release checklist and notes
+- operator documentationの最終review
+
+Generation cleanupでautomatic deletionを導入する場合は、既存のretention非スコープとは別にpolicy／recovery evidence要件を承認する必要があります。
 
 ### 全段階共通の非スコープ
 

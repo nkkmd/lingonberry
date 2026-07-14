@@ -42,14 +42,14 @@
 - [x] Staged ledger fsync failure injection
 - [x] Staging-directory fsync failure injection
 - [x] Generation manifest failure injection
-- [ ] Generation materialization failure injection
-- [ ] Publication-intent failure injection
+- [x] Generation materialization failure injection
+- [x] Publication-intent failure injection
 - [x] Pointer temporary-write failure injection
 - [x] Pointer rename failure injection
-- [ ] State-directory fsync failure injection
+- [x] State-directory fsync failure injection
 - [x] Index rebuild failure injection
-- [ ] Index verification failure injection
-- [ ] Segment verification failure injection
+- [x] Index verification failure injection
+- [x] Segment verification failure injection
 - [x] Commit-transition failure injection
 - [x] Rollback pointer-restoration failure injection
 - [x] Rolled-back transition failure injection

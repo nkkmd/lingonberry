@@ -223,11 +223,17 @@ fn publish_locked(
     }
 
     if !target_is_active {
+        crate::quarantine_replacement_failure_injection::inject_quarantine_replacement_failure(
+            crate::quarantine_replacement_failure_injection::FAILURE_POINT_POINTER_RENAME,
+        )?;
         atomic_write_pointer(state_dir, &intent.target_pointer)?;
     }
     verify_active_target(state_dir, &intent)?;
     verify_materialized_generation(state_dir, transaction_dir, &intent)?;
 
+    crate::quarantine_replacement_failure_injection::inject_quarantine_replacement_failure(
+        crate::quarantine_replacement_failure_injection::FAILURE_POINT_INDEX_REBUILD,
+    )?;
     build_quarantine_ledger_index_locked(state_dir)?;
     verify_quarantine_ledger_index(state_dir)?;
     verify_quarantine_segments(state_dir)?;
@@ -236,6 +242,9 @@ fn publish_locked(
     if journal.state != QuarantineReplacementTransactionState::Publishing {
         return Err(publication_error("publication journal state changed unexpectedly"));
     }
+    crate::quarantine_replacement_failure_injection::inject_quarantine_replacement_failure(
+        crate::quarantine_replacement_failure_injection::FAILURE_POINT_COMMIT_TRANSITION,
+    )?;
     advance_quarantine_replacement_transaction_journal(
         transaction_dir,
         QuarantineReplacementTransactionState::Committed,
@@ -269,6 +278,9 @@ pub fn rollback_quarantine_replacement_transaction(
     if let Some(intent) = &intent {
         let current = read_optional_pointer(state_dir)?;
         if current.as_deref() == Some(intent.target_pointer.as_str()) {
+            crate::quarantine_replacement_failure_injection::inject_quarantine_replacement_failure(
+                crate::quarantine_replacement_failure_injection::FAILURE_POINT_ROLLBACK_POINTER_RESTORE,
+            )?;
             restore_previous_pointer(state_dir, intent.previous_pointer.as_deref())?;
         } else if current != intent.previous_pointer {
             return Err(rollback_error(
@@ -290,6 +302,9 @@ pub fn rollback_quarantine_replacement_transaction(
     if journal.state != QuarantineReplacementTransactionState::RecoveryRequired {
         return Err(rollback_error("rollback journal state changed unexpectedly"));
     }
+    crate::quarantine_replacement_failure_injection::inject_quarantine_replacement_failure(
+        crate::quarantine_replacement_failure_injection::FAILURE_POINT_ROLLED_BACK_TRANSITION,
+    )?;
     advance_quarantine_replacement_transaction_journal(
         transaction_dir,
         QuarantineReplacementTransactionState::RolledBack,

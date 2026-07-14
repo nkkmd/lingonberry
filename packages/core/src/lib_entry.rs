@@ -9,6 +9,7 @@ mod quarantine_ledger_index;
 mod quarantine_lock;
 mod quarantine_rejections;
 mod quarantine_replacement_audit;
+mod quarantine_replacement_failure_injection;
 #[rustfmt::skip]
 mod quarantine_replacement_generation;
 mod quarantine_replacement_inputs;

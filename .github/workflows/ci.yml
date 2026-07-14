@@ -1,47 +1,68 @@
-name: Prepare v0.3.0 workspace version
+name: CI
 
 on:
   pull_request:
+  push:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  version:
-    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+  rust:
+    name: Rust checks
     runs-on: ubuntu-latest
+
     steps:
-      - name: Check out feature branch
+      - name: Check out repository
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref }}
-          fetch-depth: 0
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
 
-      - name: Update workspace package versions
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 - <<'PY'
-          from pathlib import Path
+      - name: Cache Cargo artifacts
+        uses: Swatinem/rust-cache@v2
 
-          changed = []
-          for path in sorted(Path('packages').glob('*/Cargo.toml')):
-              text = path.read_text()
-              updated = text.replace('version = "0.2.0"', 'version = "0.3.0"')
-              if updated != text:
-                  path.write_text(updated)
-                  changed.append(str(path))
-          if not changed:
-              raise SystemExit('no workspace package versions required updating')
-          print('\n'.join(changed))
-          PY
-          cargo check --workspace
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add packages/*/Cargo.toml Cargo.lock
-          git commit -m "chore: prepare workspace version 0.3.0"
-          git push origin HEAD:${{ github.head_ref }}
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Run library clippy
+        run: cargo clippy --workspace --lib -- -D warnings
+
+      - name: Run binary clippy
+        run: cargo clippy --workspace --bins -- -D warnings -A dead-code
+
+      - name: Run test clippy
+        run: cargo clippy --workspace --tests -- -D warnings -A dead-code -A unused-variables
+
+      - name: Run workspace tests
+        run: cargo test --workspace
+
+  javascript:
+    name: JavaScript tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Run JavaScript tests
+        run: >-
+          node --test
+          packages/codecs/test/canonicalization.test.mjs
+          packages/identity/test/identity-key-v2.test.mjs
+          packages/identity/test/identity-claim-validator.test.mjs
+          packages/validation/test/validation.test.mjs

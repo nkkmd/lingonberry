@@ -38,9 +38,9 @@
 
 - [x] Journal write failure injection
 - [x] Journal fsync failure injection
-- [ ] Staged ledger write failure injection
-- [ ] Staged ledger fsync failure injection
-- [ ] Staging-directory fsync failure injection
+- [x] Staged ledger write failure injection
+- [x] Staged ledger fsync failure injection
+- [x] Staging-directory fsync failure injection
 - [ ] Generation manifest failure injection
 - [ ] Generation materialization failure injection
 - [ ] Publication-intent failure injection

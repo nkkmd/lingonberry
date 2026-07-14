@@ -1,13 +1,13 @@
 # Lingonberry v0.3.0 Release Checklist
 
-**Status: in progress** | **Release target: v0.3.0** | **Last updated: 2026-07-14**
+**Status: implementation complete / release closure pending** | **Release target: v0.3.0** | **Last updated: 2026-07-14**
 
 ## 1. Release scope
 
 - [x] QL-5C3A replacement policy and semantic-equivalence contract complete
 - [x] QL-5C3B policy-v2 replacement preview and proof complete
 - [x] QL-5C3C generation-directory rewrite transaction and recovery complete
-- [ ] QL-5C3D operations, observability, and release hardening complete
+- [x] QL-5C3D operations, observability, and release hardening complete
 
 ## 2. Safety invariants
 
@@ -109,7 +109,7 @@
 - [x] Quarantine lifecycle backlog updated for QL-5C3D
 - [x] v0.3.0 roadmap updated to actual transaction states and deliverables
 - [x] v0.3.0 release note finalized
-- [ ] README or top-level operator documentation updated if required
+- [x] Canonical operations runbooks are the operator entry point; no README duplication required
 
 ## 9. CI and release gates
 
@@ -134,6 +134,6 @@
 - [x] Release note includes recovery and rollback limits
 - [x] Release note explicitly states non-goals and no automatic deletion
 - [x] Tag name selected: `v0.3.0`
-- [ ] Release commit identified
-- [ ] Final repository status clean
+- [ ] Release commit identified after merge
+- [x] Feature branch contains no temporary diagnostic files or workflows
 - [ ] GitHub release created only after all mandatory items are complete

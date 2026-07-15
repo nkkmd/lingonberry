@@ -1,8 +1,8 @@
 # Quarantine Lifecycle Backlog
 
-**Status: v0.3.0 implementation complete / release closure pending** | **Last updated: 2026-07-14**
+**Status: v0.3.0 released** | **Last updated: 2026-07-15**
 
-現在地の正本は [CURRENT_IMPLEMENTATION_STATUS.md](./CURRENT_IMPLEMENTATION_STATUS.md) です。v0.3.0のrelease gateは [RELEASE_0_3_0_CHECKLIST.md](./RELEASE_0_3_0_CHECKLIST.md) を正本とします。
+現在地の正本は [CURRENT_IMPLEMENTATION_STATUS.md](./CURRENT_IMPLEMENTATION_STATUS.md) です。v0.3.0の完了記録は [RELEASE_0_3_0_CHECKLIST.md](./RELEASE_0_3_0_CHECKLIST.md) と [RELEASE_0_3_0_RELEASE_NOTE.md](./RELEASE_0_3_0_RELEASE_NOTE.md) を参照してください。
 
 ## 完了済み
 
@@ -18,11 +18,11 @@
 | replacement policy and semantic-equivalence contract | #50 / #51 | 完了 |
 | policy-v2 replacement preview and proof | #52 / #53 | 完了 |
 | generation-based rewrite transaction and recovery | #54 / #55 | 完了 |
-| operations, observability, failure injection, release hardening | #56 / #60 | 実装完了 |
+| operations, observability, failure injection, release hardening | #56 / #60 | 完了・v0.3.0でrelease |
 
 ## QL-5C3: Verified Rewrite Transaction
 
-**Priority: highest** | **Target: v0.3.0** | **Implementation: complete**
+**Priority: completed** | **Release: v0.3.0** | **Implementation: complete**
 
 ### QL-5C3A: Replacement Policy and Semantic-equivalence Contract
 
@@ -87,14 +87,15 @@ docs/operations/QUARANTINE_REPLACEMENT_RECOVERY_RUNBOOK.md
 
 ### QL-5C3D: Operations and Release Hardening
 
-**状態: implementation completed (#56 / PR #60)**
+**状態: completed and released (#56 / PR #60)**
 
-実装済み：
+実装・release済み：
 
 - versioned structured status `lingonberry-quarantine-replacement-status/v1`
 - bounded-cardinality Prometheus metrics
 - secret-free append-only audit JSONL
 - apply／status／resume／rollback audit integration
+- recovery-required failure audit classification
 - read-only retention report `lingonberry-quarantine-replacement-retention-report/v1`
 - active／previous／rolled-back／incomplete／orphan／legacy／corrupt classification
 - `replacement-metrics`／`replacement-inspect-generations` CLI
@@ -132,10 +133,12 @@ rollback.rolled-back-transition
 
 Release closure：
 
-- PR #60 Draft解除／merge
-- main branch CI確認
-- release commit確定
-- `v0.3.0` tagとGitHub Release
+- [x] PR #60 Draft解除／squash merge
+- [x] main branch CI成功
+- [x] release commit `efb77415f76b4ba4340536b5b29f5754a1173d59`
+- [x] tag `v0.3.0`
+- [x] GitHub Release `Lingonberry v0.3.0`
+- [x] post-release checklist update
 
 Generation cleanupでautomatic deletionを導入する場合は、別Issueでpolicy／recovery evidence要件を承認する必要があります。
 

@@ -1,10 +1,10 @@
 # Lingonberry v0.3.0 Roadmap
 
-**Status: implementation complete / release closure pending** | **Target: v0.3.0** | **Last updated: 2026-07-14**
+**Status: released** | **Release: v0.3.0** | **Released: 2026-07-15**
 
 ## 1. Purpose
 
-v0.3.0は、quarantine ledgerのverified rewrite transactionを、既存の証拠保全・検証可能性・復旧可能性を崩さず導入し、operatorが安全に監視・復旧・検証できる状態へ仕上げるリリースです。
+v0.3.0は、quarantine ledgerのverified rewrite transactionを、既存の証拠保全・検証可能性・復旧可能性を崩さず導入し、operatorが安全に監視・復旧・検証できる状態へ仕上げたリリースです。
 
 v0.2.0のnon-destructive compaction preview／proof policy v1はmutationを許可しません。v0.3.0では、明示的なreplacement policy、policy-v2 proof、generation-directory transaction、atomic pointer publication、recovery、observability、deterministic failure injectionを導入しました。
 
@@ -111,12 +111,13 @@ recovery-required
 
 ### QL-5C3D: Operations, Observability, and Release Hardening
 
-**状態: implementation completed (#56 / PR #60)**
+**状態: completed and released (#56 / PR #60)**
 
 - structured status `lingonberry-quarantine-replacement-status/v1`
 - bounded Prometheus metrics
 - secret-free append-only audit events
 - apply／status／resume／rollback audit integration
+- recovery-required failure audit classification
 - read-only retention inspection `lingonberry-quarantine-replacement-retention-report/v1`
 - `replacement-metrics`／`replacement-inspect-generations` CLI
 - end-to-end operator smoke test
@@ -158,8 +159,10 @@ Exit criteria status：
 - [x] documentation／CLI help consistency
 - [x] workspace package version 0.3.0
 - [x] `cargo fmt`、全Clippy、workspace tests、JavaScript tests
-- [ ] main branch CI after merge
-- [ ] release commit／tag／GitHub Release
+- [x] main branch CI after merge
+- [x] release commit identified
+- [x] tag `v0.3.0`
+- [x] GitHub Release `Lingonberry v0.3.0`
 
 ## 5. Replacement policy boundary
 
@@ -202,6 +205,8 @@ Retention inspectorはclassificationだけを返し、delete、rename、truncate
 
 ## 8. Release gates
 
+v0.3.0では次のgateが成功済みです。
+
 ```bash
 cargo fmt --all -- --check
 cargo clippy --workspace --lib -- -D warnings
@@ -227,10 +232,11 @@ cargo test --workspace
 ## 9. Release artifacts
 
 ```text
+release commit: efb77415f76b4ba4340536b5b29f5754a1173d59
 docs/roadmap/RELEASE_0_3_0_CHECKLIST.md
 docs/roadmap/RELEASE_0_3_0_RELEASE_NOTE.md
 tag: v0.3.0
 GitHub Release: Lingonberry v0.3.0
 ```
 
-GitHub Releaseはmandatory checklist完了とmain CI成功後に作成します。
+v0.3.0 release closureは完了しています。Published tagは変更せず、post-release documentationはmain branch上で継続します。

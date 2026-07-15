@@ -2,6 +2,50 @@
 
 All notable changes to Lingonberry are documented in this file.
 
+## [0.3.0] - 2026-07-15
+
+### Added
+
+- Verified, proof-bound quarantine replacement transactions backed by complete quarantine backup v2 and QL-5C3B replacement proofs.
+- Generation-directory active-ledger publication with a sealed generation manifest and a single atomic current-generation pointer switch.
+- Durable transaction journals with deterministic status classification, idempotent resume, and pre-commit rollback.
+- Versioned structured replacement status and bounded-cardinality Prometheus metrics.
+- Secret-free append-only replacement audit events for apply, status, resume, rollback, commit, and recovery-required outcomes.
+- Deterministic double-opt-in failure injection covering 18 journal, staging, generation, publication, verification, commit, and rollback boundaries.
+- Machine-readable crash-point inventory with registry and inventory consistency checks in CI.
+- Read-only generation-retention inspection for active, previous, rolled-back, incomplete, orphan, legacy, and corrupt states.
+- End-to-end operator smoke coverage for backup, proof, apply, observation, verification, resume, and rollback paths.
+
+### Changed
+
+- All Rust workspace packages are versioned as `0.3.0`.
+- Active quarantine-ledger resolution becomes generation-aware after the first successful replacement publication.
+- Replacement apply requires a verified complete backup v2, a verified replacement proof, and a stable runtime fingerprint.
+- Post-publication processing now rebuilds and verifies the quarantine ledger index and verifies archive segments before commit.
+- Replacement operation failures that leave durable `recovery-required` state are distinguished from preflight rejections in audit output.
+
+### Compatibility
+
+- Deployments without a current-generation pointer continue to use the legacy root-ledger layout.
+- The first successful generation publication does not delete legacy root ledgers.
+- Backup v1 verification and restore compatibility remain available where previously documented; new replacement apply requires backup v2.
+- Automated tests cover upgrade behavior from a v0.2.0-style state layout.
+
+### Security and safety
+
+- Existing managed ledgers are never overwritten in place.
+- Immutable evidence ledgers remain byte-identical.
+- Archive segments are not rewritten or deleted.
+- Invalid pointers, mixed generations, corrupt journals, digest mismatches, and contradictory states fail closed.
+- Metrics and audit output exclude secrets, filesystem paths, transaction IDs as metric labels, record IDs, and free-form error labels.
+
+### Known limitations
+
+- Generation and transaction-workspace deletion remain manual and policy-free; no automatic cleanup path is provided.
+- Retention deletion, deduplication, event collapse, conflict resolution, and schema migration are not included.
+- Quarantine coordination remains same-host only and is not a distributed lock.
+- Remote backup upload, backup encryption/signing, OAuth/OIDC, and per-record ACLs are not included.
+
 ## [0.2.0] - 2026-07-12
 
 ### Added

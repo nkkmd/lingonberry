@@ -1,23 +1,27 @@
 # 現在の実装状況
 
-**Status: v0.2.0 released / v0.3.0 QL-5C3D complete** | **Last updated: 2026-07-14**
+**Status: v0.3.0 released** | **Last updated: 2026-07-15**
 
 この文書は、Lingonberryの実装作業を中断・再開するときの引き継ぎ用正本です。
 
 ## 1. Release state
 
-v0.2.0は2026-07-12にリリース済みです。v0.3.0ではreplacement policy、policy-v2 preview／proof、generation-directory方式のverified rewrite transaction／recovery、operations／observability／failure injection／release hardeningを実装しました。
+v0.3.0は2026-07-15にリリース済みです。v0.3.0ではreplacement policy、policy-v2 preview／proof、generation-directory方式のverified rewrite transaction／recovery、operations／observability／failure injection／release hardeningを実装しました。
 
 ```text
-released version: 0.2.0
-release tag: v0.2.0
-release candidate workspace version: 0.3.0
-v0.3.0 issue: #56
-v0.3.0 PR: #60
+released version: 0.3.0
+release tag: v0.3.0
+release title: Lingonberry v0.3.0
+release commit: efb77415f76b4ba4340536b5b29f5754a1173d59
+release issue: #56
+release PR: #60
 release checklist: docs/roadmap/RELEASE_0_3_0_CHECKLIST.md
 release notes: docs/roadmap/RELEASE_0_3_0_RELEASE_NOTE.md
-remaining target: merge, main CI, release commit/tag/GitHub Release
+post-release documentation commit: 38348060ad81901466bd5fcc3e651e454ad958ee
+release state: tag and GitHub Release published; main-branch CI passed
 ```
+
+v0.2.0は2026-07-12にリリースされた前版です。v0.3.0はv0.2.0のquarantine lifecycle、backup／restore、RBAC、listener isolationを維持しつつ、verified replacement transactionを追加します。
 
 ## 2. 実装済み
 
@@ -51,7 +55,7 @@ remaining target: merge, main CI, release commit/tag/GitHub Release
 | machine-readable crash-point inventory | 実装済み |
 | read-only generation retention inspection | 実装済み |
 | end-to-end operator smoke test | 実装済み |
-| workspace package version 0.3.0 | 更新済み |
+| workspace package version 0.3.0 | リリース済み |
 | public／admin listener isolation | 実装済み |
 | observer／reviewer／operator RBAC | 実装済み |
 | authn／authz audit | 実装済み |
@@ -124,14 +128,15 @@ recovery-required
 
 `committed`後のtransactionはterminalです。以前のgenerationへ戻す場合もpointerを手動編集せず、新しいverified transactionとして実行します。
 
-## 5. QL-5C3D completion
+## 5. v0.3.0 release completion
 
-実装済み：
+実装・検証・release済み：
 
 - `lingonberry-quarantine-replacement-status/v1`
 - bounded-cardinality Prometheus metrics
 - append-only audit JSONLとfsync
 - apply／status／resume／rollback audit integration
+- recovery-required failureとpreflight rejectionのaudit区別
 - `lingonberry-quarantine-replacement-retention-report/v1`
 - active／previous／rolled-back／incomplete／orphan／legacy／corrupt分類
 - backup → preview/proof → apply → observe → verify operator smoke test
@@ -140,6 +145,11 @@ recovery-required
 - 全18 failure pointsのdirect seamまたはexplicit post-boundary alias
 - pre-switch／post-switch／commit／rollback／early durable boundary recovery tests
 - v0.3.0 workspace version、release checklist、release notes
+- PR #60のsquash merge
+- main branch CI成功
+- release commit `efb77415f76b4ba4340536b5b29f5754a1173d59`
+- tag `v0.3.0`
+- GitHub Release `Lingonberry v0.3.0`
 
 全18 failure points：
 
@@ -164,7 +174,7 @@ rollback.pointer-restore
 rollback.rolled-back-transition
 ```
 
-残作業はPR #60のmerge、main CI確認、release commit確定、`v0.3.0` tag／GitHub Releaseです。
+v0.3.0 release closureに残作業はありません。今後の変更はv0.3.0の既存transactionへ暗黙に追加せず、個別Issueでscopeと安全境界を定義します。
 
 ## 6. Operator CLI
 
@@ -215,6 +225,8 @@ docs/roadmap/RELEASE_0_3_0_RELEASE_NOTE.md
 
 ## 9. Release gate
 
+v0.3.0では次のgateが成功済みです。
+
 ```bash
 cargo fmt --all -- --check
 cargo clippy --workspace --lib -- -D warnings
@@ -223,7 +235,7 @@ cargo clippy --workspace --tests -- -D warnings -A dead-code -A unused-variables
 cargo test --workspace
 ```
 
-JavaScript canonicalization／identity／validation／crash-point contract testsも必須です。
+JavaScript canonicalization／identity／validation／crash-point contract testsとmain branch CIも成功済みです。
 
 ## 10. 絶対に崩さない安全性ルール
 

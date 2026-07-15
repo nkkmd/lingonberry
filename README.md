@@ -4,22 +4,26 @@
 
 Lingonberry は、分散的に運営されるリレー群のあいだで知識オブジェクトを循環させるためのプロトコルです。ソーシャルネットワークそのものではなく、分野非依存の知識基盤を目的とします。
 
-## v0.2.0
+## v0.3.0
 
-v0.2.0では、最小publish／storage経路に加えて、運用可能なquarantine lifecycleと管理境界を整備しました。
+v0.3.0では、v0.2.0までのquarantine lifecycleと管理境界に加えて、quarantine ledgerを安全に置き換えるためのverified／recoverable replacement transactionを導入しました。
 
-- persistent quarantine、single／batch promotion、annotation、dismissal、permanent rejection
-- status、Prometheus metrics、scheduled revalidation
-- same-host operation lock
-- verified ledger index、archive-aware ordered reads、byte-preserving rotation
-- archive-inclusive backup v2、verify、restore
-- non-destructive compaction preview and semantic proof
-- public／admin listener isolation
-- observer／reviewer／operator RBAC
-- authentication／authorization audit
-- legacy admin token deprecation diagnostic
+- verified complete quarantine backup v2とpolicy-v2 replacement proofを必須gateとして使用
+- existing ledgerをin-place overwriteしないstaging-only replacement
+- generation directoryへの完全なmaterializationとsealed manifest
+- current-generation pointerの1回のatomic renameによるpublication
+- legacy root-ledger layoutからgeneration-aware resolutionへの互換upgrade
+- durable journalに基づくstatus、idempotent resume、pre-commit rollback
+- post-publication ledger index／archive segment verification
+- versioned structured statusとbounded Prometheus metrics
+- secret-free append-only audit
+- 18箇所のdeterministic failure injectionとcrash recovery coverage
+- generation retentionのread-only inspection
+- v0.2.0-style stateからのupgrade compatibility
 
-Release boundaryと既知の制約は、[v0.2.0 Release Notes](./docs/roadmap/RELEASE_0_2_0_RELEASE_NOTE.md)を参照してください。
+Release boundary、upgrade手順、operator workflow、既知の制約は、[v0.3.0 Release Notes](./docs/roadmap/RELEASE_0_3_0_RELEASE_NOTE.md)を参照してください。
+
+v0.2.0で導入したquarantine lifecycle、backup／restore、RBAC、admin listener isolationなどは引き続き維持されます。
 
 ## このリポジトリに含めるもの
 
@@ -30,6 +34,7 @@ Release boundaryと既知の制約は、[v0.2.0 Release Notes](./docs/roadmap/RE
 - protocol-nativeなindexとAPI参照面
 - carrier、archive、migration、access／retentionの運用契約
 - quarantine lifecycleと管理・保全ツール
+- verified replacement transaction、recovery、generation inspection
 - ドメイン語彙とapplication profileの拡張点
 
 ## 中核の考え方
@@ -53,6 +58,8 @@ Lingonberryは、知識をappend-onlyで、replay可能で、provenanceを保持
 - [Storage Node Quickstart](./docs/operations/STORAGE_NODE_QUICKSTART.md)
 - [Quarantine Admin HTTP](./docs/operations/QUARANTINE_ADMIN_HTTP.md)
 - [Quarantine Backup and Restore](./docs/operations/QUARANTINE_BACKUP_RESTORE.md)
+- [Quarantine Replacement Preview Runbook](./docs/operations/QUARANTINE_REPLACEMENT_PREVIEW_RUNBOOK.md)
+- [Quarantine Replacement Recovery Runbook](./docs/operations/QUARANTINE_REPLACEMENT_RECOVERY_RUNBOOK.md)
 
 ## 実行例
 
@@ -73,6 +80,16 @@ export LINGONBERRY_ADMIN_OPERATOR_TOKEN=<operator-secret>
 
 cargo run -p lingonberry-relay -- serve-admin-http 127.0.0.1:8788
 cargo run -p lingonberry-relay --bin lingonberry-admin-auth-config
+```
+
+Replacement maintenanceの入口：
+
+```bash
+cargo run -p lingonberry-relay --bin lingonberry-quarantine-maintenance -- \
+  replacement-status <transaction-dir>
+
+cargo run -p lingonberry-relay --bin lingonberry-quarantine-maintenance -- \
+  replacement-inspect-generations [transaction-dir ...]
 ```
 
 ## License

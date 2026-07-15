@@ -1,8 +1,8 @@
 # Quarantine Replacement Preview Runbook
 
-**Status: QL-5C3B operator procedure** | **Last updated: 2026-07-13**
+**Status: v0.3.0 operator procedure** | **Last updated: 2026-07-15**
 
-This runbook executes and verifies the non-mutating policy-v2 replacement preview. It does not authorize or apply a ledger rewrite.
+This runbook executes and verifies the non-mutating policy-v2 replacement preview. It does not authorize or apply a ledger rewrite by itself.
 
 ## 1. Preconditions
 
@@ -11,7 +11,7 @@ Use a quiescent or controlled runtime state and prepare:
 - the runtime state directory;
 - a verified complete backup with version `lingonberry-quarantine-backup/v2`;
 - a new or empty proof output directory;
-- the `lingonberry-quarantine-maintenance` binary built from the reviewed release candidate.
+- the `lingonberry-quarantine-maintenance` binary from Lingonberry v0.3.0 or a later reviewed compatible build.
 
 The command rejects an unverified backup, backup v1, a non-empty output directory, corrupt archive segments, duplicate terminal keys, and runtime-state changes detected during the scan.
 
@@ -102,7 +102,7 @@ Treat every failure as fail-closed. Do not manually edit plan/proof artifacts an
 
 ## 7. Safety boundary
 
-QL-5C3B stops after verified plan/proof publication. It does not:
+The preview/proof phase stops after verified plan/proof publication. It does not:
 
 - rewrite active ledgers;
 - rewrite archive segments;
@@ -111,4 +111,4 @@ QL-5C3B stops after verified plan/proof publication. It does not:
 - perform rollback or recovery;
 - delete retained evidence.
 
-Transactional application and recovery belong to QL-5C3C and require a separate reviewed contract and implementation.
+Transactional application and recovery are separate v0.3.0 operations governed by the replacement transaction and recovery runbooks. A verified preview/proof alone never mutates runtime state.

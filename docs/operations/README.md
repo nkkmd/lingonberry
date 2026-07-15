@@ -1,10 +1,10 @@
 # Operations
 
-**Status: active** | **Last updated: 2026-07-12**
+**Status: active** | **Latest release: v0.3.0** | **Last updated: 2026-07-15**
 
 このディレクトリには、Lingonberryの技術決定と運用正本を置きます。
 
-作業再開時は、最初に[現在の実装状況](../roadmap/CURRENT_IMPLEMENTATION_STATUS.md)と[v0.2.0 Release Checklist](../roadmap/RELEASE_0_2_0_CHECKLIST.md)を確認してください。
+作業再開時は、最初に[現在の実装状況](../roadmap/CURRENT_IMPLEMENTATION_STATUS.md)、[v0.3.0 Release Checklist](../roadmap/RELEASE_0_3_0_CHECKLIST.md)、[v0.3.0 Release Notes](../roadmap/RELEASE_0_3_0_RELEASE_NOTE.md)を確認してください。
 
 ## Quickstart
 
@@ -28,7 +28,7 @@
 - [Multi-node Conflict Policy](./MULTI_NODE_CONFLICT_POLICY.md)
 - [Multi-node Capacity and Placement Policy](./MULTI_NODE_CAPACITY_AND_PLACEMENT_POLICY.md)
 
-Multi-node文書は将来構成の契約です。v0.2.0のquarantine operation lockはsame-host coordinationであり、distributed lockではありません。
+Multi-node文書は将来構成の契約です。v0.3.0のquarantine operation lockもsame-host coordinationであり、distributed lockではありません。
 
 ## Policy and Operations
 
@@ -51,6 +51,19 @@ Multi-node文書は将来構成の契約です。v0.2.0のquarantine operation l
 - [Quarantine JSONL Index, Rotation, and Maintenance](./QUARANTINE_JSONL_MAINTENANCE.md)
 - [Quarantine Compaction Preview and Proof](./QUARANTINE_COMPACTION_PROOF.md)
 
+### Quarantine verified replacement
+
+- [Replacement Policy and Semantic-equivalence Contract](./QUARANTINE_REPLACEMENT_POLICY.md)
+- [Replacement Preview and Proof Contract](./QUARANTINE_REPLACEMENT_PREVIEW.md)
+- [Replacement Preview Runbook](./QUARANTINE_REPLACEMENT_PREVIEW_RUNBOOK.md)
+- [Replacement Transaction Contract](./QUARANTINE_REPLACEMENT_TRANSACTION.md)
+- [Generation-directory Contract](./QUARANTINE_REPLACEMENT_GENERATION.md)
+- [Replacement Recovery Runbook](./QUARANTINE_REPLACEMENT_RECOVERY_RUNBOOK.md)
+- [Replacement Operations Hardening](./QUARANTINE_REPLACEMENT_OPERATIONS_HARDENING.md)
+- [Crash-point Inventory](./quarantine-replacement-crash-points.v1.json)
+
+The canonical operator sequence is backup v2 verification → replacement preview/proof verification → apply → structured status/metrics → index and segment verification → read-only generation inspection. Pointer or journal repair must never be performed manually.
+
 ### General operations
 
 - [Access and Retention Policy](./ACCESS_RETENTION_POLICY.md)
@@ -68,4 +81,5 @@ Multi-node文書は将来構成の契約です。v0.2.0のquarantine operation l
 - [Systemd Unit Templates](./SYSTEMD_UNIT_TEMPLATES.md)
 - [Migration and Schema Versioning](./MIGRATION_AND_SCHEMA_VERSIONING.md)
 - [Legacy Admin Token Deprecation](../roadmap/RBAC_LEGACY_TOKEN_DEPRECATION.md)
+- [v0.3.0 Release Notes](../roadmap/RELEASE_0_3_0_RELEASE_NOTE.md)
 - [v0.2.0 Release Notes](../roadmap/RELEASE_0_2_0_RELEASE_NOTE.md)

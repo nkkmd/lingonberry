@@ -1,6 +1,6 @@
 # Lingonberry v0.3.0 Release Notes
 
-**Status: release candidate** | **Release target: v0.3.0**
+**Status: released** | **Release: v0.3.0** | **Released: 2026-07-15**
 
 Lingonberry v0.3.0 adds a verified, recoverable replacement transaction for quarantine ledgers and hardens its operator-facing status, metrics, audit, crash recovery, and generation inspection contracts.
 
@@ -62,7 +62,7 @@ lingonberry-quarantine-replacement-status/v1
 
 Prometheus output uses bounded labels only and does not expose transaction IDs, generation digests, filesystem paths, record IDs, secrets, or free-form errors.
 
-Replacement operations emit secret-free append-only audit events. Audit failure prevents a mutating CLI operation from starting.
+Replacement operations emit secret-free append-only audit events. Audit failure prevents a mutating CLI operation from starting. An operation failure that leaves a durable `recovery-required` state is recorded as a recovery failure rather than a generic preflight rejection.
 
 ### Deterministic failure injection
 
@@ -73,7 +73,7 @@ LINGONBERRY_ENABLE_REPLACEMENT_FAILURE_INJECTION=1
 LINGONBERRY_REPLACEMENT_FAILURE_POINT=<stable-point-id>
 ```
 
-The release validates pre-switch, post-switch, index-rebuild, commit-transition, rollback-pointer-restoration, and rolled-back-transition recovery paths. Failure points are one-shot within a process.
+The release validates all 18 registered journal, staging, generation, publication, verification, commit, and rollback failure points through direct seams or explicit post-boundary aliases. Failure points are one-shot within a process.
 
 ### Read-only generation retention inspection
 
@@ -155,7 +155,7 @@ lingonberry-quarantine-maintenance replacement-recover \
 
 ## Release validation
 
-The release branch requires:
+The release passed:
 
 ```bash
 cargo fmt --all -- --check
@@ -165,9 +165,9 @@ cargo clippy --workspace --tests -- -D warnings -A dead-code -A unused-variables
 cargo test --workspace
 ```
 
-The JavaScript canonicalization, identity, and validation tests must also pass.
+The JavaScript canonicalization, identity, validation, and crash-point contract tests also passed.
 
-The operator smoke test covers backup export and verification, replacement preview and proof verification, committed apply, versioned status, bounded metrics, index and segment verification, active-generation retention classification, and repeated apply/resume idempotency.
+The operator smoke test covers backup export and verification, replacement preview and proof verification, committed apply, versioned status, bounded metrics, index and segment verification, active-generation retention classification, and repeated apply/resume idempotency. Main-branch CI passed after the merge.
 
 ## Non-goals and deferred work
 
@@ -188,11 +188,11 @@ Generation and workspace retention remain evidence-preserving and operator-revie
 
 ## Tag and release
 
-The planned annotated tag and GitHub Release are:
-
 ```text
-v0.3.0
-Lingonberry v0.3.0
+release commit: efb77415f76b4ba4340536b5b29f5754a1173d59
+tag: v0.3.0
+GitHub Release: Lingonberry v0.3.0
+release state: published as the latest stable release
 ```
 
-The GitHub Release must be created only after the v0.3.0 checklist is complete and main-branch CI passes.
+The published tag remains immutable. Post-release documentation updates are committed to `main` and do not alter the v0.3.0 release artifact.

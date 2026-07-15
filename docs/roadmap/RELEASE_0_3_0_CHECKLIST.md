@@ -1,6 +1,6 @@
 # Lingonberry v0.3.0 Release Checklist
 
-**Status: implementation complete / release closure pending** | **Release target: v0.3.0** | **Last updated: 2026-07-14**
+**Status: released** | **Release: v0.3.0** | **Released: 2026-07-15**
 
 ## 1. Release scope
 
@@ -123,7 +123,7 @@
 - [x] JavaScript validation tests
 - [x] Crash-point registry/inventory contract test
 - [x] No temporary diagnostic workflow remains
-- [ ] Main-branch CI passes after merge
+- [x] Main-branch CI passes after merge
 
 ## 10. Release preparation
 
@@ -134,6 +134,6 @@
 - [x] Release note includes recovery and rollback limits
 - [x] Release note explicitly states non-goals and no automatic deletion
 - [x] Tag name selected: `v0.3.0`
-- [ ] Release commit identified after merge
+- [x] Release commit identified: `efb77415f76b4ba4340536b5b29f5754a1173d59`
 - [x] Feature branch contains no temporary diagnostic files or workflows
-- [ ] GitHub release created only after all mandatory items are complete
+- [x] GitHub release created after all mandatory items completed

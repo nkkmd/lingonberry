@@ -34,8 +34,25 @@ jobs:
       - name: Check formatting
         run: cargo fmt --all -- --check
 
-      - name: Run library clippy
-        run: cargo clippy --workspace --lib -- -D warnings
+      - name: Capture library clippy diagnostics
+        run: |
+          set +e
+          cargo clippy --workspace --lib -- -D warnings > clippy-library.log 2>&1
+          status=$?
+          cat clippy-library.log
+          echo "$status" > clippy-library.status
+          exit 0
+
+      - name: Upload library clippy diagnostics
+        uses: actions/upload-artifact@v4
+        with:
+          name: clippy-library-diagnostics
+          path: |
+            clippy-library.log
+            clippy-library.status
+
+      - name: Enforce library clippy result
+        run: test "$(cat clippy-library.status)" = "0"
 
       - name: Run binary clippy
         run: cargo clippy --workspace --bins -- -D warnings -A dead-code

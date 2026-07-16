@@ -82,6 +82,7 @@ pub use quarantine_replacement_audit::{
     QuarantineReplacementAuditOutcome, QUARANTINE_REPLACEMENT_AUDIT_FILE,
     QUARANTINE_REPLACEMENT_AUDIT_VERSION,
 };
+#[rustfmt::skip]
 pub use quarantine_replacement_cleanup_policy::{
     evaluate_quarantine_replacement_retention_policy,
     quarantine_replacement_retention_decision_report_json,

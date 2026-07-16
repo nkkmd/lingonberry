@@ -30,104 +30,68 @@ jobs:
         with:
           components: rustfmt, clippy
 
-      - name: Add cleanup preview builder tests
+      - name: Add state-bound cleanup preview verifier
         run: |
-          cat >> packages/core/src/quarantine_replacement_cleanup_preview_builder.rs <<'RS'
-
-          #[cfg(test)]
-          mod tests {
-              use super::*;
-              use std::time::{SystemTime, UNIX_EPOCH};
-
-              fn temp_dir(label: &str) -> PathBuf {
-                  std::env::temp_dir().join(format!(
-                      "lingonberry-cleanup-builder-{label}-{}",
-                      SystemTime::now()
-                          .duration_since(UNIX_EPOCH)
-                          .unwrap()
-                          .as_nanos()
-                  ))
-              }
-
-              #[test]
-              fn parses_only_supported_active_pointer() {
-                  let valid = format!(
-                      "{{\"generationDigest\":\"fnv1a64:1111111111111111\",\"transactionId\":\"tx-active\",\"version\":\"{}\"}}",
-                      QUARANTINE_CURRENT_GENERATION_POINTER_VERSION
-                  );
-                  assert_eq!(
-                      parse_active_pointer(&valid).unwrap(),
-                      (
-                          "tx-active".to_string(),
-                          "fnv1a64:1111111111111111".to_string()
-                      )
-                  );
-                  assert!(parse_active_pointer("{}").is_err());
-                  assert!(parse_active_pointer(&valid.replace("/v1", "/v2")).is_err());
-              }
-
-              #[test]
-              fn exact_inventory_rejects_missing_unexpected_and_duplicates() {
-                  let dir = temp_dir("inventory");
-                  fs::create_dir_all(dir.join("nested")).unwrap();
-                  fs::write(dir.join("a.txt"), "a").unwrap();
-                  fs::write(dir.join("nested/b.txt"), "b").unwrap();
-
-                  assert_eq!(
-                      verify_exact_inventory(
-                          &dir,
-                          &["nested/b.txt".to_string(), "a.txt".to_string()]
-                      )
-                      .unwrap(),
-                      ["a.txt", "nested/b.txt"]
-                  );
-                  assert!(verify_exact_inventory(&dir, &["a.txt".to_string()]).is_err());
-                  assert!(verify_exact_inventory(
-                      &dir,
-                      &["a.txt".to_string(), "a.txt".to_string()]
-                  )
-                  .is_err());
-                  let _ = fs::remove_dir_all(dir);
-              }
-
-              #[cfg(unix)]
-              #[test]
-              fn exact_inventory_rejects_symlinks() {
-                  use std::os::unix::fs::symlink;
-
-                  let dir = temp_dir("symlink");
-                  fs::create_dir_all(&dir).unwrap();
-                  fs::write(dir.join("target.txt"), "target").unwrap();
-                  symlink(dir.join("target.txt"), dir.join("link.txt")).unwrap();
-                  assert!(verify_exact_inventory(
-                      &dir,
-                      &["target.txt".to_string(), "link.txt".to_string()]
-                  )
-                  .is_err());
-                  let _ = fs::remove_dir_all(dir);
-              }
-
-              #[test]
-              fn digest_reader_rejects_malformed_and_symlinked_sidecars() {
-                  let dir = temp_dir("digest");
-                  fs::create_dir_all(&dir).unwrap();
-                  let digest = dir.join("record.digest");
-                  fs::write(&digest, "invalid\n").unwrap();
-                  assert!(read_bound_digest(&digest, "record digest").is_err());
-                  fs::write(&digest, "fnv1a64:1111111111111111\n").unwrap();
-                  assert_eq!(
-                      read_bound_digest(&digest, "record digest").unwrap(),
-                      "fnv1a64:1111111111111111"
-                  );
-                  let _ = fs::remove_dir_all(dir);
-              }
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('packages/core/src/quarantine_replacement_cleanup_preview_builder.rs')
+          text = path.read_text()
+          marker = 'fn parse_active_pointer(text: &str) -> Result<(String, String), StoreError> {'
+          addition = '''pub fn verify_quarantine_replacement_cleanup_preview_against_state(
+              output_dir: impl AsRef<Path>,
+              state_dir: impl AsRef<Path>,
+              decisions: &QuarantineReplacementRetentionDecisionReport,
+              state_identity: &str,
+              runtime_fingerprint: &str,
+              now_unix_seconds: u64,
+              inputs: &[QuarantineReplacementCleanupSubjectInput],
+          ) -> Result<(), StoreError> {
+              let plan = build_quarantine_replacement_cleanup_preview_from_state(
+                  state_dir,
+                  decisions,
+                  state_identity,
+                  runtime_fingerprint,
+                  now_unix_seconds,
+                  inputs,
+              )?;
+              let plan_text = lingonberry_protocol::to_canonical_json(
+                  &crate::quarantine_replacement_cleanup_plan_json(&plan),
+              );
+              let proof = crate::QuarantineReplacementCleanupProof {
+                  plan,
+                  plan_digest: integrity_digest(plan_text.as_bytes()),
+              };
+              crate::verify_quarantine_replacement_cleanup_preview_artifacts(output_dir, &proof)
           }
-          RS
+
+          '''
+          if marker not in text:
+              raise SystemExit('pointer parser marker not found')
+          text = text.replace(marker, addition + marker, 1)
+          path.write_text(text)
+
+          lib = Path('packages/core/src/lib_entry.rs')
+          lib_text = lib.read_text()
+          old = '''pub use quarantine_replacement_cleanup_preview_builder::{
+              build_quarantine_replacement_cleanup_preview_from_state,
+              QuarantineReplacementCleanupSubjectInput,
+          };
+          '''
+          new = '''pub use quarantine_replacement_cleanup_preview_builder::{
+              build_quarantine_replacement_cleanup_preview_from_state,
+              verify_quarantine_replacement_cleanup_preview_against_state,
+              QuarantineReplacementCleanupSubjectInput,
+          };
+          '''
+          if old not in lib_text:
+              raise SystemExit('builder export marker not found')
+          lib.write_text(lib_text.replace(old, new, 1))
+          PY
           cargo fmt --all
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add packages/core/src/quarantine_replacement_cleanup_preview_builder.rs
-          git commit -m "test: cover cleanup preview state validation"
+          git add packages/core/src/quarantine_replacement_cleanup_preview_builder.rs packages/core/src/lib_entry.rs
+          git commit -m "feat: verify cleanup preview against current state"
           git push origin HEAD:feat/v0.4.0-cleanup-preview-proof
 
       - name: Check formatting

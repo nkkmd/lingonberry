@@ -256,3 +256,84 @@ fn io_error(error: std::io::Error) -> StoreError {
 fn builder_error(message: impl Into<String>) -> StoreError {
     store_error("LB_QUARANTINE_REPLACEMENT_CLEANUP_PREVIEW_BUILDER", message)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn temp_dir(label: &str) -> PathBuf {
+        std::env::temp_dir().join(format!(
+            "lingonberry-cleanup-builder-{label}-{}",
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ))
+    }
+
+    #[test]
+    fn parses_only_supported_active_pointer() {
+        let valid = format!(
+            "{{\"generationDigest\":\"fnv1a64:1111111111111111\",\"transactionId\":\"tx-active\",\"version\":\"{}\"}}",
+            QUARANTINE_CURRENT_GENERATION_POINTER_VERSION
+        );
+        assert_eq!(
+            parse_active_pointer(&valid).unwrap(),
+            (
+                "tx-active".to_string(),
+                "fnv1a64:1111111111111111".to_string()
+            )
+        );
+        assert!(parse_active_pointer("{}").is_err());
+        assert!(parse_active_pointer(&valid.replace("/v1", "/v2")).is_err());
+    }
+
+    #[test]
+    fn exact_inventory_rejects_missing_unexpected_and_duplicates() {
+        let dir = temp_dir("inventory");
+        fs::create_dir_all(dir.join("nested")).unwrap();
+        fs::write(dir.join("a.txt"), "a").unwrap();
+        fs::write(dir.join("nested/b.txt"), "b").unwrap();
+
+        assert_eq!(
+            verify_exact_inventory(&dir, &["nested/b.txt".to_string(), "a.txt".to_string()])
+                .unwrap(),
+            ["a.txt", "nested/b.txt"]
+        );
+        assert!(verify_exact_inventory(&dir, &["a.txt".to_string()]).is_err());
+        assert!(verify_exact_inventory(&dir, &["a.txt".to_string(), "a.txt".to_string()]).is_err());
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn exact_inventory_rejects_symlinks() {
+        use std::os::unix::fs::symlink;
+
+        let dir = temp_dir("symlink");
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(dir.join("target.txt"), "target").unwrap();
+        symlink(dir.join("target.txt"), dir.join("link.txt")).unwrap();
+        assert!(
+            verify_exact_inventory(&dir, &["target.txt".to_string(), "link.txt".to_string()])
+                .is_err()
+        );
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn digest_reader_rejects_malformed_and_symlinked_sidecars() {
+        let dir = temp_dir("digest");
+        fs::create_dir_all(&dir).unwrap();
+        let digest = dir.join("record.digest");
+        fs::write(&digest, "invalid\n").unwrap();
+        assert!(read_bound_digest(&digest, "record digest").is_err());
+        fs::write(&digest, "fnv1a64:1111111111111111\n").unwrap();
+        assert_eq!(
+            read_bound_digest(&digest, "record digest").unwrap(),
+            "fnv1a64:1111111111111111"
+        );
+        let _ = fs::remove_dir_all(dir);
+    }
+}

@@ -5,17 +5,11 @@ use std::path::{Path, PathBuf};
 use lingonberry_protocol::{parse_json, JsonValue};
 
 use crate::{
-    build_quarantine_replacement_cleanup_plan,
-    read_quarantine_replacement_transaction_journal,
-    store_error,
-    verify_quarantine_replacement_completion_evidence_artifact,
-    verify_quarantine_replacement_generation,
-    QuarantineReplacementCleanupPlan,
-    QuarantineReplacementCleanupSubject,
-    QuarantineReplacementRetentionDecisionReport,
-    QuarantineReplacementTransactionState,
-    StoreError,
-    QUARANTINE_CURRENT_GENERATION_POINTER_FILE,
+    build_quarantine_replacement_cleanup_plan, read_quarantine_replacement_transaction_journal,
+    store_error, verify_quarantine_replacement_completion_evidence_artifact,
+    verify_quarantine_replacement_generation, QuarantineReplacementCleanupPlan,
+    QuarantineReplacementCleanupSubject, QuarantineReplacementRetentionDecisionReport,
+    QuarantineReplacementTransactionState, StoreError, QUARANTINE_CURRENT_GENERATION_POINTER_FILE,
     QUARANTINE_CURRENT_GENERATION_POINTER_VERSION,
     QUARANTINE_REPLACEMENT_COMPLETION_EVIDENCE_DIGEST_FILE,
     QUARANTINE_REPLACEMENT_TRANSACTION_JOURNAL_DIGEST_FILE,
@@ -73,7 +67,9 @@ pub fn build_quarantine_replacement_cleanup_preview_from_state(
         if journal.transaction_id == active_transaction_id
             || input.expected_generation_digest == active_generation_digest
         {
-            return Err(builder_error("active generation cannot be a cleanup subject"));
+            return Err(builder_error(
+                "active generation cannot be a cleanup subject",
+            ));
         }
 
         let journal_digest = read_bound_digest(
@@ -132,7 +128,9 @@ fn parse_active_pointer(text: &str) -> Result<(String, String), StoreError> {
         .map_err(|error| builder_error(format!("invalid current generation pointer: {error}")))?;
     let map = object_map(&value, "current generation pointer")?;
     if object_string(map, "version")? != QUARANTINE_CURRENT_GENERATION_POINTER_VERSION {
-        return Err(builder_error("unsupported current generation pointer version"));
+        return Err(builder_error(
+            "unsupported current generation pointer version",
+        ));
     }
     Ok((
         object_string(map, "transactionId")?,
@@ -256,8 +254,5 @@ fn io_error(error: std::io::Error) -> StoreError {
 }
 
 fn builder_error(message: impl Into<String>) -> StoreError {
-    store_error(
-        "LB_QUARANTINE_REPLACEMENT_CLEANUP_PREVIEW_BUILDER",
-        message,
-    )
+    store_error("LB_QUARANTINE_REPLACEMENT_CLEANUP_PREVIEW_BUILDER", message)
 }

@@ -14,6 +14,7 @@ mod quarantine_replacement_audit;
 mod quarantine_replacement_cleanup_policy;
 mod quarantine_replacement_cleanup_preview;
 mod quarantine_replacement_cleanup_preview_artifact;
+mod quarantine_replacement_cleanup_preview_builder;
 #[rustfmt::skip]
 mod quarantine_replacement_completion_evidence;
 #[rustfmt::skip]
@@ -113,6 +114,10 @@ pub use quarantine_replacement_cleanup_preview_artifact::{
     verify_quarantine_replacement_cleanup_preview_artifacts,
     QUARANTINE_REPLACEMENT_CLEANUP_PLAN_DIGEST_FILE, QUARANTINE_REPLACEMENT_CLEANUP_PLAN_FILE,
     QUARANTINE_REPLACEMENT_CLEANUP_PROOF_DIGEST_FILE, QUARANTINE_REPLACEMENT_CLEANUP_PROOF_FILE,
+};
+pub use quarantine_replacement_cleanup_preview_builder::{
+    build_quarantine_replacement_cleanup_preview_from_state,
+    QuarantineReplacementCleanupSubjectInput,
 };
 #[rustfmt::skip]
 pub use quarantine_replacement_completion_evidence::{

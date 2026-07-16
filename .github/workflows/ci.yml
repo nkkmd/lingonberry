@@ -30,37 +30,40 @@ jobs:
         with:
           components: rustfmt, clippy
 
-      - name: Connect cleanup execution boundary
+      - name: Normalize cleanup execution exports
         run: |
           python - <<'PY'
           from pathlib import Path
           path = Path('packages/core/src/lib_entry.rs')
           text = path.read_text()
           text = text.replace(
+              'mod quarantine_replacement_cleanup_tomb;\nmod quarantine_replacement_cleanup_tomb;\n',
               'mod quarantine_replacement_cleanup_tomb;\n',
-              'mod quarantine_replacement_cleanup_tomb;\nmod quarantine_replacement_cleanup_execution;\n',
           )
-          marker = '''pub use quarantine_replacement_cleanup_tomb::{
-              move_quarantine_replacement_cleanup_to_tomb,
-              resume_quarantine_replacement_cleanup_deletion,
-              rollback_quarantine_replacement_cleanup_tomb,
-              QuarantineReplacementCleanupTombReport,
-              QUARANTINE_REPLACEMENT_CLEANUP_TOMB_DIR,
-              QUARANTINE_REPLACEMENT_CLEANUP_TOMB_INVENTORY_DIGEST_FILE,
-              QUARANTINE_REPLACEMENT_CLEANUP_TOMB_INVENTORY_FILE,
-              QUARANTINE_REPLACEMENT_CLEANUP_TOMB_INVENTORY_VERSION,
-          };
-          '''
-          addition = marker + '''pub use quarantine_replacement_cleanup_execution::{
+          if 'mod quarantine_replacement_cleanup_execution;\n' not in text:
+              text = text.replace(
+                  'mod quarantine_replacement_cleanup_tomb;\n',
+                  'mod quarantine_replacement_cleanup_tomb;\nmod quarantine_replacement_cleanup_execution;\n',
+                  1,
+              )
+          start = 'pub use quarantine_replacement_cleanup_tomb::{\n'
+          first = text.find(start)
+          second = text.find(start, first + 1) if first >= 0 else -1
+          if second >= 0:
+              end = text.find('};\n', second) + 3
+              text = text[:second] + text[end:]
+          export = '''pub use quarantine_replacement_cleanup_execution::{
               commit_verified_quarantine_replacement_cleanup_deletion,
               prepare_verified_quarantine_replacement_cleanup_tomb,
               rollback_verified_quarantine_replacement_cleanup,
               QuarantineReplacementCleanupAuthorization,
           };
           '''
-          if marker not in text:
-              raise SystemExit('cleanup tomb export marker not found')
-          path.write_text(text.replace(marker, addition, 1))
+          if 'pub use quarantine_replacement_cleanup_execution::{' not in text:
+              first = text.find(start)
+              end = text.find('};\n', first) + 3
+              text = text[:end] + export + text[end:]
+          path.write_text(text)
           PY
           cargo fmt --all
           git config user.name "github-actions[bot]"

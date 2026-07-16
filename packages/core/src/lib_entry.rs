@@ -12,6 +12,9 @@ mod quarantine_replacement_audit;
 #[allow(clippy::needless_lifetimes)]
 #[rustfmt::skip]
 mod quarantine_replacement_cleanup_policy;
+mod quarantine_replacement_cleanup_preview;
+mod quarantine_replacement_cleanup_preview_artifact;
+mod quarantine_replacement_cleanup_preview_builder;
 #[rustfmt::skip]
 mod quarantine_replacement_completion_evidence;
 #[rustfmt::skip]
@@ -99,6 +102,23 @@ pub use quarantine_replacement_cleanup_policy::{
     QuarantineReplacementRetentionDecisionReport, QuarantineReplacementRetentionPolicy,
     QUARANTINE_REPLACEMENT_RETENTION_DECISION_REPORT_VERSION,
     QUARANTINE_REPLACEMENT_RETENTION_POLICY_VERSION,
+};
+pub use quarantine_replacement_cleanup_preview::{
+    build_quarantine_replacement_cleanup_plan, quarantine_replacement_cleanup_plan_json,
+    quarantine_replacement_cleanup_proof_json, QuarantineReplacementCleanupPlan,
+    QuarantineReplacementCleanupProof, QuarantineReplacementCleanupSubject,
+    QUARANTINE_REPLACEMENT_CLEANUP_PLAN_VERSION, QUARANTINE_REPLACEMENT_CLEANUP_PROOF_VERSION,
+};
+pub use quarantine_replacement_cleanup_preview_artifact::{
+    publish_quarantine_replacement_cleanup_preview_artifacts,
+    verify_quarantine_replacement_cleanup_preview_artifacts,
+    QUARANTINE_REPLACEMENT_CLEANUP_PLAN_DIGEST_FILE, QUARANTINE_REPLACEMENT_CLEANUP_PLAN_FILE,
+    QUARANTINE_REPLACEMENT_CLEANUP_PROOF_DIGEST_FILE, QUARANTINE_REPLACEMENT_CLEANUP_PROOF_FILE,
+};
+pub use quarantine_replacement_cleanup_preview_builder::{
+    build_quarantine_replacement_cleanup_preview_from_state,
+    verify_quarantine_replacement_cleanup_preview_against_state,
+    QuarantineReplacementCleanupSubjectInput,
 };
 #[rustfmt::skip]
 pub use quarantine_replacement_completion_evidence::{

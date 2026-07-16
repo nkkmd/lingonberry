@@ -29,15 +29,17 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
+          import re
 
           path = Path('packages/core/src/quarantine_replacement_publication.inc')
           text = path.read_text()
-          old = '''            QuarantineReplacementTransactionState::Committed
-              | QuarantineReplacementTransactionState::RolledBack => {
-                  return quarantine_replacement_status(state_dir, transaction_dir);
-              }
-          '''
-          new = '''            QuarantineReplacementTransactionState::Committed => {
+          pattern = re.compile(
+              r'''            QuarantineReplacementTransactionState::Committed\s*\n'''
+              r'''            \| QuarantineReplacementTransactionState::RolledBack => \{\s*\n'''
+              r'''                return quarantine_replacement_status\(state_dir, transaction_dir\);\s*\n'''
+              r'''            \}'''
+          )
+          replacement = '''            QuarantineReplacementTransactionState::Committed => {
                   let generation_digest = verify_quarantine_replacement_generation(transaction_dir)?
                       .generation_digest;
                   crate::quarantine_replacement_completion_evidence_terminal::finalize_quarantine_replacement_completion_evidence(
@@ -57,11 +59,11 @@ jobs:
                       generation_digest.as_deref(),
                   )?;
                   return quarantine_replacement_status(state_dir, transaction_dir);
-              }
-          '''
-          if old not in text:
-              raise SystemExit('terminal resume branch not found')
-          path.write_text(text.replace(old, new, 1))
+              }'''
+          text, count = pattern.subn(replacement, text, count=1)
+          if count != 1:
+              raise SystemExit(f'terminal resume branch matches: {count}')
+          path.write_text(text)
           PY
           cargo fmt --all
           git config user.name github-actions[bot]

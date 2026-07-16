@@ -56,9 +56,8 @@ pub fn prepare_verified_quarantine_replacement_cleanup_tomb(
         request.inputs,
     )?;
 
-    let journal = read_quarantine_replacement_cleanup_transaction_details(
-        request.cleanup_transaction_dir,
-    )?;
+    let journal =
+        read_quarantine_replacement_cleanup_transaction_details(request.cleanup_transaction_dir)?;
     if journal.state != QuarantineReplacementCleanupTransactionState::Prepared
         || journal.cleanup_proof_digest != request.proof.plan_digest
         || journal.runtime_fingerprint != request.runtime_fingerprint

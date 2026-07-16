@@ -111,6 +111,7 @@ pub use quarantine_replacement_cleanup_execution::{
     commit_verified_quarantine_replacement_cleanup_deletion,
     prepare_verified_quarantine_replacement_cleanup_tomb,
     rollback_verified_quarantine_replacement_cleanup, QuarantineReplacementCleanupAuthorization,
+    QuarantineReplacementCleanupPreparation,
 };
 pub use quarantine_replacement_cleanup_preview::{
     build_quarantine_replacement_cleanup_plan, quarantine_replacement_cleanup_plan_json,

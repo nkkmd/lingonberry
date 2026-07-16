@@ -18,6 +18,27 @@ pub const QUARANTINE_REPLACEMENT_CLEANUP_PROOF_FILE: &str =
 pub const QUARANTINE_REPLACEMENT_CLEANUP_PROOF_DIGEST_FILE: &str =
     "quarantine-replacement-cleanup-proof.digest";
 
+struct ArtifactPairNames<'a> {
+    json: &'a str,
+    digest: &'a str,
+    json_tmp: &'a str,
+    digest_tmp: &'a str,
+}
+
+const PLAN_ARTIFACTS: ArtifactPairNames<'static> = ArtifactPairNames {
+    json: QUARANTINE_REPLACEMENT_CLEANUP_PLAN_FILE,
+    digest: QUARANTINE_REPLACEMENT_CLEANUP_PLAN_DIGEST_FILE,
+    json_tmp: ".quarantine-replacement-cleanup-plan.json.tmp",
+    digest_tmp: ".quarantine-replacement-cleanup-plan.digest.tmp",
+};
+
+const PROOF_ARTIFACTS: ArtifactPairNames<'static> = ArtifactPairNames {
+    json: QUARANTINE_REPLACEMENT_CLEANUP_PROOF_FILE,
+    digest: QUARANTINE_REPLACEMENT_CLEANUP_PROOF_DIGEST_FILE,
+    json_tmp: ".quarantine-replacement-cleanup-proof.json.tmp",
+    digest_tmp: ".quarantine-replacement-cleanup-proof.digest.tmp",
+};
+
 pub fn publish_quarantine_replacement_cleanup_preview_artifacts(
     output_dir: impl AsRef<Path>,
     plan: &QuarantineReplacementCleanupPlan,
@@ -34,24 +55,8 @@ pub fn publish_quarantine_replacement_cleanup_preview_artifacts(
     let proof_text = to_canonical_json(&quarantine_replacement_cleanup_proof_json(&proof));
     let proof_digest = integrity_digest(proof_text.as_bytes());
 
-    publish_pair(
-        output_dir,
-        QUARANTINE_REPLACEMENT_CLEANUP_PLAN_FILE,
-        QUARANTINE_REPLACEMENT_CLEANUP_PLAN_DIGEST_FILE,
-        ".quarantine-replacement-cleanup-plan.json.tmp",
-        ".quarantine-replacement-cleanup-plan.digest.tmp",
-        &plan_text,
-        &plan_digest,
-    )?;
-    publish_pair(
-        output_dir,
-        QUARANTINE_REPLACEMENT_CLEANUP_PROOF_FILE,
-        QUARANTINE_REPLACEMENT_CLEANUP_PROOF_DIGEST_FILE,
-        ".quarantine-replacement-cleanup-proof.json.tmp",
-        ".quarantine-replacement-cleanup-proof.digest.tmp",
-        &proof_text,
-        &proof_digest,
-    )?;
+    publish_pair(output_dir, &PLAN_ARTIFACTS, &plan_text, &plan_digest)?;
+    publish_pair(output_dir, &PROOF_ARTIFACTS, &proof_text, &proof_digest)?;
     sync_directory(output_dir)?;
     verify_quarantine_replacement_cleanup_preview_artifacts(output_dir, &proof)?;
     Ok(proof)
@@ -65,22 +70,22 @@ pub fn verify_quarantine_replacement_cleanup_preview_artifacts(
     let expected_plan = to_canonical_json(&quarantine_replacement_cleanup_plan_json(&expected.plan));
     let expected_plan_digest = integrity_digest(expected_plan.as_bytes());
     if expected.plan_digest != expected_plan_digest {
-        return Err(artifact_error("proof plan digest does not match canonical plan"));
+        return Err(artifact_error(
+            "proof plan digest does not match canonical plan",
+        ));
     }
     let expected_proof = to_canonical_json(&quarantine_replacement_cleanup_proof_json(expected));
     let expected_proof_digest = integrity_digest(expected_proof.as_bytes());
 
     verify_pair(
         output_dir,
-        QUARANTINE_REPLACEMENT_CLEANUP_PLAN_FILE,
-        QUARANTINE_REPLACEMENT_CLEANUP_PLAN_DIGEST_FILE,
+        &PLAN_ARTIFACTS,
         &expected_plan,
         &expected_plan_digest,
     )?;
     verify_pair(
         output_dir,
-        QUARANTINE_REPLACEMENT_CLEANUP_PROOF_FILE,
-        QUARANTINE_REPLACEMENT_CLEANUP_PROOF_DIGEST_FILE,
+        &PROOF_ARTIFACTS,
         &expected_proof,
         &expected_proof_digest,
     )
@@ -88,21 +93,18 @@ pub fn verify_quarantine_replacement_cleanup_preview_artifacts(
 
 fn publish_pair(
     dir: &Path,
-    json_name: &str,
-    digest_name: &str,
-    json_tmp_name: &str,
-    digest_tmp_name: &str,
+    names: &ArtifactPairNames<'_>,
     text: &str,
     digest: &str,
 ) -> Result<(), StoreError> {
-    let json_path = dir.join(json_name);
-    let digest_path = dir.join(digest_name);
+    let json_path = dir.join(names.json);
+    let digest_path = dir.join(names.digest);
     if json_path.exists() || digest_path.exists() {
-        return verify_pair(dir, json_name, digest_name, text, digest);
+        return verify_pair(dir, names, text, digest);
     }
 
-    let json_tmp = dir.join(json_tmp_name);
-    let digest_tmp = dir.join(digest_tmp_name);
+    let json_tmp = dir.join(names.json_tmp);
+    let digest_tmp = dir.join(names.digest_tmp);
     if json_tmp.exists() || digest_tmp.exists() {
         return Err(artifact_error(
             "stale cleanup preview temporary artifact requires manual review",
@@ -125,15 +127,16 @@ fn publish_pair(
 
 fn verify_pair(
     dir: &Path,
-    json_name: &str,
-    digest_name: &str,
+    names: &ArtifactPairNames<'_>,
     expected_text: &str,
     expected_digest: &str,
 ) -> Result<(), StoreError> {
-    let json_path = dir.join(json_name);
-    let digest_path = dir.join(digest_name);
+    let json_path = dir.join(names.json);
+    let digest_path = dir.join(names.digest);
     if !json_path.is_file() || !digest_path.is_file() {
-        return Err(artifact_error("cleanup preview artifact pair is incomplete"));
+        return Err(artifact_error(
+            "cleanup preview artifact pair is incomplete",
+        ));
     }
     let actual_text = fs::read_to_string(json_path).map_err(io_error)?;
     let actual_digest = fs::read_to_string(digest_path).map_err(io_error)?;
@@ -157,7 +160,10 @@ fn write_new_synced(path: &Path, bytes: &[u8]) -> Result<(), StoreError> {
 }
 
 fn sync_directory(path: &Path) -> Result<(), StoreError> {
-    File::open(path).map_err(io_error)?.sync_all().map_err(io_error)
+    File::open(path)
+        .map_err(io_error)?
+        .sync_all()
+        .map_err(io_error)
 }
 
 fn integrity_digest(bytes: &[u8]) -> String {
@@ -174,5 +180,8 @@ fn io_error(error: std::io::Error) -> StoreError {
 }
 
 fn artifact_error(message: impl Into<String>) -> StoreError {
-    store_error("LB_QUARANTINE_REPLACEMENT_CLEANUP_PREVIEW_ARTIFACT", message)
+    store_error(
+        "LB_QUARANTINE_REPLACEMENT_CLEANUP_PREVIEW_ARTIFACT",
+        message,
+    )
 }

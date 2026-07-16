@@ -199,6 +199,8 @@ Cleanup must preserve enough append-only evidence to answer:
 - which durable boundaries completed
 - whether deletion committed, rolled back, requires recovery, or partially completed
 
+For v0.4.0, a terminal cleanup transaction workspace is retained without automatic expiry. This includes the terminal journal and digest, sealed tomb inventory and digest, and path-level progress evidence for `committed`, `rolled-back`, and `partially-deleted` outcomes. No API in v0.4.0 may automatically remove, truncate, compact, or recycle these workspaces. A future policy version must define an explicit minimum age, minimum retained count, and independent operator authorization before workspace retirement can be implemented.
+
 Metrics and audit records must not expose secrets, full paths, transaction IDs as unbounded labels, or free-form error text.
 
 ## 11. Operator consent
@@ -225,6 +227,7 @@ Implementations must not:
 - silently skip failed subjects and report global success
 - combine cleanup with replacement apply/resume/rollback
 - enable background scheduled deletion in v0.4.0
+- remove terminal cleanup transaction workspaces in v0.4.0
 - promise secure erase semantics
 
 ## 13. Review gate before destructive implementation

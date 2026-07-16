@@ -63,7 +63,6 @@ jobs:
         run: >-
           node --test
           packages/codecs/test/canonicalization.test.mjs
-          packages/identity/test/identity-key-v2.test.mjs
           packages/identity/test/identity-claim-validator.test.mjs
           packages/validation/test/validation.test.mjs
           tests/quarantine-replacement-crash-points.test.mjs

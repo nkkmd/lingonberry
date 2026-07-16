@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -22,31 +22,14 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
-        with:
-          ref: feat/v0.4.0-cleanup-preview-proof
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
 
-      - name: Fix cleanup preview clippy
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          path = Path('packages/core/src/quarantine_replacement_cleanup_preview.rs')
-          text = path.read_text().replace(
-              'fn normalize_managed_paths(paths: &mut Vec<String>) -> Result<(), StoreError> {',
-              'fn normalize_managed_paths(paths: &mut [String]) -> Result<(), StoreError> {',
-          )
-          path.write_text(text)
-          PY
-          cargo fmt --all
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add packages/core/src/quarantine_replacement_cleanup_preview.rs
-          git commit -m "fix: accept managed path slices"
-          git push origin HEAD:feat/v0.4.0-cleanup-preview-proof
+      - name: Cache Cargo artifacts
+        uses: Swatinem/rust-cache@v2
 
       - name: Check formatting
         run: cargo fmt --all -- --check

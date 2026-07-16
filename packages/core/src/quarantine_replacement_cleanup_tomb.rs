@@ -36,7 +36,9 @@ pub fn move_quarantine_replacement_cleanup_to_tomb(
     let transaction_dir = cleanup_transaction_dir.as_ref();
     let journal = read_quarantine_replacement_cleanup_transaction_details(transaction_dir)?;
     if journal.state != QuarantineReplacementCleanupTransactionState::Revalidated {
-        return Err(tomb_error("cleanup transaction must be revalidated before tomb rename"));
+        return Err(tomb_error(
+            "cleanup transaction must be revalidated before tomb rename",
+        ));
     }
 
     let entries = proof_paths(proof)?;
@@ -87,7 +89,9 @@ pub fn resume_quarantine_replacement_cleanup_deletion(
         journal = read_quarantine_replacement_cleanup_transaction_details(transaction_dir)?;
     }
     if journal.state != QuarantineReplacementCleanupTransactionState::Deleting {
-        return Err(tomb_error("cleanup deletion may only resume in deleting state"));
+        return Err(tomb_error(
+            "cleanup deletion may only resume in deleting state",
+        ));
     }
 
     let deleted = journal.deleted_paths.into_iter().collect::<BTreeSet<_>>();
@@ -121,7 +125,9 @@ pub fn rollback_quarantine_replacement_cleanup_tomb(
     let transaction_dir = cleanup_transaction_dir.as_ref();
     let journal = read_quarantine_replacement_cleanup_transaction_details(transaction_dir)?;
     if journal.state.deletion_has_started() || !journal.deleted_paths.is_empty() {
-        return Err(tomb_error("cleanup rollback is forbidden after deletion begins"));
+        return Err(tomb_error(
+            "cleanup rollback is forbidden after deletion begins",
+        ));
     }
     let report = verify_tomb_inventory(transaction_dir)?;
     for managed_path in report.managed_paths.iter().rev() {
@@ -224,7 +230,9 @@ fn proof_paths(proof: &QuarantineReplacementCleanupProof) -> Result<Vec<String>,
     }
     paths.sort();
     if paths.is_empty() || paths.windows(2).any(|pair| pair[0] == pair[1]) {
-        return Err(tomb_error("cleanup proof contains empty or duplicate managed paths"));
+        return Err(tomb_error(
+            "cleanup proof contains empty or duplicate managed paths",
+        ));
     }
     Ok(paths)
 }
@@ -265,7 +273,9 @@ fn parse_inventory(value: &JsonValue) -> Result<Vec<String>, StoreError> {
         })
         .collect::<Result<Vec<_>, _>>()?;
     if paths.is_empty() || !paths.windows(2).all(|pair| pair[0] < pair[1]) {
-        return Err(tomb_error("cleanup tomb inventory must be non-empty and strictly sorted"));
+        return Err(tomb_error(
+            "cleanup tomb inventory must be non-empty and strictly sorted",
+        ));
     }
     Ok(paths)
 }
@@ -352,7 +362,9 @@ fn write_new_synced(path: &Path, bytes: &[u8]) -> Result<(), StoreError> {
 }
 
 fn sync_directory(path: &Path) -> Result<(), StoreError> {
-    File::open(path).and_then(|file| file.sync_all()).map_err(io_error)
+    File::open(path)
+        .and_then(|file| file.sync_all())
+        .map_err(io_error)
 }
 
 fn integrity_digest(bytes: &[u8]) -> String {

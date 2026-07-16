@@ -1,10 +1,20 @@
 # Operations
 
-**Status: active** | **Latest release: v0.3.0** | **Last updated: 2026-07-15**
+**Status: active** | **Latest published release: v0.3.0** | **Release candidate: v0.4.0** | **Last updated: 2026-07-17**
 
-このディレクトリには、Lingonberryの技術決定と運用正本を置きます。
+このディレクトリには、Lingonberryの技術決定、運用契約、operator runbook、機械可読なfailure／crash inventoryを置きます。
 
-作業再開時は、最初に[現在の実装状況](../roadmap/CURRENT_IMPLEMENTATION_STATUS.md)、[v0.3.0 Release Checklist](../roadmap/RELEASE_0_3_0_CHECKLIST.md)、[v0.3.0 Release Notes](../roadmap/RELEASE_0_3_0_RELEASE_NOTE.md)を確認してください。
+作業再開時は、[現在の実装状況](../roadmap/CURRENT_IMPLEMENTATION_STATUS.md)、[v0.4.0 Release Checklist](../roadmap/RELEASE_0_4_0_CHECKLIST.md)、[v0.4.0 Release Notes](../roadmap/RELEASE_0_4_0_RELEASE_NOTE.md)を最初に確認してください。
+
+## v0.4.0 verified cleanup
+
+- [Quarantine Replacement Retention Policy](./QUARANTINE_REPLACEMENT_RETENTION_POLICY.md)
+- [Cleanup Operations Runbook](./QUARANTINE_REPLACEMENT_CLEANUP_RUNBOOK.md)
+- [Cleanup Failure-point Inventory](./quarantine-replacement-cleanup-failure-points.v1.json)
+- [Cleanup Crash Matrix](./quarantine-replacement-cleanup-crash-matrix.v1.json)
+- [v0.4.0 Smoke Test Procedure](./QUARANTINE_REPLACEMENT_V0_4_0_SMOKE_TEST.md)
+
+v0.4.0 cleanupはexact-subject、proof-bound、operator-triggered、double opt-inです。scheduled／unattended cleanupはなく、terminal cleanup transaction workspaceは運用証拠として保持します。
 
 ## Quickstart
 
@@ -28,13 +38,9 @@
 - [Multi-node Conflict Policy](./MULTI_NODE_CONFLICT_POLICY.md)
 - [Multi-node Capacity and Placement Policy](./MULTI_NODE_CAPACITY_AND_PLACEMENT_POLICY.md)
 
-Multi-node文書は将来構成の契約です。v0.3.0のquarantine operation lockもsame-host coordinationであり、distributed lockではありません。
+Multi-node文書は将来構成の契約です。quarantine replacement／cleanup operation lockはsame-host coordinationであり、distributed lockではありません。
 
-## Policy and Operations
-
-障害時の一次参照先は[Node Lifecycle Runbook](./NODE_LIFECYCLE_RUNBOOK.md)です。
-
-### Quarantine administration
+## Quarantine administration
 
 - [Quarantine Admin HTTP and RBAC](./QUARANTINE_ADMIN_HTTP.md)
 - [Quarantine Concurrent Operations](./QUARANTINE_CONCURRENCY.md)
@@ -45,13 +51,13 @@ Multi-node文書は将来構成の契約です。v0.3.0のquarantine operation l
 - [Quarantine Observability Metrics](./QUARANTINE_OBSERVABILITY_METRICS.md)
 - [Quarantine Scheduler](./QUARANTINE_SCHEDULER.md)
 
-### Quarantine data protection and maintenance
+## Quarantine data protection and maintenance
 
 - [Quarantine Backup / Verify / Restore](./QUARANTINE_BACKUP_RESTORE.md)
 - [Quarantine JSONL Index, Rotation, and Maintenance](./QUARANTINE_JSONL_MAINTENANCE.md)
 - [Quarantine Compaction Preview and Proof](./QUARANTINE_COMPACTION_PROOF.md)
 
-### Quarantine verified replacement
+## Quarantine verified replacement
 
 - [Replacement Policy and Semantic-equivalence Contract](./QUARANTINE_REPLACEMENT_POLICY.md)
 - [Replacement Preview and Proof Contract](./QUARANTINE_REPLACEMENT_PREVIEW.md)
@@ -60,19 +66,19 @@ Multi-node文書は将来構成の契約です。v0.3.0のquarantine operation l
 - [Generation-directory Contract](./QUARANTINE_REPLACEMENT_GENERATION.md)
 - [Replacement Recovery Runbook](./QUARANTINE_REPLACEMENT_RECOVERY_RUNBOOK.md)
 - [Replacement Operations Hardening](./QUARANTINE_REPLACEMENT_OPERATIONS_HARDENING.md)
-- [Crash-point Inventory](./quarantine-replacement-crash-points.v1.json)
+- [Replacement Crash-point Inventory](./quarantine-replacement-crash-points.v1.json)
 
-The canonical operator sequence is backup v2 verification → replacement preview/proof verification → apply → structured status/metrics → index and segment verification → read-only generation inspection. Pointer or journal repair must never be performed manually.
+Canonical sequence: backup v2 verification → replacement preview/proof verification → replacement apply/recovery → terminal completion evidence → retention evaluation → cleanup preview/proof → cleanup preparation → separate irreversible acknowledgement → terminal status. Pointer、journal、inventoryのmanual repairは禁止です。
 
-### General operations
+## General operations
 
 - [Access and Retention Policy](./ACCESS_RETENTION_POLICY.md)
 - [Access and Retention Audit Checklist](./ACCESS_RETENTION_AUDIT_CHECKLIST.md)
 - [Caddy Relay Publication](./CADDY_RELAY_PUBLICATION.md)
 - [Secret Management](./SECRET_MANAGEMENT.md)
 - [Observability](./OBSERVABILITY.md)
-- [storage node runtime](./STORAGE_NODE_RUNTIME.md)
-- [relay / storage separation](./RELAY_STORAGE_SEPARATION.md)
+- [Storage Node Runtime](./STORAGE_NODE_RUNTIME.md)
+- [Relay / Storage Separation](./RELAY_STORAGE_SEPARATION.md)
 - [Node Lifecycle Runbook](./NODE_LIFECYCLE_RUNBOOK.md)
 
 ## Templates and Versions
@@ -81,5 +87,6 @@ The canonical operator sequence is backup v2 verification → replacement previe
 - [Systemd Unit Templates](./SYSTEMD_UNIT_TEMPLATES.md)
 - [Migration and Schema Versioning](./MIGRATION_AND_SCHEMA_VERSIONING.md)
 - [Legacy Admin Token Deprecation](../roadmap/RBAC_LEGACY_TOKEN_DEPRECATION.md)
+- [v0.4.0 Release Notes](../roadmap/RELEASE_0_4_0_RELEASE_NOTE.md)
 - [v0.3.0 Release Notes](../roadmap/RELEASE_0_3_0_RELEASE_NOTE.md)
 - [v0.2.0 Release Notes](../roadmap/RELEASE_0_2_0_RELEASE_NOTE.md)

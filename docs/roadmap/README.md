@@ -1,24 +1,28 @@
 # ロードマップ
 
-**Status: active** | **Latest release: v0.3.0** | **Last updated: 2026-07-15**
+**Status: active** | **Latest release: v0.3.0** | **Active target: v0.4.0** | **Last updated: 2026-07-16**
 
 このディレクトリには、実装・運用準備・releaseのroadmapとbacklog、および作業再開用の現在地文書を置きます。
 
 ## 再開時に最初に読む文書
 
 1. [現在の実装状況](./CURRENT_IMPLEMENTATION_STATUS.md)
-2. [v0.3.0 Release Checklist](./RELEASE_0_3_0_CHECKLIST.md)
-3. [v0.3.0 Release Notes](./RELEASE_0_3_0_RELEASE_NOTE.md)
-4. [v0.3.0 Roadmap](./RELEASE_0_3_0_ROADMAP.md)
-5. [Quarantine Lifecycle Backlog](./QUARANTINE_LIFECYCLE_BACKLOG.md)
-6. [実装バックログ](./IMPLEMENTATION_BACKLOG.md)
-7. [運用文書索引](../operations/README.md)
+2. [v0.4.0 Roadmap](./RELEASE_0_4_0_ROADMAP.md)
+3. [Quarantine Replacement Retention Policy](../operations/QUARANTINE_REPLACEMENT_RETENTION_POLICY.md)
+4. [v0.3.0 Release Checklist](./RELEASE_0_3_0_CHECKLIST.md)
+5. [v0.3.0 Release Notes](./RELEASE_0_3_0_RELEASE_NOTE.md)
+6. [v0.3.0 Roadmap](./RELEASE_0_3_0_ROADMAP.md)
+7. [Quarantine Lifecycle Backlog](./QUARANTINE_LIFECYCLE_BACKLOG.md)
+8. [実装バックログ](./IMPLEMENTATION_BACKLOG.md)
+9. [運用文書索引](../operations/README.md)
 
-`CURRENT_IMPLEMENTATION_STATUS.md`は、中断後に作業を再開するための引き継ぎ用正本です。
+`CURRENT_IMPLEMENTATION_STATUS.md`は、中断後に作業を再開するための引き継ぎ用正本です。v0.4.0の作業範囲は`RELEASE_0_4_0_ROADMAP.md`とretention policyを正本として進めます。
 
 ## 文書の役割
 
 - [現在の実装状況](./CURRENT_IMPLEMENTATION_STATUS.md): 実装済み機能、安全境界、次の作業
+- [v0.4.0 Roadmap](./RELEASE_0_4_0_ROADMAP.md): verified retention cleanupの設計・実装・release計画
+- [Quarantine Replacement Retention Policy](../operations/QUARANTINE_REPLACEMENT_RETENTION_POLICY.md): cleanup適格性、proof、revalidation、不可逆境界の正本
 - [v0.3.0 Release Checklist](./RELEASE_0_3_0_CHECKLIST.md): 完了済みrelease gateとpost-release記録
 - [v0.3.0 Release Notes](./RELEASE_0_3_0_RELEASE_NOTE.md): 公開範囲、upgrade、operator workflow、既知の制約
 - [v0.3.0 Roadmap](./RELEASE_0_3_0_ROADMAP.md): verified replacement transactionの設計・実装・release記録
@@ -32,6 +36,19 @@
 - [v0.2.0 Release Notes](./RELEASE_0_2_0_RELEASE_NOTE.md): 過去releaseの記録
 - [v0.1.0公開前チェックリスト](./RELEASE_0_1_0_CHECKLIST.md): 過去releaseの記録
 - [v0.1.0 Release Note](./RELEASE_0_1_0_RELEASE_NOTE.md): 過去releaseの記録
+
+## v0.4.0の対象
+
+- inactive committed／rolled-back generationのverified cleanup policy
+- terminal transaction workspaceの独立したretention policy
+- deterministic cleanup preview／proof
+- stale state、path traversal、symlink、unexpected entryのfail-closed rejection
+- same-host lock下のcleanup transaction
+- reversible tomb renameと不可逆delete境界の明確化
+- idempotent resume、pre-delete rollback、partial deletion evidence
+- status、metrics、audit、failure injection、operator smoke test
+
+v0.4.0ではbackground scheduled deletionを導入せず、exact subjectを指定するoperator-triggered double opt-inに限定します。
 
 ## v0.3.0の到達点
 

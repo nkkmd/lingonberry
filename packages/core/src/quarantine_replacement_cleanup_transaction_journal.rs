@@ -87,9 +87,9 @@ pub fn record_quarantine_replacement_cleanup_path_deleted(
         ));
     }
     if journal
-        .deleted_subjects
+        .deleted_paths
         .iter()
-        .any(|value| value == generation_id)
+        .any(|value| value == managed_path)
     {
         return read_quarantine_replacement_cleanup_transaction_journal(transaction_dir);
     }
@@ -227,9 +227,9 @@ fn validate_journal(
         validate_digest(digest, "tomb inventory digest")?;
     }
     let unique = journal.deleted_paths.iter().collect::<BTreeSet<_>>();
-    if unique.len() != journal.deleted_subjects.len()
+    if unique.len() != journal.deleted_paths.len()
         || !journal
-            .deleted_subjects
+            .deleted_paths
             .windows(2)
             .all(|pair| pair[0] < pair[1])
     {

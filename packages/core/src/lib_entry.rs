@@ -9,6 +9,7 @@ mod quarantine_ledger_index;
 mod quarantine_lock;
 mod quarantine_rejections;
 mod quarantine_replacement_audit;
+#[allow(clippy::needless_lifetimes)]
 #[rustfmt::skip]
 mod quarantine_replacement_cleanup_policy;
 mod quarantine_replacement_failure_injection;

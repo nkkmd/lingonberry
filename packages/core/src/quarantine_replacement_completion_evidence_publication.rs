@@ -1,3 +1,5 @@
+#![rustfmt::skip]
+
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;
 use std::path::Path;

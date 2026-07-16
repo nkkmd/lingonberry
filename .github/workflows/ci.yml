@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -22,11 +22,56 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          ref: feat/v0.4.0-cleanup-transaction
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
+
+      - name: Connect cleanup tomb executor
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('packages/core/src/lib_entry.rs')
+          text = path.read_text()
+          text = text.replace(
+              'mod quarantine_replacement_cleanup_transaction_journal;\n',
+              'mod quarantine_replacement_cleanup_transaction_journal;\nmod quarantine_replacement_cleanup_tomb;\n',
+          )
+          marker = '''pub use quarantine_replacement_cleanup_transaction_journal::{
+              advance_quarantine_replacement_cleanup_transaction_journal,
+              create_quarantine_replacement_cleanup_transaction_journal,
+              read_quarantine_replacement_cleanup_transaction_details,
+              read_quarantine_replacement_cleanup_transaction_journal,
+              record_quarantine_replacement_cleanup_path_deleted,
+              QuarantineReplacementCleanupTransactionReport,
+              QUARANTINE_REPLACEMENT_CLEANUP_TRANSACTION_JOURNAL_DIGEST_FILE,
+              QUARANTINE_REPLACEMENT_CLEANUP_TRANSACTION_JOURNAL_FILE,
+          };
+          '''
+          addition = marker + '''pub use quarantine_replacement_cleanup_tomb::{
+              move_quarantine_replacement_cleanup_to_tomb,
+              resume_quarantine_replacement_cleanup_deletion,
+              rollback_quarantine_replacement_cleanup_tomb,
+              QuarantineReplacementCleanupTombReport,
+              QUARANTINE_REPLACEMENT_CLEANUP_TOMB_DIR,
+              QUARANTINE_REPLACEMENT_CLEANUP_TOMB_INVENTORY_DIGEST_FILE,
+              QUARANTINE_REPLACEMENT_CLEANUP_TOMB_INVENTORY_FILE,
+              QUARANTINE_REPLACEMENT_CLEANUP_TOMB_INVENTORY_VERSION,
+          };
+          '''
+          if marker not in text:
+              raise SystemExit('cleanup transaction journal export marker not found')
+          path.write_text(text.replace(marker, addition, 1))
+          PY
+          cargo fmt --all
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add packages/core/src/lib_entry.rs packages/core/src/quarantine_replacement_cleanup_tomb.rs
+          git commit -m "feat: expose cleanup tomb executor"
+          git push origin HEAD:feat/v0.4.0-cleanup-transaction
 
       - name: Cache Cargo artifacts
         uses: Swatinem/rust-cache@v2

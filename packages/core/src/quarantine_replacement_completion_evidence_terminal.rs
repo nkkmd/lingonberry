@@ -28,7 +28,7 @@ pub(crate) fn finalize_quarantine_replacement_completion_evidence(
     .map_err(|error| {
         crate::store_error(
             "LB_QUARANTINE_REPLACEMENT_COMPLETION_EVIDENCE_TERMINAL",
-            &format!("failed to read terminal journal digest: {error}"),
+            format!("failed to read terminal journal digest: {error}"),
         )
     })?;
     let journal_digest = journal_digest.trim();
@@ -37,7 +37,7 @@ pub(crate) fn finalize_quarantine_replacement_completion_evidence(
         .map_err(|error| {
             crate::store_error(
                 "LB_QUARANTINE_REPLACEMENT_COMPLETION_EVIDENCE_TERMINAL",
-                &format!("system clock is before Unix epoch: {error}"),
+                format!("system clock is before Unix epoch: {error}"),
             )
         })?
         .as_secs();

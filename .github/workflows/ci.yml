@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -22,48 +22,11 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
-        with:
-          ref: feat/v0.4.0-cleanup-preview-proof
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
-
-      - name: Export and format cleanup preview artifacts
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          path = Path('packages/core/src/lib_entry.rs')
-          text = path.read_text()
-          module = 'mod quarantine_replacement_cleanup_preview_artifact;\n'
-          if module not in text:
-              text = text.replace(
-                  'mod quarantine_replacement_cleanup_preview;\n',
-                  'mod quarantine_replacement_cleanup_preview;\n' + module,
-              )
-          export = '''pub use quarantine_replacement_cleanup_preview_artifact::{
-              publish_quarantine_replacement_cleanup_preview_artifacts,
-              verify_quarantine_replacement_cleanup_preview_artifacts,
-              QUARANTINE_REPLACEMENT_CLEANUP_PLAN_DIGEST_FILE,
-              QUARANTINE_REPLACEMENT_CLEANUP_PLAN_FILE,
-              QUARANTINE_REPLACEMENT_CLEANUP_PROOF_DIGEST_FILE,
-              QUARANTINE_REPLACEMENT_CLEANUP_PROOF_FILE,
-          };
-          '''
-          marker = '#[rustfmt::skip]\npub use quarantine_replacement_completion_evidence::{'
-          if export not in text:
-              text = text.replace(marker, export + marker)
-          path.write_text(text)
-          PY
-          cargo fmt --all
-          if ! git diff --quiet; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add packages/core/src/lib_entry.rs packages/core/src/quarantine_replacement_cleanup_preview.rs packages/core/src/quarantine_replacement_cleanup_preview_artifact.rs packages/core/tests/quarantine_replacement_cleanup_preview.rs
-            git commit -m "feat: expose cleanup preview artifacts"
-            git push origin HEAD:feat/v0.4.0-cleanup-preview-proof
-          fi
 
       - name: Cache Cargo artifacts
         uses: Swatinem/rust-cache@v2

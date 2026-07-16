@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -22,44 +22,6 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref }}
-
-      - name: Export cleanup preview API
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          path = Path('packages/core/src/lib_entry.rs')
-          text = path.read_text()
-          text = text.replace(
-              'mod quarantine_replacement_cleanup_policy;\n',
-              'mod quarantine_replacement_cleanup_policy;\nmod quarantine_replacement_cleanup_preview;\n',
-              1,
-          )
-          anchor = '#[rustfmt::skip]\npub use quarantine_replacement_completion_evidence::{'
-          export = '''#[rustfmt::skip]
-pub use quarantine_replacement_cleanup_preview::{
-    build_quarantine_replacement_cleanup_plan,
-    quarantine_replacement_cleanup_plan_json,
-    quarantine_replacement_cleanup_proof_json,
-    QuarantineReplacementCleanupPlan,
-    QuarantineReplacementCleanupProof,
-    QuarantineReplacementCleanupSubject,
-    QUARANTINE_REPLACEMENT_CLEANUP_PLAN_VERSION,
-    QUARANTINE_REPLACEMENT_CLEANUP_PROOF_VERSION,
-};
-'''
-          if 'pub use quarantine_replacement_cleanup_preview::' not in text:
-              text = text.replace(anchor, export + anchor, 1)
-          path.write_text(text)
-          PY
-          cargo fmt --all
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add packages/core/src/lib_entry.rs packages/core/src/quarantine_replacement_cleanup_preview.rs
-          if git diff --cached --quiet; then exit 0; fi
-          git commit -m "feat: export cleanup preview model"
-          git push origin HEAD:${{ github.head_ref }}
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable

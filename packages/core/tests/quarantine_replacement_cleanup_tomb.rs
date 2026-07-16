@@ -11,7 +11,10 @@ use lingonberry_core::{
     QuarantineReplacementCleanupPlan, QuarantineReplacementCleanupProof,
     QuarantineReplacementCleanupSubject, QuarantineReplacementCleanupTransactionJournal,
     QuarantineReplacementCleanupTransactionState,
+    QUARANTINE_REPLACEMENT_CLEANUP_TOMB_INVENTORY_DIGEST_FILE,
     QUARANTINE_REPLACEMENT_CLEANUP_TOMB_INVENTORY_FILE,
+    QUARANTINE_REPLACEMENT_CLEANUP_TRANSACTION_JOURNAL_DIGEST_FILE,
+    QUARANTINE_REPLACEMENT_CLEANUP_TRANSACTION_JOURNAL_FILE,
     QUARANTINE_REPLACEMENT_RETENTION_POLICY_VERSION,
 };
 
@@ -75,6 +78,21 @@ fn prepare(label: &str) -> (PathBuf, PathBuf, QuarantineReplacementCleanupProof)
     (state, transaction, proof)
 }
 
+fn assert_terminal_evidence_is_retained(transaction: &PathBuf) {
+    assert!(transaction
+        .join(QUARANTINE_REPLACEMENT_CLEANUP_TRANSACTION_JOURNAL_FILE)
+        .is_file());
+    assert!(transaction
+        .join(QUARANTINE_REPLACEMENT_CLEANUP_TRANSACTION_JOURNAL_DIGEST_FILE)
+        .is_file());
+    assert!(transaction
+        .join(QUARANTINE_REPLACEMENT_CLEANUP_TOMB_INVENTORY_FILE)
+        .is_file());
+    assert!(transaction
+        .join(QUARANTINE_REPLACEMENT_CLEANUP_TOMB_INVENTORY_DIGEST_FILE)
+        .is_file());
+}
+
 #[test]
 fn moves_seals_and_deletes_in_deterministic_order() {
     let (state, transaction, proof) = prepare("delete");
@@ -92,6 +110,7 @@ fn moves_seals_and_deletes_in_deterministic_order() {
     );
     assert_eq!(journal.deleted_paths, report.managed_paths);
     assert!(!report.tomb_dir.join("generation-old/a.txt").exists());
+    assert_terminal_evidence_is_retained(&transaction);
     let _ = fs::remove_dir_all(state.parent().unwrap());
 }
 
@@ -113,6 +132,7 @@ fn rollback_restores_all_paths_before_deletion() {
         journal.state,
         QuarantineReplacementCleanupTransactionState::RolledBack
     );
+    assert_terminal_evidence_is_retained(&transaction);
     let _ = fs::remove_dir_all(state.parent().unwrap());
 }
 

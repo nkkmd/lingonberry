@@ -106,6 +106,7 @@ pub use quarantine_replacement_completion_evidence::{
     QUARANTINE_REPLACEMENT_COMPLETION_EVIDENCE_FILE,
     QUARANTINE_REPLACEMENT_COMPLETION_EVIDENCE_VERSION,
 };
+#[rustfmt::skip]
 pub use quarantine_replacement_completion_evidence_artifact::verify_quarantine_replacement_completion_evidence_artifact;
 #[rustfmt::skip]
 pub use quarantine_replacement_generation::{

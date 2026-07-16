@@ -151,7 +151,7 @@ fn tampered_terminal_completion_evidence_fails_closed_on_resume() {
     let error = resume_quarantine_replacement_transaction(&state, &transaction).unwrap_err();
     assert_eq!(
         error.code,
-        "LB_QUARANTINE_REPLACEMENT_COMPLETION_EVIDENCE_PUBLICATION"
+        "LB_QUARANTINE_REPLACEMENT_COMPLETION_EVIDENCE_ARTIFACT"
     );
 
     cleanup([state, backup, proof, transaction]);

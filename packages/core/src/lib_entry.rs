@@ -16,6 +16,7 @@ mod quarantine_replacement_cleanup_preview;
 mod quarantine_replacement_cleanup_preview_artifact;
 mod quarantine_replacement_cleanup_preview_builder;
 mod quarantine_replacement_cleanup_tomb;
+mod quarantine_replacement_cleanup_tomb;
 mod quarantine_replacement_cleanup_transaction;
 mod quarantine_replacement_cleanup_transaction_journal;
 #[rustfmt::skip]
@@ -122,6 +123,14 @@ pub use quarantine_replacement_cleanup_preview_builder::{
     build_quarantine_replacement_cleanup_preview_from_state,
     verify_quarantine_replacement_cleanup_preview_against_state,
     QuarantineReplacementCleanupSubjectInput,
+};
+pub use quarantine_replacement_cleanup_tomb::{
+    move_quarantine_replacement_cleanup_to_tomb, resume_quarantine_replacement_cleanup_deletion,
+    rollback_quarantine_replacement_cleanup_tomb, QuarantineReplacementCleanupTombReport,
+    QUARANTINE_REPLACEMENT_CLEANUP_TOMB_DIR,
+    QUARANTINE_REPLACEMENT_CLEANUP_TOMB_INVENTORY_DIGEST_FILE,
+    QUARANTINE_REPLACEMENT_CLEANUP_TOMB_INVENTORY_FILE,
+    QUARANTINE_REPLACEMENT_CLEANUP_TOMB_INVENTORY_VERSION,
 };
 pub use quarantine_replacement_cleanup_tomb::{
     move_quarantine_replacement_cleanup_to_tomb, resume_quarantine_replacement_cleanup_deletion,

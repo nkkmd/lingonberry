@@ -86,14 +86,16 @@ fn rejects_incomplete_or_duplicate_eligible_subject_binding() {
 #[test]
 fn rejects_traversal_absolute_and_duplicate_managed_paths() {
     let report = decisions(&["tx-a"]);
-    for invalid in ["../escape", "a/../escape", "/absolute", "a//file", "a/./file"] {
+    for invalid in [
+        "../escape",
+        "a/../escape",
+        "/absolute",
+        "a//file",
+        "a/./file",
+    ] {
         assert!(build(&report, vec![subject("tx-a", &[invalid])]).is_err());
     }
-    assert!(build(
-        &report,
-        vec![subject("tx-a", &["a/file", "a/file"])],
-    )
-    .is_err());
+    assert!(build(&report, vec![subject("tx-a", &["a/file", "a/file"])],).is_err());
 }
 
 #[test]

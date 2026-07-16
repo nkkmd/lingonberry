@@ -1,5 +1,5 @@
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -53,7 +53,7 @@ fn cleanup(paths: impl IntoIterator<Item = PathBuf>) {
     }
 }
 
-fn evidence_pair(transaction: &PathBuf) -> (String, String) {
+fn evidence_pair(transaction: &Path) -> (String, String) {
     let evidence =
         fs::read_to_string(transaction.join(QUARANTINE_REPLACEMENT_COMPLETION_EVIDENCE_FILE))
             .unwrap();

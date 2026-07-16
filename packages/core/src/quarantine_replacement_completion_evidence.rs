@@ -1,3 +1,5 @@
+#![rustfmt::skip]
+
 use std::collections::BTreeMap;
 
 use lingonberry_protocol::JsonValue;

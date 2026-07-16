@@ -1,3 +1,5 @@
+#![rustfmt::skip]
+
 use std::collections::{BTreeMap, BTreeSet};
 
 use lingonberry_protocol::JsonValue;
@@ -57,12 +59,7 @@ pub fn evaluate_quarantine_replacement_retention_policy(
     let mut provisionally_eligible_previous = Vec::new();
     for generation_id in &selected {
         let Some(candidate) = candidates_by_id.get(generation_id) else {
-            decisions.push(decision(
-                generation_id,
-                "missing",
-                false,
-                "subject-not-found",
-            ));
+            decisions.push(decision(generation_id, "missing", false, "subject-not-found"));
             continue;
         };
         let result = evaluate_candidate(policy, candidate);
@@ -156,7 +153,12 @@ fn exact_selection(values: &[String]) -> Result<BTreeSet<String>, StoreError> {
         if value.is_empty()
             || value == "."
             || value == ".."
-            || value.contains(['/', '\\', '*', '?', '['])
+            || value.contains('/')
+            || value.contains('\\')
+            || value.contains('*')
+            || value.contains('?')
+            || value.contains('[')
+            || value.contains(']')
         {
             return Err(policy_error("selection must be an exact generation ID"));
         }
@@ -167,9 +169,9 @@ fn exact_selection(values: &[String]) -> Result<BTreeSet<String>, StoreError> {
     Ok(selected)
 }
 
-fn candidate_map<'a>(
-    candidates: &'a [QuarantineReplacementRetentionCandidate],
-) -> Result<BTreeMap<String, &'a QuarantineReplacementRetentionCandidate>, StoreError> {
+fn candidate_map(
+    candidates: &[QuarantineReplacementRetentionCandidate],
+) -> Result<BTreeMap<String, &QuarantineReplacementRetentionCandidate>, StoreError> {
     let mut result = BTreeMap::new();
     for candidate in candidates {
         if result
@@ -281,12 +283,7 @@ mod tests {
             generation_id: id.to_string(),
             classification: classification.to_string(),
             terminal_transaction_state: state.map(str::to_string),
-            verification_status: if verified {
-                "verified"
-            } else {
-                "metadata-present"
-            }
-            .to_string(),
+            verification_status: if verified { "verified" } else { "metadata-present" }.to_string(),
             durable_age_seconds: age,
         }
     }

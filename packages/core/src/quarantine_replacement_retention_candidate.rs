@@ -54,7 +54,9 @@ pub fn build_quarantine_replacement_retention_candidate(
                 transaction_dir.join(QUARANTINE_REPLACEMENT_TRANSACTION_JOURNAL_DIGEST_FILE),
             )
             .map_err(|error| {
-                candidate_error(format!("failed to read transaction journal digest: {error}"))
+                candidate_error(format!(
+                    "failed to read transaction journal digest: {error}"
+                ))
             })?;
             let report = verify_quarantine_replacement_completion_evidence_artifact(
                 transaction_dir,
@@ -83,8 +85,5 @@ fn terminal_sequence(transaction_dir: &Path) -> Result<u64, StoreError> {
 }
 
 fn candidate_error(message: impl Into<String>) -> StoreError {
-    store_error(
-        "LB_QUARANTINE_REPLACEMENT_RETENTION_CANDIDATE",
-        message,
-    )
+    store_error("LB_QUARANTINE_REPLACEMENT_RETENTION_CANDIDATE", message)
 }

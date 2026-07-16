@@ -30,53 +30,33 @@ jobs:
         with:
           components: rustfmt, clippy
 
-      - name: Refine cleanup progress to managed paths
+      - name: Fix managed-path cleanup references
         run: |
           python - <<'PY'
           from pathlib import Path
-          tx = Path('packages/core/src/quarantine_replacement_cleanup_transaction.rs')
-          text = tx.read_text()
-          text = text.replace('    pub deleted_subjects: Vec<String>,\n', '    pub deleted_paths: Vec<String>,\n')
-          text = text.replace('"deletedSubjects".to_string(),', '"deletedPaths".to_string(),')
-          text = text.replace('.deleted_subjects', '.deleted_paths')
-          tx.write_text(text)
-
-          journal = Path('packages/core/src/quarantine_replacement_cleanup_transaction_journal.rs')
-          text = journal.read_text()
-          text = text.replace('    pub deleted_subjects: Vec<String>,\n', '    pub deleted_paths: Vec<String>,\n')
-          text = text.replace('!journal.deleted_subjects.is_empty()', '!journal.deleted_paths.is_empty()')
-          text = text.replace('pub fn record_quarantine_replacement_cleanup_subject_deleted(', 'pub fn record_quarantine_replacement_cleanup_path_deleted(')
-          text = text.replace('    generation_id: &str,\n', '    managed_path: &str,\n', 1)
-          text = text.replace('    validate_generation_id(generation_id)?;\n', '    validate_managed_path(managed_path)?;\n', 1)
-          text = text.replace('journal.deleted_subjects.iter().any(|value| value == generation_id)', 'journal.deleted_paths.iter().any(|value| value == managed_path)')
-          text = text.replace('.deleted_subjects\n        .last()', '.deleted_paths\n        .last()')
-          text = text.replace('previous.as_str() >= generation_id', 'previous.as_str() >= managed_path')
-          text = text.replace('"deleted subjects must be recorded in strict deterministic order"', '"deleted paths must be recorded in strict deterministic order"')
-          text = text.replace('journal.deleted_subjects.push(generation_id.to_string());', 'journal.deleted_paths.push(managed_path.to_string());')
-          text = text.replace('deleted_subjects: journal.deleted_subjects,', 'deleted_paths: journal.deleted_paths,')
-          text = text.replace('deleted_subjects: object_string_array(value, "deletedSubjects")?,', 'deleted_paths: object_string_array(value, "deletedPaths")?,')
-          text = text.replace('let unique = journal.deleted_subjects.iter().collect::<BTreeSet<_>>();', 'let unique = journal.deleted_paths.iter().collect::<BTreeSet<_>>();')
-          text = text.replace('unique.len() != journal.deleted_subjects.len()\n        || !journal.deleted_subjects.windows(2)', 'unique.len() != journal.deleted_paths.len()\n        || !journal.deleted_paths.windows(2)')
-          text = text.replace('"deleted subjects must be unique and strictly sorted"', '"deleted paths must be unique and strictly sorted"')
-          text = text.replace('for generation_id in &journal.deleted_subjects {\n        validate_generation_id(generation_id)?;\n    }', 'for managed_path in &journal.deleted_paths {\n        validate_managed_path(managed_path)?;\n    }')
-          text = text.replace('if !journal.deleted_subjects.is_empty()', 'if !journal.deleted_paths.is_empty()')
-          insert = '''\nfn validate_managed_path(value: &str) -> Result<(), StoreError> {\n    if value.is_empty()\n        || value.starts_with('/')\n        || value.contains('\\\\')\n        || value\n            .split('/')\n            .any(|part| part.is_empty() || part == "." || part == "..")\n    {\n        return Err(journal_error("invalid managed deletion path"));\n    }\n    Ok(())\n}\n\n'''
-          marker = 'fn validate_generation_id(value: &str) -> Result<(), StoreError> {'
-          text = text.replace(marker, insert + marker, 1)
-          journal.write_text(text)
-
-          lib = Path('packages/core/src/lib_entry.rs')
-          text = lib.read_text().replace(
-              'record_quarantine_replacement_cleanup_subject_deleted,',
-              'record_quarantine_replacement_cleanup_path_deleted,',
+          path = Path('packages/core/src/quarantine_replacement_cleanup_transaction_journal.rs')
+          text = path.read_text()
+          text = text.replace(
+              '''    if journal
+                  .deleted_subjects
+                  .iter()
+                  .any(|value| value == generation_id)
+              {''',
+              '''    if journal
+                  .deleted_paths
+                  .iter()
+                  .any(|value| value == managed_path)
+              {''',
           )
-          lib.write_text(text)
+          text = text.replace('unique.len() != journal.deleted_subjects.len()', 'unique.len() != journal.deleted_paths.len()')
+          text = text.replace('.deleted_subjects\n            .windows(2)', '.deleted_paths\n            .windows(2)')
+          path.write_text(text)
           PY
           cargo fmt --all
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add packages/core/src/quarantine_replacement_cleanup_transaction.rs packages/core/src/quarantine_replacement_cleanup_transaction_journal.rs packages/core/src/lib_entry.rs
-          git commit -m "fix: track cleanup progress per managed path"
+          git add packages/core/src/quarantine_replacement_cleanup_transaction_journal.rs
+          git commit -m "fix: remove stale subject progress references"
           git push origin HEAD:feat/v0.4.0-cleanup-transaction
 
       - name: Cache Cargo artifacts

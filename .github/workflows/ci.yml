@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -22,34 +22,6 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref }}
-
-      - name: Remove invalid rustfmt inner attributes
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-
-          paths = [
-              Path('packages/core/src/quarantine_replacement_cleanup_policy.rs'),
-              Path('packages/core/src/quarantine_replacement_completion_evidence.rs'),
-              Path('packages/core/src/quarantine_replacement_completion_evidence_artifact.rs'),
-              Path('packages/core/src/quarantine_replacement_completion_evidence_publication.rs'),
-          ]
-          for path in paths:
-              text = path.read_text()
-              prefix = '#![rustfmt::skip]\n\n'
-              if text.startswith(prefix):
-                  path.write_text(text[len(prefix):])
-          PY
-          if git diff --quiet -- packages/core/src; then
-            exit 0
-          fi
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add packages/core/src
-          git commit -m "fix: remove invalid rustfmt inner attributes"
-          git push origin HEAD:${{ github.head_ref }}
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable

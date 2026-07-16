@@ -9,6 +9,7 @@ mod quarantine_ledger_index;
 mod quarantine_lock;
 mod quarantine_rejections;
 mod quarantine_replacement_audit;
+mod quarantine_replacement_cleanup_policy;
 mod quarantine_replacement_failure_injection;
 #[rustfmt::skip]
 mod quarantine_replacement_generation;
@@ -79,6 +80,14 @@ pub use quarantine_replacement_audit::{
     QuarantineReplacementAuditEventType, QuarantineReplacementAuditOperation,
     QuarantineReplacementAuditOutcome, QUARANTINE_REPLACEMENT_AUDIT_FILE,
     QUARANTINE_REPLACEMENT_AUDIT_VERSION,
+};
+pub use quarantine_replacement_cleanup_policy::{
+    evaluate_quarantine_replacement_retention_policy,
+    quarantine_replacement_retention_decision_report_json,
+    QuarantineReplacementRetentionCandidate, QuarantineReplacementRetentionDecision,
+    QuarantineReplacementRetentionDecisionReport, QuarantineReplacementRetentionPolicy,
+    QUARANTINE_REPLACEMENT_RETENTION_DECISION_REPORT_VERSION,
+    QUARANTINE_REPLACEMENT_RETENTION_POLICY_VERSION,
 };
 #[rustfmt::skip]
 pub use quarantine_replacement_generation::{

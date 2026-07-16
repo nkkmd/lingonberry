@@ -31,8 +31,26 @@ jobs:
       - name: Cache Cargo artifacts
         uses: Swatinem/rust-cache@v2
 
+      - name: Generate formatting diagnostics
+        run: |
+          cargo fmt --all
+          git diff -- packages/core/src > rustfmt.patch
+          tar -czf rustfmt-files.tar.gz \
+            packages/core/src/lib_entry.rs \
+            packages/core/src/quarantine_replacement_cleanup_policy.rs \
+            packages/core/src/quarantine_replacement_completion_evidence.rs \
+            packages/core/src/quarantine_replacement_completion_evidence_artifact.rs \
+            packages/core/src/quarantine_replacement_completion_evidence_publication.rs \
+            rustfmt.patch
+
+      - name: Upload formatting diagnostics
+        uses: actions/upload-artifact@v4
+        with:
+          name: rustfmt-diagnostics
+          path: rustfmt-files.tar.gz
+
       - name: Check formatting
-        run: cargo fmt --all -- --check
+        run: git diff --exit-code
 
       - name: Run library clippy
         run: cargo clippy --workspace --lib -- -D warnings

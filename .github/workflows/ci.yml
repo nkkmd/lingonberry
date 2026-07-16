@@ -43,8 +43,25 @@ jobs:
       - name: Run test clippy
         run: cargo clippy --workspace --tests -- -D warnings -A dead-code -A unused-variables
 
-      - name: Run workspace tests
-        run: cargo test --workspace
+      - name: Capture workspace test diagnostics
+        run: |
+          set +e
+          cargo test --workspace > workspace-tests.log 2>&1
+          status=$?
+          cat workspace-tests.log
+          echo "$status" > workspace-tests.status
+          exit 0
+
+      - name: Upload workspace test diagnostics
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-workspace-test-diagnostics
+          path: |
+            workspace-tests.log
+            workspace-tests.status
+
+      - name: Enforce workspace test result
+        run: test "$(cat workspace-tests.status)" = "0"
 
   javascript:
     name: JavaScript tests

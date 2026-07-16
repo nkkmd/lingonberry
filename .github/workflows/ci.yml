@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -22,32 +22,11 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
-        with:
-          ref: docs/v0.4.0-release-readiness
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
-
-      - name: Synchronize v0.4.0 package versions
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          package_files = sorted(Path('packages').glob('*/Cargo.toml'))
-          for path in package_files:
-              text = path.read_text()
-              old = 'version = "0.3.0"'
-              if old not in text:
-                  raise SystemExit(f'missing 0.3.0 version in {path}')
-              path.write_text(text.replace(old, 'version = "0.4.0"', 1))
-          PY
-          cargo check --workspace
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add packages/*/Cargo.toml Cargo.lock
-          git commit -m "chore: bump workspace packages to v0.4.0"
-          git push origin HEAD:docs/v0.4.0-release-readiness
 
       - name: Cache Cargo artifacts
         uses: Swatinem/rust-cache@v2

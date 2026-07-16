@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -22,37 +22,6 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref }}
-
-      - name: Fix order-independent retention assertions
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-
-          path = Path('packages/core/src/quarantine_replacement_cleanup_policy.rs')
-          text = path.read_text()
-          first = '        assert_eq!(report.decisions[0].reason_code, "terminal-state-mismatch");\n'
-          second = '        assert_eq!(report.decisions[1].reason_code, "generation-not-verified");\n'
-          if first not in text or second not in text:
-              raise SystemExit('expected assertion lines not found')
-          replacement = '''        let decisions = report
-              .decisions
-              .iter()
-              .map(|decision| (decision.generation_id.as_str(), decision.reason_code.as_str()))
-              .collect::<BTreeMap<_, _>>();
-          assert_eq!(decisions["wrong-state"], "terminal-state-mismatch");
-          assert_eq!(decisions["unverified"], "generation-not-verified");
-          '''
-          text = text.replace(first + second, replacement, 1)
-          path.write_text(text)
-          PY
-          cargo fmt --all
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add packages/core/src/quarantine_replacement_cleanup_policy.rs
-          git commit -m "test: make retention assertions order independent"
-          git push origin HEAD:${{ github.head_ref }}
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable

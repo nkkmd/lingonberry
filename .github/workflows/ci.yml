@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -22,88 +22,6 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref }}
-
-      - name: Integrate terminal completion evidence
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          import re
-
-          lib = Path('packages/core/src/lib_entry.rs')
-          text = lib.read_text()
-          marker = 'mod quarantine_replacement_completion_evidence_publication;\n'
-          if 'mod quarantine_replacement_completion_evidence_terminal;' not in text:
-              text = text.replace(
-                  marker,
-                  marker + 'mod quarantine_replacement_completion_evidence_terminal;\n',
-                  1,
-              )
-              lib.write_text(text)
-
-          publication = Path('packages/core/src/quarantine_replacement_publication.inc')
-          text = publication.read_text()
-
-          def replace_once(pattern, replacement, label):
-              global text
-              text, count = re.subn(pattern, replacement, text, count=1, flags=re.MULTILINE)
-              if count != 1:
-                  raise SystemExit(f'{label}: expected one match, got {count}')
-
-          replace_once(
-              r'(if journal\.state == QuarantineReplacementTransactionState::Committed \{\s*)return quarantine_replacement_status\(state_dir, transaction_dir\);',
-              r'''\1crate::quarantine_replacement_completion_evidence_terminal::finalize_quarantine_replacement_completion_evidence(
-              transaction_dir,
-              Some(&verify_quarantine_replacement_generation(transaction_dir)?.generation_digest),
-          )?;
-          return quarantine_replacement_status(state_dir, transaction_dir);''',
-              'committed idempotent',
-          )
-
-          replace_once(
-              r'(advance_quarantine_replacement_transaction_journal\(\s*transaction_dir,\s*QuarantineReplacementTransactionState::Committed,\s*\)\?;)',
-              r'''\1
-          crate::quarantine_replacement_completion_evidence_terminal::finalize_quarantine_replacement_completion_evidence(
-              transaction_dir,
-              Some(&intent.generation_digest),
-          )?;''',
-              'committed transition',
-          )
-
-          replace_once(
-              r'(if journal\.state == QuarantineReplacementTransactionState::RolledBack \{\s*)return quarantine_replacement_status\(state_dir, transaction_dir\);',
-              r'''\1let generation_digest = if publication_intent_path(transaction_dir).exists() {
-              Some(read_intent(transaction_dir)?.generation_digest)
-          } else {
-              None
-          };
-          crate::quarantine_replacement_completion_evidence_terminal::finalize_quarantine_replacement_completion_evidence(
-              transaction_dir,
-              generation_digest.as_deref(),
-          )?;
-          return quarantine_replacement_status(state_dir, transaction_dir);''',
-              'rolled-back idempotent',
-          )
-
-          replace_once(
-              r'(advance_quarantine_replacement_transaction_journal\(\s*transaction_dir,\s*QuarantineReplacementTransactionState::RolledBack,\s*\)\?;)',
-              r'''\1
-          crate::quarantine_replacement_completion_evidence_terminal::finalize_quarantine_replacement_completion_evidence(
-              transaction_dir,
-              intent.as_ref().map(|value| value.generation_digest.as_str()),
-          )?;''',
-              'rolled-back transition',
-          )
-
-          publication.write_text(text)
-          PY
-          cargo fmt --all
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add packages/core/src
-          git commit -m "feat: integrate terminal completion evidence"
-          git push origin HEAD:${{ github.head_ref }}
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable

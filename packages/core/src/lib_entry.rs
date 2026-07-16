@@ -12,6 +12,7 @@ mod quarantine_replacement_audit;
 #[allow(clippy::needless_lifetimes)]
 #[rustfmt::skip]
 mod quarantine_replacement_cleanup_policy;
+#[rustfmt::skip]
 mod quarantine_replacement_completion_evidence;
 mod quarantine_replacement_failure_injection;
 #[rustfmt::skip]
@@ -93,6 +94,7 @@ pub use quarantine_replacement_cleanup_policy::{
     QUARANTINE_REPLACEMENT_RETENTION_DECISION_REPORT_VERSION,
     QUARANTINE_REPLACEMENT_RETENTION_POLICY_VERSION,
 };
+#[rustfmt::skip]
 pub use quarantine_replacement_completion_evidence::{
     quarantine_replacement_completion_evidence_json,
     quarantine_replacement_completion_evidence_report_json,

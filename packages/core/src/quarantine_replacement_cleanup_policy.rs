@@ -46,9 +46,8 @@ pub fn evaluate_quarantine_replacement_retention_policy(
     candidates: &[QuarantineReplacementRetentionCandidate],
 ) -> Result<QuarantineReplacementRetentionDecisionReport, StoreError> {
     validate_policy(policy)?;
-
     let selected = exact_selection(&policy.selected_generation_ids)?;
-    let candidate_map = candidate_map(candidates)?;
+    let candidates_by_id = candidate_map(candidates)?;
     let previous_committed_total = candidates
         .iter()
         .filter(|candidate| candidate.classification == "previous-committed-generation")
@@ -56,9 +55,8 @@ pub fn evaluate_quarantine_replacement_retention_policy(
 
     let mut decisions = Vec::new();
     let mut provisionally_eligible_previous = Vec::new();
-
     for generation_id in &selected {
-        let Some(candidate) = candidate_map.get(generation_id) else {
+        let Some(candidate) = candidates_by_id.get(generation_id) else {
             decisions.push(decision(
                 generation_id,
                 "missing",
@@ -67,8 +65,7 @@ pub fn evaluate_quarantine_replacement_retention_policy(
             ));
             continue;
         };
-
-        let mut result = evaluate_candidate(policy, candidate);
+        let result = evaluate_candidate(policy, candidate);
         if result.eligible && candidate.classification == "previous-committed-generation" {
             provisionally_eligible_previous.push(generation_id.clone());
         }
@@ -77,20 +74,18 @@ pub fn evaluate_quarantine_replacement_retention_policy(
 
     let maximum_removable_previous = previous_committed_total
         .saturating_sub(policy.minimum_previous_committed_generations);
-    if provisionally_eligible_previous.len() > maximum_removable_previous {
-        let allowed = provisionally_eligible_previous
-            .iter()
-            .take(maximum_removable_previous)
-            .cloned()
-            .collect::<BTreeSet<_>>();
-        for decision in &mut decisions {
-            if decision.eligible
-                && decision.classification == "previous-committed-generation"
-                && !allowed.contains(&decision.generation_id)
-            {
-                decision.eligible = false;
-                decision.reason_code = "minimum-retention-floor".to_string();
-            }
+    let allowed_previous = provisionally_eligible_previous
+        .iter()
+        .take(maximum_removable_previous)
+        .cloned()
+        .collect::<BTreeSet<_>>();
+    for decision in &mut decisions {
+        if decision.eligible
+            && decision.classification == "previous-committed-generation"
+            && !allowed_previous.contains(&decision.generation_id)
+        {
+            decision.eligible = false;
+            decision.reason_code = "minimum-retention-floor".to_string();
         }
     }
 
@@ -161,11 +156,7 @@ fn exact_selection(values: &[String]) -> Result<BTreeSet<String>, StoreError> {
         if value.is_empty()
             || value == "."
             || value == ".."
-            || value.contains('/')
-            || value.contains('\\')
-            || value.contains('*')
-            || value.contains('?')
-            || value.contains('[')
+            || value.contains(['/', '\\', '*', '?', '['])
         {
             return Err(policy_error("selection must be an exact generation ID"));
         }
@@ -201,101 +192,49 @@ fn evaluate_candidate(
         }
         "rolled-back-generation" if policy.allow_rolled_back_generations => "rolled-back",
         "previous-committed-generation" | "rolled-back-generation" => {
-            return decision(
-                &candidate.generation_id,
-                &candidate.classification,
-                false,
-                "classification-disabled-by-policy",
-            )
+            return rejected(candidate, "classification-disabled-by-policy");
         }
-        "active-committed-generation" => {
-            return decision(
-                &candidate.generation_id,
-                &candidate.classification,
-                false,
-                "active-generation",
-            )
-        }
+        "active-committed-generation" => return rejected(candidate, "active-generation"),
         "incomplete-transaction-generation" => {
-            return decision(
-                &candidate.generation_id,
-                &candidate.classification,
-                false,
-                "non-terminal-transaction",
-            )
+            return rejected(candidate, "non-terminal-transaction");
         }
         "orphan-unreferenced-generation" => {
-            return decision(
-                &candidate.generation_id,
-                &candidate.classification,
-                false,
-                "orphan-requires-manual-review",
-            )
+            return rejected(candidate, "orphan-requires-manual-review");
         }
-        "unknown-or-corrupt" => {
-            return decision(
-                &candidate.generation_id,
-                &candidate.classification,
-                false,
-                "unknown-or-corrupt",
-            )
-        }
-        "legacy-root-layout" => {
-            return decision(
-                &candidate.generation_id,
-                &candidate.classification,
-                false,
-                "legacy-root-layout",
-            )
-        }
-        _ => {
-            return decision(
-                &candidate.generation_id,
-                &candidate.classification,
-                false,
-                "unsupported-classification",
-            )
-        }
+        "unknown-or-corrupt" => return rejected(candidate, "unknown-or-corrupt"),
+        "legacy-root-layout" => return rejected(candidate, "legacy-root-layout"),
+        _ => return rejected(candidate, "unsupported-classification"),
     };
 
     if candidate.terminal_transaction_state.as_deref() != Some(expected_terminal_state) {
-        return decision(
-            &candidate.generation_id,
-            &candidate.classification,
-            false,
-            "terminal-state-mismatch",
-        );
+        return rejected(candidate, "terminal-state-mismatch");
     }
     if candidate.verification_status != "verified" {
-        return decision(
-            &candidate.generation_id,
-            &candidate.classification,
-            false,
-            "generation-not-verified",
-        );
+        return rejected(candidate, "generation-not-verified");
     }
     let Some(age) = candidate.durable_age_seconds else {
-        return decision(
-            &candidate.generation_id,
-            &candidate.classification,
-            false,
-            "durable-age-evidence-missing",
-        );
+        return rejected(candidate, "durable-age-evidence-missing");
     };
     if age < policy.minimum_age_seconds {
-        return decision(
-            &candidate.generation_id,
-            &candidate.classification,
-            false,
-            "minimum-age-not-satisfied",
-        );
+        return rejected(candidate, "minimum-age-not-satisfied");
     }
-
     decision(
         &candidate.generation_id,
         &candidate.classification,
         true,
         "eligible",
+    )
+}
+
+fn rejected(
+    candidate: &QuarantineReplacementRetentionCandidate,
+    reason_code: &str,
+) -> QuarantineReplacementRetentionDecision {
+    decision(
+        &candidate.generation_id,
+        &candidate.classification,
+        false,
+        reason_code,
     )
 }
 
@@ -342,8 +281,12 @@ mod tests {
             generation_id: id.to_string(),
             classification: classification.to_string(),
             terminal_transaction_state: state.map(str::to_string),
-            verification_status: if verified { "verified" } else { "metadata-present" }
-                .to_string(),
+            verification_status: if verified {
+                "verified"
+            } else {
+                "metadata-present"
+            }
+            .to_string(),
             durable_age_seconds: age,
         }
     }

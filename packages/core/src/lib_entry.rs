@@ -13,6 +13,7 @@ mod quarantine_replacement_audit;
 #[rustfmt::skip]
 mod quarantine_replacement_cleanup_policy;
 mod quarantine_replacement_cleanup_preview;
+mod quarantine_replacement_cleanup_preview_artifact;
 #[rustfmt::skip]
 mod quarantine_replacement_completion_evidence;
 #[rustfmt::skip]
@@ -106,6 +107,12 @@ pub use quarantine_replacement_cleanup_preview::{
     quarantine_replacement_cleanup_proof_json, QuarantineReplacementCleanupPlan,
     QuarantineReplacementCleanupProof, QuarantineReplacementCleanupSubject,
     QUARANTINE_REPLACEMENT_CLEANUP_PLAN_VERSION, QUARANTINE_REPLACEMENT_CLEANUP_PROOF_VERSION,
+};
+pub use quarantine_replacement_cleanup_preview_artifact::{
+    publish_quarantine_replacement_cleanup_preview_artifacts,
+    verify_quarantine_replacement_cleanup_preview_artifacts,
+    QUARANTINE_REPLACEMENT_CLEANUP_PLAN_DIGEST_FILE, QUARANTINE_REPLACEMENT_CLEANUP_PLAN_FILE,
+    QUARANTINE_REPLACEMENT_CLEANUP_PROOF_DIGEST_FILE, QUARANTINE_REPLACEMENT_CLEANUP_PROOF_FILE,
 };
 #[rustfmt::skip]
 pub use quarantine_replacement_completion_evidence::{

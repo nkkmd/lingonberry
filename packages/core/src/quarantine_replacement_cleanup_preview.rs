@@ -3,8 +3,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use lingonberry_protocol::JsonValue;
 
 use crate::{
-    store_error, QuarantineReplacementRetentionDecisionReport,
-    QUARANTINE_REPLACEMENT_RETENTION_POLICY_VERSION, StoreError,
+    store_error, QuarantineReplacementRetentionDecisionReport, StoreError,
+    QUARANTINE_REPLACEMENT_RETENTION_POLICY_VERSION,
 };
 
 pub const QUARANTINE_REPLACEMENT_CLEANUP_PLAN_VERSION: &str =
@@ -59,16 +59,24 @@ pub fn build_quarantine_replacement_cleanup_plan(
         .map(|decision| decision.generation_id.as_str())
         .collect::<BTreeSet<_>>();
     if eligible.is_empty() {
-        return Err(preview_error("cleanup plan requires at least one eligible subject"));
+        return Err(preview_error(
+            "cleanup plan requires at least one eligible subject",
+        ));
     }
 
     let mut seen = BTreeSet::new();
     let mut normalized = Vec::new();
     for mut subject in subjects {
         validate_generation_id(&subject.generation_id)?;
-        validate_digest(&subject.transaction_journal_digest, "transaction journal digest")?;
+        validate_digest(
+            &subject.transaction_journal_digest,
+            "transaction journal digest",
+        )?;
         validate_digest(&subject.generation_digest, "generation digest")?;
-        validate_digest(&subject.completion_evidence_digest, "completion evidence digest")?;
+        validate_digest(
+            &subject.completion_evidence_digest,
+            "completion evidence digest",
+        )?;
         if !eligible.contains(subject.generation_id.as_str()) {
             return Err(preview_error("cleanup subject is not eligible"));
         }
@@ -187,9 +195,13 @@ fn normalize_managed_paths(paths: &mut Vec<String>) -> Result<(), StoreError> {
         if path.is_empty()
             || path.starts_with('/')
             || path.contains('\\')
-            || path.split('/').any(|part| part.is_empty() || part == "." || part == "..")
+            || path
+                .split('/')
+                .any(|part| part.is_empty() || part == "." || part == "..")
         {
-            return Err(preview_error("managed path must be a normalized relative path"));
+            return Err(preview_error(
+                "managed path must be a normalized relative path",
+            ));
         }
         if !seen.insert(path.clone()) {
             return Err(preview_error("duplicate managed path"));

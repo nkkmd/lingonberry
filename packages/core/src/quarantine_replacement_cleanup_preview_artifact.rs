@@ -67,7 +67,8 @@ pub fn verify_quarantine_replacement_cleanup_preview_artifacts(
     expected: &QuarantineReplacementCleanupProof,
 ) -> Result<(), StoreError> {
     let output_dir = output_dir.as_ref();
-    let expected_plan = to_canonical_json(&quarantine_replacement_cleanup_plan_json(&expected.plan));
+    let expected_plan =
+        to_canonical_json(&quarantine_replacement_cleanup_plan_json(&expected.plan));
     let expected_plan_digest = integrity_digest(expected_plan.as_bytes());
     if expected.plan_digest != expected_plan_digest {
         return Err(artifact_error(

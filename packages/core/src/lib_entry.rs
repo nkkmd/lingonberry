@@ -12,10 +12,10 @@ mod quarantine_replacement_audit;
 #[allow(clippy::needless_lifetimes)]
 #[rustfmt::skip]
 mod quarantine_replacement_cleanup_policy;
+mod quarantine_replacement_cleanup_execution;
 mod quarantine_replacement_cleanup_preview;
 mod quarantine_replacement_cleanup_preview_artifact;
 mod quarantine_replacement_cleanup_preview_builder;
-mod quarantine_replacement_cleanup_tomb;
 mod quarantine_replacement_cleanup_tomb;
 mod quarantine_replacement_cleanup_transaction;
 mod quarantine_replacement_cleanup_transaction_journal;
@@ -107,6 +107,11 @@ pub use quarantine_replacement_cleanup_policy::{
     QUARANTINE_REPLACEMENT_RETENTION_DECISION_REPORT_VERSION,
     QUARANTINE_REPLACEMENT_RETENTION_POLICY_VERSION,
 };
+pub use quarantine_replacement_cleanup_execution::{
+    commit_verified_quarantine_replacement_cleanup_deletion,
+    prepare_verified_quarantine_replacement_cleanup_tomb,
+    rollback_verified_quarantine_replacement_cleanup, QuarantineReplacementCleanupAuthorization,
+};
 pub use quarantine_replacement_cleanup_preview::{
     build_quarantine_replacement_cleanup_plan, quarantine_replacement_cleanup_plan_json,
     quarantine_replacement_cleanup_proof_json, QuarantineReplacementCleanupPlan,
@@ -123,14 +128,6 @@ pub use quarantine_replacement_cleanup_preview_builder::{
     build_quarantine_replacement_cleanup_preview_from_state,
     verify_quarantine_replacement_cleanup_preview_against_state,
     QuarantineReplacementCleanupSubjectInput,
-};
-pub use quarantine_replacement_cleanup_tomb::{
-    move_quarantine_replacement_cleanup_to_tomb, resume_quarantine_replacement_cleanup_deletion,
-    rollback_quarantine_replacement_cleanup_tomb, QuarantineReplacementCleanupTombReport,
-    QUARANTINE_REPLACEMENT_CLEANUP_TOMB_DIR,
-    QUARANTINE_REPLACEMENT_CLEANUP_TOMB_INVENTORY_DIGEST_FILE,
-    QUARANTINE_REPLACEMENT_CLEANUP_TOMB_INVENTORY_FILE,
-    QUARANTINE_REPLACEMENT_CLEANUP_TOMB_INVENTORY_VERSION,
 };
 pub use quarantine_replacement_cleanup_tomb::{
     move_quarantine_replacement_cleanup_to_tomb, resume_quarantine_replacement_cleanup_deletion,

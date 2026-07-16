@@ -54,10 +54,9 @@ fn cleanup(paths: impl IntoIterator<Item = PathBuf>) {
 }
 
 fn evidence_pair(transaction: &PathBuf) -> (String, String) {
-    let evidence = fs::read_to_string(
-        transaction.join(QUARANTINE_REPLACEMENT_COMPLETION_EVIDENCE_FILE),
-    )
-    .unwrap();
+    let evidence =
+        fs::read_to_string(transaction.join(QUARANTINE_REPLACEMENT_COMPLETION_EVIDENCE_FILE))
+            .unwrap();
     let digest = fs::read_to_string(
         transaction.join(QUARANTINE_REPLACEMENT_COMPLETION_EVIDENCE_DIGEST_FILE),
     )

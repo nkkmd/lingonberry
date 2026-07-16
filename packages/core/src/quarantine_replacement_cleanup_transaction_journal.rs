@@ -23,7 +23,7 @@ pub struct QuarantineReplacementCleanupTransactionReport {
     pub state: QuarantineReplacementCleanupTransactionState,
     pub sequence: u64,
     pub transaction_id: String,
-    pub deleted_subjects: Vec<String>,
+    pub deleted_paths: Vec<String>,
 }
 
 pub fn create_quarantine_replacement_cleanup_transaction_journal(
@@ -33,7 +33,7 @@ pub fn create_quarantine_replacement_cleanup_transaction_journal(
     validate_journal(journal)?;
     if journal.state != QuarantineReplacementCleanupTransactionState::Prepared
         || journal.sequence != 0
-        || !journal.deleted_subjects.is_empty()
+        || !journal.deleted_paths.is_empty()
         || journal.tomb_inventory_digest.is_some()
     {
         return Err(journal_error(
@@ -74,11 +74,11 @@ pub fn advance_quarantine_replacement_cleanup_transaction_journal(
     read_quarantine_replacement_cleanup_transaction_journal(transaction_dir)
 }
 
-pub fn record_quarantine_replacement_cleanup_subject_deleted(
+pub fn record_quarantine_replacement_cleanup_path_deleted(
     transaction_dir: impl AsRef<Path>,
-    generation_id: &str,
+    managed_path: &str,
 ) -> Result<QuarantineReplacementCleanupTransactionReport, StoreError> {
-    validate_generation_id(generation_id)?;
+    validate_managed_path(managed_path)?;
     let transaction_dir = transaction_dir.as_ref();
     let mut journal = read_journal(transaction_dir)?;
     if journal.state != QuarantineReplacementCleanupTransactionState::Deleting {
@@ -94,15 +94,15 @@ pub fn record_quarantine_replacement_cleanup_subject_deleted(
         return read_quarantine_replacement_cleanup_transaction_journal(transaction_dir);
     }
     if journal
-        .deleted_subjects
+        .deleted_paths
         .last()
-        .is_some_and(|previous| previous.as_str() >= generation_id)
+        .is_some_and(|previous| previous.as_str() >= managed_path)
     {
         return Err(journal_error(
-            "deleted subjects must be recorded in strict deterministic order",
+            "deleted paths must be recorded in strict deterministic order",
         ));
     }
-    journal.deleted_subjects.push(generation_id.to_string());
+    journal.deleted_paths.push(managed_path.to_string());
     journal.sequence = journal
         .sequence
         .checked_add(1)
@@ -122,7 +122,7 @@ pub fn read_quarantine_replacement_cleanup_transaction_journal(
         state: journal.state,
         sequence: journal.sequence,
         transaction_id: journal.transaction_id,
-        deleted_subjects: journal.deleted_subjects,
+        deleted_paths: journal.deleted_paths,
     })
 }
 
@@ -210,7 +210,7 @@ fn parse_journal(
         cleanup_proof_digest: object_string(value, "cleanupProofDigest")?,
         runtime_fingerprint: object_string(value, "runtimeFingerprint")?,
         tomb_inventory_digest: object_optional_string(value, "tombInventoryDigest")?,
-        deleted_subjects: object_string_array(value, "deletedSubjects")?,
+        deleted_paths: object_string_array(value, "deletedPaths")?,
     })
 }
 
@@ -226,7 +226,7 @@ fn validate_journal(
     if let Some(digest) = &journal.tomb_inventory_digest {
         validate_digest(digest, "tomb inventory digest")?;
     }
-    let unique = journal.deleted_subjects.iter().collect::<BTreeSet<_>>();
+    let unique = journal.deleted_paths.iter().collect::<BTreeSet<_>>();
     if unique.len() != journal.deleted_subjects.len()
         || !journal
             .deleted_subjects
@@ -234,13 +234,13 @@ fn validate_journal(
             .all(|pair| pair[0] < pair[1])
     {
         return Err(journal_error(
-            "deleted subjects must be unique and strictly sorted",
+            "deleted paths must be unique and strictly sorted",
         ));
     }
-    for generation_id in &journal.deleted_subjects {
-        validate_generation_id(generation_id)?;
+    for managed_path in &journal.deleted_paths {
+        validate_managed_path(managed_path)?;
     }
-    if !journal.deleted_subjects.is_empty() && !journal.state.deletion_has_started() {
+    if !journal.deleted_paths.is_empty() && !journal.state.deletion_has_started() {
         return Err(journal_error(
             "deletion progress exists before irreversible deletion state",
         ));
@@ -309,6 +309,19 @@ fn object_string_array(value: &JsonValue, key: &str) -> Result<Vec<String>, Stor
 fn require_string(value: &JsonValue, key: &str, expected: &str) -> Result<(), StoreError> {
     if object_string(value, key)? != expected {
         return Err(journal_error(format!("unsupported {key}")));
+    }
+    Ok(())
+}
+
+fn validate_managed_path(value: &str) -> Result<(), StoreError> {
+    if value.is_empty()
+        || value.starts_with('/')
+        || value.contains('\\')
+        || value
+            .split('/')
+            .any(|part| part.is_empty() || part == "." || part == "..")
+    {
+        return Err(journal_error("invalid managed deletion path"));
     }
     Ok(())
 }

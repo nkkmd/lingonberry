@@ -133,7 +133,7 @@ pub use quarantine_replacement_cleanup_transaction_journal::{
     create_quarantine_replacement_cleanup_transaction_journal,
     read_quarantine_replacement_cleanup_transaction_details,
     read_quarantine_replacement_cleanup_transaction_journal,
-    record_quarantine_replacement_cleanup_subject_deleted,
+    record_quarantine_replacement_cleanup_path_deleted,
     QuarantineReplacementCleanupTransactionReport,
     QUARANTINE_REPLACEMENT_CLEANUP_TRANSACTION_JOURNAL_DIGEST_FILE,
     QUARANTINE_REPLACEMENT_CLEANUP_TRANSACTION_JOURNAL_FILE,

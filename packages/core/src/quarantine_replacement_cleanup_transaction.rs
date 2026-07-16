@@ -58,7 +58,7 @@ pub struct QuarantineReplacementCleanupTransactionJournal {
     pub cleanup_proof_digest: String,
     pub runtime_fingerprint: String,
     pub tomb_inventory_digest: Option<String>,
-    pub deleted_subjects: Vec<String>,
+    pub deleted_paths: Vec<String>,
 }
 
 pub fn validate_quarantine_replacement_cleanup_transaction_transition(
@@ -129,10 +129,10 @@ pub fn quarantine_replacement_cleanup_transaction_journal_json(
             JsonValue::String(journal.cleanup_proof_digest.clone()),
         ),
         (
-            "deletedSubjects".to_string(),
+            "deletedPaths".to_string(),
             JsonValue::Array(
                 journal
-                    .deleted_subjects
+                    .deleted_paths
                     .iter()
                     .map(|value| JsonValue::String(value.clone()))
                     .collect(),

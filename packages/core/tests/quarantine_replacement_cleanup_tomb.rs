@@ -1,5 +1,5 @@
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use lingonberry_core::{
@@ -78,7 +78,7 @@ fn prepare(label: &str) -> (PathBuf, PathBuf, QuarantineReplacementCleanupProof)
     (state, transaction, proof)
 }
 
-fn assert_terminal_evidence_is_retained(transaction: &PathBuf) {
+fn assert_terminal_evidence_is_retained(transaction: &Path) {
     assert!(transaction
         .join(QUARANTINE_REPLACEMENT_CLEANUP_TRANSACTION_JOURNAL_FILE)
         .is_file());

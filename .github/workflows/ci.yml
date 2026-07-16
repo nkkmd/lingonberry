@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -22,21 +22,6 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref }}
-
-      - name: Format retention candidate builder
-        run: |
-          rustup component add rustfmt
-          cargo fmt --all
-          if git diff --quiet -- packages/core/src/quarantine_replacement_retention_candidate.rs; then
-            exit 0
-          fi
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add packages/core/src/quarantine_replacement_retention_candidate.rs
-          git commit -m "style: format retention candidate builder"
-          git push origin HEAD:${{ github.head_ref }}
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable

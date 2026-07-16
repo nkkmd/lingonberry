@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -22,42 +22,11 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
-        with:
-          ref: feat/v0.4.0-cleanup-transaction
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
-
-      - name: Fix managed-path cleanup references
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          path = Path('packages/core/src/quarantine_replacement_cleanup_transaction_journal.rs')
-          text = path.read_text()
-          text = text.replace(
-              '''    if journal
-                  .deleted_subjects
-                  .iter()
-                  .any(|value| value == generation_id)
-              {''',
-              '''    if journal
-                  .deleted_paths
-                  .iter()
-                  .any(|value| value == managed_path)
-              {''',
-          )
-          text = text.replace('unique.len() != journal.deleted_subjects.len()', 'unique.len() != journal.deleted_paths.len()')
-          text = text.replace('.deleted_subjects\n            .windows(2)', '.deleted_paths\n            .windows(2)')
-          path.write_text(text)
-          PY
-          cargo fmt --all
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add packages/core/src/quarantine_replacement_cleanup_transaction_journal.rs
-          git commit -m "fix: remove stale subject progress references"
-          git push origin HEAD:feat/v0.4.0-cleanup-transaction
 
       - name: Cache Cargo artifacts
         uses: Swatinem/rust-cache@v2

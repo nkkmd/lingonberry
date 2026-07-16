@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -22,24 +22,11 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
-        with:
-          ref: feat/v0.4.0-cleanup-preview-proof
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
-
-      - name: Format cleanup preview artifact tests
-        run: |
-          cargo fmt --all
-          if ! git diff --quiet; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add packages/core/tests/quarantine_replacement_cleanup_preview_artifact.rs packages/core/src/quarantine_replacement_cleanup_preview_artifact.rs packages/core/src/lib_entry.rs
-            git commit -m "style: format cleanup preview artifact tests"
-            git push origin HEAD:feat/v0.4.0-cleanup-preview-proof
-          fi
 
       - name: Cache Cargo artifacts
         uses: Swatinem/rust-cache@v2
@@ -47,8 +34,25 @@ jobs:
       - name: Check formatting
         run: cargo fmt --all -- --check
 
-      - name: Run library clippy
-        run: cargo clippy --workspace --lib -- -D warnings
+      - name: Capture library clippy diagnostics
+        run: |
+          set +e
+          cargo clippy --workspace --lib -- -D warnings > library-clippy.log 2>&1
+          status=$?
+          cat library-clippy.log
+          echo "$status" > library-clippy.status
+          exit 0
+
+      - name: Upload library clippy diagnostics
+        uses: actions/upload-artifact@v4
+        with:
+          name: cleanup-preview-library-clippy
+          path: |
+            library-clippy.log
+            library-clippy.status
+
+      - name: Enforce library clippy result
+        run: test "$(cat library-clippy.status)" = "0"
 
       - name: Run binary clippy
         run: cargo clippy --workspace --bins -- -D warnings -A dead-code

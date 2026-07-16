@@ -1,0 +1,20 @@
+{
+  "version": "lingonberry-quarantine-replacement-cleanup-crash-matrix/v1",
+  "cases": [
+    {"state":"prepared","evidence":"journal-pair","allowedActions":["prepare","inspect"]},
+    {"state":"revalidated","evidence":"journal-pair","allowedActions":["prepare","inspect"]},
+    {"state":"renaming-to-tomb","evidence":"journal-and-partial-tomb","allowedActions":["inspect","recover"]},
+    {"state":"tomb-sealed","evidence":"journal-and-sealed-inventory","allowedActions":["commit","rollback","inspect"]},
+    {"state":"deleting","evidence":"journal-inventory-and-progress","allowedActions":["resume","inspect"]},
+    {"state":"recovery-required","evidence":"journal-and-current-artifacts","allowedActions":["inspect","resume-when-verified"]},
+    {"state":"partially-deleted","evidence":"journal-inventory-and-progress","allowedActions":["inspect","manual-recovery"]},
+    {"state":"committed","evidence":"terminal-journal-inventory-and-progress","allowedActions":["status"]},
+    {"state":"rolled-back","evidence":"terminal-journal-and-inventory","allowedActions":["status"]}
+  ],
+  "invariants": [
+    "contradictory state is never automatically repaired",
+    "symbolic links and unsupported entry types fail closed",
+    "terminal workspaces remain retained in v0.4.0",
+    "rollback is not advertised after terminal processing begins"
+  ]
+}

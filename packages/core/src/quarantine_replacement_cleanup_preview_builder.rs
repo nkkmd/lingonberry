@@ -1,12 +1,13 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path, PathBuf};
+
+use lingonberry_protocol::{parse_json, JsonValue};
 
 use crate::{
     build_quarantine_replacement_cleanup_plan,
     read_quarantine_replacement_transaction_journal,
     store_error,
-    validate_quarantine_current_generation_pointer,
     verify_quarantine_replacement_completion_evidence_artifact,
     verify_quarantine_replacement_generation,
     QuarantineReplacementCleanupPlan,
@@ -15,6 +16,7 @@ use crate::{
     QuarantineReplacementTransactionState,
     StoreError,
     QUARANTINE_CURRENT_GENERATION_POINTER_FILE,
+    QUARANTINE_CURRENT_GENERATION_POINTER_VERSION,
     QUARANTINE_REPLACEMENT_COMPLETION_EVIDENCE_DIGEST_FILE,
     QUARANTINE_REPLACEMENT_TRANSACTION_JOURNAL_DIGEST_FILE,
 };
@@ -42,6 +44,7 @@ pub fn build_quarantine_replacement_cleanup_preview_from_state(
     let pointer_path = state_dir.join(QUARANTINE_CURRENT_GENERATION_POINTER_FILE);
     require_regular_file(&pointer_path, "current generation pointer")?;
     let pointer_text = fs::read_to_string(&pointer_path).map_err(io_error)?;
+    let (active_transaction_id, active_generation_digest) = parse_active_pointer(&pointer_text)?;
     let active_pointer_digest = integrity_digest(pointer_text.as_bytes());
 
     let mut subjects = Vec::new();
@@ -63,7 +66,14 @@ pub fn build_quarantine_replacement_cleanup_preview_from_state(
             _ => return Err(builder_error("unsupported cleanup subject classification")),
         };
         if journal.state != expected_terminal_state {
-            return Err(builder_error("cleanup subject journal is not in the expected terminal state"));
+            return Err(builder_error(
+                "cleanup subject journal is not in the expected terminal state",
+            ));
+        }
+        if journal.transaction_id == active_transaction_id
+            || input.expected_generation_digest == active_generation_digest
+        {
+            return Err(builder_error("active generation cannot be a cleanup subject"));
         }
 
         let journal_digest = read_bound_digest(
@@ -84,12 +94,6 @@ pub fn build_quarantine_replacement_cleanup_preview_from_state(
             if generation.generation_digest != input.expected_generation_digest {
                 return Err(builder_error("verified generation digest changed"));
             }
-            validate_quarantine_current_generation_pointer(
-                &pointer_text,
-                &journal.transaction_id,
-                &generation.generation_digest,
-            )
-            .or_else(|_| Ok::<(), StoreError>(()))?;
         }
 
         verify_quarantine_replacement_completion_evidence_artifact(
@@ -102,10 +106,8 @@ pub fn build_quarantine_replacement_cleanup_preview_from_state(
             now_unix_seconds,
         )?;
 
-        let managed_paths = verify_exact_inventory(
-            &input.transaction_dir,
-            &input.expected_managed_paths,
-        )?;
+        let managed_paths =
+            verify_exact_inventory(&input.transaction_dir, &input.expected_managed_paths)?;
         subjects.push(QuarantineReplacementCleanupSubject {
             generation_id: input.generation_id.clone(),
             classification: input.classification.clone(),
@@ -125,20 +127,61 @@ pub fn build_quarantine_replacement_cleanup_preview_from_state(
     )
 }
 
+fn parse_active_pointer(text: &str) -> Result<(String, String), StoreError> {
+    let value = parse_json(text)
+        .map_err(|error| builder_error(format!("invalid current generation pointer: {error}")))?;
+    let map = object_map(&value, "current generation pointer")?;
+    if object_string(map, "version")? != QUARANTINE_CURRENT_GENERATION_POINTER_VERSION {
+        return Err(builder_error("unsupported current generation pointer version"));
+    }
+    Ok((
+        object_string(map, "transactionId")?,
+        object_string(map, "generationDigest")?,
+    ))
+}
+
+fn object_map<'a>(
+    value: &'a JsonValue,
+    label: &str,
+) -> Result<&'a BTreeMap<String, JsonValue>, StoreError> {
+    match value {
+        JsonValue::Object(map) => Ok(map),
+        _ => Err(builder_error(format!("{label} must be an object"))),
+    }
+}
+
+fn object_string(map: &BTreeMap<String, JsonValue>, name: &str) -> Result<String, StoreError> {
+    match map.get(name) {
+        Some(JsonValue::String(value)) => Ok(value.clone()),
+        _ => Err(builder_error(format!(
+            "missing or invalid current generation pointer field: {name}"
+        ))),
+    }
+}
+
 fn verify_exact_inventory(root: &Path, expected: &[String]) -> Result<Vec<String>, StoreError> {
-    let expected = expected.iter().cloned().collect::<BTreeSet<_>>();
-    if expected.len() != expected.capacity() && expected.is_empty() {
+    if expected.is_empty() {
         return Err(builder_error("managed path inventory must not be empty"));
+    }
+    let expected_set = expected.iter().cloned().collect::<BTreeSet<_>>();
+    if expected_set.len() != expected.len() {
+        return Err(builder_error("duplicate expected managed path"));
     }
     let mut actual = BTreeSet::new();
     collect_inventory(root, root, &mut actual)?;
-    if actual != expected {
-        return Err(builder_error("managed path inventory changed or contains unexpected entries"));
+    if actual != expected_set {
+        return Err(builder_error(
+            "managed path inventory changed or contains unexpected entries",
+        ));
     }
     Ok(actual.into_iter().collect())
 }
 
-fn collect_inventory(root: &Path, current: &Path, paths: &mut BTreeSet<String>) -> Result<(), StoreError> {
+fn collect_inventory(
+    root: &Path,
+    current: &Path,
+    paths: &mut BTreeSet<String>,
+) -> Result<(), StoreError> {
     let mut entries = fs::read_dir(current)
         .map_err(io_error)?
         .collect::<Result<Vec<_>, _>>()
@@ -162,7 +205,9 @@ fn collect_inventory(root: &Path, current: &Path, paths: &mut BTreeSet<String>) 
                 return Err(builder_error("duplicate managed inventory path"));
             }
         } else {
-            return Err(builder_error("managed inventory contains an unsupported file type"));
+            return Err(builder_error(
+                "managed inventory contains an unsupported file type",
+            ));
         }
     }
     Ok(())
@@ -211,5 +256,8 @@ fn io_error(error: std::io::Error) -> StoreError {
 }
 
 fn builder_error(message: impl Into<String>) -> StoreError {
-    store_error("LB_QUARANTINE_REPLACEMENT_CLEANUP_PREVIEW_BUILDER", message)
+    store_error(
+        "LB_QUARANTINE_REPLACEMENT_CLEANUP_PREVIEW_BUILDER",
+        message,
+    )
 }

@@ -117,6 +117,7 @@ pub use quarantine_replacement_cleanup_preview_artifact::{
 };
 pub use quarantine_replacement_cleanup_preview_builder::{
     build_quarantine_replacement_cleanup_preview_from_state,
+    verify_quarantine_replacement_cleanup_preview_against_state,
     QuarantineReplacementCleanupSubjectInput,
 };
 #[rustfmt::skip]

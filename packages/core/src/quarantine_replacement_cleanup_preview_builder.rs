@@ -123,6 +123,33 @@ pub fn build_quarantine_replacement_cleanup_preview_from_state(
     )
 }
 
+pub fn verify_quarantine_replacement_cleanup_preview_against_state(
+    output_dir: impl AsRef<Path>,
+    state_dir: impl AsRef<Path>,
+    decisions: &QuarantineReplacementRetentionDecisionReport,
+    state_identity: &str,
+    runtime_fingerprint: &str,
+    now_unix_seconds: u64,
+    inputs: &[QuarantineReplacementCleanupSubjectInput],
+) -> Result<(), StoreError> {
+    let plan = build_quarantine_replacement_cleanup_preview_from_state(
+        state_dir,
+        decisions,
+        state_identity,
+        runtime_fingerprint,
+        now_unix_seconds,
+        inputs,
+    )?;
+    let plan_text = lingonberry_protocol::to_canonical_json(
+        &crate::quarantine_replacement_cleanup_plan_json(&plan),
+    );
+    let proof = crate::QuarantineReplacementCleanupProof {
+        plan,
+        plan_digest: integrity_digest(plan_text.as_bytes()),
+    };
+    crate::verify_quarantine_replacement_cleanup_preview_artifacts(output_dir, &proof)
+}
+
 fn parse_active_pointer(text: &str) -> Result<(String, String), StoreError> {
     let value = parse_json(text)
         .map_err(|error| builder_error(format!("invalid current generation pointer: {error}")))?;

@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -22,77 +22,14 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
-        with:
-          ref: feat/v0.4.0-cleanup-preview-proof
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
 
-      - name: Add state-bound cleanup preview verifier
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          path = Path('packages/core/src/quarantine_replacement_cleanup_preview_builder.rs')
-          text = path.read_text()
-          marker = 'fn parse_active_pointer(text: &str) -> Result<(String, String), StoreError> {'
-          addition = '''pub fn verify_quarantine_replacement_cleanup_preview_against_state(
-              output_dir: impl AsRef<Path>,
-              state_dir: impl AsRef<Path>,
-              decisions: &QuarantineReplacementRetentionDecisionReport,
-              state_identity: &str,
-              runtime_fingerprint: &str,
-              now_unix_seconds: u64,
-              inputs: &[QuarantineReplacementCleanupSubjectInput],
-          ) -> Result<(), StoreError> {
-              let plan = build_quarantine_replacement_cleanup_preview_from_state(
-                  state_dir,
-                  decisions,
-                  state_identity,
-                  runtime_fingerprint,
-                  now_unix_seconds,
-                  inputs,
-              )?;
-              let plan_text = lingonberry_protocol::to_canonical_json(
-                  &crate::quarantine_replacement_cleanup_plan_json(&plan),
-              );
-              let proof = crate::QuarantineReplacementCleanupProof {
-                  plan,
-                  plan_digest: integrity_digest(plan_text.as_bytes()),
-              };
-              crate::verify_quarantine_replacement_cleanup_preview_artifacts(output_dir, &proof)
-          }
-
-          '''
-          if marker not in text:
-              raise SystemExit('pointer parser marker not found')
-          text = text.replace(marker, addition + marker, 1)
-          path.write_text(text)
-
-          lib = Path('packages/core/src/lib_entry.rs')
-          lib_text = lib.read_text()
-          old = '''pub use quarantine_replacement_cleanup_preview_builder::{
-              build_quarantine_replacement_cleanup_preview_from_state,
-              QuarantineReplacementCleanupSubjectInput,
-          };
-          '''
-          new = '''pub use quarantine_replacement_cleanup_preview_builder::{
-              build_quarantine_replacement_cleanup_preview_from_state,
-              verify_quarantine_replacement_cleanup_preview_against_state,
-              QuarantineReplacementCleanupSubjectInput,
-          };
-          '''
-          if old not in lib_text:
-              raise SystemExit('builder export marker not found')
-          lib.write_text(lib_text.replace(old, new, 1))
-          PY
-          cargo fmt --all
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add packages/core/src/quarantine_replacement_cleanup_preview_builder.rs packages/core/src/lib_entry.rs
-          git commit -m "feat: verify cleanup preview against current state"
-          git push origin HEAD:feat/v0.4.0-cleanup-preview-proof
+      - name: Cache Cargo artifacts
+        uses: Swatinem/rust-cache@v2
 
       - name: Check formatting
         run: cargo fmt --all -- --check

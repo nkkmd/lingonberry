@@ -2,6 +2,42 @@
 
 All notable changes to Lingonberry are documented in this file.
 
+## [0.4.0] - 2026-07-17
+
+### Added
+
+- Deterministic quarantine replacement retention evaluation with an explicit retained-generation floor.
+- Durable terminal completion evidence bound to replacement journals and generation digests.
+- Versioned cleanup plan and proof artifacts with canonical JSON and digest sidecars.
+- Read-only state reconstruction and stale-proof verification across pointers, journals, generations, completion evidence, and managed-path inventories.
+- Dedicated cleanup transaction journals, sealed inventories, deterministic path-level progress, and resumable recovery classification.
+- Operator runbook, machine-readable failure-point inventory, crash matrix, smoke test procedure, release checklist, and release notes.
+
+### Changed
+
+- All Rust workspace packages are versioned as `0.4.0`.
+- Cleanup requires exact subject selection, verified durable age evidence, immediate state revalidation, and explicit two-stage operator authorization.
+- Terminal cleanup transaction workspaces remain retained as operational evidence in v0.4.0.
+
+### Compatibility
+
+- Legacy-root state remains readable and categorically excluded from implicit cleanup selection.
+- Generation-aware layouts continue to use verified active pointers and generation metadata.
+- Existing replacement apply, resume, rollback, backup, index, and segment verification behavior remains compatible.
+
+### Security and safety
+
+- Active, incomplete, orphan, corrupt, legacy-root, unverified, and insufficiently aged subjects fail closed.
+- Symbolic links, unsupported entry types, partial artifact pairs, stale temporary artifacts, and contradictory state are rejected.
+- Metrics remain bounded-cardinality and exclude paths, identifiers, digests, record IDs, and free-form error labels.
+- No scheduled or unattended cleanup is enabled.
+
+### Known limitations
+
+- Terminal cleanup transaction workspace retention is deferred to a separately versioned future policy.
+- Quarantine coordination remains same-host only and is not a distributed lock.
+- Secure erase semantics are not promised.
+
 ## [0.3.0] - 2026-07-15
 
 ### Added

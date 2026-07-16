@@ -7,10 +7,10 @@ use lingonberry_core::{
     create_quarantine_replacement_cleanup_transaction_journal,
     move_quarantine_replacement_cleanup_to_tomb,
     read_quarantine_replacement_cleanup_transaction_details,
-    resume_quarantine_replacement_cleanup_deletion,
-    rollback_quarantine_replacement_cleanup_tomb, QuarantineReplacementCleanupPlan,
-    QuarantineReplacementCleanupProof, QuarantineReplacementCleanupSubject,
-    QuarantineReplacementCleanupTransactionJournal, QuarantineReplacementCleanupTransactionState,
+    resume_quarantine_replacement_cleanup_deletion, rollback_quarantine_replacement_cleanup_tomb,
+    QuarantineReplacementCleanupPlan, QuarantineReplacementCleanupProof,
+    QuarantineReplacementCleanupSubject, QuarantineReplacementCleanupTransactionJournal,
+    QuarantineReplacementCleanupTransactionState,
     QUARANTINE_REPLACEMENT_CLEANUP_TOMB_INVENTORY_FILE,
     QUARANTINE_REPLACEMENT_RETENTION_POLICY_VERSION,
 };
@@ -86,7 +86,10 @@ fn moves_seals_and_deletes_in_deterministic_order() {
     assert!(!state.join("generation-old/a.txt").exists());
     resume_quarantine_replacement_cleanup_deletion(&transaction).unwrap();
     let journal = read_quarantine_replacement_cleanup_transaction_details(&transaction).unwrap();
-    assert_eq!(journal.state, QuarantineReplacementCleanupTransactionState::Committed);
+    assert_eq!(
+        journal.state,
+        QuarantineReplacementCleanupTransactionState::Committed
+    );
     assert_eq!(journal.deleted_paths, report.managed_paths);
     assert!(!report.tomb_dir.join("generation-old/a.txt").exists());
     let _ = fs::remove_dir_all(state.parent().unwrap());
@@ -97,13 +100,19 @@ fn rollback_restores_all_paths_before_deletion() {
     let (state, transaction, proof) = prepare("rollback");
     move_quarantine_replacement_cleanup_to_tomb(&state, &transaction, &proof).unwrap();
     rollback_quarantine_replacement_cleanup_tomb(&state, &transaction).unwrap();
-    assert_eq!(fs::read_to_string(state.join("generation-old/a.txt")).unwrap(), "a");
+    assert_eq!(
+        fs::read_to_string(state.join("generation-old/a.txt")).unwrap(),
+        "a"
+    );
     assert_eq!(
         fs::read_to_string(state.join("generation-old/nested/b.txt")).unwrap(),
         "b"
     );
     let journal = read_quarantine_replacement_cleanup_transaction_details(&transaction).unwrap();
-    assert_eq!(journal.state, QuarantineReplacementCleanupTransactionState::RolledBack);
+    assert_eq!(
+        journal.state,
+        QuarantineReplacementCleanupTransactionState::RolledBack
+    );
     let _ = fs::remove_dir_all(state.parent().unwrap());
 }
 
@@ -119,6 +128,9 @@ fn inventory_tamper_fails_closed_before_deletion() {
     assert!(resume_quarantine_replacement_cleanup_deletion(&transaction).is_err());
     assert!(transaction.join("tomb/generation-old/a.txt").exists());
     let journal = read_quarantine_replacement_cleanup_transaction_details(&transaction).unwrap();
-    assert_eq!(journal.state, QuarantineReplacementCleanupTransactionState::TombSealed);
+    assert_eq!(
+        journal.state,
+        QuarantineReplacementCleanupTransactionState::TombSealed
+    );
     let _ = fs::remove_dir_all(state.parent().unwrap());
 }

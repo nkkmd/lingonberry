@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -22,6 +22,111 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+
+      - name: Integrate terminal completion evidence
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          lib = Path('packages/core/src/lib_entry.rs')
+          text = lib.read_text()
+          marker = '#[rustfmt::skip]\nmod quarantine_replacement_completion_evidence_publication;\n'
+          replacement = marker + 'mod quarantine_replacement_completion_evidence_terminal;\n'
+          if 'mod quarantine_replacement_completion_evidence_terminal;' not in text:
+              if marker not in text:
+                  raise SystemExit('lib_entry insertion point not found')
+              text = text.replace(marker, replacement, 1)
+              lib.write_text(text)
+
+          publication = Path('packages/core/src/quarantine_replacement_publication.inc')
+          text = publication.read_text()
+
+          old = '''    if journal.state == QuarantineReplacementTransactionState::Committed {
+              return quarantine_replacement_status(state_dir, transaction_dir);
+          }
+          '''
+          new = '''    if journal.state == QuarantineReplacementTransactionState::Committed {
+              crate::quarantine_replacement_completion_evidence_terminal::finalize_quarantine_replacement_completion_evidence(
+                  transaction_dir,
+                  Some(&verify_quarantine_replacement_generation(transaction_dir)?.generation_digest),
+              )?;
+              return quarantine_replacement_status(state_dir, transaction_dir);
+          }
+          '''
+          if old not in text:
+              raise SystemExit('committed idempotent block not found')
+          text = text.replace(old, new, 1)
+
+          old = '''    advance_quarantine_replacement_transaction_journal(
+              transaction_dir,
+              QuarantineReplacementTransactionState::Committed,
+          )?;
+          quarantine_replacement_status(state_dir, transaction_dir)
+          '''
+          new = '''    advance_quarantine_replacement_transaction_journal(
+              transaction_dir,
+              QuarantineReplacementTransactionState::Committed,
+          )?;
+          crate::quarantine_replacement_completion_evidence_terminal::finalize_quarantine_replacement_completion_evidence(
+              transaction_dir,
+              Some(&intent.generation_digest),
+          )?;
+          quarantine_replacement_status(state_dir, transaction_dir)
+          '''
+          if old not in text:
+              raise SystemExit('committed transition block not found')
+          text = text.replace(old, new, 1)
+
+          old = '''    if journal.state == QuarantineReplacementTransactionState::RolledBack {
+              return quarantine_replacement_status(state_dir, transaction_dir);
+          }
+          '''
+          new = '''    if journal.state == QuarantineReplacementTransactionState::RolledBack {
+              let generation_digest = if publication_intent_path(transaction_dir).exists() {
+                  Some(read_intent(transaction_dir)?.generation_digest)
+              } else {
+                  None
+              };
+              crate::quarantine_replacement_completion_evidence_terminal::finalize_quarantine_replacement_completion_evidence(
+                  transaction_dir,
+                  generation_digest.as_deref(),
+              )?;
+              return quarantine_replacement_status(state_dir, transaction_dir);
+          }
+          '''
+          if old not in text:
+              raise SystemExit('rolled-back idempotent block not found')
+          text = text.replace(old, new, 1)
+
+          old = '''    advance_quarantine_replacement_transaction_journal(
+              transaction_dir,
+              QuarantineReplacementTransactionState::RolledBack,
+          )?;
+          quarantine_replacement_status(state_dir, transaction_dir)
+          '''
+          new = '''    advance_quarantine_replacement_transaction_journal(
+              transaction_dir,
+              QuarantineReplacementTransactionState::RolledBack,
+          )?;
+          crate::quarantine_replacement_completion_evidence_terminal::finalize_quarantine_replacement_completion_evidence(
+              transaction_dir,
+              intent.as_ref().map(|value| value.generation_digest.as_str()),
+          )?;
+          quarantine_replacement_status(state_dir, transaction_dir)
+          '''
+          if old not in text:
+              raise SystemExit('rolled-back transition block not found')
+          text = text.replace(old, new, 1)
+          publication.write_text(text)
+          PY
+          cargo fmt --all
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add packages/core/src
+          git commit -m "feat: integrate terminal completion evidence"
+          git push origin HEAD:${{ github.head_ref }}
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable

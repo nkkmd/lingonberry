@@ -1,120 +1,75 @@
 # ロードマップ
 
-**Status: active** | **Latest release: v0.3.0** | **Active target: v0.4.0** | **Last updated: 2026-07-16**
+**Status: v0.4.0 release candidate** | **Latest published release: v0.3.0** | **Last updated: 2026-07-17**
 
-このディレクトリには、実装・運用準備・releaseのroadmapとbacklog、および作業再開用の現在地文書を置きます。
+このディレクトリには、実装・運用準備・releaseのroadmap、checklist、release note、および作業再開用の現在地文書を置きます。
 
 ## 再開時に最初に読む文書
 
 1. [現在の実装状況](./CURRENT_IMPLEMENTATION_STATUS.md)
-2. [v0.4.0 Roadmap](./RELEASE_0_4_0_ROADMAP.md)
-3. [Quarantine Replacement Retention Policy](../operations/QUARANTINE_REPLACEMENT_RETENTION_POLICY.md)
-4. [v0.3.0 Release Checklist](./RELEASE_0_3_0_CHECKLIST.md)
-5. [v0.3.0 Release Notes](./RELEASE_0_3_0_RELEASE_NOTE.md)
-6. [v0.3.0 Roadmap](./RELEASE_0_3_0_ROADMAP.md)
-7. [Quarantine Lifecycle Backlog](./QUARANTINE_LIFECYCLE_BACKLOG.md)
-8. [実装バックログ](./IMPLEMENTATION_BACKLOG.md)
-9. [運用文書索引](../operations/README.md)
+2. [v0.4.0 Release Checklist](./RELEASE_0_4_0_CHECKLIST.md)
+3. [v0.4.0 Release Notes](./RELEASE_0_4_0_RELEASE_NOTE.md)
+4. [v0.4.0 Roadmap](./RELEASE_0_4_0_ROADMAP.md)
+5. [Quarantine Replacement Retention Policy](../operations/QUARANTINE_REPLACEMENT_RETENTION_POLICY.md)
+6. [Cleanup Operations Runbook](../operations/QUARANTINE_REPLACEMENT_CLEANUP_RUNBOOK.md)
+7. [運用文書索引](../operations/README.md)
+8. [Quarantine Lifecycle Backlog](./QUARANTINE_LIFECYCLE_BACKLOG.md)
+9. [実装バックログ](./IMPLEMENTATION_BACKLOG.md)
 
-`CURRENT_IMPLEMENTATION_STATUS.md`は、中断後に作業を再開するための引き継ぎ用正本です。v0.4.0の作業範囲は`RELEASE_0_4_0_ROADMAP.md`とretention policyを正本として進めます。
+`CURRENT_IMPLEMENTATION_STATUS.md`は中断後に作業を再開するための引き継ぎ用正本です。v0.4.0のrelease可否はchecklist、release notes、main branch CIを正本として判断します。
+
+## v0.4.0の到達点
+
+- inactive committed／rolled-back generationのdeterministic retention evaluation
+- retained generation floorとdurable completion age evidence
+- canonical cleanup plan／proofとdigest sidecar
+- active pointer、journal、generation、completion evidence、managed-path inventoryのstate-bound revalidation
+- stale state、path traversal、symlink、unexpected entryのfail-closed rejection
+- same-host lock下のcleanup transaction
+- same-filesystem tomb preparationとsealed inventory
+- deterministic `generation_id/managed_path` processing order
+- durable path-level progress、idempotent resume、pre-processing rollback
+- irreversible boundary後の`recovery-required`／`partially-deleted`分類
+- explicit double opt-in authorization
+- operator runbook、failure-point inventory、crash matrix、smoke procedure、release checklist／notes
+
+v0.4.0ではbackground scheduled deletionを導入しません。cleanupはexact subjectを指定するoperator-triggered double opt-inに限定します。
+
+## v0.4.0で意図的に保持するもの
+
+terminal cleanup transaction workspaceは、journal、digest、sealed inventory、path-level progress、terminal stateを含む運用証拠として自動削除しません。将来のworkspace retention policyはIssue #72で別versionとして設計します。
 
 ## 文書の役割
 
-- [現在の実装状況](./CURRENT_IMPLEMENTATION_STATUS.md): 実装済み機能、安全境界、次の作業
-- [v0.4.0 Roadmap](./RELEASE_0_4_0_ROADMAP.md): verified retention cleanupの設計・実装・release計画
-- [Quarantine Replacement Retention Policy](../operations/QUARANTINE_REPLACEMENT_RETENTION_POLICY.md): cleanup適格性、proof、revalidation、不可逆境界の正本
-- [v0.3.0 Release Checklist](./RELEASE_0_3_0_CHECKLIST.md): 完了済みrelease gateとpost-release記録
-- [v0.3.0 Release Notes](./RELEASE_0_3_0_RELEASE_NOTE.md): 公開範囲、upgrade、operator workflow、既知の制約
-- [v0.3.0 Roadmap](./RELEASE_0_3_0_ROADMAP.md): verified replacement transactionの設計・実装・release記録
-- [Legacy Admin Token Deprecation](./RBAC_LEGACY_TOKEN_DEPRECATION.md): legacy token移行契約
-- [Quarantine Lifecycle Backlog](./QUARANTINE_LIFECYCLE_BACKLOG.md): quarantine継続作業とv0.3.0完了記録
+- [現在の実装状況](./CURRENT_IMPLEMENTATION_STATUS.md): 現在のrelease state、実装済み機能、安全境界、次の作業
+- [v0.4.0 Release Checklist](./RELEASE_0_4_0_CHECKLIST.md): release gateとpublication確認
+- [v0.4.0 Release Notes](./RELEASE_0_4_0_RELEASE_NOTE.md): 公開範囲、互換性、安全性、既知制約
+- [v0.4.0 Roadmap](./RELEASE_0_4_0_ROADMAP.md): verified retention cleanupの設計・実装計画
+- [Retention Policy](../operations/QUARANTINE_REPLACEMENT_RETENTION_POLICY.md): cleanup適格性、proof、revalidation、不可逆境界の正本
+- [Cleanup Runbook](../operations/QUARANTINE_REPLACEMENT_CLEANUP_RUNBOOK.md): operatorの停止条件、回復分類、証拠保全
+- [v0.3.0 Release Checklist](./RELEASE_0_3_0_CHECKLIST.md): 前releaseの完了記録
+- [v0.3.0 Release Notes](./RELEASE_0_3_0_RELEASE_NOTE.md): 前releaseの公開記録
+- [Quarantine Lifecycle Backlog](./QUARANTINE_LIFECYCLE_BACKLOG.md): quarantine継続作業
 - [実装ロードマップ](./IMPLEMENTATION_ROADMAP.md): core実装の中長期計画
 - [実装バックログ](./IMPLEMENTATION_BACKLOG.md): 全体roadmapのissue分解
 - [運用準備ロードマップ](./OPERATIONAL_READINESS_ROADMAP.md): 実運用に向けた中長期計画
 - [運用準備バックログ](./OPERATIONAL_READINESS_BACKLOG.md): 運用準備のissue分解
-- [v0.2.0 Release Checklist](./RELEASE_0_2_0_CHECKLIST.md): 過去releaseの記録
-- [v0.2.0 Release Notes](./RELEASE_0_2_0_RELEASE_NOTE.md): 過去releaseの記録
-- [v0.1.0公開前チェックリスト](./RELEASE_0_1_0_CHECKLIST.md): 過去releaseの記録
-- [v0.1.0 Release Note](./RELEASE_0_1_0_RELEASE_NOTE.md): 過去releaseの記録
 
-## v0.4.0の対象
+## Release history
 
-- inactive committed／rolled-back generationのverified cleanup policy
-- terminal transaction workspaceの独立したretention policy
-- deterministic cleanup preview／proof
-- stale state、path traversal、symlink、unexpected entryのfail-closed rejection
-- same-host lock下のcleanup transaction
-- reversible tomb renameと不可逆delete境界の明確化
-- idempotent resume、pre-delete rollback、partial deletion evidence
-- status、metrics、audit、failure injection、operator smoke test
+- v0.4.0: release candidate。code、package version、release notesはmainへmerge済み。tag／GitHub Releaseはmain CI確認後に公開する。
+- v0.3.0: verified replacement transaction、generation publication、recovery、operations hardening。
+- v0.2.0: persistent quarantine lifecycle、backup／restore、RBAC。
+- v0.1.0: initial protocol／schema／fixtures／carrier contracts。
 
-v0.4.0ではbackground scheduled deletionを導入せず、exact subjectを指定するoperator-triggered double opt-inに限定します。
+## 絶対に崩さない境界
 
-## v0.3.0の到達点
-
-### v0.2.0から継続する基盤
-
-- core protocol、schema、fixtures、canonicalization
-- HTTP publish carrier、storage node runtime、archive export／import
-- persistent quarantine lifecycle
-- status、Prometheus metrics、scheduler
-- annotations、dismissal、permanent rejection
-- same-host operation lock
-- verified ledger index、archive-aware ordered reads、byte-preserving rotation
-- archive-inclusive backup v2、verify、restore
-- public／admin listener isolationとRBAC
-
-### Verified replacement transaction
-
-- replacement policyとsemantic-equivalence contract
-- policy-v2 replacement preview／proof
-- verified backup v2とproofを必須とするtransaction
-- staging-only ledger construction
-- sealed generation manifestとgeneration digest
-- generation-directory active-ledger resolution
-- current-generation pointerのatomic publication
-- deterministic status classification
-- idempotent resumeとpre-commit rollback
-- post-publication index／archive-segment verification
-- legacy root-ledger layoutからの互換upgrade
-
-### Operations and hardening
-
-- versioned structured replacement status
-- bounded Prometheus metrics
-- secret-free append-only audit
-- 18箇所のdeterministic failure injection
-- machine-readable crash-point inventory
-- read-only generation retention inspection
-- end-to-end operator smoke test
-- v0.2.0-style stateからのupgrade compatibility
-
-## v0.3.0で未実装・非対象
-
-- automatic retention deletion
-- automatic generation／transaction-workspace deletion
-- deduplication／event collapse
-- schema migration／conflict resolution
-- archive-segment rewrite／deletion
-- distributed locking／multi-node consensus
-- remote backup upload
-- backup encryption／cryptographic signing
-- OAuth／OIDC
-- browser sessions／per-record ACL
-- deprecated legacy admin token fallbackの完全削除
-
-## 実行の入口
-
-```bash
-cargo run -p lingonberry-relay -- capabilities
-cargo run -p lingonberry-relay -- quarantine-status
-cargo run -p lingonberry-relay -- quarantine-metrics
-cargo run -p lingonberry-relay -- quarantine-promote-batch 100 --dry-run
-cargo run -p lingonberry-relay -- serve-http 127.0.0.1:8787
-cargo run -p lingonberry-relay -- serve-admin-http 127.0.0.1:8788
-cargo run -p lingonberry-relay --bin lingonberry-admin-auth-config
-cargo run -p lingonberry-relay --bin lingonberry-quarantine-maintenance -- \
-  replacement-status <transaction-dir>
-cargo run -p lingonberry-relay --bin lingonberry-quarantine-maintenance -- \
-  replacement-inspect-generations [transaction-dir ...]
-```
+- active generationをcleanup対象にしない
+- filesystem timestampだけでeligibilityを判断しない
+- wildcard、implicit-all、partial selectionをapplyに使わない
+- symbolic linkやunsupported entry typeをfollow／acceptしない
+- stale proofやcontradictory stateを自動修復しない
+- archive segmentやimmutable evidence ledgerをrewrite／deleteしない
+- irreversible processing開始後にrollbackを案内しない
+- same-host lockをdistributed lockとして扱わない
+- terminal cleanup workspaceをv0.4.0で自動削除しない

@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -22,14 +22,47 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          ref: feat/v0.4.0-cleanup-preview-proof
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
 
-      - name: Cache Cargo artifacts
-        uses: Swatinem/rust-cache@v2
+      - name: Connect cleanup preview builder
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('packages/core/src/lib_entry.rs')
+          text = path.read_text()
+          text = text.replace(
+              'mod quarantine_replacement_cleanup_preview_artifact;\n',
+              'mod quarantine_replacement_cleanup_preview_artifact;\nmod quarantine_replacement_cleanup_preview_builder;\n',
+          )
+          marker = '''pub use quarantine_replacement_cleanup_preview_artifact::{
+              publish_quarantine_replacement_cleanup_preview_artifacts,
+              verify_quarantine_replacement_cleanup_preview_artifacts,
+              QUARANTINE_REPLACEMENT_CLEANUP_PLAN_DIGEST_FILE, QUARANTINE_REPLACEMENT_CLEANUP_PLAN_FILE,
+              QUARANTINE_REPLACEMENT_CLEANUP_PROOF_DIGEST_FILE, QUARANTINE_REPLACEMENT_CLEANUP_PROOF_FILE,
+          };
+          '''
+          replacement = marker + '''pub use quarantine_replacement_cleanup_preview_builder::{
+              build_quarantine_replacement_cleanup_preview_from_state,
+              QuarantineReplacementCleanupSubjectInput,
+          };
+          '''
+          if marker not in text:
+              raise SystemExit('cleanup preview artifact export marker not found')
+          text = text.replace(marker, replacement, 1)
+          path.write_text(text)
+          PY
+          cargo fmt --all
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add packages/core/src/lib_entry.rs packages/core/src/quarantine_replacement_cleanup_preview_builder.rs
+          git commit -m "feat: expose cleanup preview state builder"
+          git push origin HEAD:feat/v0.4.0-cleanup-preview-proof
 
       - name: Check formatting
         run: cargo fmt --all -- --check

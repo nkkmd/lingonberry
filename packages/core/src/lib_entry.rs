@@ -15,6 +15,8 @@ mod quarantine_replacement_cleanup_policy;
 mod quarantine_replacement_cleanup_preview;
 mod quarantine_replacement_cleanup_preview_artifact;
 mod quarantine_replacement_cleanup_preview_builder;
+mod quarantine_replacement_cleanup_transaction;
+mod quarantine_replacement_cleanup_transaction_journal;
 #[rustfmt::skip]
 mod quarantine_replacement_completion_evidence;
 #[rustfmt::skip]
@@ -119,6 +121,22 @@ pub use quarantine_replacement_cleanup_preview_builder::{
     build_quarantine_replacement_cleanup_preview_from_state,
     verify_quarantine_replacement_cleanup_preview_against_state,
     QuarantineReplacementCleanupSubjectInput,
+};
+pub use quarantine_replacement_cleanup_transaction::{
+    quarantine_replacement_cleanup_transaction_journal_json,
+    validate_quarantine_replacement_cleanup_transaction_transition,
+    QuarantineReplacementCleanupTransactionJournal, QuarantineReplacementCleanupTransactionState,
+    QUARANTINE_REPLACEMENT_CLEANUP_TRANSACTION_VERSION,
+};
+pub use quarantine_replacement_cleanup_transaction_journal::{
+    advance_quarantine_replacement_cleanup_transaction_journal,
+    create_quarantine_replacement_cleanup_transaction_journal,
+    read_quarantine_replacement_cleanup_transaction_details,
+    read_quarantine_replacement_cleanup_transaction_journal,
+    record_quarantine_replacement_cleanup_subject_deleted,
+    QuarantineReplacementCleanupTransactionReport,
+    QUARANTINE_REPLACEMENT_CLEANUP_TRANSACTION_JOURNAL_DIGEST_FILE,
+    QUARANTINE_REPLACEMENT_CLEANUP_TRANSACTION_JOURNAL_FILE,
 };
 #[rustfmt::skip]
 pub use quarantine_replacement_completion_evidence::{

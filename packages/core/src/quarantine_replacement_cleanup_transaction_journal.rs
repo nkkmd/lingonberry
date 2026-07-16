@@ -8,9 +8,8 @@ use lingonberry_protocol::{parse_json, to_canonical_json, JsonValue};
 use crate::{
     quarantine_replacement_cleanup_transaction_journal_json, store_error,
     validate_quarantine_replacement_cleanup_transaction_transition,
-    QuarantineReplacementCleanupTransactionJournal,
-    QuarantineReplacementCleanupTransactionState, StoreError,
-    QUARANTINE_REPLACEMENT_CLEANUP_TRANSACTION_VERSION,
+    QuarantineReplacementCleanupTransactionJournal, QuarantineReplacementCleanupTransactionState,
+    StoreError, QUARANTINE_REPLACEMENT_CLEANUP_TRANSACTION_VERSION,
 };
 
 pub const QUARANTINE_REPLACEMENT_CLEANUP_TRANSACTION_JOURNAL_FILE: &str =
@@ -43,7 +42,11 @@ pub fn create_quarantine_replacement_cleanup_transaction_journal(
     }
     let transaction_dir = transaction_dir.as_ref();
     fs::create_dir_all(transaction_dir).map_err(io_error)?;
-    if fs::read_dir(transaction_dir).map_err(io_error)?.next().is_some() {
+    if fs::read_dir(transaction_dir)
+        .map_err(io_error)?
+        .next()
+        .is_some()
+    {
         return Err(journal_error("cleanup transaction directory is not empty"));
     }
     publish_journal(transaction_dir, journal)?;
@@ -83,7 +86,11 @@ pub fn record_quarantine_replacement_cleanup_subject_deleted(
             "deletion progress may only be recorded in deleting state",
         ));
     }
-    if journal.deleted_subjects.iter().any(|value| value == generation_id) {
+    if journal
+        .deleted_subjects
+        .iter()
+        .any(|value| value == generation_id)
+    {
         return read_quarantine_replacement_cleanup_transaction_journal(transaction_dir);
     }
     if journal
@@ -129,9 +136,12 @@ fn publish_journal(
     transaction_dir: &Path,
     journal: &QuarantineReplacementCleanupTransactionJournal,
 ) -> Result<(), StoreError> {
-    let text = to_canonical_json(&quarantine_replacement_cleanup_transaction_journal_json(journal));
+    let text = to_canonical_json(&quarantine_replacement_cleanup_transaction_journal_json(
+        journal,
+    ));
     let digest = integrity_digest(text.as_bytes());
-    let journal_path = transaction_dir.join(QUARANTINE_REPLACEMENT_CLEANUP_TRANSACTION_JOURNAL_FILE);
+    let journal_path =
+        transaction_dir.join(QUARANTINE_REPLACEMENT_CLEANUP_TRANSACTION_JOURNAL_FILE);
     let digest_path =
         transaction_dir.join(QUARANTINE_REPLACEMENT_CLEANUP_TRANSACTION_JOURNAL_DIGEST_FILE);
     let journal_tmp = transaction_dir.join(".quarantine-replacement-cleanup-transaction.json.tmp");
@@ -151,26 +161,36 @@ fn publish_journal(
 fn read_journal(
     transaction_dir: &Path,
 ) -> Result<QuarantineReplacementCleanupTransactionJournal, StoreError> {
-    let journal_path = transaction_dir.join(QUARANTINE_REPLACEMENT_CLEANUP_TRANSACTION_JOURNAL_FILE);
+    let journal_path =
+        transaction_dir.join(QUARANTINE_REPLACEMENT_CLEANUP_TRANSACTION_JOURNAL_FILE);
     let digest_path =
         transaction_dir.join(QUARANTINE_REPLACEMENT_CLEANUP_TRANSACTION_JOURNAL_DIGEST_FILE);
     if !journal_path.is_file() || !digest_path.is_file() {
-        return Err(journal_error("cleanup transaction journal pair is incomplete"));
+        return Err(journal_error(
+            "cleanup transaction journal pair is incomplete",
+        ));
     }
     let text = fs::read_to_string(journal_path).map_err(io_error)?;
     let expected_digest = fs::read_to_string(digest_path).map_err(io_error)?;
     if integrity_digest(text.as_bytes()) != expected_digest.trim() {
         return Err(journal_error("cleanup transaction journal digest mismatch"));
     }
-    let value = parse_json(&text)
-        .map_err(|error| journal_error(format!("invalid cleanup transaction journal JSON: {error}")))?;
+    let value = parse_json(&text).map_err(|error| {
+        journal_error(format!("invalid cleanup transaction journal JSON: {error}"))
+    })?;
     let journal = parse_journal(&value)?;
     validate_journal(&journal)?;
     Ok(journal)
 }
 
-fn parse_journal(value: &JsonValue) -> Result<QuarantineReplacementCleanupTransactionJournal, StoreError> {
-    require_string(value, "version", QUARANTINE_REPLACEMENT_CLEANUP_TRANSACTION_VERSION)?;
+fn parse_journal(
+    value: &JsonValue,
+) -> Result<QuarantineReplacementCleanupTransactionJournal, StoreError> {
+    require_string(
+        value,
+        "version",
+        QUARANTINE_REPLACEMENT_CLEANUP_TRANSACTION_VERSION,
+    )?;
     let state = match object_string(value, "state")?.as_str() {
         "prepared" => QuarantineReplacementCleanupTransactionState::Prepared,
         "revalidated" => QuarantineReplacementCleanupTransactionState::Revalidated,
@@ -194,10 +214,13 @@ fn parse_journal(value: &JsonValue) -> Result<QuarantineReplacementCleanupTransa
     })
 }
 
-fn validate_journal(journal: &QuarantineReplacementCleanupTransactionJournal) -> Result<(), StoreError> {
+fn validate_journal(
+    journal: &QuarantineReplacementCleanupTransactionJournal,
+) -> Result<(), StoreError> {
     validate_generation_id(&journal.transaction_id)?;
     validate_digest(&journal.cleanup_proof_digest, "cleanup proof digest")?;
-    if journal.runtime_fingerprint.is_empty() || journal.runtime_fingerprint.contains(['\n', '\r']) {
+    if journal.runtime_fingerprint.is_empty() || journal.runtime_fingerprint.contains(['\n', '\r'])
+    {
         return Err(journal_error("invalid runtime fingerprint"));
     }
     if let Some(digest) = &journal.tomb_inventory_digest {
@@ -205,7 +228,10 @@ fn validate_journal(journal: &QuarantineReplacementCleanupTransactionJournal) ->
     }
     let unique = journal.deleted_subjects.iter().collect::<BTreeSet<_>>();
     if unique.len() != journal.deleted_subjects.len()
-        || !journal.deleted_subjects.windows(2).all(|pair| pair[0] < pair[1])
+        || !journal
+            .deleted_subjects
+            .windows(2)
+            .all(|pair| pair[0] < pair[1])
     {
         return Err(journal_error(
             "deleted subjects must be unique and strictly sorted",
@@ -237,7 +263,9 @@ fn validate_journal(journal: &QuarantineReplacementCleanupTransactionJournal) ->
 fn object_map(value: &JsonValue) -> Result<&BTreeMap<String, JsonValue>, StoreError> {
     match value {
         JsonValue::Object(map) => Ok(map),
-        _ => Err(journal_error("cleanup transaction journal must be an object")),
+        _ => Err(journal_error(
+            "cleanup transaction journal must be an object",
+        )),
     }
 }
 
@@ -292,7 +320,9 @@ fn validate_generation_id(value: &str) -> Result<(), StoreError> {
         || value.contains(['/', '\\', '*', '?', '[', ']'])
         || !value.is_ascii()
     {
-        return Err(journal_error("invalid cleanup transaction or generation ID"));
+        return Err(journal_error(
+            "invalid cleanup transaction or generation ID",
+        ));
     }
     Ok(())
 }
@@ -318,7 +348,10 @@ fn write_new_synced(path: &Path, bytes: &[u8]) -> Result<(), StoreError> {
 }
 
 fn sync_directory(path: &Path) -> Result<(), StoreError> {
-    File::open(path).map_err(io_error)?.sync_all().map_err(io_error)
+    File::open(path)
+        .map_err(io_error)?
+        .sync_all()
+        .map_err(io_error)
 }
 
 fn integrity_digest(bytes: &[u8]) -> String {
@@ -335,5 +368,8 @@ fn io_error(error: std::io::Error) -> StoreError {
 }
 
 fn journal_error(message: impl Into<String>) -> StoreError {
-    store_error("LB_QUARANTINE_REPLACEMENT_CLEANUP_TRANSACTION_JOURNAL", message)
+    store_error(
+        "LB_QUARANTINE_REPLACEMENT_CLEANUP_TRANSACTION_JOURNAL",
+        message,
+    )
 }

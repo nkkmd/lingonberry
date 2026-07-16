@@ -43,7 +43,10 @@ impl QuarantineReplacementCleanupTransactionState {
     }
 
     pub fn deletion_has_started(self) -> bool {
-        matches!(self, Self::Deleting | Self::Committed | Self::PartiallyDeleted)
+        matches!(
+            self,
+            Self::Deleting | Self::Committed | Self::PartiallyDeleted
+        )
     }
 }
 
@@ -168,4 +171,34 @@ pub fn quarantine_replacement_cleanup_transaction_journal_json(
 
 fn cleanup_transaction_error(message: impl Into<String>) -> StoreError {
     store_error("LB_QUARANTINE_REPLACEMENT_CLEANUP_TRANSACTION", message)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rollback_cutoff_is_explicit() {
+        assert!(
+            validate_quarantine_replacement_cleanup_transaction_transition(
+                QuarantineReplacementCleanupTransactionState::RecoveryRequired,
+                QuarantineReplacementCleanupTransactionState::RolledBack,
+            )
+            .is_ok()
+        );
+        assert!(
+            validate_quarantine_replacement_cleanup_transaction_transition(
+                QuarantineReplacementCleanupTransactionState::Deleting,
+                QuarantineReplacementCleanupTransactionState::RolledBack,
+            )
+            .is_err()
+        );
+        assert!(
+            validate_quarantine_replacement_cleanup_transaction_transition(
+                QuarantineReplacementCleanupTransactionState::RecoveryRequired,
+                QuarantineReplacementCleanupTransactionState::PartiallyDeleted,
+            )
+            .is_ok()
+        );
+    }
 }

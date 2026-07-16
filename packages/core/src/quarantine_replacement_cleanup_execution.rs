@@ -36,12 +36,13 @@ pub fn prepare_verified_quarantine_replacement_cleanup_tomb(
         ));
     }
     let state_dir = state_dir.as_ref();
+    let preview_artifact_dir = preview_artifact_dir.as_ref();
     let transaction_dir = cleanup_transaction_dir.as_ref();
     let _lock = acquire_quarantine_lock(state_dir, "replacement-cleanup-prepare")?;
 
-    verify_quarantine_replacement_cleanup_preview_artifacts(&preview_artifact_dir, proof)?;
+    verify_quarantine_replacement_cleanup_preview_artifacts(preview_artifact_dir, proof)?;
     verify_quarantine_replacement_cleanup_preview_against_state(
-        &preview_artifact_dir,
+        preview_artifact_dir,
         state_dir,
         decisions,
         state_identity,
@@ -84,21 +85,21 @@ pub fn commit_verified_quarantine_replacement_cleanup_deletion(
     match resume_quarantine_replacement_cleanup_deletion(transaction_dir) {
         Ok(report) => Ok(report),
         Err(error) => {
-            if let Ok(journal) =
-                read_quarantine_replacement_cleanup_transaction_details(transaction_dir)
-            {
-                if journal.state == QuarantineReplacementCleanupTransactionState::Deleting {
-                    let _ = advance_quarantine_replacement_cleanup_transaction_journal(
-                        transaction_dir,
-                        QuarantineReplacementCleanupTransactionState::RecoveryRequired,
-                        None,
-                    );
-                    let _ = advance_quarantine_replacement_cleanup_transaction_journal(
-                        transaction_dir,
-                        QuarantineReplacementCleanupTransactionState::PartiallyDeleted,
-                        None,
-                    );
-                }
+            if matches!(
+                read_quarantine_replacement_cleanup_transaction_details(transaction_dir),
+                Ok(journal)
+                    if journal.state == QuarantineReplacementCleanupTransactionState::Deleting
+            ) {
+                let _ = advance_quarantine_replacement_cleanup_transaction_journal(
+                    transaction_dir,
+                    QuarantineReplacementCleanupTransactionState::RecoveryRequired,
+                    None,
+                );
+                let _ = advance_quarantine_replacement_cleanup_transaction_journal(
+                    transaction_dir,
+                    QuarantineReplacementCleanupTransactionState::PartiallyDeleted,
+                    None,
+                );
             }
             Err(error)
         }

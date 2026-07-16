@@ -18,6 +18,7 @@ mod quarantine_replacement_completion_evidence;
 mod quarantine_replacement_completion_evidence_artifact;
 #[rustfmt::skip]
 mod quarantine_replacement_completion_evidence_publication;
+mod quarantine_replacement_completion_evidence_terminal;
 mod quarantine_replacement_failure_injection;
 #[rustfmt::skip]
 mod quarantine_replacement_generation;

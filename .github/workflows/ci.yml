@@ -32,10 +32,11 @@ jobs:
 
           path = Path('packages/core/src/quarantine_replacement_cleanup_policy.rs')
           text = path.read_text()
-          old = '''        assert_eq!(report.decisions[0].reason_code, "terminal-state-mismatch");
-          assert_eq!(report.decisions[1].reason_code, "generation-not-verified");
-          '''
-          new = '''        let decisions = report
+          first = '        assert_eq!(report.decisions[0].reason_code, "terminal-state-mismatch");\n'
+          second = '        assert_eq!(report.decisions[1].reason_code, "generation-not-verified");\n'
+          if first not in text or second not in text:
+              raise SystemExit('expected assertion lines not found')
+          replacement = '''        let decisions = report
               .decisions
               .iter()
               .map(|decision| (decision.generation_id.as_str(), decision.reason_code.as_str()))
@@ -43,9 +44,8 @@ jobs:
           assert_eq!(decisions["wrong-state"], "terminal-state-mismatch");
           assert_eq!(decisions["unverified"], "generation-not-verified");
           '''
-          if old not in text:
-              raise SystemExit('expected assertion block not found')
-          path.write_text(text.replace(old, new, 1))
+          text = text.replace(first + second, replacement, 1)
+          path.write_text(text)
           PY
           cargo fmt --all
           git config user.name github-actions[bot]

@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -22,46 +22,6 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref }}
-
-      - name: Export verified retention candidate builder
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-
-          path = Path('packages/core/src/lib_entry.rs')
-          text = path.read_text()
-          module_marker = 'mod quarantine_replacement_retention;\n'
-          module_line = 'mod quarantine_replacement_retention_candidate;\n'
-          if module_line not in text:
-              if module_marker not in text:
-                  raise SystemExit('retention module marker not found')
-              text = text.replace(module_marker, module_marker + module_line, 1)
-
-          export_marker = '''pub use quarantine_replacement_retention::{
-              inspect_quarantine_replacement_generations, quarantine_replacement_retention_report_json,
-              QuarantineReplacementGenerationInspection, QuarantineReplacementRetentionReport,
-              QUARANTINE_REPLACEMENT_RETENTION_REPORT_VERSION,
-          };
-          '''
-          export_line = '''pub use quarantine_replacement_retention_candidate::build_quarantine_replacement_retention_candidate;
-          '''
-          if export_line not in text:
-              if export_marker not in text:
-                  raise SystemExit('retention export marker not found')
-              text = text.replace(export_marker, export_marker + export_line, 1)
-          path.write_text(text)
-          PY
-          cargo fmt --all
-          if git diff --quiet -- packages/core/src/lib_entry.rs; then
-            exit 0
-          fi
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add packages/core/src/lib_entry.rs
-          git commit -m "feat: export verified retention candidate builder"
-          git push origin HEAD:${{ github.head_ref }}
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable

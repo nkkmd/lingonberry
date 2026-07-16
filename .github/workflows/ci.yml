@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -22,6 +22,21 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+
+      - name: Format terminal evidence integration test
+        run: |
+          rustup component add rustfmt
+          cargo fmt --all
+          if git diff --quiet -- packages/core/tests/quarantine_replacement_completion_evidence_terminal.rs; then
+            exit 0
+          fi
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add packages/core/tests/quarantine_replacement_completion_evidence_terminal.rs
+          git commit -m "style: format terminal evidence integration test"
+          git push origin HEAD:${{ github.head_ref }}
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable

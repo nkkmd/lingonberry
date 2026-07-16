@@ -186,7 +186,7 @@ fn subject_json(subject: &QuarantineReplacementCleanupSubject) -> JsonValue {
     ]))
 }
 
-fn normalize_managed_paths(paths: &mut Vec<String>) -> Result<(), StoreError> {
+fn normalize_managed_paths(paths: &mut [String]) -> Result<(), StoreError> {
     if paths.is_empty() {
         return Err(preview_error("managed path inventory must not be empty"));
     }

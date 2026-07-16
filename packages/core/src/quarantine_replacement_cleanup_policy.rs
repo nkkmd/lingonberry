@@ -362,8 +362,13 @@ mod tests {
             ],
         )
         .unwrap();
-        assert_eq!(report.decisions[0].reason_code, "terminal-state-mismatch");
-        assert_eq!(report.decisions[1].reason_code, "generation-not-verified");
+        let decisions = report
+    .decisions
+    .iter()
+    .map(|decision| (decision.generation_id.as_str(), decision.reason_code.as_str()))
+    .collect::<BTreeMap<_, _>>();
+assert_eq!(decisions["wrong-state"], "terminal-state-mismatch");
+assert_eq!(decisions["unverified"], "generation-not-verified");
     }
 
     #[test]

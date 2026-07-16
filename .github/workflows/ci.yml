@@ -30,40 +30,63 @@ jobs:
         with:
           components: rustfmt, clippy
 
-      - name: Normalize cleanup execution exports
+      - name: Rebuild cleanup exports deterministically
         run: |
           python - <<'PY'
           from pathlib import Path
           path = Path('packages/core/src/lib_entry.rs')
-          text = path.read_text()
-          text = text.replace(
-              'mod quarantine_replacement_cleanup_tomb;\nmod quarantine_replacement_cleanup_tomb;\n',
-              'mod quarantine_replacement_cleanup_tomb;\n',
-          )
-          if 'mod quarantine_replacement_cleanup_execution;\n' not in text:
-              text = text.replace(
-                  'mod quarantine_replacement_cleanup_tomb;\n',
-                  'mod quarantine_replacement_cleanup_tomb;\nmod quarantine_replacement_cleanup_execution;\n',
-                  1,
-              )
-          start = 'pub use quarantine_replacement_cleanup_tomb::{\n'
-          first = text.find(start)
-          second = text.find(start, first + 1) if first >= 0 else -1
-          if second >= 0:
-              end = text.find('};\n', second) + 3
-              text = text[:second] + text[end:]
-          export = '''pub use quarantine_replacement_cleanup_execution::{
+          lines = path.read_text().splitlines()
+
+          deduped = []
+          seen_tomb_module = False
+          seen_execution_module = False
+          for line in lines:
+              if line == 'mod quarantine_replacement_cleanup_tomb;':
+                  if seen_tomb_module:
+                      continue
+                  seen_tomb_module = True
+              if line == 'mod quarantine_replacement_cleanup_execution;':
+                  if seen_execution_module:
+                      continue
+                  seen_execution_module = True
+              deduped.append(line)
+          if not seen_execution_module:
+              index = deduped.index('mod quarantine_replacement_cleanup_tomb;') + 1
+              deduped.insert(index, 'mod quarantine_replacement_cleanup_execution;')
+
+          cleaned = []
+          index = 0
+          while index < len(deduped):
+              line = deduped[index]
+              if line in {
+                  'pub use quarantine_replacement_cleanup_tomb::{',
+                  'pub use quarantine_replacement_cleanup_execution::{',
+              }:
+                  index += 1
+                  while index < len(deduped) and deduped[index] != '};':
+                      index += 1
+                  index += 1
+                  continue
+              cleaned.append(line)
+              index += 1
+
+          insert_at = cleaned.index('pub use quarantine_replacement_cleanup_transaction::{')
+          exports = '''pub use quarantine_replacement_cleanup_tomb::{
+              move_quarantine_replacement_cleanup_to_tomb, resume_quarantine_replacement_cleanup_deletion,
+              rollback_quarantine_replacement_cleanup_tomb, QuarantineReplacementCleanupTombReport,
+              QUARANTINE_REPLACEMENT_CLEANUP_TOMB_DIR,
+              QUARANTINE_REPLACEMENT_CLEANUP_TOMB_INVENTORY_DIGEST_FILE,
+              QUARANTINE_REPLACEMENT_CLEANUP_TOMB_INVENTORY_FILE,
+              QUARANTINE_REPLACEMENT_CLEANUP_TOMB_INVENTORY_VERSION,
+          };
+          pub use quarantine_replacement_cleanup_execution::{
               commit_verified_quarantine_replacement_cleanup_deletion,
               prepare_verified_quarantine_replacement_cleanup_tomb,
               rollback_verified_quarantine_replacement_cleanup,
               QuarantineReplacementCleanupAuthorization,
-          };
-          '''
-          if 'pub use quarantine_replacement_cleanup_execution::{' not in text:
-              first = text.find(start)
-              end = text.find('};\n', first) + 3
-              text = text[:end] + export + text[end:]
-          path.write_text(text)
+          };'''.splitlines()
+          cleaned[insert_at:insert_at] = exports
+          path.write_text('\n'.join(cleaned) + '\n')
           PY
           cargo fmt --all
           git config user.name "github-actions[bot]"

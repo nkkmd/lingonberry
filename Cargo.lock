@@ -64,7 +64,7 @@ checksum = "68ab91017fe16c622486840e4c83c9a37afeff978bd239b5293d61ece587de66"
 
 [[package]]
 name = "lingonberry-core"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "lingonberry-protocol",
  "lingonberry-validation",
@@ -72,7 +72,7 @@ dependencies = [
 
 [[package]]
 name = "lingonberry-identity"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "lingonberry-protocol",
  "sha2",
@@ -80,7 +80,7 @@ dependencies = [
 
 [[package]]
 name = "lingonberry-indexer"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "lingonberry-core",
  "lingonberry-protocol",
@@ -88,11 +88,11 @@ dependencies = [
 
 [[package]]
 name = "lingonberry-protocol"
-version = "0.3.0"
+version = "0.4.0"
 
 [[package]]
 name = "lingonberry-relay"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "lingonberry-core",
  "lingonberry-indexer",
@@ -102,7 +102,7 @@ dependencies = [
 
 [[package]]
 name = "lingonberry-storage"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "lingonberry-core",
  "lingonberry-protocol",
@@ -110,7 +110,7 @@ dependencies = [
 
 [[package]]
 name = "lingonberry-validation"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "lingonberry-identity",
  "lingonberry-protocol",

@@ -16,6 +16,7 @@ mod quarantine_replacement_cleanup_policy;
 mod quarantine_replacement_completion_evidence;
 #[rustfmt::skip]
 mod quarantine_replacement_completion_evidence_artifact;
+mod quarantine_replacement_completion_evidence_publication;
 mod quarantine_replacement_failure_injection;
 #[rustfmt::skip]
 mod quarantine_replacement_generation;
@@ -108,6 +109,7 @@ pub use quarantine_replacement_completion_evidence::{
 };
 #[rustfmt::skip]
 pub use quarantine_replacement_completion_evidence_artifact::verify_quarantine_replacement_completion_evidence_artifact;
+pub use quarantine_replacement_completion_evidence_publication::publish_quarantine_replacement_completion_evidence;
 #[rustfmt::skip]
 pub use quarantine_replacement_generation::{
     seal_quarantine_replacement_generation,

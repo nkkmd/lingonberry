@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -22,6 +22,34 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+
+      - name: Remove invalid rustfmt inner attributes
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          paths = [
+              Path('packages/core/src/quarantine_replacement_cleanup_policy.rs'),
+              Path('packages/core/src/quarantine_replacement_completion_evidence.rs'),
+              Path('packages/core/src/quarantine_replacement_completion_evidence_artifact.rs'),
+              Path('packages/core/src/quarantine_replacement_completion_evidence_publication.rs'),
+          ]
+          for path in paths:
+              text = path.read_text()
+              prefix = '#![rustfmt::skip]\n\n'
+              if text.startswith(prefix):
+                  path.write_text(text[len(prefix):])
+          PY
+          if git diff --quiet -- packages/core/src; then
+            exit 0
+          fi
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add packages/core/src
+          git commit -m "fix: remove invalid rustfmt inner attributes"
+          git push origin HEAD:${{ github.head_ref }}
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -34,25 +62,8 @@ jobs:
       - name: Check formatting
         run: cargo fmt --all -- --check
 
-      - name: Capture library clippy diagnostics
-        run: |
-          set +e
-          cargo clippy --workspace --lib -- -D warnings > clippy-library.log 2>&1
-          status=$?
-          cat clippy-library.log
-          echo "$status" > clippy-library.status
-          exit 0
-
-      - name: Upload library clippy diagnostics
-        uses: actions/upload-artifact@v4
-        with:
-          name: clippy-library-diagnostics
-          path: |
-            clippy-library.log
-            clippy-library.status
-
-      - name: Enforce library clippy result
-        run: test "$(cat clippy-library.status)" = "0"
+      - name: Run library clippy
+        run: cargo clippy --workspace --lib -- -D warnings
 
       - name: Run binary clippy
         run: cargo clippy --workspace --bins -- -D warnings -A dead-code

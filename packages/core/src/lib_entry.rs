@@ -25,6 +25,7 @@ mod quarantine_replacement_generation;
 mod quarantine_replacement_inputs;
 mod quarantine_replacement_observability;
 mod quarantine_replacement_retention;
+mod quarantine_replacement_retention_candidate;
 #[allow(unused_imports)]
 #[rustfmt::skip]
 mod quarantine_replacement_prepare;
@@ -149,6 +150,7 @@ pub use quarantine_replacement_retention::{
     QuarantineReplacementGenerationInspection, QuarantineReplacementRetentionReport,
     QUARANTINE_REPLACEMENT_RETENTION_REPORT_VERSION,
 };
+pub use quarantine_replacement_retention_candidate::build_quarantine_replacement_retention_candidate;
 #[rustfmt::skip]
 pub use quarantine_replacement_publication_prepare::{
     prepare_quarantine_replacement_publication,

@@ -18,16 +18,21 @@ pub struct QuarantineReplacementCleanupAuthorization {
     pub irreversible_delete_confirmed: bool,
 }
 
+#[derive(Debug)]
+pub struct QuarantineReplacementCleanupPreparation<'a> {
+    pub state_dir: &'a Path,
+    pub preview_artifact_dir: &'a Path,
+    pub cleanup_transaction_dir: &'a Path,
+    pub decisions: &'a QuarantineReplacementRetentionDecisionReport,
+    pub state_identity: &'a str,
+    pub runtime_fingerprint: &'a str,
+    pub now_unix_seconds: u64,
+    pub inputs: &'a [QuarantineReplacementCleanupSubjectInput],
+    pub proof: &'a QuarantineReplacementCleanupProof,
+}
+
 pub fn prepare_verified_quarantine_replacement_cleanup_tomb(
-    state_dir: impl AsRef<Path>,
-    preview_artifact_dir: impl AsRef<Path>,
-    cleanup_transaction_dir: impl AsRef<Path>,
-    decisions: &QuarantineReplacementRetentionDecisionReport,
-    state_identity: &str,
-    runtime_fingerprint: &str,
-    now_unix_seconds: u64,
-    inputs: &[QuarantineReplacementCleanupSubjectInput],
-    proof: &QuarantineReplacementCleanupProof,
+    request: &QuarantineReplacementCleanupPreparation<'_>,
     authorization: QuarantineReplacementCleanupAuthorization,
 ) -> Result<QuarantineReplacementCleanupTombReport, StoreError> {
     if !authorization.operator_requested || authorization.irreversible_delete_confirmed {
@@ -35,37 +40,43 @@ pub fn prepare_verified_quarantine_replacement_cleanup_tomb(
             "tomb preparation requires operator request without irreversible delete confirmation",
         ));
     }
-    let state_dir = state_dir.as_ref();
-    let preview_artifact_dir = preview_artifact_dir.as_ref();
-    let transaction_dir = cleanup_transaction_dir.as_ref();
-    let _lock = acquire_quarantine_lock(state_dir, "replacement-cleanup-prepare")?;
+    let _lock = acquire_quarantine_lock(request.state_dir, "replacement-cleanup-prepare")?;
 
-    verify_quarantine_replacement_cleanup_preview_artifacts(preview_artifact_dir, proof)?;
+    verify_quarantine_replacement_cleanup_preview_artifacts(
+        request.preview_artifact_dir,
+        request.proof,
+    )?;
     verify_quarantine_replacement_cleanup_preview_against_state(
-        preview_artifact_dir,
-        state_dir,
-        decisions,
-        state_identity,
-        runtime_fingerprint,
-        now_unix_seconds,
-        inputs,
+        request.preview_artifact_dir,
+        request.state_dir,
+        request.decisions,
+        request.state_identity,
+        request.runtime_fingerprint,
+        request.now_unix_seconds,
+        request.inputs,
     )?;
 
-    let journal = read_quarantine_replacement_cleanup_transaction_details(transaction_dir)?;
+    let journal = read_quarantine_replacement_cleanup_transaction_details(
+        request.cleanup_transaction_dir,
+    )?;
     if journal.state != QuarantineReplacementCleanupTransactionState::Prepared
-        || journal.cleanup_proof_digest != proof.plan_digest
-        || journal.runtime_fingerprint != runtime_fingerprint
+        || journal.cleanup_proof_digest != request.proof.plan_digest
+        || journal.runtime_fingerprint != request.runtime_fingerprint
     {
         return Err(execution_error(
             "cleanup transaction journal does not match the revalidated proof and runtime",
         ));
     }
     advance_quarantine_replacement_cleanup_transaction_journal(
-        transaction_dir,
+        request.cleanup_transaction_dir,
         QuarantineReplacementCleanupTransactionState::Revalidated,
         None,
     )?;
-    move_quarantine_replacement_cleanup_to_tomb(state_dir, transaction_dir, proof)
+    move_quarantine_replacement_cleanup_to_tomb(
+        request.state_dir,
+        request.cleanup_transaction_dir,
+        request.proof,
+    )
 }
 
 pub fn commit_verified_quarantine_replacement_cleanup_deletion(

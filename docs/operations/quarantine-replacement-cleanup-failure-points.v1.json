@@ -1,0 +1,21 @@
+{
+  "version": "lingonberry-quarantine-replacement-cleanup-failure-points/v1",
+  "points": [
+    {"id":"journal-write","phase":"journal","expectedClassification":"recovery-required"},
+    {"id":"journal-fsync","phase":"journal","expectedClassification":"recovery-required"},
+    {"id":"proof-revalidation","phase":"preflight","expectedClassification":"rejected"},
+    {"id":"source-inventory","phase":"preflight","expectedClassification":"rejected"},
+    {"id":"tomb-rename","phase":"preparation","expectedClassification":"recovery-required"},
+    {"id":"tomb-directory-fsync","phase":"preparation","expectedClassification":"recovery-required"},
+    {"id":"inventory-write","phase":"seal","expectedClassification":"recovery-required"},
+    {"id":"inventory-fsync","phase":"seal","expectedClassification":"recovery-required"},
+    {"id":"inventory-digest-write","phase":"seal","expectedClassification":"recovery-required"},
+    {"id":"inventory-directory-fsync","phase":"seal","expectedClassification":"recovery-required"},
+    {"id":"processing-start-transition","phase":"processing","expectedClassification":"recovery-required"},
+    {"id":"managed-path-processing","phase":"processing","expectedClassification":"partially-deleted"},
+    {"id":"path-progress-journal","phase":"processing","expectedClassification":"partially-deleted"},
+    {"id":"committed-transition","phase":"terminal","expectedClassification":"recovery-required"},
+    {"id":"rollback-restore","phase":"rollback","expectedClassification":"recovery-required"},
+    {"id":"rolled-back-transition","phase":"terminal","expectedClassification":"recovery-required"}
+  ]
+}

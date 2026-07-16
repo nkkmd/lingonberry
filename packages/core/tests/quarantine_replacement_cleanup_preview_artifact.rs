@@ -5,14 +5,11 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use lingonberry_core::{
     build_quarantine_replacement_cleanup_plan,
     publish_quarantine_replacement_cleanup_preview_artifacts,
-    verify_quarantine_replacement_cleanup_preview_artifacts,
-    QuarantineReplacementCleanupPlan, QuarantineReplacementCleanupSubject,
-    QuarantineReplacementRetentionDecision, QuarantineReplacementRetentionDecisionReport,
-    QUARANTINE_REPLACEMENT_CLEANUP_PLAN_DIGEST_FILE,
-    QUARANTINE_REPLACEMENT_CLEANUP_PLAN_FILE,
-    QUARANTINE_REPLACEMENT_CLEANUP_PROOF_DIGEST_FILE,
-    QUARANTINE_REPLACEMENT_CLEANUP_PROOF_FILE,
-    QUARANTINE_REPLACEMENT_RETENTION_POLICY_VERSION,
+    verify_quarantine_replacement_cleanup_preview_artifacts, QuarantineReplacementCleanupPlan,
+    QuarantineReplacementCleanupSubject, QuarantineReplacementRetentionDecision,
+    QuarantineReplacementRetentionDecisionReport, QUARANTINE_REPLACEMENT_CLEANUP_PLAN_DIGEST_FILE,
+    QUARANTINE_REPLACEMENT_CLEANUP_PLAN_FILE, QUARANTINE_REPLACEMENT_CLEANUP_PROOF_DIGEST_FILE,
+    QUARANTINE_REPLACEMENT_CLEANUP_PROOF_FILE, QUARANTINE_REPLACEMENT_RETENTION_POLICY_VERSION,
 };
 
 fn temp_dir(label: &str) -> PathBuf {
@@ -77,7 +74,7 @@ fn publishes_complete_artifact_set_idempotently() {
 fn rejects_tampered_or_partial_artifacts() {
     let dir = temp_dir("cleanup-preview-tamper");
     let proof = publish_quarantine_replacement_cleanup_preview_artifacts(&dir, &plan()).unwrap();
-    fs::write(dir.join(QUARANTINE_REPLACEMENT_CLEANUP_PLAN_FILE), "{}") .unwrap();
+    fs::write(dir.join(QUARANTINE_REPLACEMENT_CLEANUP_PLAN_FILE), "{}").unwrap();
     assert!(verify_quarantine_replacement_cleanup_preview_artifacts(&dir, &proof).is_err());
 
     let _ = fs::remove_dir_all(&dir);

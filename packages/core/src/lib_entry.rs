@@ -9,12 +9,23 @@ mod quarantine_ledger_index;
 mod quarantine_lock;
 mod quarantine_rejections;
 mod quarantine_replacement_audit;
+#[allow(clippy::needless_lifetimes)]
+#[rustfmt::skip]
+mod quarantine_replacement_cleanup_policy;
+#[rustfmt::skip]
+mod quarantine_replacement_completion_evidence;
+#[rustfmt::skip]
+mod quarantine_replacement_completion_evidence_artifact;
+#[rustfmt::skip]
+mod quarantine_replacement_completion_evidence_publication;
+mod quarantine_replacement_completion_evidence_terminal;
 mod quarantine_replacement_failure_injection;
 #[rustfmt::skip]
 mod quarantine_replacement_generation;
 mod quarantine_replacement_inputs;
 mod quarantine_replacement_observability;
 mod quarantine_replacement_retention;
+mod quarantine_replacement_retention_candidate;
 #[allow(unused_imports)]
 #[rustfmt::skip]
 mod quarantine_replacement_prepare;
@@ -81,6 +92,29 @@ pub use quarantine_replacement_audit::{
     QUARANTINE_REPLACEMENT_AUDIT_VERSION,
 };
 #[rustfmt::skip]
+pub use quarantine_replacement_cleanup_policy::{
+    evaluate_quarantine_replacement_retention_policy,
+    quarantine_replacement_retention_decision_report_json,
+    QuarantineReplacementRetentionCandidate, QuarantineReplacementRetentionDecision,
+    QuarantineReplacementRetentionDecisionReport, QuarantineReplacementRetentionPolicy,
+    QUARANTINE_REPLACEMENT_RETENTION_DECISION_REPORT_VERSION,
+    QUARANTINE_REPLACEMENT_RETENTION_POLICY_VERSION,
+};
+#[rustfmt::skip]
+pub use quarantine_replacement_completion_evidence::{
+    quarantine_replacement_completion_evidence_json,
+    quarantine_replacement_completion_evidence_report_json,
+    verify_quarantine_replacement_completion_evidence,
+    QuarantineReplacementCompletionEvidence, QuarantineReplacementCompletionEvidenceReport,
+    QUARANTINE_REPLACEMENT_COMPLETION_EVIDENCE_DIGEST_FILE,
+    QUARANTINE_REPLACEMENT_COMPLETION_EVIDENCE_FILE,
+    QUARANTINE_REPLACEMENT_COMPLETION_EVIDENCE_VERSION,
+};
+#[rustfmt::skip]
+pub use quarantine_replacement_completion_evidence_artifact::verify_quarantine_replacement_completion_evidence_artifact;
+#[rustfmt::skip]
+pub use quarantine_replacement_completion_evidence_publication::publish_quarantine_replacement_completion_evidence;
+#[rustfmt::skip]
 pub use quarantine_replacement_generation::{
     seal_quarantine_replacement_generation,
     validate_quarantine_current_generation_pointer,
@@ -116,6 +150,7 @@ pub use quarantine_replacement_retention::{
     QuarantineReplacementGenerationInspection, QuarantineReplacementRetentionReport,
     QUARANTINE_REPLACEMENT_RETENTION_REPORT_VERSION,
 };
+pub use quarantine_replacement_retention_candidate::build_quarantine_replacement_retention_candidate;
 #[rustfmt::skip]
 pub use quarantine_replacement_publication_prepare::{
     prepare_quarantine_replacement_publication,

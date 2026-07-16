@@ -134,10 +134,27 @@ pub fn resume_quarantine_replacement_transaction(
                     transaction_dir,
                 )?;
             }
-            QuarantineReplacementTransactionState::Committed
-            | QuarantineReplacementTransactionState::RolledBack => {
-                return quarantine_replacement_status(state_dir, transaction_dir);
-            }
+            QuarantineReplacementTransactionState::Committed => {
+        let generation_digest = verify_quarantine_replacement_generation(transaction_dir)?
+            .generation_digest;
+        crate::quarantine_replacement_completion_evidence_terminal::finalize_quarantine_replacement_completion_evidence(
+            transaction_dir,
+            Some(&generation_digest),
+        )?;
+        return quarantine_replacement_status(state_dir, transaction_dir);
+    }
+    QuarantineReplacementTransactionState::RolledBack => {
+        let generation_digest = if publication_intent_path(transaction_dir).exists() {
+            Some(read_intent(transaction_dir)?.generation_digest)
+        } else {
+            None
+        };
+        crate::quarantine_replacement_completion_evidence_terminal::finalize_quarantine_replacement_completion_evidence(
+            transaction_dir,
+            generation_digest.as_deref(),
+        )?;
+        return quarantine_replacement_status(state_dir, transaction_dir);
+    }
         }
     }
     Err(recovery_error("replacement resume exceeded its bounded step count"))
@@ -175,7 +192,11 @@ fn publish_locked(
 ) -> Result<QuarantineReplacementStatusReport, StoreError> {
     let mut journal = read_quarantine_replacement_transaction_details(transaction_dir)?;
     if journal.state == QuarantineReplacementTransactionState::Committed {
-        return quarantine_replacement_status(state_dir, transaction_dir);
+        crate::quarantine_replacement_completion_evidence_terminal::finalize_quarantine_replacement_completion_evidence(
+    transaction_dir,
+    Some(&verify_quarantine_replacement_generation(transaction_dir)?.generation_digest),
+)?;
+return quarantine_replacement_status(state_dir, transaction_dir);
     }
     if !matches!(
         journal.state,
@@ -249,6 +270,10 @@ fn publish_locked(
         transaction_dir,
         QuarantineReplacementTransactionState::Committed,
     )?;
+crate::quarantine_replacement_completion_evidence_terminal::finalize_quarantine_replacement_completion_evidence(
+    transaction_dir,
+    Some(&intent.generation_digest),
+)?;
     quarantine_replacement_status(state_dir, transaction_dir)
 }
 
@@ -261,7 +286,16 @@ pub fn rollback_quarantine_replacement_transaction(
     let _lock = acquire_quarantine_lock(state_dir, "quarantine-replacement-rollback-v1")?;
     let mut journal = read_quarantine_replacement_transaction_details(transaction_dir)?;
     if journal.state == QuarantineReplacementTransactionState::RolledBack {
-        return quarantine_replacement_status(state_dir, transaction_dir);
+        let generation_digest = if publication_intent_path(transaction_dir).exists() {
+    Some(read_intent(transaction_dir)?.generation_digest)
+} else {
+    None
+};
+crate::quarantine_replacement_completion_evidence_terminal::finalize_quarantine_replacement_completion_evidence(
+    transaction_dir,
+    generation_digest.as_deref(),
+)?;
+return quarantine_replacement_status(state_dir, transaction_dir);
     }
     if journal.state == QuarantineReplacementTransactionState::Committed {
         return Err(rollback_error("committed transactions are terminal"));
@@ -309,6 +343,10 @@ pub fn rollback_quarantine_replacement_transaction(
         transaction_dir,
         QuarantineReplacementTransactionState::RolledBack,
     )?;
+crate::quarantine_replacement_completion_evidence_terminal::finalize_quarantine_replacement_completion_evidence(
+    transaction_dir,
+    intent.as_ref().map(|value| value.generation_digest.as_str()),
+)?;
     quarantine_replacement_status(state_dir, transaction_dir)
 }
 

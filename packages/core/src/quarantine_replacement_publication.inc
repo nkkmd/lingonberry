@@ -134,10 +134,27 @@ pub fn resume_quarantine_replacement_transaction(
                     transaction_dir,
                 )?;
             }
-            QuarantineReplacementTransactionState::Committed
-            | QuarantineReplacementTransactionState::RolledBack => {
-                return quarantine_replacement_status(state_dir, transaction_dir);
-            }
+            QuarantineReplacementTransactionState::Committed => {
+        let generation_digest = verify_quarantine_replacement_generation(transaction_dir)?
+            .generation_digest;
+        crate::quarantine_replacement_completion_evidence_terminal::finalize_quarantine_replacement_completion_evidence(
+            transaction_dir,
+            Some(&generation_digest),
+        )?;
+        return quarantine_replacement_status(state_dir, transaction_dir);
+    }
+    QuarantineReplacementTransactionState::RolledBack => {
+        let generation_digest = if publication_intent_path(transaction_dir).exists() {
+            Some(read_intent(transaction_dir)?.generation_digest)
+        } else {
+            None
+        };
+        crate::quarantine_replacement_completion_evidence_terminal::finalize_quarantine_replacement_completion_evidence(
+            transaction_dir,
+            generation_digest.as_deref(),
+        )?;
+        return quarantine_replacement_status(state_dir, transaction_dir);
+    }
         }
     }
     Err(recovery_error("replacement resume exceeded its bounded step count"))

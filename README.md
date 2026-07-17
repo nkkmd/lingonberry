@@ -56,6 +56,7 @@ JavaScript contract tests are also run by `.github/workflows/ci.yml`.
 ## Documentation
 
 - [Current implementation status](docs/roadmap/CURRENT_IMPLEMENTATION_STATUS.md)
+- [Roadmap to v1.0](docs/roadmap/ROADMAP_TO_V1_0.md)
 - [v0.4.0 roadmap](docs/roadmap/RELEASE_0_4_0_ROADMAP.md)
 - [v0.4.0 release checklist](docs/roadmap/RELEASE_0_4_0_CHECKLIST.md)
 - [v0.4.0 release notes](docs/roadmap/RELEASE_0_4_0_RELEASE_NOTE.md)

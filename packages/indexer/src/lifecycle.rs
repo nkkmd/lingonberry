@@ -1,9 +1,7 @@
 use crate::IndexSnapshot;
 use lingonberry_core::{StorageBackend, StoreError};
-use lingonberry_protocol::{to_canonical_json, JsonValue};
+use lingonberry_protocol::JsonValue;
 use std::collections::{BTreeMap, BTreeSet};
-use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hash, Hasher};
 
 pub const INDEX_LIFECYCLE_CONTRACT_VERSION: &str = "1";
 
@@ -155,12 +153,16 @@ fn generation(ids: &BTreeSet<String>) -> IndexGeneration {
 }
 
 fn digest_ids(ids: &BTreeSet<String>) -> String {
-    let mut hasher = DefaultHasher::new();
+    const OFFSET_BASIS: u64 = 0xcbf29ce484222325;
+    const PRIME: u64 = 0x100000001b3;
+    let mut digest = OFFSET_BASIS;
     for id in ids {
-        id.hash(&mut hasher);
-        '\n'.hash(&mut hasher);
+        for byte in id.as_bytes().iter().copied().chain(std::iter::once(b'\n')) {
+            digest ^= u64::from(byte);
+            digest = digest.wrapping_mul(PRIME);
+        }
     }
-    format!("fnv64:{:016x}", hasher.finish())
+    format!("fnv1a64:{digest:016x}")
 }
 
 fn failed_result(error: StoreError) -> IndexRebuildResult {
@@ -201,9 +203,4 @@ fn json_object(entries: Vec<(&str, JsonValue)>) -> JsonValue {
             .map(|(key, value)| (key.to_string(), value))
             .collect::<BTreeMap<_, _>>(),
     )
-}
-
-#[allow(dead_code)]
-fn canonical_json(value: &JsonValue) -> String {
-    to_canonical_json(value)
 }

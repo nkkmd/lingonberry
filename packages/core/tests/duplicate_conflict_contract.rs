@@ -18,10 +18,10 @@ fn contract_version_is_stable() {
 
 #[test]
 fn canonical_json_equivalence_is_an_exact_duplicate() {
-    let existing = parse_json(r#"{"body":{"text":"same"},"id":"lb:obj:contract"}"#)
-        .expect("existing parses");
-    let incoming = parse_json(r#"{"id":"lb:obj:contract","body":{"text":"same"}}"#)
-        .expect("incoming parses");
+    let existing =
+        parse_json(r#"{"body":{"text":"same"},"id":"lb:obj:contract"}"#).expect("existing parses");
+    let incoming =
+        parse_json(r#"{"id":"lb:obj:contract","body":{"text":"same"}}"#).expect("incoming parses");
     let canonical_json = to_canonical_json(&incoming);
 
     assert_eq!(

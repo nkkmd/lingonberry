@@ -10,10 +10,9 @@ use std::time::{SystemTime, UNIX_EPOCH};
 #[test]
 fn live_retry_is_idempotent_for_file_and_sqlite_backends() {
     let workspace = workspace_root();
-    let request = fs::read_to_string(
-        workspace.join("fixtures/http-publish-request/minimal-request.json"),
-    )
-    .expect("read minimal request");
+    let request =
+        fs::read_to_string(workspace.join("fixtures/http-publish-request/minimal-request.json"))
+            .expect("read minimal request");
     let finalized = finalized_request(&request);
 
     let file_dir = unique_temp_dir("retry-file");
@@ -33,10 +32,9 @@ fn live_retry_is_idempotent_for_file_and_sqlite_backends() {
 #[test]
 fn archive_import_is_idempotent_for_file_and_sqlite_backends() {
     let workspace = workspace_root();
-    let request = fs::read_to_string(
-        workspace.join("fixtures/http-publish-request/minimal-request.json"),
-    )
-    .expect("read minimal request");
+    let request =
+        fs::read_to_string(workspace.join("fixtures/http-publish-request/minimal-request.json"))
+            .expect("read minimal request");
     let finalized = finalized_request(&request);
 
     let source_dir = unique_temp_dir("archive-source");
@@ -62,10 +60,9 @@ fn archive_import_is_idempotent_for_file_and_sqlite_backends() {
 #[test]
 fn archive_import_conflict_preserves_existing_object_for_both_backends() {
     let workspace = workspace_root();
-    let minimal_request = fs::read_to_string(
-        workspace.join("fixtures/http-publish-request/minimal-request.json"),
-    )
-    .expect("read minimal request");
+    let minimal_request =
+        fs::read_to_string(workspace.join("fixtures/http-publish-request/minimal-request.json"))
+            .expect("read minimal request");
     let minimal = finalized_request(&minimal_request);
 
     let source_dir = unique_temp_dir("conflict-source");

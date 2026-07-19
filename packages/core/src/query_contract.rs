@@ -94,7 +94,10 @@ pub fn basic_query_result_json(result: &BasicQueryResult) -> JsonValue {
         .iter()
         .map(|record| {
             json_object(vec![
-                ("canonicalId", JsonValue::String(record.canonical_id.clone())),
+                (
+                    "canonicalId",
+                    JsonValue::String(record.canonical_id.clone()),
+                ),
                 (
                     "carrierIdentity",
                     JsonValue::String(record.carrier_identity.clone()),
@@ -123,10 +126,7 @@ pub fn basic_query_result_json(result: &BasicQueryResult) -> JsonValue {
                 None => json_object(vec![]),
             },
         ),
-        (
-            "count",
-            JsonValue::Number(result.records.len().to_string()),
-        ),
+        ("count", JsonValue::Number(result.records.len().to_string())),
         ("objects", JsonValue::Array(objects)),
         (
             "ordering",

@@ -164,10 +164,7 @@ fn promotion_outcome_json(outcome: QuarantinePromotionOutcome) -> JsonValue {
             canonical_id,
             duplicate,
         } => json_object(vec![
-            (
-                "status",
-                JsonValue::String("already-promoted".to_string()),
-            ),
+            ("status", JsonValue::String("already-promoted".to_string())),
             ("quarantineId", JsonValue::String(quarantine_id)),
             ("canonicalId", JsonValue::String(canonical_id)),
             ("duplicate", JsonValue::Bool(duplicate)),

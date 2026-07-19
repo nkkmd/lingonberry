@@ -3,8 +3,7 @@ use lingonberry_indexer::{
     index_rebuild_result_json, rebuild_index, verify_index, IndexConsistencyStatus, IndexSnapshot,
     INDEX_LIFECYCLE_CONTRACT_VERSION,
 };
-use lingonberry_protocol::{parse_json, JsonValue};
-use lingonberry_validation::finalize_knowledge_object_full;
+use lingonberry_protocol::{derive_identity_key, parse_json, to_canonical_json, JsonValue};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -84,8 +83,20 @@ fn finalized_request(request_json: &str) -> lingonberry_protocol::FinalizedKnowl
     let JsonValue::Object(request) = request else {
         panic!("request must be an object");
     };
-    finalize_knowledge_object_full(request.get("object").expect("object"))
-        .expect("object finalizes")
+    let object = request.get("object").expect("object").clone();
+    let JsonValue::Object(object_map) = &object else {
+        panic!("object must be an object");
+    };
+    let canonical_id = match object_map.get("id") {
+        Some(JsonValue::String(value)) => value.clone(),
+        other => panic!("object missing id: {other:?}"),
+    };
+    lingonberry_protocol::FinalizedKnowledgeObject {
+        canonical_id,
+        identity_key: derive_identity_key(&object),
+        canonical_json: to_canonical_json(&object),
+        object,
+    }
 }
 
 fn workspace_root() -> PathBuf {

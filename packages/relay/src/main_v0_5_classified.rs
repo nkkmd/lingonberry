@@ -7,9 +7,10 @@ mod existing_v0_5 {
 }
 
 use lingonberry_core::{
-    build_runtime_storage_backend, import_archive_classified, promote_quarantine_batch_classified,
-    promote_quarantine_record_classified, ArchiveImportReport, QuarantineBatchReport,
-    QuarantinePromotionOutcome,
+    basic_query_result_json, build_runtime_storage_backend, execute_basic_query,
+    import_archive_classified, promote_quarantine_batch_classified,
+    promote_quarantine_record_classified, ArchiveImportReport, BasicQueryStatus,
+    QuarantineBatchReport, QuarantinePromotionOutcome,
 };
 use lingonberry_protocol::{to_canonical_json, JsonValue};
 use std::env;
@@ -18,6 +19,7 @@ use std::process;
 fn main() {
     let args = env::args().skip(1).collect::<Vec<_>>();
     let result = match args.first().map(String::as_str) {
+        Some("subscribe") => handle_subscribe(&args),
         Some("quarantine-promote") => handle_quarantine_promote(&args),
         Some("quarantine-promote-batch") => handle_quarantine_promote_batch(&args),
         Some("import-archive") => handle_import_archive(&args),
@@ -29,7 +31,28 @@ fn main() {
 
     if let Err(error) = result {
         eprintln!("{error}");
-        process::exit(if error.starts_with("usage:") { 64 } else { 70 });
+        process::exit(if error.starts_with("usage:") {
+            64
+        } else if error.starts_with("LB_QUERY_TYPE_REQUIRED") {
+            65
+        } else {
+            70
+        });
+    }
+}
+
+fn handle_subscribe(args: &[String]) -> Result<(), String> {
+    if args.len() > 2 {
+        return Err("usage: lingonberry subscribe [type]".to_string());
+    }
+    let backend = build_runtime_storage_backend();
+    let result = execute_basic_query(args.get(1).map(String::as_str), &backend);
+    println!("{}", to_canonical_json(&basic_query_result_json(&result)));
+    match result.status {
+        BasicQueryStatus::Success | BasicQueryStatus::Empty => Ok(()),
+        BasicQueryStatus::InvalidRequest | BasicQueryStatus::Failed => {
+            Err(format!("{}: {}", result.code, result.message))
+        }
     }
 }
 
@@ -141,7 +164,10 @@ fn promotion_outcome_json(outcome: QuarantinePromotionOutcome) -> JsonValue {
             canonical_id,
             duplicate,
         } => json_object(vec![
-            ("status", JsonValue::String("already-promoted".to_string())),
+            (
+                "status",
+                JsonValue::String("already-promoted".to_string()),
+            ),
             ("quarantineId", JsonValue::String(quarantine_id)),
             ("canonicalId", JsonValue::String(canonical_id)),
             ("duplicate", JsonValue::Bool(duplicate)),

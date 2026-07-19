@@ -4,8 +4,8 @@
 
 - [x] All Rust workspace packages are versioned as `0.5.0`.
 - [x] `Cargo.lock` is synchronized.
-- [ ] Rust format, library/binary/test Clippy, and workspace tests pass.
-- [ ] JavaScript tests pass.
+- [x] Rust format, library/binary/test Clippy, and workspace tests pass.
+- [x] JavaScript tests pass.
 - [x] Publish, retrieval, query, restart, rebuild, catch-up, and ambiguity smoke scenarios pass.
 - [x] `CHANGELOG.md` and release notes are synchronized.
 - [x] `CURRENT_IMPLEMENTATION_STATUS.md` is synchronized.

@@ -1,3 +1,5 @@
+use lingonberry_protocol::{parse_json, to_canonical_json, JsonValue};
+use std::collections::BTreeMap;
 use std::fs;
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
@@ -14,14 +16,17 @@ fn cli_publish_contract_covers_terminal_states() {
     let state_dir = unique_temp_dir("cli");
     let minimal = workspace.join("fixtures/http-publish-request/minimal-request.json");
     let invalid = workspace.join("fixtures/http-publish-request/invalid-schema-version.json");
-    let conflict = state_dir.join("conflict.json");
+    let conflict = workspace.join("fixtures/http-publish-request/with-identity-claim.json");
     let deferred = state_dir.join("deferred.json");
     fs::create_dir_all(&state_dir).expect("create CLI state directory");
-    write_conflict_fixture(&minimal, &conflict);
-    write_deferred_fixture(
-        &workspace.join("fixtures/http-publish-request/with-identity-claim.json"),
+    fs::write(
         &deferred,
-    );
+        signed_unsupported_request(
+            &workspace.join("conformance/identity-claims/unsupported-rule.json"),
+            &state_dir,
+        ),
+    )
+    .expect("write deferred fixture");
 
     let stored = run_cli_publish(&state_dir, &minimal, &[]);
     assert_success_contract(&stored, "\"status\":\"stored\"", "LB_OBJECT_STORED");
@@ -69,15 +74,14 @@ fn http_publish_contract_covers_terminal_states() {
         workspace.join("fixtures/http-publish-request/invalid-schema-version.json"),
     )
     .expect("read rejected fixture");
-    let conflict = minimal.replace(
-        "What evidence supports this claim?",
-        "What contradictory evidence supports this claim?",
-    );
-    let deferred = fs::read_to_string(
+    let conflict = fs::read_to_string(
         workspace.join("fixtures/http-publish-request/with-identity-claim.json"),
     )
-    .expect("read identity fixture")
-    .replace("lb.identity.key.v1", "lb.identity.key.v99");
+    .expect("read conflict fixture");
+    let deferred = signed_unsupported_request(
+        &workspace.join("conformance/identity-claims/unsupported-rule.json"),
+        &state_dir,
+    );
 
     let port = available_port();
     let mut server = spawn_http_server(&state_dir, port, true);
@@ -92,6 +96,69 @@ fn http_publish_contract_covers_terminal_states() {
     server.kill().ok();
     server.wait().ok();
     fs::remove_dir_all(state_dir).ok();
+}
+
+fn signed_unsupported_request(object_path: &Path, state_dir: &Path) -> String {
+    let object = parse_json(&fs::read_to_string(object_path).expect("read unsupported object"))
+        .expect("parse unsupported object");
+    let private_key = state_dir.join("publisher-private.pem");
+    let public_der = state_dir.join("publisher-public.der");
+    let payload_path = state_dir.join("publisher-payload.json");
+    let signature_path = state_dir.join("publisher-signature.bin");
+
+    assert!(
+        Command::new("openssl")
+            .args(["genpkey", "-algorithm", "ED25519", "-out"])
+            .arg(&private_key)
+            .status()
+            .expect("generate Ed25519 key")
+            .success()
+    );
+    assert!(
+        Command::new("openssl")
+            .args(["pkey", "-in"])
+            .arg(&private_key)
+            .args(["-pubout", "-outform", "DER", "-out"])
+            .arg(&public_der)
+            .status()
+            .expect("export Ed25519 public key")
+            .success()
+    );
+    let public_der_bytes = fs::read(&public_der).expect("read public key DER");
+    let public_key = hex(&public_der_bytes[public_der_bytes.len() - 32..]);
+
+    let mut publisher = BTreeMap::new();
+    publisher.insert("publicKey".to_string(), JsonValue::String(public_key.clone()));
+    let mut unsigned = BTreeMap::new();
+    unsigned.insert("object".to_string(), object.clone());
+    unsigned.insert("publisher".to_string(), JsonValue::Object(publisher.clone()));
+    let payload = to_canonical_json(&JsonValue::Object(unsigned));
+    fs::write(&payload_path, payload).expect("write canonical publish payload");
+
+    assert!(
+        Command::new("openssl")
+            .args(["pkeyutl", "-sign", "-inkey"])
+            .arg(&private_key)
+            .args(["-rawin", "-in"])
+            .arg(&payload_path)
+            .args(["-out"])
+            .arg(&signature_path)
+            .status()
+            .expect("sign publish payload")
+            .success()
+    );
+    publisher.insert(
+        "signature".to_string(),
+        JsonValue::String(hex(&fs::read(signature_path).expect("read signature"))),
+    );
+    let mut request = BTreeMap::new();
+    request.insert("object".to_string(), object);
+    request.insert("publisher".to_string(), JsonValue::Object(publisher));
+    to_canonical_json(&JsonValue::Object(request))
+}
+
+fn hex(bytes: &[u8]) -> String {
+    bytes.iter().map(|byte| format!("{byte:02x}")).collect()
 }
 
 fn run_cli_publish(state_dir: &Path, fixture: &Path, envs: &[(&str, &str)]) -> Output {
@@ -173,23 +240,6 @@ fn assert_failure_contract(output: &Output, status: &str, code: &str) {
     assert!(stdout.contains(status), "{stdout}");
     assert!(stdout.contains(&format!("\"code\":\"{code}\"")), "{stdout}");
     assert!(stderr.starts_with(code), "{stderr}");
-}
-
-fn write_conflict_fixture(source: &Path, destination: &Path) {
-    let content = fs::read_to_string(source)
-        .expect("read source fixture")
-        .replace(
-            "What evidence supports this claim?",
-            "What contradictory evidence supports this claim?",
-        );
-    fs::write(destination, content).expect("write conflict fixture");
-}
-
-fn write_deferred_fixture(source: &Path, destination: &Path) {
-    let content = fs::read_to_string(source)
-        .expect("read identity fixture")
-        .replace("lb.identity.key.v1", "lb.identity.key.v99");
-    fs::write(destination, content).expect("write deferred fixture");
 }
 
 fn workspace_root() -> PathBuf {

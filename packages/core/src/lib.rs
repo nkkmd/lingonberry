@@ -698,44 +698,60 @@ pub fn append_publish_request(
     ensure_parent(&paths.raw_log_path)?;
     ensure_parent(&paths.catalog_path)?;
 
-    if let Some(existing) = get_record_by_carrier_identity(paths, &carrier_identity)? {
-        let existing_json = to_canonical_json(&existing.object);
-        if existing_json != finalized.canonical_json {
-            return Err(StoreError {
-                code: "LB_OBJECT_CONFLICT",
-                message: format!(
-                    "carrier identity already exists with different content: {}",
-                    carrier_identity
-                ),
-            });
-        }
-        return Ok(AppendOutcome {
-            stored_at: Some(existing.stored_at),
-            canonical_id: existing.canonical_id,
-            carrier_identity,
-            object: existing.object,
-            duplicate: true,
-        });
-    }
+    let existing_by_carrier_identity =
+        get_record_by_carrier_identity(paths, &carrier_identity)?;
+    let existing_by_canonical_id = get_record(paths, &finalized.canonical_id)?;
+    let classification = crate::classify_duplicate_or_conflict(
+        existing_by_canonical_id
+            .as_ref()
+            .map(|existing| crate::ExistingObjectIdentity {
+                canonical_id: &existing.canonical_id,
+                carrier_identity: &existing.carrier_identity,
+                object: &existing.object,
+            }),
+        existing_by_carrier_identity
+            .as_ref()
+            .map(|existing| crate::ExistingObjectIdentity {
+                canonical_id: &existing.canonical_id,
+                carrier_identity: &existing.carrier_identity,
+                object: &existing.object,
+            }),
+        crate::IncomingObjectIdentity {
+            canonical_id: &finalized.canonical_id,
+            carrier_identity: &carrier_identity,
+            canonical_json: &finalized.canonical_json,
+        },
+    );
 
-    if let Some(existing) = get_record(paths, &finalized.canonical_id)? {
-        let existing_json = to_canonical_json(&existing.object);
-        if existing_json != finalized.canonical_json {
-            return Err(StoreError {
-                code: "LB_OBJECT_CONFLICT",
-                message: format!(
-                    "object already exists with different content: {}",
-                    finalized.canonical_id
-                ),
+    match classification {
+        crate::DuplicateConflictClassification::New => {}
+        crate::DuplicateConflictClassification::ExactDuplicate => {
+            let existing = existing_by_carrier_identity
+                .or(existing_by_canonical_id)
+                .ok_or_else(|| {
+                    store_error(
+                        "LB_OBJECT_CONFLICT",
+                        "duplicate classification missing existing record",
+                    )
+                })?;
+            return Ok(AppendOutcome {
+                stored_at: Some(existing.stored_at),
+                canonical_id: existing.canonical_id,
+                carrier_identity: existing.carrier_identity,
+                object: existing.object,
+                duplicate: true,
             });
         }
-        return Ok(AppendOutcome {
-            stored_at: Some(existing.stored_at),
-            canonical_id: finalized.canonical_id.clone(),
-            carrier_identity,
-            object: existing.object,
-            duplicate: true,
-        });
+        conflict => {
+            return Err(store_error(
+                conflict.code(),
+                format!(
+                    "duplicate/conflict contract {} classified write as {:?}",
+                    crate::DUPLICATE_CONFLICT_CONTRACT_VERSION,
+                    conflict
+                ),
+            ));
+        }
     }
 
     let stored_at = now_utc_rfc3339();

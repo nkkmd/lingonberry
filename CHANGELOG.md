@@ -2,6 +2,32 @@
 
 All notable changes to Lingonberry are documented in this file.
 
+## [0.5.0] - 2026-07-19
+
+### Added
+
+- Versioned publish ingestion, object retrieval, and basic-query contracts with stable machine codes.
+- Shared CLI and HTTP ingestion orchestration and deterministic duplicate/conflict classification.
+- Deterministic index generations with ID/content digests, rebuild, verification, atomic checkpoints, and catch-up.
+- Fail-closed handling for corrupt, unsupported, stale, partial, and ambiguous index state.
+- Real-binary smoke coverage for publish, restart, retrieval, query, rebuild, checkpoint recovery, and ambiguity rejection.
+
+### Changed
+
+- All Rust workspace packages are versioned as `0.5.0`.
+- Canonical storage is explicitly treated as the source of truth and index state as derived and rebuildable.
+- CLI `rebuild-index` and `catch-up-index` emit versioned machine-readable contracts.
+
+### Compatibility and safety
+
+- Validation failures do not enter canonical storage and conflicts do not overwrite existing canonical records.
+- Inconsistent verification results cannot replace an existing checkpoint.
+- Existing quarantine, backup, replacement, cleanup, archive, and immutable-evidence safety boundaries remain intact.
+
+### Known limitations
+
+- v0.5.0 does not add a separately persisted searchable index database, multi-node consistency, vector search, or AI integration.
+
 ## [0.4.0] - 2026-07-17
 
 ### Added
@@ -118,8 +144,3 @@ All notable changes to Lingonberry are documented in this file.
 - Quarantine coordination is same-host only and is not a distributed lock.
 - Compaction policy v1 authorizes no record rewriting or deletion.
 - Retention deletion, remote backup upload, backup encryption/signing, OAuth/OIDC, and per-record ACLs are not included.
-- The deprecated legacy admin-token fallback remains available until a future major release.
-
-## [0.1.0]
-
-Initial source release containing the core protocol model, schemas, fixtures, carrier contracts, and bootstrap implementations.

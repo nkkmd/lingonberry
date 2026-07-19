@@ -2,7 +2,7 @@
 
 Lingonberry is a Rust workspace for publishing, validating, storing, retrieving, querying, indexing, and operating canonical knowledge objects. Canonical storage is the source of truth; indexes are derived, verifiable, and rebuildable. The workspace also includes persistent quarantine, verified backup and replacement workflows, and proof-bound retention cleanup.
 
-## v0.5.0 release candidate
+## v0.5.0
 
 v0.5.0 completes the normal single-node knowledge-object lifecycle:
 
@@ -30,7 +30,7 @@ Key additions:
 - fail-closed handling for corrupt, unsupported, stale, partial, and ambiguous index state;
 - real-binary smoke coverage for restart, recovery, duplicate, conflict, defer, validation rejection, and ambiguity rejection.
 
-The workspace packages are versioned as `0.5.0`. Publication of the `v0.5.0` tag and GitHub Release requires successful CI on the final merged `main` commit.
+The Rust workspace packages are versioned as `0.5.0`. The `v0.5.0` tag and GitHub Release were published from commit `bf8176da0d992152fb116ca0c45177904d1aa61c` after successful main-branch CI.
 
 ## Safety boundaries
 

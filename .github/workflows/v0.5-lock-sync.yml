@@ -1,0 +1,28 @@
+name: v0.5 lock sync
+on:
+  push:
+    branches:
+      - agent/v0.5.0-release-hardening
+permissions:
+  contents: write
+jobs:
+  sync:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/v0.5.0-release-hardening
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Regenerate lockfile
+        run: |
+          rm Cargo.lock
+          cargo generate-lockfile
+          rm .github/workflows/v0.5-lock-sync.yml
+      - name: Commit synchronized lockfile
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add Cargo.lock .github/workflows/v0.5-lock-sync.yml
+          git commit -m "chore: regenerate Cargo.lock for 0.5.0"
+          git push

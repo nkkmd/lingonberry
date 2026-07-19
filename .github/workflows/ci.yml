@@ -8,100 +8,13 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  migrate-query-process-contract:
-    if: github.event_name == 'pull_request' && github.head_ref == 'agent/v0.5.0-query-contract'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref }}
-          token: ${{ secrets.GITHUB_TOKEN }}
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt
-      - name: Add query process test and synchronize roadmap
-        env:
-          TARGET_BRANCH: ${{ github.head_ref }}
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-
-          test_path = Path('packages/relay/tests/publish_process_contract.rs')
-          text = test_path.read_text()
-          test = '''
-
-          #[test]
-          fn cli_query_contract_covers_success_and_empty() {
-              let workspace = workspace_root();
-              let state_dir = unique_temp_dir("query");
-              fs::create_dir_all(&state_dir).expect("create query state directory");
-              let minimal = workspace.join("fixtures/http-publish-request/minimal-request.json");
-
-              let empty = run_cli_query(&state_dir, Some("question"));
-              assert_success_contract(&empty, "\\\"status\\\":\\\"empty\\\"", "LB_QUERY_EMPTY");
-              let empty_stdout = String::from_utf8_lossy(&empty.stdout);
-              assert!(empty_stdout.contains("\\\"contractVersion\\\":\\\"1\\\""), "{empty_stdout}");
-              assert!(empty_stdout.contains("\\\"ordering\\\":\\\"canonicalId-ascending\\\""), "{empty_stdout}");
-
-              let published = run_cli_publish(&state_dir, &minimal, &[]);
-              assert_success_contract(&published, "\\\"status\\\":\\\"stored\\\"", "LB_OBJECT_STORED");
-
-              let success = run_cli_query(&state_dir, None);
-              assert_success_contract(&success, "\\\"status\\\":\\\"success\\\"", "LB_QUERY_SUCCESS");
-              let success_stdout = String::from_utf8_lossy(&success.stdout);
-              assert!(success_stdout.contains("\\\"contractVersion\\\":\\\"1\\\""), "{success_stdout}");
-              assert!(success_stdout.contains("\\\"count\\\":1"), "{success_stdout}");
-              assert!(success_stdout.contains("\\\"ordering\\\":\\\"canonicalId-ascending\\\""), "{success_stdout}");
-
-              fs::remove_dir_all(state_dir).ok();
-          }
-          '''
-          marker = '\n#[test]\nfn http_publish_contract_covers_terminal_states()'
-          if 'fn cli_query_contract_covers_success_and_empty()' not in text:
-              text = text.replace(marker, test + marker, 1)
-
-          helper = '''
-
-          fn run_cli_query(state_dir: &Path, object_type: Option<&str>) -> Output {
-              let mut command = Command::new(BINARY);
-              command.arg("subscribe").env("LINGONBERRY_STATE_DIR", state_dir);
-              if let Some(object_type) = object_type {
-                  command.arg(object_type);
-              }
-              command.output().expect("run CLI query")
-          }
-          '''
-          marker = '\nfn spawn_http_server('
-          if 'fn run_cli_query(' not in text:
-              text = text.replace(marker, helper + marker, 1)
-          test_path.write_text(text)
-
-          roadmap_path = Path('docs/roadmap/RELEASE_0_5_0_ROADMAP.md')
-          roadmap = roadmap_path.read_text()
-          roadmap = roadmap.replace('- [ ] basic query responseを整理', '- [x] basic query responseをversioned contractへ統一')
-          roadmap = roadmap.replace('- [ ] basic query\n', '- [x] basic query\n')
-          anchor = 'Object retrieval contract version `1`は次の状態を固定します。'
-          addition = '''Basic query contract version `1`は`success`／`empty`／`invalid-request`／`failed`を固定し、返却順序を`canonicalId-ascending`として明示します。\n\n'''
-          if addition not in roadmap:
-              roadmap = roadmap.replace(anchor, addition + anchor)
-          roadmap_path.write_text(roadmap)
-          PY
-          cargo fmt --all
-          git fetch origin main:refs/remotes/origin/main
-          git show origin/main:.github/workflows/ci.yml > .github/workflows/ci.yml
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add packages/relay/tests/publish_process_contract.rs docs/roadmap/RELEASE_0_5_0_ROADMAP.md .github/workflows/ci.yml
-          git commit -m "test: cover basic query process contract"
-          git push origin "HEAD:${TARGET_BRANCH}"
-
   rust:
     name: Rust checks
     runs-on: ubuntu-latest

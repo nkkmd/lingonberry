@@ -1,10 +1,14 @@
 mod existing_v0_5 {
     include!("main_v0_5_classified.rs");
-    pub fn run_main() { main(); }
+    pub fn run_main() {
+        main();
+    }
 }
 
 use lingonberry_core::{build_runtime_storage_backend, runtime_state_dir};
-use lingonberry_indexer::{index_rebuild_result_json, persist_index_checkpoint, rebuild_index, IndexConsistencyStatus};
+use lingonberry_indexer::{
+    index_rebuild_result_json, persist_index_checkpoint, rebuild_index, IndexConsistencyStatus,
+};
 use lingonberry_protocol::to_canonical_json;
 
 fn main() {

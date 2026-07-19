@@ -1,4 +1,4 @@
-use crate::{IndexRebuildResult, IndexConsistencyStatus, INDEX_LIFECYCLE_CONTRACT_VERSION};
+use crate::{IndexConsistencyStatus, IndexRebuildResult, INDEX_LIFECYCLE_CONTRACT_VERSION};
 use lingonberry_protocol::{parse_json, to_canonical_json, JsonValue};
 use std::collections::BTreeMap;
 use std::fs;
@@ -40,9 +40,8 @@ pub fn persist_index_checkpoint(
         })?;
     }
     let temporary = temporary_path(path);
-    fs::write(&temporary, to_canonical_json(&checkpoint_json(&checkpoint))).map_err(|error| {
-        format!("LB_INDEX_CHECKPOINT_IO: failed to write checkpoint: {error}")
-    })?;
+    fs::write(&temporary, to_canonical_json(&checkpoint_json(&checkpoint)))
+        .map_err(|error| format!("LB_INDEX_CHECKPOINT_IO: failed to write checkpoint: {error}"))?;
     fs::rename(&temporary, path).map_err(|error| {
         fs::remove_file(&temporary).ok();
         format!("LB_INDEX_CHECKPOINT_IO: failed to commit checkpoint: {error}")
@@ -61,8 +60,8 @@ pub fn load_index_checkpoint(path: impl AsRef<Path>) -> Result<Option<IndexCheck
             ))
         }
     };
-    let value = parse_json(&raw)
-        .map_err(|error| format!("LB_INDEX_CHECKPOINT_CORRUPT: {error}"))?;
+    let value =
+        parse_json(&raw).map_err(|error| format!("LB_INDEX_CHECKPOINT_CORRUPT: {error}"))?;
     parse_checkpoint(&value).map(Some)
 }
 
@@ -88,10 +87,7 @@ fn checkpoint_json(checkpoint: &IndexCheckpoint) -> JsonValue {
             "recordCount",
             JsonValue::Number(checkpoint.record_count.to_string()),
         ),
-        (
-            "idDigest",
-            JsonValue::String(checkpoint.id_digest.clone()),
-        ),
+        ("idDigest", JsonValue::String(checkpoint.id_digest.clone())),
     ])
 }
 
@@ -129,7 +125,9 @@ fn parse_checkpoint(value: &JsonValue) -> Result<IndexCheckpoint, String> {
 fn required_string(map: &BTreeMap<String, JsonValue>, key: &str) -> Result<String, String> {
     match map.get(key) {
         Some(JsonValue::String(value)) => Ok(value.clone()),
-        _ => Err(format!("LB_INDEX_CHECKPOINT_CORRUPT: missing or invalid {key}")),
+        _ => Err(format!(
+            "LB_INDEX_CHECKPOINT_CORRUPT: missing or invalid {key}"
+        )),
     }
 }
 
@@ -138,7 +136,9 @@ fn required_usize(map: &BTreeMap<String, JsonValue>, key: &str) -> Result<usize,
         Some(JsonValue::Number(value)) => value
             .parse::<usize>()
             .map_err(|_| format!("LB_INDEX_CHECKPOINT_CORRUPT: invalid {key}")),
-        _ => Err(format!("LB_INDEX_CHECKPOINT_CORRUPT: missing or invalid {key}")),
+        _ => Err(format!(
+            "LB_INDEX_CHECKPOINT_CORRUPT: missing or invalid {key}"
+        )),
     }
 }
 

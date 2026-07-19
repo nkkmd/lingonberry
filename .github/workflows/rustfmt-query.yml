@@ -1,10 +1,10 @@
-name: Query rustfmt diagnostic
+name: Query rustfmt apply
 
 on:
   pull_request:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   rustfmt:
@@ -12,14 +12,20 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
-      - run: |
+      - name: Apply formatting and remove helper workflow
+        env:
+          TARGET_BRANCH: ${{ github.head_ref }}
+        run: |
           cargo fmt --all
-          git diff --binary > rustfmt.patch
-      - uses: actions/upload-artifact@v4
-        with:
-          name: query-rustfmt-patch
-          path: rustfmt.patch
-          if-no-files-found: error
+          git rm .github/workflows/rustfmt-query.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add packages/core/src/query_contract.rs packages/relay/src/main_v0_5_classified.rs packages/core/tests/basic_query_contract.rs packages/core/src/lib_v0_5.rs
+          git commit -m "style: format basic query contract"
+          git push origin "HEAD:${TARGET_BRANCH}"

@@ -1,0 +1,20 @@
+name: v0.5 Clippy diagnostic
+on:
+  push:
+    branches:
+      - agent/v0.5.0-release-hardening
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - name: Capture library Clippy tail
+        run: |
+          set +e
+          cargo clippy --workspace --lib -- -D warnings > clippy.log 2>&1
+          status=$?
+          tail -n 100 clippy.log
+          exit $status

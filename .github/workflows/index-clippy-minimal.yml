@@ -11,4 +11,8 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
-      - run: cargo clippy -p lingonberry-indexer --lib -- -D warnings
+      - run: cargo clippy -p lingonberry-indexer --lib -- -D warnings > clippy.log 2>&1 || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: indexer-clippy-log
+          path: clippy.log

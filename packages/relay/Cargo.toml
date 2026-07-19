@@ -5,9 +5,13 @@ edition = "2021"
 license = "Apache-2.0"
 autobins = false
 
+[lib]
+name = "lingonberry_relay"
+path = "src/lib.rs"
+
 [[bin]]
 name = "lingonberry-relay"
-path = "src/main_entry.rs"
+path = "src/main_v0_5.rs"
 
 [[bin]]
 name = "lingonberry-admin-auth-config"

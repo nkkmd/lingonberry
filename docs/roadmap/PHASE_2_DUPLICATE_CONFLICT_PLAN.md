@@ -13,12 +13,11 @@ Apply one deterministic duplicate/conflict contract to every canonical storage e
 - [x] Add a pure core classifier
 - [x] Add public contract tests
 - [x] Document identity inputs, invariants, and decision order
-- [x] Add File／SQLite backend parity tests
-- [x] Assert that duplicate and conflict do not append to the raw wire log
-- [x] Verify that conflict preserves the existing canonical object
-- [x] Add live retry parity tests for both backends
-- [x] Add repeated archive import duplicate tests for both backends
-- [x] Add archive import conflict-preservation tests for both backends
+- [x] Add file/SQLite backend parity tests
+- [x] Verify duplicate and conflict paths do not append to the raw wire log
+- [x] Add archive import duplicate/conflict parity tests
+- [x] Add live retry parity tests
+- [x] Route the v0.5 live ingestion path through a classified storage adapter
 
 ## Remaining
 
@@ -34,4 +33,4 @@ Apply one deterministic duplicate/conflict contract to every canonical storage e
 - Exact duplicate remains idempotent success.
 - Cross-identity aliasing is always conflict, even when canonical content matches.
 - Corruption and I/O errors remain failures and are not collapsed into classification results.
-- Retry and archive import must converge on the same duplicate/conflict result as live publish.
+- CLI and HTTP live ingestion classify before backend-specific append logic.

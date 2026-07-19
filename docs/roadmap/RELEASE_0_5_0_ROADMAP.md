@@ -167,7 +167,7 @@ Object retrieval contract version `1`は次の状態を固定します。
 - [x] defer／quarantine
 - [x] validation reject
 - [x] partial index updateからのcatch-up
-- [ ] ambiguous stateを成功扱いしないことの確認
+- [x] ambiguous stateを成功扱いしないことの確認
 
 ## Phase 6: Release hardening
 

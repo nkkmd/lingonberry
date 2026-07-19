@@ -33,7 +33,10 @@ pub struct BasicQueryResult {
     pub records: Vec<StoredCatalogRecord>,
 }
 
-/// Executes the basic storage-backed query and returns records ordered by canonical ID.
+/// Executes the basic storage-backed query.
+///
+/// Results are normalized to canonical ID ascending order so the public
+/// contract does not depend on File or SQLite backend iteration order.
 pub fn execute_basic_query(
     object_type: Option<&str>,
     backend: &impl StorageBackend,

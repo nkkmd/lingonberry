@@ -1,36 +1,39 @@
-# v0.5.0 Phase 2: Duplicate and Conflict Plan
+# Phase 2 Duplicate / Conflict Plan
 
-**Status: in progress** | **Parent: #76**
+## 目的
 
-## Goal
+canonical ID、carrier identity、canonical contentの3軸でduplicate／conflictを決定論的に分類し、すべてのstorage entry pathで同じ安全境界を適用する。
 
-Apply one deterministic duplicate/conflict contract to every canonical storage entry path.
+## 完了済み
 
-## Completed
+- contract version `1`
+- pure duplicate／conflict classifier
+- live CLI／HTTP ingestionへのclassified append適用
+- File／SQLite backend parity tests
+- retry／archive import parity tests
+- quarantine promotion classified API
+- quarantine promotion File／SQLite parity tests
+- active `quarantine-promote` CLI entrypointのclassified API接続
+- duplicate／conflict時のraw log非増加
+- conflict後のcanonical object／identity binding不変性
 
-- [x] Define contract version `1`
-- [x] Define `new`, `exact duplicate`, `canonical ID conflict`, `carrier identity conflict`, and `cross-identity conflict`
-- [x] Add a pure core classifier
-- [x] Add public contract tests
-- [x] Document identity inputs, invariants, and decision order
-- [x] Add file/SQLite backend parity tests
-- [x] Verify duplicate and conflict paths do not append to the raw wire log
-- [x] Add archive import duplicate/conflict parity tests
-- [x] Add live retry parity tests
-- [x] Route the v0.5 live ingestion path through a classified storage adapter
+## 現在の作業
 
-## Remaining
+- batch quarantine promotionをclassified promotionへ統合
+- replay-derived restoreをclassified appendへ接続
+- archive importがclassified appendを通ることを明示
 
-- [ ] Replace file backend handwritten classification with the core classifier
-- [ ] Replace SQLite backend handwritten classification with the core classifier
-- [ ] Apply the classifier explicitly to replay-derived restore
-- [ ] Add quarantine promotion parity tests
-- [ ] Update `RELEASE_0_5_0_ROADMAP.md`
+## 後続作業
 
-## Safety gates
+- File backend内部の防御的な手書き判定を共通classifierへ置換
+- SQLite backend内部の防御的な手書き判定を共通classifierへ置換
+- release roadmapを同期
 
-- No conflict path may mutate canonical storage or raw wire log.
-- Exact duplicate remains idempotent success.
-- Cross-identity aliasing is always conflict, even when canonical content matches.
-- Corruption and I/O errors remain failures and are not collapsed into classification results.
-- CLI and HTTP live ingestion classify before backend-specific append logic.
+## 安全境界
+
+- exact duplicateはidempotent success
+- conflictではcanonical storageとraw wire logを変更しない
+- canonical IDとcarrier identityを別の対応へ再束縛しない
+- conflictしたquarantine recordをpromotedとして解決しない
+- I/O errorやcorruptionをduplicate／conflictへ縮退させない
+- File／SQLiteで同じ外部結果へ収束する

@@ -103,10 +103,7 @@ pub fn index_rebuild_result_json(result: &IndexRebuildResult) -> JsonValue {
 }
 
 fn verify_snapshot(storage_ids: BTreeSet<String>, snapshot: IndexSnapshot) -> IndexRebuildResult {
-    let index_ids = snapshot
-        .canonical_ids()
-        .into_iter()
-        .collect::<BTreeSet<_>>();
+    let index_ids = snapshot.records.keys().cloned().collect::<BTreeSet<_>>();
     let missing_from_index = storage_ids
         .difference(&index_ids)
         .cloned()

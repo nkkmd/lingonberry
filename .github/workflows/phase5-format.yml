@@ -1,0 +1,18 @@
+name: Phase 5 formatting
+on: pull_request
+permissions:
+  contents: write
+jobs:
+  format:
+    if: github.head_ref == 'agent/v0.5.0-phase5-restart-smoke'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/v0.5.0-phase5-restart-smoke
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - run: cargo fmt --all
+      - run: rm .github/workflows/phase5-format.yml
+      - run: git config user.name bot && git config user.email bot@example.com && git add -A && git commit -m format && git push

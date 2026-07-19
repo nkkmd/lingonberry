@@ -7,9 +7,9 @@ mod existing_v0_5 {
 }
 
 use lingonberry_core::{
-    build_runtime_storage_backend, import_archive_classified,
-    promote_quarantine_batch_classified, promote_quarantine_record_classified,
-    ArchiveImportReport, QuarantineBatchReport, QuarantinePromotionOutcome,
+    build_runtime_storage_backend, import_archive_classified, promote_quarantine_batch_classified,
+    promote_quarantine_record_classified, ArchiveImportReport, QuarantineBatchReport,
+    QuarantinePromotionOutcome,
 };
 use lingonberry_protocol::{to_canonical_json, JsonValue};
 use std::env;
@@ -59,8 +59,8 @@ fn handle_import_archive(args: &[String]) -> Result<(), String> {
         .get(1)
         .ok_or_else(|| "usage: lingonberry import-archive <archive-dir>".to_string())?;
     let backend = build_runtime_storage_backend();
-    let report = import_archive_classified(&backend, archive_dir)
-        .map_err(|error| error.to_string())?;
+    let report =
+        import_archive_classified(&backend, archive_dir).map_err(|error| error.to_string())?;
     println!("{}", to_canonical_json(&archive_import_report_json(report)));
     Ok(())
 }

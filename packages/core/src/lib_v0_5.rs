@@ -2,11 +2,13 @@ include!("lib_entry.rs");
 #[path = "ingestion_classified.rs"]
 #[rustfmt::skip]
 pub mod ingestion;
+pub mod archive_import_classified;
 pub mod classified_append;
 pub mod duplicate_conflict;
 pub mod quarantine_batch_classified;
 pub mod quarantine_promotion_classified;
 
+pub use archive_import_classified::import_archive_classified;
 pub use classified_append::append_publish_request_classified;
 pub use duplicate_conflict::{
     classify_duplicate_or_conflict, DuplicateConflictClassification, ExistingObjectIdentity,

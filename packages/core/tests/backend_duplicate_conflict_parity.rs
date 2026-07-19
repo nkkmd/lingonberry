@@ -8,10 +8,9 @@ use std::time::{SystemTime, UNIX_EPOCH};
 #[test]
 fn file_and_sqlite_backends_share_duplicate_conflict_semantics() {
     let workspace = workspace_root();
-    let minimal = fs::read_to_string(
-        workspace.join("fixtures/http-publish-request/minimal-request.json"),
-    )
-    .expect("read minimal request");
+    let minimal =
+        fs::read_to_string(workspace.join("fixtures/http-publish-request/minimal-request.json"))
+            .expect("read minimal request");
     let conflict = fs::read_to_string(
         workspace.join("fixtures/http-publish-request/with-identity-claim.json"),
     )

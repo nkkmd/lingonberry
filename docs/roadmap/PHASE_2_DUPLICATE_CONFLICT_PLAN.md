@@ -43,11 +43,11 @@ Canonical ID and carrier identity rebinding is prohibited, even when canonical c
 - [x] Route archive import explicitly through classified append
 - [x] Route active `import-archive` CLI through classified import
 - [x] Confirm `StorageBackend::replay()` is read-only and no replay-derived restore write path currently exists
+- [x] Replace File backend handwritten classification with the shared classifier
+- [x] Replace SQLite backend handwritten classification with the shared classifier
 
 ## Remaining
 
-- [ ] Replace File backend handwritten classification with the shared classifier
-- [ ] Replace SQLite backend handwritten classification with the shared classifier
 - [ ] Synchronize `RELEASE_0_5_0_ROADMAP.md`
 
 ## Replay scope

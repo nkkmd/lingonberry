@@ -104,24 +104,49 @@ impl SqliteStorageBackend {
 
 impl StorageBackend for SqliteStorageBackend {
     fn append_publish_request(
-        &self,
-        request_json: &str,
-        finalized: &FinalizedKnowledgeObject,
-    ) -> Result<AppendOutcome, StoreError> {
-        ensure_parent(&self.paths.raw_log_path)?;
-        let carrier_identity = carrier_identity_for_request(request_json)?;
-        let db = self.open_db()?;
-        if let Some(existing) = db.get_object_by_carrier_identity(&carrier_identity)? {
-            let existing_json = to_canonical_json(&existing.object);
-            if existing_json != finalized.canonical_json {
-                return Err(StoreError {
-                    code: "LB_OBJECT_CONFLICT",
-                    message: format!(
-                        "carrier identity already exists with different content: {}",
-                        existing.carrier_identity
-                    ),
-                });
-            }
+    &self,
+    request_json: &str,
+    finalized: &FinalizedKnowledgeObject,
+) -> Result<AppendOutcome, StoreError> {
+    ensure_parent(&self.paths.raw_log_path)?;
+    let carrier_identity = carrier_identity_for_request(request_json)?;
+    let db = self.open_db()?;
+    let existing_by_carrier_identity =
+        db.get_object_by_carrier_identity(&carrier_identity)?;
+    let existing_by_canonical_id = db.get_object(&finalized.canonical_id)?;
+    let classification = crate::classify_duplicate_or_conflict(
+        existing_by_canonical_id
+            .as_ref()
+            .map(|existing| crate::ExistingObjectIdentity {
+                canonical_id: &existing.canonical_id,
+                carrier_identity: &existing.carrier_identity,
+                object: &existing.object,
+            }),
+        existing_by_carrier_identity
+            .as_ref()
+            .map(|existing| crate::ExistingObjectIdentity {
+                canonical_id: &existing.canonical_id,
+                carrier_identity: &existing.carrier_identity,
+                object: &existing.object,
+            }),
+        crate::IncomingObjectIdentity {
+            canonical_id: &finalized.canonical_id,
+            carrier_identity: &carrier_identity,
+            canonical_json: &finalized.canonical_json,
+        },
+    );
+
+    match classification {
+        crate::DuplicateConflictClassification::New => {}
+        crate::DuplicateConflictClassification::ExactDuplicate => {
+            let existing = existing_by_carrier_identity
+                .or(existing_by_canonical_id)
+                .ok_or_else(|| {
+                    store_error(
+                        "LB_OBJECT_CONFLICT",
+                        "duplicate classification missing existing record",
+                    )
+                })?;
             return Ok(AppendOutcome {
                 stored_at: Some(existing.stored_at),
                 canonical_id: existing.canonical_id,
@@ -130,56 +155,48 @@ impl StorageBackend for SqliteStorageBackend {
                 duplicate: true,
             });
         }
-        if let Some(existing) = db.get_object(&finalized.canonical_id)? {
-            let existing_json = to_canonical_json(&existing.object);
-            if existing_json != finalized.canonical_json {
-                return Err(StoreError {
-                    code: "LB_OBJECT_CONFLICT",
-                    message: format!(
-                        "object already exists with different content: {}",
-                        finalized.canonical_id
-                    ),
-                });
-            }
-            return Ok(AppendOutcome {
-                stored_at: Some(existing.stored_at),
-                canonical_id: finalized.canonical_id.clone(),
-                carrier_identity: carrier_identity.clone(),
-                object: existing.object,
-                duplicate: true,
-            });
+        conflict => {
+            return Err(store_error(
+                conflict.code(),
+                format!(
+                    "duplicate/conflict contract {} classified write as {:?}",
+                    crate::DUPLICATE_CONFLICT_CONTRACT_VERSION,
+                    conflict
+                ),
+            ));
         }
-
-        let stored_at = now_utc_rfc3339();
-        append_line(
-            &self.paths.raw_log_path,
-            &to_canonical_json(&json_object(vec![
-                ("storedAt", JsonValue::String(stored_at.clone())),
-                (
-                    "canonicalId",
-                    JsonValue::String(finalized.canonical_id.clone()),
-                ),
-                (
-                    "carrierIdentity",
-                    JsonValue::String(carrier_identity.clone()),
-                ),
-                ("requestJson", JsonValue::String(request_json.to_string())),
-            ])),
-        )?;
-        db.insert_object(
-            &finalized.canonical_id,
-            &carrier_identity,
-            &stored_at,
-            &finalized.object,
-        )?;
-        Ok(AppendOutcome {
-            stored_at: Some(stored_at),
-            canonical_id: finalized.canonical_id.clone(),
-            carrier_identity,
-            object: finalized.object.clone(),
-            duplicate: false,
-        })
     }
+
+    let stored_at = now_utc_rfc3339();
+    append_line(
+        &self.paths.raw_log_path,
+        &to_canonical_json(&json_object(vec![
+            ("storedAt", JsonValue::String(stored_at.clone())),
+            (
+                "canonicalId",
+                JsonValue::String(finalized.canonical_id.clone()),
+            ),
+            (
+                "carrierIdentity",
+                JsonValue::String(carrier_identity.clone()),
+            ),
+            ("requestJson", JsonValue::String(request_json.to_string())),
+        ])),
+    )?;
+    db.insert_object(
+        &finalized.canonical_id,
+        &carrier_identity,
+        &stored_at,
+        &finalized.object,
+    )?;
+    Ok(AppendOutcome {
+        stored_at: Some(stored_at),
+        canonical_id: finalized.canonical_id.clone(),
+        carrier_identity,
+        object: finalized.object.clone(),
+        duplicate: false,
+    })
+}
 
     fn get(&self, canonical_id: &str) -> Result<Option<StoredCatalogRecord>, StoreError> {
         self.open_db()?.get_object(canonical_id)

@@ -15,14 +15,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt
-      - name: Capture rustfmt patch
+      - name: Capture publish process test output
         run: |
-          cargo fmt --all
-          git diff --binary > rustfmt.patch
+          set +e
+          cargo test -p lingonberry-relay --test publish_process_contract -- --nocapture > publish-process-test.log 2>&1
+          echo $? > publish-process-test.exit
+          exit 0
       - uses: actions/upload-artifact@v4
         with:
-          name: rustfmt-patch
-          path: rustfmt.patch
+          name: publish-process-test
+          path: |
+            publish-process-test.log
+            publish-process-test.exit
           if-no-files-found: error

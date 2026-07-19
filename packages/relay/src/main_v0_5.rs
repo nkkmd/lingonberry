@@ -53,7 +53,10 @@ fn handle_publish(args: &[String]) -> Result<(), String> {
     let quarantine = QuarantineStore::new(runtime_state_dir());
     let policy = AcceptancePolicy::from_env()?;
     let result = ingest_publish_request(&request_json, &backend, &quarantine, &policy);
-    println!("{}", to_canonical_json(&publish_ingestion_result_json(&result)));
+    println!(
+        "{}",
+        to_canonical_json(&publish_ingestion_result_json(&result))
+    );
     match ingestion_cli_error(&result) {
         Some(error) => Err(error),
         None => Ok(()),

@@ -40,14 +40,19 @@ Canonical ID and carrier identity rebinding is prohibited, even when canonical c
 - [x] Route active `quarantine-promote` CLI through classified promotion
 - [x] Route active `quarantine-promote-batch` CLI through classified promotion
 - [x] Preserve legacy dry-run batch behavior
+- [x] Route archive import explicitly through classified append
+- [x] Route active `import-archive` CLI through classified import
+- [x] Confirm `StorageBackend::replay()` is read-only and no replay-derived restore write path currently exists
 
 ## Remaining
 
-- [ ] Route archive import explicitly through classified append
-- [ ] Define and connect replay-derived restore, if a mutating restore path exists
 - [ ] Replace File backend handwritten classification with the shared classifier
 - [ ] Replace SQLite backend handwritten classification with the shared classifier
 - [ ] Synchronize `RELEASE_0_5_0_ROADMAP.md`
+
+## Replay scope
+
+The current `replay()` contract only reconstructs and returns stored records. It does not append records to canonical storage. Therefore no duplicate/conflict classification is required for replay itself. Any future mutating restore command built from replay data must call classified append.
 
 ## Safety boundaries
 

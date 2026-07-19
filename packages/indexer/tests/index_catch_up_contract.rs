@@ -5,8 +5,14 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 #[test]
 fn catch_up_rebuilds_then_reports_up_to_date_and_fails_closed() {
-    let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
-    let state = std::env::temp_dir().join(format!("lingonberry-catch-up-{}-{nonce}", std::process::id()));
+    let nonce = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let state = std::env::temp_dir().join(format!(
+        "lingonberry-catch-up-{}-{nonce}",
+        std::process::id()
+    ));
     let backend = FileStorageBackend::new(state.join("storage"));
     let checkpoint = state.join("index/checkpoint.json");
 

@@ -33,6 +33,7 @@ pub struct BasicQueryResult {
     pub records: Vec<StoredCatalogRecord>,
 }
 
+/// Executes the basic storage-backed query and returns records ordered by canonical ID.
 pub fn execute_basic_query(
     object_type: Option<&str>,
     backend: &impl StorageBackend,

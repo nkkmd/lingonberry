@@ -32,10 +32,7 @@ pub struct ObjectRetrievalResult {
     pub record: Option<StoredCatalogRecord>,
 }
 
-pub fn retrieve_object(
-    canonical_id: &str,
-    backend: &impl StorageBackend,
-) -> ObjectRetrievalResult {
+pub fn retrieve_object(canonical_id: &str, backend: &impl StorageBackend) -> ObjectRetrievalResult {
     if canonical_id.trim().is_empty() {
         return ObjectRetrievalResult {
             contract_version: OBJECT_RETRIEVAL_CONTRACT_VERSION,
@@ -87,7 +84,10 @@ pub fn object_retrieval_result_json(result: &ObjectRetrievalResult) -> JsonValue
 
     if let Some(record) = &result.record {
         entries.extend([
-            ("canonicalId", JsonValue::String(record.canonical_id.clone())),
+            (
+                "canonicalId",
+                JsonValue::String(record.canonical_id.clone()),
+            ),
             (
                 "identityKey",
                 JsonValue::String(derive_identity_key(&record.object)),

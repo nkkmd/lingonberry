@@ -46,15 +46,15 @@ publish
 
 ## 3. 現在の主要gap
 
-### 3.1 Publish orchestrationの重複
+### 3.1 Publish orchestration
 
-validation、acceptance decision、quarantine append、finalization、storage append、duplicate／conflict responseの組み立てがrelay層へ集中しています。
+Phase 1で、validation、acceptance decision、quarantine append、finalization、storage append、duplicate／conflict分類を`packages/core`の共通orchestratorへ統合しました。
 
-CLIとHTTP、将来のcarrier adapterが同じ処理を共有できる共通orchestratorが必要です。
+CLIとHTTPは同じversioned result contractとrelay adapterを使用します。
 
-### 3.2 Result contractが未固定
+### 3.2 Result contract
 
-次の状態をmachine-readableに統一します。
+Phase 1で次の状態をmachine-readableに固定しました。
 
 - stored
 - duplicate
@@ -62,7 +62,8 @@ CLIとHTTP、将来のcarrier adapterが同じ処理を共有できる共通orch
 - rejected
 - conflict
 - failed
-- stored-but-index-pending
+
+`stored-but-index-pending`はPhase 4のdurable index lifecycleで追加します。
 
 ### 3.3 Index lifecycleが未統合
 
@@ -76,16 +77,16 @@ canonical storageを正本とし、index update、partial failure、catch-up、r
 
 ## Phase 1: Ingestion result contractと共通orchestrator
 
-Status: **in progress**
+Status: **completed**
 
 - [x] `packages/core`にversioned publish ingestion result型を追加
 - [x] `stored`／`duplicate`／`deferred`／`rejected`／`conflict`／`failed`を型として固定
 - [x] validation、acceptance、quarantine、finalization、storage appendを共通orchestratorへ統合
 - [x] stable machine codeとhuman-readable errorsを分離
 - [x] conflictを既存recordの上書きなしで共通resultへ変換
-- [ ] relay CLI publishを共通orchestratorへ移行
-- [ ] relay HTTP publishを共通orchestratorへ移行
-- [ ] CLI／HTTP contract testを追加
+- [x] relay CLI publishを共通orchestratorへ移行
+- [x] relay HTTP publishを共通orchestratorへ移行
+- [x] CLI／HTTP process-level contract testを追加
 
 初期contract versionは`1`です。
 
@@ -99,6 +100,8 @@ Status: **in progress**
 | conflict | `LB_OBJECT_CONFLICT` |
 | storage／quarantine failure | 元のstable `LB_*` codeを保持 |
 
+process-level contract testは、実binaryと実TCP HTTP serverを起動し、署名検証を含めてstored、duplicate、deferred、rejected、conflictを確認します。
+
 ## Phase 2: Duplicate／conflict規則の固定
 
 - [ ] canonical ID、carrier identity、canonical contentの比較規則を文書化
@@ -110,11 +113,11 @@ Status: **in progress**
 
 ## Phase 3: Public read／write API
 
-- [ ] publish responseをversioned contractへ統一
+- [x] publish responseをversioned contractへ統一
 - [ ] ID取得responseをversioned contractへ統一
 - [ ] basic query responseを整理
-- [ ] HTTP statusとmachine codeのmappingを固定
-- [ ] CLI exit codeとmachine codeのmappingを固定
+- [x] HTTP statusとmachine codeのmappingを固定
+- [x] CLI exit codeとmachine codeのmappingを固定
 
 ## Phase 4: Durable index lifecycle
 
@@ -128,17 +131,17 @@ Status: **in progress**
 
 ## Phase 5: End-to-end smoke scenario
 
-- [ ] fresh stateでpublish
-- [ ] canonical storage確認
+- [x] fresh stateでpublish
+- [x] canonical storage確認
 - [ ] ID取得
 - [ ] basic query
 - [ ] process restart
 - [ ] restart後のID取得／query
 - [ ] index consistency verification
-- [ ] duplicate publish
-- [ ] conflict publish
-- [ ] defer／quarantine
-- [ ] validation reject
+- [x] duplicate publish
+- [x] conflict publish
+- [x] defer／quarantine
+- [x] validation reject
 - [ ] partial index updateからのcatch-up
 - [ ] ambiguous stateを成功扱いしないことの確認
 
@@ -209,4 +212,4 @@ publish
 ## 9. 関連Issue
 
 - #76: v0.5.0 parent tracking issue
-- #77: ingestion result contract and common orchestrator
+- #77: ingestion result contract and common orchestrator（completed）

@@ -1,10 +1,20 @@
 # Operations
 
-**Status: active** | **Latest published release: v0.3.0** | **Release candidate: v0.4.0** | **Last updated: 2026-07-17**
+**Status: active** | **Latest published release: v0.4.0** | **Release candidate: v0.5.0** | **Last updated: 2026-07-19**
 
 このディレクトリには、Lingonberryの技術決定、運用契約、operator runbook、機械可読なfailure／crash inventoryを置きます。
 
-作業再開時は、[現在の実装状況](../roadmap/CURRENT_IMPLEMENTATION_STATUS.md)、[v0.4.0 Release Checklist](../roadmap/RELEASE_0_4_0_CHECKLIST.md)、[v0.4.0 Release Notes](../roadmap/RELEASE_0_4_0_RELEASE_NOTE.md)を最初に確認してください。
+作業再開時は、[現在の実装状況](../roadmap/CURRENT_IMPLEMENTATION_STATUS.md)、[v0.5.0 Release Checklist](../roadmap/RELEASE_0_5_0_CHECKLIST.md)、[v0.5.0 Release Notes](../roadmap/RELEASE_0_5_0_RELEASE_NOTE.md)を最初に確認してください。
+
+## v0.5.0 normal object lifecycle
+
+- [v0.5.0 Release Roadmap](../roadmap/RELEASE_0_5_0_ROADMAP.md)
+- [v0.5.0 Release Checklist](../roadmap/RELEASE_0_5_0_CHECKLIST.md)
+- [v0.5.0 Release Notes](../roadmap/RELEASE_0_5_0_RELEASE_NOTE.md)
+- [Index Lifecycle Contract](../../packages/indexer/INDEX_LIFECYCLE.md)
+- [Index Catch-up Contract](../../packages/indexer/INDEX_CATCH_UP.md)
+
+v0.5.0ではcanonical storageを正本とし、indexをdeterministicに検証・再構築可能な派生状態として扱います。corrupt、unsupported、partial、stale、ambiguous stateはfail closedで扱い、inconsistent resultからcheckpointを更新しません。
 
 ## v0.4.0 verified cleanup
 
@@ -87,6 +97,7 @@ Canonical sequence: backup v2 verification → replacement preview/proof verific
 - [Systemd Unit Templates](./SYSTEMD_UNIT_TEMPLATES.md)
 - [Migration and Schema Versioning](./MIGRATION_AND_SCHEMA_VERSIONING.md)
 - [Legacy Admin Token Deprecation](../roadmap/RBAC_LEGACY_TOKEN_DEPRECATION.md)
+- [v0.5.0 Release Notes](../roadmap/RELEASE_0_5_0_RELEASE_NOTE.md)
 - [v0.4.0 Release Notes](../roadmap/RELEASE_0_4_0_RELEASE_NOTE.md)
 - [v0.3.0 Release Notes](../roadmap/RELEASE_0_3_0_RELEASE_NOTE.md)
 - [v0.2.0 Release Notes](../roadmap/RELEASE_0_2_0_RELEASE_NOTE.md)

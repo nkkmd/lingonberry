@@ -15,7 +15,10 @@ fn publish_restart_query_and_consistency_smoke_succeeds() {
     fs::create_dir_all(&state_dir).expect("create state directory");
     let fixture = workspace_root().join("fixtures/http-publish-request/minimal-request.json");
 
-    let publish = run_cli(&state_dir, &["publish", fixture.to_str().expect("fixture path")]);
+    let publish = run_cli(
+        &state_dir,
+        &["publish", fixture.to_str().expect("fixture path")],
+    );
     assert_success(&publish);
     let canonical_id = response_string(&publish, "canonicalId");
 
@@ -35,9 +38,18 @@ fn publish_restart_query_and_consistency_smoke_succeeds() {
     let mut restarted_server = spawn_http_server(&state_dir, second_port);
     wait_until_ready(second_port);
     let restarted_get = http_get(second_port, &canonical_id);
-    assert!(restarted_get.starts_with("HTTP/1.1 200 "), "{restarted_get}");
-    assert!(restarted_get.contains("\"status\":\"found\""), "{restarted_get}");
-    assert!(restarted_get.contains("\"code\":\"LB_OBJECT_FOUND\""), "{restarted_get}");
+    assert!(
+        restarted_get.starts_with("HTTP/1.1 200 "),
+        "{restarted_get}"
+    );
+    assert!(
+        restarted_get.contains("\"status\":\"found\""),
+        "{restarted_get}"
+    );
+    assert!(
+        restarted_get.contains("\"code\":\"LB_OBJECT_FOUND\""),
+        "{restarted_get}"
+    );
     restarted_server.kill().ok();
     restarted_server.wait().ok();
 
@@ -118,7 +130,10 @@ fn assert_success(output: &Output) {
 fn assert_contract(output: &Output, status: &str, code: &str) {
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(stdout.contains("\"contractVersion\":\"1\""), "{stdout}");
-    assert!(stdout.contains(&format!("\"status\":\"{status}\"")), "{stdout}");
+    assert!(
+        stdout.contains(&format!("\"status\":\"{status}\"")),
+        "{stdout}"
+    );
     assert!(stdout.contains(&format!("\"code\":\"{code}\"")), "{stdout}");
 }
 

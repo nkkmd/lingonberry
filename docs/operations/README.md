@@ -1,6 +1,6 @@
 # Operations
 
-**Status: active** | **Latest published release: v0.4.0** | **Release candidate: v0.5.0** | **Last updated: 2026-07-19**
+**Status: active** | **Latest published release: v0.5.0** | **Next release target: v0.6.0** | **Last updated: 2026-07-19**
 
 このディレクトリには、Lingonberryの技術決定、運用契約、operator runbook、機械可読なfailure／crash inventoryを置きます。
 
@@ -14,7 +14,10 @@
 - [Index Lifecycle Contract](../../packages/indexer/INDEX_LIFECYCLE.md)
 - [Index Catch-up Contract](../../packages/indexer/INDEX_CATCH_UP.md)
 
-v0.5.0ではcanonical storageを正本とし、indexをdeterministicに検証・再構築可能な派生状態として扱います。corrupt、unsupported、partial、stale、ambiguous stateはfail closedで扱い、inconsistent resultからcheckpointを更新しません。
+v0.5.0は2026-07-19に公開されました。canonical storageを正本とし、indexをdeterministicに検証・再構築可能な派生状態として扱います。corrupt、unsupported、partial、stale、ambiguous stateはfail closedで扱い、inconsistent resultからcheckpointを更新しません。
+
+- Tag: `v0.5.0`
+- Release target commit: `bf8176da0d992152fb116ca0c45177904d1aa61c`
 
 ## v0.4.0 verified cleanup
 

@@ -48,7 +48,10 @@ fn run_catch_up_index(args: &[String]) {
     let backend = build_runtime_storage_backend();
     let path = runtime_state_dir().join("index/checkpoint.json");
     let result = catch_up_index(&backend, path);
-    println!("{}", to_canonical_json(&index_catch_up_result_json(&result)));
+    println!(
+        "{}",
+        to_canonical_json(&index_catch_up_result_json(&result))
+    );
     if result.status == IndexCatchUpStatus::Failed {
         eprintln!("{}: {}", result.code, result.message);
         std::process::exit(70);

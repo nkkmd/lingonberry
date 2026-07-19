@@ -20,22 +20,12 @@ fn catch_up_index_rebuilds_stale_state_and_rejects_corruption() {
     assert_contract(&rebuilt, true, "rebuilt", "LB_INDEX_REBUILT");
 
     let up_to_date = run_cli(&state_dir, &["catch-up-index"]);
-    assert_contract(
-        &up_to_date,
-        true,
-        "up-to-date",
-        "LB_INDEX_UP_TO_DATE",
-    );
+    assert_contract(&up_to_date, true, "up-to-date", "LB_INDEX_UP_TO_DATE");
 
     let checkpoint = state_dir.join("index/checkpoint.json");
     fs::write(&checkpoint, "{not-json").expect("corrupt checkpoint");
     let failed = run_cli(&state_dir, &["catch-up-index"]);
-    assert_contract(
-        &failed,
-        false,
-        "failed",
-        "LB_INDEX_CHECKPOINT_CORRUPT",
-    );
+    assert_contract(&failed, false, "failed", "LB_INDEX_CHECKPOINT_CORRUPT");
     assert_eq!(
         fs::read_to_string(&checkpoint).expect("read checkpoint"),
         "{not-json"
@@ -63,9 +53,16 @@ fn assert_success(output: &Output) {
 fn assert_contract(output: &Output, success: bool, status: &str, code: &str) {
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
-    assert_eq!(output.status.success(), success, "stdout={stdout}\nstderr={stderr}");
+    assert_eq!(
+        output.status.success(),
+        success,
+        "stdout={stdout}\nstderr={stderr}"
+    );
     assert!(stdout.contains("\"contractVersion\":\"1\""), "{stdout}");
-    assert!(stdout.contains(&format!("\"status\":\"{status}\"")), "{stdout}");
+    assert!(
+        stdout.contains(&format!("\"status\":\"{status}\"")),
+        "{stdout}"
+    );
     assert!(stdout.contains(&format!("\"code\":\"{code}\"")), "{stdout}");
 }
 

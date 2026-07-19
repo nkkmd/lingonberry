@@ -2,14 +2,14 @@
 
 ## Release candidate
 
-- [ ] All Rust workspace packages are versioned as `0.5.0`.
-- [ ] `Cargo.lock` is synchronized.
+- [x] All Rust workspace packages are versioned as `0.5.0`.
+- [x] `Cargo.lock` is synchronized.
 - [ ] Rust format, library/binary/test Clippy, and workspace tests pass.
 - [ ] JavaScript tests pass.
-- [ ] Publish, retrieval, query, restart, rebuild, catch-up, and ambiguity smoke scenarios pass.
-- [ ] `CHANGELOG.md` and release notes are synchronized.
-- [ ] `CURRENT_IMPLEMENTATION_STATUS.md` is synchronized.
-- [ ] Release roadmap is marked complete through Phase 6 candidate preparation.
+- [x] Publish, retrieval, query, restart, rebuild, catch-up, and ambiguity smoke scenarios pass.
+- [x] `CHANGELOG.md` and release notes are synchronized.
+- [x] `CURRENT_IMPLEMENTATION_STATUS.md` is synchronized.
+- [x] Release roadmap is marked complete through Phase 6 candidate preparation.
 
 ## Publication gate
 

@@ -9,13 +9,15 @@ mod existing {
 
 use lingonberry_core::{
     build_runtime_storage_backend, ingest_publish_request, publish_ingestion_result_json,
-    runtime_state_dir, QuarantineStore, StorageBackend,
+    retrieve_object, runtime_state_dir, QuarantineStore, StorageBackend,
 };
 use lingonberry_protocol::{
-    build_capability_manifest, derive_identity_key, to_canonical_json, JsonValue,
-    CARRIER_KIND_HTTP, DEFAULT_ACCESS_SCOPE, DEFAULT_RETENTION_HINT,
+    build_capability_manifest, to_canonical_json, JsonValue, CARRIER_KIND_HTTP,
+    DEFAULT_ACCESS_SCOPE, DEFAULT_RETENTION_HINT,
 };
-use lingonberry_relay::{ingestion_cli_error, ingestion_http_response};
+use lingonberry_relay::{
+    ingestion_cli_error, ingestion_http_response, retrieval_http_response,
+};
 use lingonberry_validation::AcceptancePolicy;
 use std::collections::BTreeMap;
 use std::env;
@@ -153,41 +155,9 @@ fn handle_http_get(
     canonical_id: &str,
     backend: &impl StorageBackend,
 ) -> Result<(u16, &'static str, JsonValue), String> {
-    if canonical_id.trim().is_empty() {
-        return Ok((
-            400,
-            "Bad Request",
-            http_error("LB_CANONICAL_ID_REQUIRED", "missing canonical id"),
-        ));
-    }
-    match backend
-        .get(canonical_id)
-        .map_err(|error| error.to_string())?
-    {
-        Some(record) => Ok((
-            200,
-            "OK",
-            json_object(vec![
-                ("status", JsonValue::String("ok".to_string())),
-                ("id", JsonValue::String(record.canonical_id)),
-                (
-                    "identityKey",
-                    JsonValue::String(derive_identity_key(&record.object)),
-                ),
-                ("storedAt", JsonValue::String(record.stored_at)),
-                (
-                    "carrierIdentity",
-                    JsonValue::String(record.carrier_identity),
-                ),
-                ("canonical", record.object),
-            ]),
-        )),
-        None => Ok((
-            404,
-            "Not Found",
-            http_error("LB_OBJECT_NOT_FOUND", "object not found"),
-        )),
-    }
+    let result = retrieve_object(canonical_id, backend);
+    let response = retrieval_http_response(&result);
+    Ok((response.status_code, response.status_text, response.body))
 }
 
 fn parse_http_request_line(line: &str) -> Result<(String, String), String> {

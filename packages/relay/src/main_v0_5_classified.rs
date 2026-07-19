@@ -7,7 +7,8 @@ mod existing_v0_5 {
 }
 
 use lingonberry_core::{
-    build_runtime_storage_backend, promote_quarantine_record_classified, QuarantinePromotionOutcome,
+    build_runtime_storage_backend, promote_quarantine_batch_classified,
+    promote_quarantine_record_classified, QuarantineBatchReport, QuarantinePromotionOutcome,
 };
 use lingonberry_protocol::{to_canonical_json, JsonValue};
 use std::env;
@@ -15,12 +16,16 @@ use std::process;
 
 fn main() {
     let args = env::args().skip(1).collect::<Vec<_>>();
-    if args.first().map(String::as_str) != Some("quarantine-promote") {
-        existing_v0_5::run_main();
-        return;
-    }
+    let result = match args.first().map(String::as_str) {
+        Some("quarantine-promote") => handle_quarantine_promote(&args),
+        Some("quarantine-promote-batch") => handle_quarantine_promote_batch(&args),
+        _ => {
+            existing_v0_5::run_main();
+            return;
+        }
+    };
 
-    if let Err(error) = handle_quarantine_promote(&args) {
+    if let Err(error) = result {
         eprintln!("{error}");
         process::exit(if error.starts_with("usage:") { 64 } else { 70 });
     }
@@ -35,6 +40,57 @@ fn handle_quarantine_promote(args: &[String]) -> Result<(), String> {
         .map_err(|error| error.to_string())?;
     println!("{}", to_canonical_json(&promotion_outcome_json(outcome)));
     Ok(())
+}
+
+fn handle_quarantine_promote_batch(args: &[String]) -> Result<(), String> {
+    let limit = parse_batch_limit(args.get(1).map(String::as_str))?;
+    let dry_run = args.iter().any(|arg| arg == "--dry-run");
+    let backend = build_runtime_storage_backend();
+    let report = promote_quarantine_batch_classified(limit, dry_run, &backend)
+        .map_err(|error| error.to_string())?;
+    println!("{}", to_canonical_json(&batch_report_json(report)));
+    Ok(())
+}
+
+fn parse_batch_limit(value: Option<&str>) -> Result<usize, String> {
+    match value {
+        None | Some("--dry-run") => Ok(100),
+        Some(value) => value
+            .parse::<usize>()
+            .map_err(|_| "batch limit must be a positive integer".to_string())
+            .and_then(|limit| {
+                if limit == 0 || limit > 1000 {
+                    Err("batch limit must be between 1 and 1000".to_string())
+                } else {
+                    Ok(limit)
+                }
+            }),
+    }
+}
+
+fn batch_report_json(report: QuarantineBatchReport) -> JsonValue {
+    json_object(vec![
+        ("dryRun", JsonValue::Bool(report.dry_run)),
+        ("limit", JsonValue::Number(report.limit.to_string())),
+        ("scanned", JsonValue::Number(report.scanned.to_string())),
+        ("promoted", JsonValue::Number(report.promoted.to_string())),
+        (
+            "alreadyPromoted",
+            JsonValue::Number(report.already_promoted.to_string()),
+        ),
+        ("deferred", JsonValue::Number(report.deferred.to_string())),
+        ("rejected", JsonValue::Number(report.rejected.to_string())),
+        (
+            "outcomes",
+            JsonValue::Array(
+                report
+                    .outcomes
+                    .into_iter()
+                    .map(promotion_outcome_json)
+                    .collect(),
+            ),
+        ),
+    ])
 }
 
 fn promotion_outcome_json(outcome: QuarantinePromotionOutcome) -> JsonValue {

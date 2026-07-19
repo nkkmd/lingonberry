@@ -1,3 +1,10 @@
+pub mod lifecycle;
+
+pub use lifecycle::{
+    index_rebuild_result_json, rebuild_index, verify_index, IndexConsistencyStatus,
+    IndexGeneration, IndexRebuildResult, INDEX_LIFECYCLE_CONTRACT_VERSION,
+};
+
 use lingonberry_core::{StorageBackend, StoreError, StoredCatalogRecord};
 use lingonberry_protocol::JsonValue;
 use std::collections::BTreeMap;
@@ -115,6 +122,10 @@ impl IndexSnapshot {
 
     pub fn record_count(&self) -> usize {
         self.records.len()
+    }
+
+    pub fn canonical_ids(&self) -> Vec<String> {
+        self.records.keys().cloned().collect()
     }
 
     pub fn ids_for_type(&self, object_type: &str) -> Vec<String> {

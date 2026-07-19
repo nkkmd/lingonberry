@@ -55,10 +55,7 @@ pub fn rebuild_index(backend: &impl StorageBackend) -> IndexRebuildResult {
     verify_snapshot(storage_ids, snapshot)
 }
 
-pub fn verify_index(
-    backend: &impl StorageBackend,
-    snapshot: IndexSnapshot,
-) -> IndexRebuildResult {
+pub fn verify_index(backend: &impl StorageBackend, snapshot: IndexSnapshot) -> IndexRebuildResult {
     let storage_ids = match backend.list_ids() {
         Ok(ids) => ids.into_iter().collect::<BTreeSet<_>>(),
         Err(error) => return failed_result(error),
@@ -105,13 +102,19 @@ pub fn index_rebuild_result_json(result: &IndexRebuildResult) -> JsonValue {
     ])
 }
 
-fn verify_snapshot(
-    storage_ids: BTreeSet<String>,
-    snapshot: IndexSnapshot,
-) -> IndexRebuildResult {
-    let index_ids = snapshot.canonical_ids().into_iter().collect::<BTreeSet<_>>();
-    let missing_from_index = storage_ids.difference(&index_ids).cloned().collect::<Vec<_>>();
-    let unexpected_in_index = index_ids.difference(&storage_ids).cloned().collect::<Vec<_>>();
+fn verify_snapshot(storage_ids: BTreeSet<String>, snapshot: IndexSnapshot) -> IndexRebuildResult {
+    let index_ids = snapshot
+        .canonical_ids()
+        .into_iter()
+        .collect::<BTreeSet<_>>();
+    let missing_from_index = storage_ids
+        .difference(&index_ids)
+        .cloned()
+        .collect::<Vec<_>>();
+    let unexpected_in_index = index_ids
+        .difference(&storage_ids)
+        .cloned()
+        .collect::<Vec<_>>();
     let storage = generation(&storage_ids);
     let index = generation(&index_ids);
     let consistent = missing_from_index.is_empty()
@@ -182,10 +185,7 @@ fn failed_result(error: StoreError) -> IndexRebuildResult {
 fn generation_json(generation: Option<&IndexGeneration>) -> JsonValue {
     match generation {
         Some(value) => json_object(vec![
-            (
-                "generation",
-                JsonValue::String(value.generation.clone()),
-            ),
+            ("generation", JsonValue::String(value.generation.clone())),
             (
                 "recordCount",
                 JsonValue::Number(value.record_count.to_string()),

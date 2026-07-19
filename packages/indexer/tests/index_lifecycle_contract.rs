@@ -31,8 +31,18 @@ fn assert_lifecycle_contract(backend: &impl StorageBackend, request_json: &str) 
     assert_eq!(empty.contract_version, INDEX_LIFECYCLE_CONTRACT_VERSION);
     assert_eq!(empty.status, IndexConsistencyStatus::Consistent);
     assert_eq!(empty.code, "LB_INDEX_CONSISTENT");
-    assert_eq!(empty.storage.as_ref().expect("storage generation").record_count, 0);
-    assert_eq!(empty.index.as_ref().expect("index generation").record_count, 0);
+    assert_eq!(
+        empty
+            .storage
+            .as_ref()
+            .expect("storage generation")
+            .record_count,
+        0
+    );
+    assert_eq!(
+        empty.index.as_ref().expect("index generation").record_count,
+        0
+    );
 
     let finalized = finalized_request(request_json);
     backend

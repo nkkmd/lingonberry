@@ -14,7 +14,8 @@ fn checkpoint_round_trip_and_corruption_are_fail_closed() {
     let checkpoint_path = state_dir.join("index/checkpoint.json");
 
     let result = rebuild_index(&backend);
-    let persisted = persist_index_checkpoint(&checkpoint_path, &result).expect("persist checkpoint");
+    let persisted =
+        persist_index_checkpoint(&checkpoint_path, &result).expect("persist checkpoint");
     assert_eq!(persisted.checkpoint_version, INDEX_CHECKPOINT_VERSION);
     assert_eq!(
         persisted.lifecycle_contract_version,

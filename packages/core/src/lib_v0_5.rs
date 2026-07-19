@@ -1,4 +1,5 @@
 include!("lib_entry.rs");
+#[path = "ingestion_classified.rs"]
 #[rustfmt::skip]
 pub mod ingestion;
 pub mod duplicate_conflict;

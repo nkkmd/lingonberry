@@ -126,6 +126,7 @@ jobs:
           path.write_text(text)
           PY
           cargo fmt --all
+          git fetch origin main:refs/remotes/origin/main
           git show origin/main:.github/workflows/ci.yml > .github/workflows/ci.yml
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com

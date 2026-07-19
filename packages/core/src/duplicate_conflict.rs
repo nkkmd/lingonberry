@@ -25,9 +25,7 @@ impl DuplicateConflictClassification {
     pub fn is_conflict(self) -> bool {
         matches!(
             self,
-            Self::CanonicalIdConflict
-                | Self::CarrierIdentityConflict
-                | Self::CrossIdentityConflict
+            Self::CanonicalIdConflict | Self::CarrierIdentityConflict | Self::CrossIdentityConflict
         )
     }
 }
@@ -78,8 +76,10 @@ mod tests {
     use lingonberry_protocol::parse_json;
 
     fn object(text: &str) -> JsonValue {
-        parse_json(&format!(r#"{{"id":"lb:obj:1","body":{{"text":"{text}"}}}}"#))
-            .expect("fixture parses")
+        parse_json(&format!(
+            r#"{{"id":"lb:obj:1","body":{{"text":"{text}"}}}}"#
+        ))
+        .expect("fixture parses")
     }
 
     #[test]

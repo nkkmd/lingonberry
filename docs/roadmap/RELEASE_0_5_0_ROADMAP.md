@@ -1,6 +1,6 @@
 # Lingonberry v0.5.0 Release Roadmap
 
-**Status: active** | **Target: v0.5.0** | **Last updated: 2026-07-19**
+**Status: implementation in progress** | **Target: v0.5.0** | **Last updated: 2026-07-19**
 
 ## 1. 目的
 
@@ -18,7 +18,7 @@ receive
 → retrieve／query
 ```
 
-release gateは次の自動化されたsmoke scenarioです。
+最終的には、次の一連を単一の自動化されたsmoke scenarioとして成功させます。
 
 ```text
 publish
@@ -31,179 +31,182 @@ publish
 → consistency verification
 ```
 
-## 2. 現在の実装inventory
+## 2. v0.4.0から引き継ぐ基盤
 
-### 2.1 既に存在する部品
+- canonical protocol／identity／validationのRust実装
+- SQLite canonical catalog
+- append-only raw wire log
+- canonical ID取得
+- persistent quarantine lifecycle
+- verified backup／restore
+- verified replacement／cleanup transaction
+- storage backendからのindex snapshot／rebuild
+- CLI publish／get／query系command
+- HTTP publish／get API
 
-- `packages/validation`
-  - publish request validation
-  - knowledge object validation
-  - semantic validation
-  - identity／signature validation status
-  - acceptance policyによるaccept／reject／defer分類
-- `packages/core`
-  - `StorageBackend`
-  - SQLite canonical catalog
-  - append-only raw wire log
-  - canonical ID取得
-  - subscription／replay
-  - persistent quarantine
-  - duplicate検出
-  - canonical IDまたはcarrier identity衝突時の`LB_OBJECT_CONFLICT`
-- `packages/indexer`
-  - storage replayからのindex構築
-  - relation／lineage／provenance projection
-- `packages/relay`
-  - CLI publish／get／list／subscribe／replay
-  - HTTP publish／read経路
-  - rebuild-index command
-  - quarantine operations
+## 3. 現在の主要gap
 
-### 2.2 v0.5.0で解消する構造的不足
+### 3.1 Publish orchestrationの重複
 
-1. ingestion orchestrationが`packages/relay/src/main.rs`へ集中している
-2. CLIとHTTPで結果分類・error responseが共通型として固定されていない
-3. validation errorがstableなversioned machine-readable contractになっていない
-4. duplicateはbool、conflictはstorage errorであり、lifecycle result taxonomyとして統合されていない
-5. storage commitとindex updateのpartial failure semanticsが固定されていない
-6. index rebuildは存在するがcatch-up／consistency verificationの契約が不足している
-7. restartを含む通常経路の単一E2E smoke scenarioがない
+validation、acceptance decision、quarantine append、finalization、storage append、duplicate／conflict responseの組み立てがrelay層へ集中しています。
 
-## 3. 固定する責務境界
+CLIとHTTP、将来のcarrier adapterが同じ処理を共有できる共通orchestratorが必要です。
 
-### 3.1 validationとacceptance
+### 3.2 Result contractが未固定
 
-- validation reportは入力の妥当性だけを表す
-- acceptance policyは`accept`／`reject`／`defer`を決定する
-- validation未通過objectをcanonical storageへ保存しない
-- `defer`はpersistent quarantineへ保存し、canonical storageへ保存しない
+次の状態をmachine-readableに統一します。
 
-### 3.2 canonical storageとindex
+- stored
+- duplicate
+- deferred
+- rejected
+- conflict
+- failed
+- stored-but-index-pending
 
-- canonical storageをsemantic source of truthとする
-- indexは再構築可能な派生状態とする
-- storage commit成功後のindex update失敗をpublish全体の完全成功として返さない
-- partial index stateは検出可能にし、catch-upまたはrebuildを要求する
-- corruption、I/O error、contradictory stateを黙って欠落扱いしない
+### 3.3 Index lifecycleが未統合
 
-### 3.3 duplicateとconflict
+canonical storageを正本とし、index update、partial failure、catch-up、rebuild、consistency verificationを通常publish経路へ統合する必要があります。
 
-- exact duplicateは成功したidempotent replayとして分類する
-- 同一canonical IDでcanonical contentが異なる場合はconflictとする
-- 同一carrier identityでcanonical contentが異なる場合はconflictとする
-- conflictを既存recordの上書きで解決しない
-- duplicate／conflict分類をCLI、HTTP、test fixtureで共通化する
+### 3.4 End-to-end restart scenarioが不足
+
+個別testではなく、publishからrestart後のqueryとconsistency verificationまでを単一scenarioとして保証します。
 
 ## 4. 実装工程
 
-## Phase 1: ingestion contract
+## Phase 1: Ingestion result contractと共通orchestrator
 
-- `packages/core`に通常publish経路のorchestratorを置く
-- request parse後のvalidation、acceptance、finalization、storage、quarantineを単一結果型へ統合する
-- relayはI/O adapterとしてorchestratorを呼び出す
-- CLI／HTTPで同じstatus、code、detailsを返す
+Status: **in progress**
 
-想定result分類：
+- [x] `packages/core`にversioned publish ingestion result型を追加
+- [x] `stored`／`duplicate`／`deferred`／`rejected`／`conflict`／`failed`を型として固定
+- [x] validation、acceptance、quarantine、finalization、storage appendを共通orchestratorへ統合
+- [x] stable machine codeとhuman-readable errorsを分離
+- [x] conflictを既存recordの上書きなしで共通resultへ変換
+- [ ] relay CLI publishを共通orchestratorへ移行
+- [ ] relay HTTP publishを共通orchestratorへ移行
+- [ ] CLI／HTTP contract testを追加
 
-```text
-stored
-duplicate
-deferred
-rejected
-conflict
-failed
-```
+初期contract versionは`1`です。
 
-## Phase 2: versioned error contract
+| 状態 | Machine code |
+|---|---|
+| stored | `LB_OBJECT_STORED` |
+| duplicate | `LB_OBJECT_DUPLICATE` |
+| empty request | `LB_EMPTY_REQUEST` |
+| invalid JSON | `LB_INVALID_JSON` |
+| final validation failure | `LB_VALIDATION_FAILED` |
+| conflict | `LB_OBJECT_CONFLICT` |
+| storage／quarantine failure | 元のstable `LB_*` codeを保持 |
 
-- error contract versionを導入する
-- machine-readable `code`とoperator向け`message`を分離する
-- validation detailsをboundedなstructured dataとして返す
-- protocol／schema／semantic／identity／signature／storage／index failureを分類する
-- free-form error textを識別子やmetricsの軸にしない
+## Phase 2: Duplicate／conflict規則の固定
 
-## Phase 3: index consistency
+- [ ] canonical ID、carrier identity、canonical contentの比較規則を文書化
+- [ ] exact duplicateをidempotent successとして固定
+- [ ] same ID different contentをconflictとして固定
+- [ ] same carrier identity different contentをconflictとして固定
+- [ ] retry／replay／archive importで同じ規則を適用
+- [ ] fixtureとproperty testを追加
 
-- storage inventoryとindex inventoryの比較を実装する
-- missing／extra／mismatched entryを区別する
-- storageからのdeterministic catch-upを実装する
-- full rebuildを保持する
-- verification中のcorruption／I/O errorをfail closedで扱う
+## Phase 3: Public read／write API
 
-## Phase 4: public API統合
+- [ ] publish responseをversioned contractへ統一
+- [ ] ID取得responseをversioned contractへ統一
+- [ ] basic query responseを整理
+- [ ] HTTP statusとmachine codeのmappingを固定
+- [ ] CLI exit codeとmachine codeのmappingを固定
 
-- publish responseを統一する
-- ID取得 responseを統一する
-- basic query responseを統一する
-- not-found、rejected、deferred、duplicate、conflict、partial-index failureを曖昧なく区別する
+## Phase 4: Durable index lifecycle
 
-## Phase 5: end-to-end smoke
+- [ ] canonical storageからindexをrebuildする正式APIを固定
+- [ ] index generationまたはcheckpointを導入
+- [ ] storageとindexのrecord count／ID set／digestを比較
+- [ ] partial index updateを検出
+- [ ] catch-upを実装
+- [ ] consistency verification reportをmachine-readable化
+- [ ] corrupt／ambiguous indexをfail closedで扱う
 
-次を一時state directory上で自動化します。
+## Phase 5: End-to-end smoke scenario
 
-1. valid objectをpublish
-2. stored resultを確認
-3. IDでretrieve
-4. basic queryで発見
-5. processをrestart
-6. ID取得とqueryを再実行
-7. storage／index consistencyをverify
-8. index欠落を注入
-9. catch-upまたはrebuild
-10. consistency回復をverify
+- [ ] fresh stateでpublish
+- [ ] canonical storage確認
+- [ ] ID取得
+- [ ] basic query
+- [ ] process restart
+- [ ] restart後のID取得／query
+- [ ] index consistency verification
+- [ ] duplicate publish
+- [ ] conflict publish
+- [ ] defer／quarantine
+- [ ] validation reject
+- [ ] partial index updateからのcatch-up
+- [ ] ambiguous stateを成功扱いしないことの確認
 
-追加scenario：
+## Phase 6: Release hardening
 
-- invalid requestのreject
-- policy deferとpersistent quarantine
-- exact duplicate
-- canonical ID conflict
-- carrier identity conflict
-- malformed raw log
-- partial index update
-- storage／index I/O failure
+- [ ] package versionを`0.5.0`へ更新
+- [ ] `Cargo.lock`同期
+- [ ] Rust format／Clippy／workspace tests
+- [ ] JavaScript contract tests
+- [ ] release checklist／release notes／CHANGELOG
+- [ ] `CURRENT_IMPLEMENTATION_STATUS.md`同期
+- [ ] merge後main CI
+- [ ] annotated tag `v0.5.0`
+- [ ] GitHub Release
 
-## 5. Issue分解
+## 5. Transaction boundary
 
-親Issue: #76
+1. validationとacceptanceが完了するまでcanonical storageを変更しない
+2. deferの場合はquarantineへdurable appendし、canonical storageを変更しない
+3. acceptの場合はraw wire logとcanonical storageを更新する
+4. canonical storage commit後のindex failureはcanonical objectの保存失敗へ書き換えない
+5. index未反映はpartial resultまたはcatch-up対象として明示する
+6. conflict時は既存canonical recordを変更しない
 
-推奨実装順：
+storageとindexを偽装atomic transactionとして扱いません。canonical storageを正本とし、indexは検証・再構築可能な派生状態として扱います。
 
-1. ingestion result／error contractとorchestrator
-2. duplicate／conflict contract tests
-3. index consistency verification
-4. index catch-up
-5. CLI／HTTP response統合
-6. restartを含むE2E smoke
-7. release checklist、release note、CHANGELOG、current status同期
+## 6. Error contract原則
 
-## 6. 非スコープ
-
-- protocol conformance suiteの完成（v0.6.0）
-- storage format migration framework（v0.7.0）
-- operator CLIの全面統合（v0.8.0）
-- vector search／AI integration
-- multi-node consistency／distributed coordination
-- automatic conflict resolution
+- machine codeはversionedで安定させる
+- human-readable messageは互換性判定に使わない
+- validation、identity、signature、conflict、storage、index、quarantineを分類する
+- corruptionとI/O errorをnot-foundへ変換しない
+- unsupported versionとinvalid inputを区別する
+- path、identifier、digest、record ID、free-form errorをmetrics labelへ出さない
 
 ## 7. 完了条件
 
-- 通常publish経路が共通orchestratorを通る
-- CLIとHTTPが共通のversioned result／error contractを返す
-- duplicate／conflictがdeterministicに分類される
-- canonical storageを正本としてindex verify／catch-up／rebuildできる
-- restartとpartial index updateを含むE2E smokeがCIで成功する
-- ambiguous、corrupt、partial stateを成功扱いしない
-- `CURRENT_IMPLEMENTATION_STATUS.md`、release checklist、release note、CHANGELOGが同期する
+```text
+publish
+→ validate
+→ store
+→ retrieve
+→ query
+→ restart
+→ query
+→ consistency verification
+```
 
-## 8. 絶対に崩さない安全境界
+このscenarioが自動化され、CIで成功すること。
 
-1. validation未通過objectをcanonical storageへ保存しない
-2. deferされたobjectをcanonical storageへ保存しない
-3. canonical storageよりindexを優先しない
-4. conflict時に既存objectを上書きしない
-5. corruptionとI/O errorをnot-foundとして扱わない
-6. partial index updateを完全成功として返さない
-7. archive segmentとimmutable evidence ledgerを変更しない
-8. same-host lockをdistributed coordinationとして扱わない
-9. metricsへidentifier、digest、record ID、path、free-form errorを出さない
+さらに次を満たすこと。
+
+- duplicateとconflictがdeterministicに分類される
+- validation failureがversioned machine-readable codeで返る
+- deferred objectがcanonical storageへ入らない
+- indexがcanonical storageからrebuild／catch-upできる
+- partial update、corruption、I/O failure、contradictory stateを成功扱いしない
+
+## 8. 非スコープ
+
+- protocol conformance suiteの完成
+- storage migration framework
+- operator CLI全面統合
+- vector search／AI integration
+- multi-node consistency
+- distributed lock／consensus
+
+## 9. 関連Issue
+
+- #76: v0.5.0 parent tracking issue
+- #77: ingestion result contract and common orchestrator

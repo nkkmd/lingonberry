@@ -1,39 +1,58 @@
-# Phase 2 Duplicate / Conflict Plan
+# Phase 2: Duplicate / Conflict Contract Plan
 
-## 目的
+## Objective
 
-canonical ID、carrier identity、canonical contentの3軸でduplicate／conflictを決定論的に分類し、すべてのstorage entry pathで同じ安全境界を適用する。
+Apply one deterministic duplicate/conflict contract across every storage entry path.
 
-## 完了済み
+## Contract
 
-- contract version `1`
-- pure duplicate／conflict classifier
-- live CLI／HTTP ingestionへのclassified append適用
-- File／SQLite backend parity tests
-- retry／archive import parity tests
-- quarantine promotion classified API
-- quarantine promotion File／SQLite parity tests
-- active `quarantine-promote` CLI entrypointのclassified API接続
-- duplicate／conflict時のraw log非増加
-- conflict後のcanonical object／identity binding不変性
+The classifier evaluates three axes:
 
-## 現在の作業
+1. canonical ID
+2. carrier identity
+3. canonical content
 
-- batch quarantine promotionをclassified promotionへ統合
-- replay-derived restoreをclassified appendへ接続
-- archive importがclassified appendを通ることを明示
+Classifications:
 
-## 後続作業
+- `new`
+- `exact duplicate`
+- `canonical ID conflict`
+- `carrier identity conflict`
+- `cross-identity conflict`
 
-- File backend内部の防御的な手書き判定を共通classifierへ置換
-- SQLite backend内部の防御的な手書き判定を共通classifierへ置換
-- release roadmapを同期
+Canonical ID and carrier identity rebinding is prohibited, even when canonical content is equivalent.
 
-## 安全境界
+## Completed
 
-- exact duplicateはidempotent success
-- conflictではcanonical storageとraw wire logを変更しない
-- canonical IDとcarrier identityを別の対応へ再束縛しない
-- conflictしたquarantine recordをpromotedとして解決しない
-- I/O errorやcorruptionをduplicate／conflictへ縮退させない
-- File／SQLiteで同じ外部結果へ収束する
+- [x] Define duplicate/conflict contract version `1`
+- [x] Add pure classifier and public result types
+- [x] Add canonical JSON equivalence tests
+- [x] Add cross-identity rebinding tests
+- [x] Add File / SQLite backend parity tests
+- [x] Verify duplicate/conflict do not append the raw wire log
+- [x] Verify conflict preserves the existing canonical object
+- [x] Verify live retry idempotency for File / SQLite
+- [x] Verify archive re-import duplicate accounting
+- [x] Verify archive conflict preserves existing object and identity binding
+- [x] Route live CLI / HTTP ingestion through classified append
+- [x] Add classified quarantine promotion API
+- [x] Add File / SQLite quarantine promotion parity tests
+- [x] Route active `quarantine-promote` CLI through classified promotion
+- [x] Route active `quarantine-promote-batch` CLI through classified promotion
+- [x] Preserve legacy dry-run batch behavior
+
+## Remaining
+
+- [ ] Route archive import explicitly through classified append
+- [ ] Define and connect replay-derived restore, if a mutating restore path exists
+- [ ] Replace File backend handwritten classification with the shared classifier
+- [ ] Replace SQLite backend handwritten classification with the shared classifier
+- [ ] Synchronize `RELEASE_0_5_0_ROADMAP.md`
+
+## Safety boundaries
+
+- Exact duplicates are idempotent success.
+- Conflicts never overwrite canonical storage.
+- Duplicate/conflict outcomes never append the raw wire log.
+- Storage I/O and corruption errors are never collapsed into duplicate/conflict results.
+- File and SQLite backends must expose identical externally visible behavior.

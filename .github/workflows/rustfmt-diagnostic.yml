@@ -1,6 +1,7 @@
 name: Rustfmt diagnostic
 
 on:
+  pull_request:
   push:
     branches:
       - agent/v0.5.0-lifecycle-foundation

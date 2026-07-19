@@ -53,10 +53,7 @@ fn handle_publish(args: &[String]) -> Result<(), String> {
     let quarantine = QuarantineStore::new(runtime_state_dir());
     let policy = AcceptancePolicy::from_env()?;
     let result = ingest_publish_request(&request_json, &backend, &quarantine, &policy);
-    println!(
-        "{}",
-        to_canonical_json(&publish_ingestion_result_json(&result))
-    );
+    println!("{}", to_canonical_json(&publish_ingestion_result_json(&result)));
     match ingestion_cli_error(&result) {
         Some(error) => Err(error),
         None => Ok(()),
@@ -159,7 +156,10 @@ fn handle_http_get(
             http_error("LB_CANONICAL_ID_REQUIRED", "missing canonical id"),
         ));
     }
-    match backend.get(canonical_id).map_err(|error| error.to_string())? {
+    match backend
+        .get(canonical_id)
+        .map_err(|error| error.to_string())?
+    {
         Some(record) => Ok((
             200,
             "OK",

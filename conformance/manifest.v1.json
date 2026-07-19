@@ -1,0 +1,29 @@
+{
+  "manifestVersion": "lb.conformance.manifest.v1",
+  "protocolContract": "docs/protocols/PROTOCOL_CONTRACT.md",
+  "cases": [
+    {
+      "id": "canonicalization.object-key-order",
+      "kind": "canonicalization",
+      "ruleVersion": "lb.canonical.json.v1",
+      "input": "canonicalization/object-key-order.input.json",
+      "expected": "canonicalization/object-key-order.expected.json"
+    },
+    {
+      "id": "identity-key-v2.minimal-object",
+      "kind": "identity-key",
+      "ruleVersion": "lb.identity.key.v2",
+      "canonicalizationRuleVersion": "lb.canonical.json.v1",
+      "input": "identity-key-v2/minimal-object.input.json",
+      "expected": "identity-key-v2/minimal-object.expected.txt"
+    },
+    {
+      "id": "identity-key-v2.alternate-origin",
+      "kind": "identity-key-equivalence",
+      "ruleVersion": "lb.identity.key.v2",
+      "canonicalizationRuleVersion": "lb.canonical.json.v1",
+      "input": "identity-key-v2/minimal-object.input.json",
+      "alternateInput": "identity-key-v2/minimal-object-alternate-origin.input.json"
+    }
+  ]
+}

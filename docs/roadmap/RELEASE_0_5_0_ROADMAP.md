@@ -63,6 +63,8 @@ Phase 1で次の状態をmachine-readableに固定しました。
 - conflict
 - failed
 
+Phase 3でobject retrievalのfound／invalid-request／not-found／failedもversioned contractへ固定しました。
+
 `stored-but-index-pending`はPhase 4のdurable index lifecycleで追加します。
 
 ### 3.3 Index lifecycleが未統合
@@ -121,11 +123,23 @@ Status: **completed**
 
 ## Phase 3: Public read／write API
 
+Status: **in progress**
+
 - [x] publish responseをversioned contractへ統一
-- [ ] ID取得responseをversioned contractへ統一
+- [x] ID取得responseをversioned contractへ統一
 - [ ] basic query responseを整理
 - [x] HTTP statusとmachine codeのmappingを固定
 - [x] CLI exit codeとmachine codeのmappingを固定
+- [x] 実binaryによるpublish→GET found／not-found process-level contract testを追加
+
+Object retrieval contract version `1`は次の状態を固定します。
+
+| 状態 | Machine code | HTTP |
+|---|---|---:|
+| found | `LB_OBJECT_FOUND` | 200 |
+| invalid-request | `LB_CANONICAL_ID_REQUIRED` | 400 |
+| not-found | `LB_OBJECT_NOT_FOUND` | 404 |
+| failed | 元のstable `LB_*` codeを保持 | 500 |
 
 ## Phase 4: Durable index lifecycle
 
@@ -141,7 +155,7 @@ Status: **completed**
 
 - [x] fresh stateでpublish
 - [x] canonical storage確認
-- [ ] ID取得
+- [x] ID取得
 - [ ] basic query
 - [ ] process restart
 - [ ] restart後のID取得／query
@@ -221,3 +235,4 @@ publish
 
 - #76: v0.5.0 parent tracking issue
 - #77: ingestion result contract and common orchestrator（completed）
+- #83: object retrieval response contract

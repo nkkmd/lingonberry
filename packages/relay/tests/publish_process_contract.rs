@@ -98,6 +98,61 @@ fn http_publish_contract_covers_terminal_states() {
     fs::remove_dir_all(state_dir).ok();
 }
 
+#[test]
+fn http_get_contract_covers_found_and_not_found() {
+    let workspace = workspace_root();
+    let state_dir = unique_temp_dir("http-get");
+    fs::create_dir_all(&state_dir).expect("create HTTP GET state directory");
+    let minimal =
+        fs::read_to_string(workspace.join("fixtures/http-publish-request/minimal-request.json"))
+            .expect("read minimal fixture");
+
+    let port = available_port();
+    let mut server = spawn_http_server(&state_dir, port, false);
+    wait_until_ready(port);
+
+    let publish_response = http_request(port, "POST /v1/objects", Some(&minimal));
+    assert!(
+        publish_response.starts_with("HTTP/1.1 201 "),
+        "{publish_response}"
+    );
+    let publish_body = publish_response
+        .split_once("\r\n\r\n")
+        .map(|(_, body)| body)
+        .expect("publish response body");
+    let publish_json = parse_json(publish_body).expect("parse publish response");
+    let JsonValue::Object(publish_map) = publish_json else {
+        panic!("publish response must be an object");
+    };
+    let canonical_id = match publish_map.get("canonicalId") {
+        Some(JsonValue::String(value)) => value.clone(),
+        other => panic!("missing canonicalId: {other:?}"),
+    };
+
+    let found = http_request(port, &format!("GET /v1/objects/{canonical_id}"), None);
+    assert!(found.starts_with("HTTP/1.1 200 "), "{found}");
+    assert!(found.contains("\"contractVersion\":\"1\""), "{found}");
+    assert!(found.contains("\"status\":\"found\""), "{found}");
+    assert!(found.contains("\"code\":\"LB_OBJECT_FOUND\""), "{found}");
+    assert!(
+        found.contains(&format!("\"canonicalId\":\"{canonical_id}\"")),
+        "{found}"
+    );
+
+    let missing = http_request(port, "GET /v1/objects/lb_missing", None);
+    assert!(missing.starts_with("HTTP/1.1 404 "), "{missing}");
+    assert!(missing.contains("\"contractVersion\":\"1\""), "{missing}");
+    assert!(missing.contains("\"status\":\"not-found\""), "{missing}");
+    assert!(
+        missing.contains("\"code\":\"LB_OBJECT_NOT_FOUND\""),
+        "{missing}"
+    );
+
+    server.kill().ok();
+    server.wait().ok();
+    fs::remove_dir_all(state_dir).ok();
+}
+
 fn signed_unsupported_request(object_path: &Path, state_dir: &Path) -> String {
     let object = parse_json(&fs::read_to_string(object_path).expect("read unsupported object"))
         .expect("parse unsupported object");
@@ -199,6 +254,24 @@ fn wait_until_ready(port: u16) {
         thread::sleep(Duration::from_millis(20));
     }
     panic!("HTTP server did not become ready");
+}
+
+fn http_request(port: u16, request_target: &str, body: Option<&str>) -> String {
+    let mut stream = TcpStream::connect(("127.0.0.1", port)).expect("connect to HTTP server");
+    let body = body.unwrap_or("");
+    let request = format!(
+        "{request_target} HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+        body.len(),
+        body
+    );
+    stream
+        .write_all(request.as_bytes())
+        .expect("write HTTP request");
+    let mut response = String::new();
+    stream
+        .read_to_string(&mut response)
+        .expect("read HTTP response");
+    response
 }
 
 fn assert_http_contract(port: u16, body: &str, status: u16, state: &str, code: &str) {

@@ -35,11 +35,7 @@ mod tests {
             (ObjectRetrievalStatus::Found, 200, "OK"),
             (ObjectRetrievalStatus::InvalidRequest, 400, "Bad Request"),
             (ObjectRetrievalStatus::NotFound, 404, "Not Found"),
-            (
-                ObjectRetrievalStatus::Failed,
-                500,
-                "Internal Server Error",
-            ),
+            (ObjectRetrievalStatus::Failed, 500, "Internal Server Error"),
         ];
 
         for (status, status_code, status_text) in cases {

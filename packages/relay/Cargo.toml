@@ -5,6 +5,10 @@ edition = "2021"
 license = "Apache-2.0"
 autobins = false
 
+[lib]
+name = "lingonberry_relay"
+path = "src/lib.rs"
+
 [[bin]]
 name = "lingonberry-relay"
 path = "src/main_entry.rs"

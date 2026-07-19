@@ -8,74 +8,13 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  migrate-object-retrieval-handler:
-    if: github.event_name == 'pull_request' && github.head_ref == 'agent/v0.5.0-object-retrieval-contract'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref }}
-          token: ${{ secrets.GITHUB_TOKEN }}
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt
-      - name: Connect active HTTP GET to retrieval contract
-        env:
-          TARGET_BRANCH: ${{ github.head_ref }}
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          import re
-
-          path = Path('packages/relay/src/main_v0_5.rs')
-          text = path.read_text()
-          text = text.replace(
-              '    build_runtime_storage_backend, ingest_publish_request, publish_ingestion_result_json,\n    runtime_state_dir, QuarantineStore, StorageBackend,\n',
-              '    build_runtime_storage_backend, ingest_publish_request, publish_ingestion_result_json,\n    retrieve_object, runtime_state_dir, QuarantineStore, StorageBackend,\n',
-          )
-          text = text.replace(
-              '    build_capability_manifest, derive_identity_key, to_canonical_json, JsonValue,\n',
-              '    build_capability_manifest, to_canonical_json, JsonValue,\n',
-          )
-          text = text.replace(
-              'use lingonberry_relay::{ingestion_cli_error, ingestion_http_response};\n',
-              'use lingonberry_relay::{\n    ingestion_cli_error, ingestion_http_response, retrieval_http_response,\n};\n',
-          )
-          replacement = '''fn handle_http_get(
-              canonical_id: &str,
-              backend: &impl StorageBackend,
-          ) -> Result<(u16, &'static str, JsonValue), String> {
-              let result = retrieve_object(canonical_id, backend);
-              let response = retrieval_http_response(&result);
-              Ok((response.status_code, response.status_text, response.body))
-          }
-
-          fn parse_http_request_line'''
-          text, count = re.subn(
-              r"fn handle_http_get\([\s\S]*?\n\}\n\nfn parse_http_request_line",
-              replacement,
-              text,
-              count=1,
-          )
-          if count != 1:
-              raise SystemExit(f'expected one handle_http_get block, replaced {count}')
-          path.write_text(text)
-          PY
-          cargo fmt --all
-          git show origin/main:.github/workflows/ci.yml > .github/workflows/ci.yml
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add packages/relay/src/main_v0_5.rs .github/workflows/ci.yml
-          git commit -m "feat: connect HTTP GET to retrieval contract"
-          git push origin "HEAD:${TARGET_BRANCH}"
-
   rust:
     name: Rust checks
     runs-on: ubuntu-latest

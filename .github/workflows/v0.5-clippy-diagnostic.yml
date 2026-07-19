@@ -1,8 +1,8 @@
 name: v0.5 Clippy diagnostic
 on:
-  push:
+  pull_request:
     branches:
-      - agent/v0.5.0-release-hardening
+      - main
 jobs:
   diagnose:
     runs-on: ubuntu-latest

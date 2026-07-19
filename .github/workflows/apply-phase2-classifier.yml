@@ -1,6 +1,8 @@
 name: Apply Phase 2 classifier migration
 
 on:
+  pull_request:
+    types: [synchronize]
   push:
     branches:
       - agent/v0.5.0-lifecycle-foundation

@@ -1,36 +1,63 @@
-# v0.5.0 Phase 2: Duplicate and Conflict Plan
+# Phase 2: Duplicate / Conflict Contract Plan
 
-**Status: in progress** | **Parent: #76**
+## Objective
 
-## Goal
+Apply one deterministic duplicate/conflict contract across every storage entry path.
 
-Apply one deterministic duplicate/conflict contract to every canonical storage entry path.
+## Contract
+
+The classifier evaluates three axes:
+
+1. canonical ID
+2. carrier identity
+3. canonical content
+
+Classifications:
+
+- `new`
+- `exact duplicate`
+- `canonical ID conflict`
+- `carrier identity conflict`
+- `cross-identity conflict`
+
+Canonical ID and carrier identity rebinding is prohibited, even when canonical content is equivalent.
 
 ## Completed
 
-- [x] Define contract version `1`
-- [x] Define `new`, `exact duplicate`, `canonical ID conflict`, `carrier identity conflict`, and `cross-identity conflict`
-- [x] Add a pure core classifier
-- [x] Add public contract tests
-- [x] Document identity inputs, invariants, and decision order
-- [x] Add file/SQLite backend parity tests
-- [x] Verify duplicate and conflict paths do not append to the raw wire log
-- [x] Add archive import duplicate/conflict parity tests
-- [x] Add live retry parity tests
-- [x] Route the v0.5 live ingestion path through a classified storage adapter
+- [x] Define duplicate/conflict contract version `1`
+- [x] Add pure classifier and public result types
+- [x] Add canonical JSON equivalence tests
+- [x] Add cross-identity rebinding tests
+- [x] Add File / SQLite backend parity tests
+- [x] Verify duplicate/conflict do not append the raw wire log
+- [x] Verify conflict preserves the existing canonical object
+- [x] Verify live retry idempotency for File / SQLite
+- [x] Verify archive re-import duplicate accounting
+- [x] Verify archive conflict preserves existing object and identity binding
+- [x] Route live CLI / HTTP ingestion through classified append
+- [x] Add classified quarantine promotion API
+- [x] Add File / SQLite quarantine promotion parity tests
+- [x] Route active `quarantine-promote` CLI through classified promotion
+- [x] Route active `quarantine-promote-batch` CLI through classified promotion
+- [x] Preserve legacy dry-run batch behavior
+- [x] Route archive import explicitly through classified append
+- [x] Route active `import-archive` CLI through classified import
+- [x] Confirm `StorageBackend::replay()` is read-only and no replay-derived restore write path currently exists
 
 ## Remaining
 
-- [ ] Replace file backend handwritten classification with the core classifier
-- [ ] Replace SQLite backend handwritten classification with the core classifier
-- [ ] Apply the classifier explicitly to replay-derived restore
-- [ ] Add quarantine promotion parity tests
-- [ ] Update `RELEASE_0_5_0_ROADMAP.md`
+- [ ] Replace File backend handwritten classification with the shared classifier
+- [ ] Replace SQLite backend handwritten classification with the shared classifier
+- [ ] Synchronize `RELEASE_0_5_0_ROADMAP.md`
 
-## Safety gates
+## Replay scope
 
-- No conflict path may mutate canonical storage or raw wire log.
-- Exact duplicate remains idempotent success.
-- Cross-identity aliasing is always conflict, even when canonical content matches.
-- Corruption and I/O errors remain failures and are not collapsed into classification results.
-- CLI and HTTP live ingestion classify before backend-specific append logic.
+The current `replay()` contract only reconstructs and returns stored records. It does not append records to canonical storage. Therefore no duplicate/conflict classification is required for replay itself. Any future mutating restore command built from replay data must call classified append.
+
+## Safety boundaries
+
+- Exact duplicates are idempotent success.
+- Conflicts never overwrite canonical storage.
+- Duplicate/conflict outcomes never append the raw wire log.
+- Storage I/O and corruption errors are never collapsed into duplicate/conflict results.
+- File and SQLite backends must expose identical externally visible behavior.

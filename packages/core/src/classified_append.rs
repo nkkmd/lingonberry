@@ -1,7 +1,7 @@
 use crate::{
     carrier_identity_for_request, classify_duplicate_or_conflict, store_error, AppendOutcome,
-    DuplicateConflictClassification, ExistingObjectIdentity, IncomingObjectIdentity, StorageBackend,
-    StoreError, DUPLICATE_CONFLICT_CONTRACT_VERSION,
+    DuplicateConflictClassification, ExistingObjectIdentity, IncomingObjectIdentity,
+    StorageBackend, StoreError, DUPLICATE_CONFLICT_CONTRACT_VERSION,
 };
 use lingonberry_protocol::FinalizedKnowledgeObject;
 

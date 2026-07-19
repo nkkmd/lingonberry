@@ -106,47 +106,47 @@ fn signed_unsupported_request(object_path: &Path, state_dir: &Path) -> String {
     let payload_path = state_dir.join("publisher-payload.json");
     let signature_path = state_dir.join("publisher-signature.bin");
 
-    assert!(
-        Command::new("openssl")
-            .args(["genpkey", "-algorithm", "ED25519", "-out"])
-            .arg(&private_key)
-            .status()
-            .expect("generate Ed25519 key")
-            .success()
-    );
-    assert!(
-        Command::new("openssl")
-            .args(["pkey", "-in"])
-            .arg(&private_key)
-            .args(["-pubout", "-outform", "DER", "-out"])
-            .arg(&public_der)
-            .status()
-            .expect("export Ed25519 public key")
-            .success()
-    );
+    assert!(Command::new("openssl")
+        .args(["genpkey", "-algorithm", "ED25519", "-out"])
+        .arg(&private_key)
+        .status()
+        .expect("generate Ed25519 key")
+        .success());
+    assert!(Command::new("openssl")
+        .args(["pkey", "-in"])
+        .arg(&private_key)
+        .args(["-pubout", "-outform", "DER", "-out"])
+        .arg(&public_der)
+        .status()
+        .expect("export Ed25519 public key")
+        .success());
     let public_der_bytes = fs::read(&public_der).expect("read public key DER");
     let public_key = hex(&public_der_bytes[public_der_bytes.len() - 32..]);
 
     let mut publisher = BTreeMap::new();
-    publisher.insert("publicKey".to_string(), JsonValue::String(public_key.clone()));
+    publisher.insert(
+        "publicKey".to_string(),
+        JsonValue::String(public_key.clone()),
+    );
     let mut unsigned = BTreeMap::new();
     unsigned.insert("object".to_string(), object.clone());
-    unsigned.insert("publisher".to_string(), JsonValue::Object(publisher.clone()));
+    unsigned.insert(
+        "publisher".to_string(),
+        JsonValue::Object(publisher.clone()),
+    );
     let payload = to_canonical_json(&JsonValue::Object(unsigned));
     fs::write(&payload_path, payload).expect("write canonical publish payload");
 
-    assert!(
-        Command::new("openssl")
-            .args(["pkeyutl", "-sign", "-inkey"])
-            .arg(&private_key)
-            .args(["-rawin", "-in"])
-            .arg(&payload_path)
-            .args(["-out"])
-            .arg(&signature_path)
-            .status()
-            .expect("sign publish payload")
-            .success()
-    );
+    assert!(Command::new("openssl")
+        .args(["pkeyutl", "-sign", "-inkey"])
+        .arg(&private_key)
+        .args(["-rawin", "-in"])
+        .arg(&payload_path)
+        .args(["-out"])
+        .arg(&signature_path)
+        .status()
+        .expect("sign publish payload")
+        .success());
     publisher.insert(
         "signature".to_string(),
         JsonValue::String(hex(&fs::read(signature_path).expect("read signature"))),

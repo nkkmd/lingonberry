@@ -1,10 +1,10 @@
 # Lingonberry v0.5.0 Release Roadmap
 
-**Status: release candidate in review** | **Target: v0.5.0** | **Last updated: 2026-07-19**
+**Status: released** | **Target: v0.5.0** | **Published: 2026-07-19**
 
 ## 1. 目的
 
-v0.5.0は通常のknowledge object lifecycleを単一ノードでend-to-endに統合します。
+v0.5.0は通常のknowledge object lifecycleを単一ノードでend-to-endに統合しました。
 
 ```text
 receive
@@ -78,19 +78,30 @@ Status: **completed**
 - [x] ambiguous index rejection and checkpoint preservation
 - [x] duplicate／conflict／defer／validation reject
 
-## 7. Phase 6: Release hardening
+## 7. Phase 6: Release hardening and publication
 
-Status: **candidate preparation complete; publication pending**
+Status: **completed**
 
 - [x] all Rust workspace packages version `0.5.0`
 - [x] `Cargo.lock` synchronization
 - [x] release checklist／release notes／CHANGELOG
 - [x] `CURRENT_IMPLEMENTATION_STATUS.md` synchronization
-- [ ] release hardening PR CI
-- [ ] merge to main
-- [ ] post-merge main CI
-- [ ] annotated tag `v0.5.0`
-- [ ] GitHub Release
+- [x] release hardening PR #94 CI
+- [x] merge PR #94 to main
+- [x] README／documentation sync PR #95 CI
+- [x] merge PR #95 to main
+- [x] post-merge main CI
+- [x] tag `v0.5.0`
+- [x] GitHub Release `Lingonberry v0.5.0`
+
+Publication record:
+
+- Release: https://github.com/nkkmd/lingonberry/releases/tag/v0.5.0
+- Tag: `v0.5.0`
+- Release target commit: `bf8176da0d992152fb116ca0c45177904d1aa61c`
+- Tag/main comparison at publication: identical
+- Main CI: successful, confirmed in the GitHub Actions UI
+- Published: 2026-07-19
 
 ## 8. Safety invariants
 
@@ -125,4 +136,5 @@ Status: **candidate preparation complete; publication pending**
 - #91: restart smoke PR（merged）
 - #92: recovery smoke PR（merged）
 - #93: ambiguity smoke PR（merged）
-- #94: release hardening PR
+- #94: release hardening PR（merged）
+- #95: README／documentation synchronization PR（merged）

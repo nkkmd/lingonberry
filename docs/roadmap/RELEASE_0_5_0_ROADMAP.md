@@ -127,10 +127,12 @@ Status: **in progress**
 
 - [x] publish responseをversioned contractへ統一
 - [x] ID取得responseをversioned contractへ統一
-- [ ] basic query responseを整理
+- [x] basic query responseをversioned contractへ統一
 - [x] HTTP statusとmachine codeのmappingを固定
 - [x] CLI exit codeとmachine codeのmappingを固定
 - [x] 実binaryによるpublish→GET found／not-found process-level contract testを追加
+
+Basic query contract version `1`は`success`／`empty`／`invalid-request`／`failed`を固定し、返却順序を`canonicalId-ascending`として明示します。
 
 Object retrieval contract version `1`は次の状態を固定します。
 
@@ -156,7 +158,7 @@ Object retrieval contract version `1`は次の状態を固定します。
 - [x] fresh stateでpublish
 - [x] canonical storage確認
 - [x] ID取得
-- [ ] basic query
+- [x] basic query
 - [ ] process restart
 - [ ] restart後のID取得／query
 - [ ] index consistency verification

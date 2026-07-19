@@ -63,6 +63,44 @@ fn cli_publish_contract_covers_terminal_states() {
 }
 
 #[test]
+fn cli_query_contract_covers_success_and_empty() {
+    let workspace = workspace_root();
+    let state_dir = unique_temp_dir("query");
+    fs::create_dir_all(&state_dir).expect("create query state directory");
+    let minimal = workspace.join("fixtures/http-publish-request/minimal-request.json");
+
+    let empty = run_cli_query(&state_dir, Some("question"));
+    assert_success_contract(&empty, "\"status\":\"empty\"", "LB_QUERY_EMPTY");
+    let empty_stdout = String::from_utf8_lossy(&empty.stdout);
+    assert!(
+        empty_stdout.contains("\"contractVersion\":\"1\""),
+        "{empty_stdout}"
+    );
+    assert!(
+        empty_stdout.contains("\"ordering\":\"canonicalId-ascending\""),
+        "{empty_stdout}"
+    );
+
+    let published = run_cli_publish(&state_dir, &minimal, &[]);
+    assert_success_contract(&published, "\"status\":\"stored\"", "LB_OBJECT_STORED");
+
+    let success = run_cli_query(&state_dir, None);
+    assert_success_contract(&success, "\"status\":\"success\"", "LB_QUERY_SUCCESS");
+    let success_stdout = String::from_utf8_lossy(&success.stdout);
+    assert!(
+        success_stdout.contains("\"contractVersion\":\"1\""),
+        "{success_stdout}"
+    );
+    assert!(success_stdout.contains("\"count\":1"), "{success_stdout}");
+    assert!(
+        success_stdout.contains("\"ordering\":\"canonicalId-ascending\""),
+        "{success_stdout}"
+    );
+
+    fs::remove_dir_all(state_dir).ok();
+}
+
+#[test]
 fn http_publish_contract_covers_terminal_states() {
     let workspace = workspace_root();
     let state_dir = unique_temp_dir("http");
@@ -228,6 +266,17 @@ fn run_cli_publish(state_dir: &Path, fixture: &Path, envs: &[(&str, &str)]) -> O
         command.env(name, value);
     }
     command.output().expect("run CLI publish")
+}
+
+fn run_cli_query(state_dir: &Path, object_type: Option<&str>) -> Output {
+    let mut command = Command::new(BINARY);
+    command
+        .arg("subscribe")
+        .env("LINGONBERRY_STATE_DIR", state_dir);
+    if let Some(object_type) = object_type {
+        command.arg(object_type);
+    }
+    command.output().expect("run CLI query")
 }
 
 fn spawn_http_server(state_dir: &Path, port: u16, defer_unsupported: bool) -> Child {

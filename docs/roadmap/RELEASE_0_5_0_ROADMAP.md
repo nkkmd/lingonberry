@@ -145,13 +145,13 @@ Object retrieval contract version `1`は次の状態を固定します。
 
 ## Phase 4: Durable index lifecycle
 
-- [ ] canonical storageからindexをrebuildする正式APIを固定
-- [ ] index generationまたはcheckpointを導入
-- [ ] storageとindexのrecord count／ID set／digestを比較
-- [ ] partial index updateを検出
-- [ ] catch-upを実装
-- [ ] consistency verification reportをmachine-readable化
-- [ ] corrupt／ambiguous indexをfail closedで扱う
+- [x] canonical storageからindexをrebuildする正式APIを固定
+- [x] index generationまたはcheckpointを導入
+- [x] storageとindexのrecord count／ID set／digestを比較
+- [x] partial index updateを検出
+- [x] catch-upを実装
+- [x] consistency verification reportをmachine-readable化
+- [x] corrupt／ambiguous indexをfail closedで扱う
 
 ## Phase 5: End-to-end smoke scenario
 
@@ -159,14 +159,14 @@ Object retrieval contract version `1`は次の状態を固定します。
 - [x] canonical storage確認
 - [x] ID取得
 - [x] basic query
-- [ ] process restart
-- [ ] restart後のID取得／query
-- [ ] index consistency verification
+- [x] process restart
+- [x] restart後のID取得／query
+- [x] index consistency verification
 - [x] duplicate publish
 - [x] conflict publish
 - [x] defer／quarantine
 - [x] validation reject
-- [ ] partial index updateからのcatch-up
+- [x] partial index updateからのcatch-up
 - [ ] ambiguous stateを成功扱いしないことの確認
 
 ## Phase 6: Release hardening

@@ -15,10 +15,9 @@ static ENV_LOCK: Mutex<()> = Mutex::new(());
 fn classified_quarantine_promotion_has_file_sqlite_parity() {
     let _guard = ENV_LOCK.lock().expect("lock environment");
     let workspace = workspace_root();
-    let minimal_request = fs::read_to_string(
-        workspace.join("fixtures/http-publish-request/minimal-request.json"),
-    )
-    .expect("read minimal request");
+    let minimal_request =
+        fs::read_to_string(workspace.join("fixtures/http-publish-request/minimal-request.json"))
+            .expect("read minimal request");
     let conflicting_request = fs::read_to_string(
         workspace.join("fixtures/http-publish-request/with-identity-claim.json"),
     )
@@ -86,7 +85,7 @@ fn assert_promotion_contract(
     let conflict = finalized_request(conflicting_request);
     let conflict_record = quarantine
         .append(
-            minimal_request,
+            conflicting_request,
             "LB_TEST_DEFERRED",
             &["test conflict promotion".to_string()],
         )

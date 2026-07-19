@@ -1,4 +1,5 @@
 include!("lib_entry.rs");
+#[rustfmt::skip]
 pub mod ingestion;
 
 pub use ingestion::{

@@ -1,7 +1,8 @@
 use crate::{
     index_checkpoint_json, load_index_checkpoint, persist_index_checkpoint, rebuild_index,
-    IndexCheckpoint, IndexConsistencyStatus, StorageBackend,
+    IndexCheckpoint, IndexConsistencyStatus,
 };
+use lingonberry_core::StorageBackend;
 use lingonberry_protocol::JsonValue;
 use std::collections::BTreeMap;
 use std::path::Path;

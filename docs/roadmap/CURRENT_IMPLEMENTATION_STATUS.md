@@ -1,41 +1,42 @@
 # 現在の実装状況
 
-**Status: v0.5.0 release candidate merged to main** | **Last updated: 2026-07-19**
+**Status: v0.5.0 released** | **Last updated: 2026-07-19**
 
 この文書は、Lingonberryの実装作業を中断・再開するときの引き継ぎ用正本です。
 
 ## 1. Release state
 
-v0.5.0の機能実装、end-to-end smoke scenario、package version更新、release checklist、release notesはmainへmerge済みです。READMEと関連index文書をv0.5.0へ同期した後、最新main commitのCI成功を確認してtagとGitHub Releaseを公開します。
+v0.5.0の機能実装、end-to-end smoke scenario、package version更新、release hardening、README／関連index文書の同期、main CI確認、tag、GitHub Release公開が完了しました。
 
 ```text
-candidate version: 0.5.0
+released version: 0.5.0
 parent issue: #76
 release hardening PR: #94
-release hardening merge commit: 747bc4bbefee75bc2c48187638c683487273cb42
-release checklist: docs/roadmap/RELEASE_0_5_0_CHECKLIST.md
-release notes: docs/roadmap/RELEASE_0_5_0_RELEASE_NOTE.md
-publication state: tag and GitHub Release pending final documentation sync and main-CI confirmation
+release documentation sync PR: #95
+release target commit: bf8176da0d992152fb116ca0c45177904d1aa61c
+tag: v0.5.0
+release: https://github.com/nkkmd/lingonberry/releases/tag/v0.5.0
+publication state: released
 ```
 
-Latest published releaseはv0.4.0です。
+Latest published releaseはv0.5.0です。
 
 ## 2. v0.5.0で実装済み
 
 | 項目 | 状態 |
 |---|---|
-| versioned publish ingestion contract | 実装済み |
-| CLI／HTTP共通ingestion orchestrator | 実装済み |
-| deterministic duplicate／conflict classification | 実装済み |
-| versioned object retrieval contract | 実装済み |
-| versioned basic query contract | 実装済み |
-| deterministic index generation and content digest | 実装済み |
-| rebuild／verification／atomic checkpoint | 実装済み |
-| checkpoint-driven catch-up | 実装済み |
-| corrupt／unsupported／ambiguous state fail-closed | 実装済み |
-| restart／recovery／ambiguity smoke coverage | 実装済み |
-| workspace package version 0.5.0 | mainへmerge済み |
-| release checklist／release notes／CHANGELOG | mainへmerge済み |
+| versioned publish ingestion contract | 実装・公開済み |
+| CLI／HTTP共通ingestion orchestrator | 実装・公開済み |
+| deterministic duplicate／conflict classification | 実装・公開済み |
+| versioned object retrieval contract | 実装・公開済み |
+| versioned basic query contract | 実装・公開済み |
+| deterministic index generation and content digest | 実装・公開済み |
+| rebuild／verification／atomic checkpoint | 実装・公開済み |
+| checkpoint-driven catch-up | 実装・公開済み |
+| corrupt／unsupported／ambiguous state fail-closed | 実装・公開済み |
+| restart／recovery／ambiguity smoke coverage | 実装・公開済み |
+| workspace package version 0.5.0 | 公開済み |
+| release checklist／release notes／CHANGELOG | 公開済み |
 
 ## 3. Index lifecycle model
 
@@ -81,16 +82,14 @@ publish
 - package version `0.5.0`
 - `Cargo.lock` synchronization
 - release checklist／release notes／CHANGELOG
-- release hardening PR #94の全CI成功
-- release hardening PRのmain merge
-
-未完了：
-
-- README／roadmap／operations indexのv0.5.0同期
-- 同期後の最新main CI成功確認
-- annotated tag `v0.5.0`
+- release hardening PR #94の全CI成功とmain merge
+- documentation sync PR #95の全CI成功とmain merge
+- merge後main CI成功
+- tag `v0.5.0`
 - GitHub Release `Lingonberry v0.5.0`
-- release checklistへのpublication記録
+- publication record同期
+
+次のrelease-level作業は`ROADMAP_TO_V1_0.md`のv0.6.0 Protocol contractとconformanceです。
 
 ## 7. 絶対に崩さない安全性ルール
 

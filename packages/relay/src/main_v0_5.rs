@@ -1,6 +1,7 @@
 mod existing {
     include!("main_entry.rs");
 
+    #[allow(clippy::items_after_test_module)]
     pub fn run_main() {
         main();
     }

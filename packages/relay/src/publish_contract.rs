@@ -1,4 +1,6 @@
-use lingonberry_core::{publish_ingestion_result_json, PublishIngestionResult, PublishIngestionStatus};
+use lingonberry_core::{
+    publish_ingestion_result_json, PublishIngestionResult, PublishIngestionStatus,
+};
 use lingonberry_protocol::JsonValue;
 
 #[derive(Debug, Clone)]
@@ -89,7 +91,10 @@ mod tests {
 
     #[test]
     fn deferred_is_accepted_without_cli_error() {
-        let result = result(PublishIngestionStatus::Deferred, "LB_IDENTITY_CLAIM_DEFERRED");
+        let result = result(
+            PublishIngestionStatus::Deferred,
+            "LB_IDENTITY_CLAIM_DEFERRED",
+        );
         assert_eq!(ingestion_http_response(&result).status_code, 202);
         assert_eq!(ingestion_cli_error(&result), None);
     }

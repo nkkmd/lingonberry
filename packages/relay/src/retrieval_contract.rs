@@ -1,4 +1,6 @@
-use lingonberry_core::{object_retrieval_result_json, ObjectRetrievalResult, ObjectRetrievalStatus};
+use lingonberry_core::{
+    object_retrieval_result_json, ObjectRetrievalResult, ObjectRetrievalStatus,
+};
 use lingonberry_protocol::JsonValue;
 
 #[derive(Debug, Clone)]

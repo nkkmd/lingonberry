@@ -62,10 +62,9 @@ fn http_publish_contract_covers_terminal_states() {
     let workspace = workspace_root();
     let state_dir = unique_temp_dir("http");
     fs::create_dir_all(&state_dir).expect("create HTTP state directory");
-    let minimal = fs::read_to_string(
-        workspace.join("fixtures/http-publish-request/minimal-request.json"),
-    )
-    .expect("read minimal fixture");
+    let minimal =
+        fs::read_to_string(workspace.join("fixtures/http-publish-request/minimal-request.json"))
+            .expect("read minimal fixture");
     let rejected = fs::read_to_string(
         workspace.join("fixtures/http-publish-request/invalid-schema-version.json"),
     )
@@ -145,9 +144,18 @@ fn assert_http_contract(port: u16, body: &str, status: u16, state: &str, code: &
     stream.write_all(request.as_bytes()).expect("write request");
     let mut response = String::new();
     stream.read_to_string(&mut response).expect("read response");
-    assert!(response.starts_with(&format!("HTTP/1.1 {status} ")), "{response}");
-    assert!(response.contains(&format!("\"status\":\"{state}\"")), "{response}");
-    assert!(response.contains(&format!("\"code\":\"{code}\"")), "{response}");
+    assert!(
+        response.starts_with(&format!("HTTP/1.1 {status} ")),
+        "{response}"
+    );
+    assert!(
+        response.contains(&format!("\"status\":\"{state}\"")),
+        "{response}"
+    );
+    assert!(
+        response.contains(&format!("\"code\":\"{code}\"")),
+        "{response}"
+    );
 }
 
 fn assert_success_contract(output: &Output, status: &str, code: &str) {
@@ -168,10 +176,12 @@ fn assert_failure_contract(output: &Output, status: &str, code: &str) {
 }
 
 fn write_conflict_fixture(source: &Path, destination: &Path) {
-    let content = fs::read_to_string(source).expect("read source fixture").replace(
-        "What evidence supports this claim?",
-        "What contradictory evidence supports this claim?",
-    );
+    let content = fs::read_to_string(source)
+        .expect("read source fixture")
+        .replace(
+            "What evidence supports this claim?",
+            "What contradictory evidence supports this claim?",
+        );
     fs::write(destination, content).expect("write conflict fixture");
 }
 

@@ -11,10 +11,17 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
-      - name: Capture library Clippy tail
+      - name: Capture library Clippy log
         run: |
           set +e
           cargo clippy --workspace --lib -- -D warnings > clippy.log 2>&1
-          status=$?
-          tail -n 100 clippy.log
-          exit $status
+          echo $? > clippy.status
+          exit 0
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v0.5-clippy-log
+          path: |
+            clippy.log
+            clippy.status
+      - name: Preserve Clippy result
+        run: exit "$(cat clippy.status)"

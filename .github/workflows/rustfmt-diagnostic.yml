@@ -1,0 +1,28 @@
+name: Rustfmt diagnostic
+
+on:
+  pull_request:
+  push:
+    branches:
+      - agent/v0.5.0-lifecycle-foundation
+
+permissions:
+  contents: read
+
+jobs:
+  rustfmt:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - name: Capture rustfmt patch
+        run: |
+          cargo fmt --all
+          git diff --binary > rustfmt.patch
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rustfmt-patch
+          path: rustfmt.patch
+          if-no-files-found: error

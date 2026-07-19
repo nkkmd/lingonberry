@@ -13,9 +13,8 @@ use std::{
 fn ambiguous_index_does_not_replace_checkpoint() {
     let dir = temp_dir();
     let backend = FileStorageBackend::new(&dir);
-    let raw =
-        fs::read_to_string(root().join("fixtures/http-publish-request/minimal-request.json"))
-            .unwrap();
+    let raw = fs::read_to_string(root().join("fixtures/http-publish-request/minimal-request.json"))
+        .unwrap();
     let finalized = finalize(&raw);
     backend.append_publish_request(&raw, &finalized).unwrap();
 
@@ -27,10 +26,7 @@ fn ambiguous_index_does_not_replace_checkpoint() {
     let JsonValue::Object(object) = &mut records[0].object else {
         panic!()
     };
-    object.insert(
-        "type".into(),
-        JsonValue::String("ambiguous-smoke".into()),
-    );
+    object.insert("type".into(), JsonValue::String("ambiguous-smoke".into()));
     let result = verify_index(&backend, IndexSnapshot::from_records(records));
 
     assert_eq!(result.status, IndexConsistencyStatus::Inconsistent);

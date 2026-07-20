@@ -34,7 +34,8 @@ publication state: v0.6.0 implementation in progress
 | last-known-good effective view／stale read API | PR #98で追加済み |
 | stable public diagnostics `lb.http.effective-view.diagnostics.v1` | PR #98で追加済み |
 | bounded generation-pinned diagnostic pagination | PR #98で追加済み |
-| bounded derived diagnostic retention | PR #98で追加済み |
+| hybrid derived diagnostic retention | PR #98で追加済み |
+| bounded sliding cursor lease | PR #98で追加済み |
 | relay transition append-only storage／effective-view projection | 未着手 |
 | release checklist／CHANGELOG／version update | 未着手 |
 
@@ -58,35 +59,28 @@ publication state: v0.6.0 implementation in progress
 - re-evaluationのlogical subjectは`targetId`とし、current intentは最新evidence generationへcoalesceする
 - stale workerはderived checkpointを更新できない
 - target evidence generationはcanonical evidence basisのSHA-256から決定的に導出する
-- evidenceはkind順、ASCII ID順、classification順、digest順でsortする
-- exact duplicate carrierはgenerationを変えない
-- 同一kind／IDで異なるclassificationまたはdigestが存在する場合はgeneration constructionをfail closedにする
 - `unsupported`／`corrupt`／`unreadable` evidenceも分類付きmarkerとしてgeneration basisへ含める
-- unusable markerはimmutable carrier digestを必須とし、trusted digestも読めるbytesもない場合はgenerationを捏造しない
 - unusable evidenceを含むsnapshotは`incomplete`、authorityは`unknown`、effective view非適用とする
-- evidenceがsupportedへ変化・明示的に修復された場合はgenerationを変更して再評価する
 - incomplete observation時はlast-known-good semantic viewを維持し、`freshness=stale`として返す
 - semantic checkpointとobservation checkpointを分離する
 - `GET /v1/effective-objects/{targetId}`はstale viewでも`200 OK`を返し、bodyを正本とする
-- public diagnosticsはstable reason codeとprotocol identifierだけを返し、storage path、row ID、stack trace、parser exception、worker IDを公開しない
-- diagnosticはkind、ASCII evidence ID、classification、reason codeの順で決定的にsortする
-- exact duplicate diagnosticはcollapseし、同一kind／IDの競合diagnosticを暗黙選択しない
-- 通常のeffective-view responseで返すdiagnosticは先頭20件までとする
-- `diagnosticSummary.total`／`byClassification`は対象generationの完全集合を正確に表す
-- 完全一覧は`GET /v1/effective-objects/{targetId}/diagnostics`で取得し、generationを必須にする
-- diagnostic paginationのdefault／maximum limitは100とする
-- cursorはtarget／generationへbindし、不透明でrelay内部identifierを公開しない
-- pagination中に異なるobservation generationを混在させない
-- canonical evidenceとimmutable carrier digestはderived snapshot expirationを理由に削除しない
-- current observation generationとsemantic checkpoint generationは常にderived snapshot retention対象とする
-- unexpired cursor leaseが参照するgenerationは保持する
-- cursor leaseは有限であり、永久retention pinにしない
-- 保持されていないgenerationのpaginationを別generationへ暗黙切替しない
+- public diagnosticsはstable reason codeとprotocol identifierだけを返す
+- 通常responseのdiagnosticは20件まで、完全一覧はgeneration固定cursor paginationで取得する
+- paginationのdefault／maximum limitは100とする
+- canonical evidenceはderived snapshot expirationを理由に削除しない
+- current observation、semantic checkpoint、active cursor参照generationは必ず保持する
+- 非保護recent snapshotは最大8 generationかつcheckpoint commitから24時間以内だけ保持する
+- count順位は`observedAt`降順、同時刻はgeneration IDのASCII byte昇順とする
+- cursor leaseは成功pageごとにidle期限を15分延長する
+- cursorのabsolute lifetimeは初回発行から1時間で固定し、延長しない
+- invalid cursor、generation mismatch、invalid limit、失敗responseではleaseを延長しない
+- exact expiry instantではleaseをexpiredとして扱う
+- restart時にcursorのabsolute lifetimeをリセットしない
 
 ## 4. Next implementation order
 
-1. 非保護のrecent generation retentionを件数基準、時間基準、またはhybridのどれにするか決定する
-2. 決定したretention bound／cursor lease expiry／garbage-collection orderをfixture化する
+1. cursor lease validationとsnapshot garbage collectionの排他方式を決定する
+2. 決定したread guard／transaction／CAS semanticsとcrash fixtureを追加する
 3. relayで`POST /v1/transitions`のvalidate／signature verify／append-only storeを有効化する
 4. orphan index、durable queue、authority classification／effective-view projectionを実装する
 5. compatibility matrixを完成させる
@@ -119,3 +113,6 @@ publication state: v0.6.0 implementation in progress
 23. derived snapshot garbage collectionでcanonical evidenceを削除しない
 24. current observation／semantic checkpoint／active cursor参照generationを回収しない
 25. cursor leaseを無期限retentionとして扱わない
+26. invalidまたは失敗したpage requestでcursor leaseを延長しない
+27. cursorのabsolute expiryを延長またはrestartでリセットしない
+28. lease検証後からpage読取り完了までに対象snapshotを回収しない

@@ -1,0 +1,12 @@
+{
+  "transitionPublisherKey": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "targetPublisherKey": null,
+  "issuedAt": "2026-07-20T00:00:00Z",
+  "delegations": [],
+  "expected": {
+    "classification": "unknown",
+    "basis": "target-publisher-unknown",
+    "retain": true,
+    "applyToEffectiveView": false
+  }
+}

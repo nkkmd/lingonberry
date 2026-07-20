@@ -23,19 +23,27 @@ publication state: v0.6.0 implementation in progress
 | canonicalization／identity／signature／digest／timestamp fixtures | PR #98で追加済み |
 | standalone JavaScript producer → real HTTP publish | PR #98で追加済み |
 | dedicated append-only Transition Object | PR #98で追加済み |
-| transition identity／authority／supersession | PR #98で追加済み |
-| multi-parent atomic fork merge／parent-set normalization | PR #98で追加済み |
+| transition identity `lb.transition.identity.v1` | PR #98で追加済み |
+| transition authority `lb.transition.authority.v1` | PR #98で追加済み |
+| transition supersession `lb.transition.supersession.v1` | PR #98で追加済み |
+| multi-parent atomic fork merge | PR #98で追加済み |
+| parent-set identity normalization | PR #98で追加済み |
 | cycle／missing／cross-target／unauthorized-parent fixtures | PR #98で追加済み |
-| bounded ASCII protocol identifier rule | PR #98で追加済み |
-| dedicated `POST /v1/transitions` contract／route isolation | PR #98で追加済み |
+| protocol identifier rule `lb.protocol.id.ascii.v1` | PR #98で追加済み |
+| ASCII／Unicode／length-boundary ID fixtures | PR #98で追加済み |
+| dedicated `POST /v1/transitions` contract | PR #98で追加済み |
+| transition envelope／route-isolation fixtures | PR #98で追加済み |
 | orphan transition rule `lb.transition.orphan.v1` | PR #98で追加済み |
+| missing-target retention／target-arrival re-evaluation fixtures | PR #98で追加済み |
 | durable re-evaluation queue `lb.transition.reevaluation.queue.v1` | PR #98で追加済み |
-| target-scoped coalescing `lb.transition.reevaluation.coalescing.v1` | PR #98で追加済み |
-| enqueue recovery／retry／stale-generation fixtures | PR #98で追加済み |
+| enqueue recovery／idempotent retry／checkpoint fixtures | PR #98で追加済み |
+| target-scoped generation coalescing | PR #98で追加済み |
+| deterministic evidence generation `lb.transition.evidence-generation.v1` | PR #98で追加済み |
+| supported evidence order／duplicate／conflict vectors | PR #98で追加済み |
 | relay transition append-only storage／effective-view projection | 未着手 |
 | release checklist／CHANGELOG／version update | 未着手 |
 
-## 3. Fixed transition, identifier, HTTP, and queue contract
+## 3. Fixed transition, identifier, HTTP, queue, and generation contract
 
 - 元Knowledge Objectは変更・削除しない
 - replacement／withdrawalは専用Transition Objectとしてappend-only保存する
@@ -43,27 +51,44 @@ publication state: v0.6.0 implementation in progress
 - authorityは`authorized`／`unauthorized`／`unknown`として派生判定する
 - effective viewへ適用できるのはauthorized transitionのみ
 - 複数authorized transitionをtimestampやID順で自動解決しない
-- `supersedesTransitionIds`で複数authorized headを原子的に解消する
-- partial merge、duplicate parent、self-reference、missing parent、cross-target parent、unauthorized parent、cycleはfail closedにする
+- `supersedesTransitionIds`で複数のauthorized headを原子的に解消する
+- 全headを列挙しない部分解消は`ambiguous`のままとする
+- duplicate parent、self-reference、missing parent、cross-target、unauthorized parent、cycleはfail closedにする
+- `ambiguous`／`invalid-transition-graph`では元objectを隠さず、replacementを選択しない
 - parent ID配列はidentity derivation時だけASCII byte ascendingでsortする
-- protocol IDはASCII-safe grammarとbyte上限を適用する
+- stored Transition Objectや一般のcanonical JSON配列順は書き換えない
+- duplicate parentは正規化で除去せずinvalidとする
+- protocol IDは`A-Z a-z 0-9 . _ ~ : -`のみを許可する
+- object／transition／identity keyのprefixを固定し、IDはcase-sensitiveとする
+- object IDとtransition IDはprefix込み最大255 ASCII bytesとする
+- identity keyはprefix込み最大512 ASCII bytesとする
+- valid IDをtrim、truncate、case-convert、percent-decode、Unicode-normalizeしない
+- legacy Unicode／over-limit IDは証拠として保持できるが、v0.6 conforming IDとして再発行・parent参照しない
 - Knowledge Objectは`POST /v1/objects`、Transition Objectは`POST /v1/transitions`へ送る
-- transition requestのtop-level payload fieldは`transition`とし、route mismatchやmixed envelopeを拒否する
+- transition requestのtop-level payload fieldは`transition`とする
+- route mismatch、`object`／`transition`同居、暗黙redirectは拒否する
+- signatureは既存`lb.http.publish.signature.v1`を再利用し、envelope field名も署名対象とする
 - target不在のvalid signed transitionはorphan evidenceとしてappend-only保存する
 - orphan中は`targetStatus=missing`、authorityは`unknown/target-unavailable`、effective view非適用とする
 - target到着後はderived stateだけを再評価し、transition bytes／identity／signature evidenceを変更しない
-- target Knowledge Objectを先にcanonical storageへcommitし、再評価はdurable queueで非同期処理する
-- queue processingはat-least-once、workerはidempotent、checkpointはcurrent snapshotのdurable result後だけ進める
-- re-evaluationのlogical subjectはTransition Objectではなく`targetId`とする
-- targetごとにcurrent logical intentを最大1件とし、pending workは最新evidence generationへcoalesceする
-- running workerのgenerationがcurrent generationと異なる場合、そのresultはstaleとして破棄する
-- stale workerはderived viewやcheckpointを更新せず、新しいgenerationのpending intentを消さない
-- reconciliationはcurrent evidence generationとderived checkpointの不一致からmissing workを再生成する
+- orphanのexact duplicateはidempotent、同一IDで異なるbytesはconflictのままとする
+- target Knowledge Objectを先にcanonical storageへcommitし、orphan再評価はdurable queueで非同期処理する
+- queue／worker失敗をtarget publish失敗へ書き換えない
+- enqueue障害時もdurable intentまたはreconciliationによって再評価漏れを回復可能にする
+- queue processingはat-least-onceとし、workerはidempotentにする
+- stale evidence snapshotからderived checkpointを更新しない
+- checkpointはcurrent snapshotの評価結果がdurably committedされた後だけ進める
+- abandoned claim、missing work、stale checkpointをrestart-safe reconciliationで検出する
+- re-evaluationのlogical subjectは`targetId`とし、current intentは最新evidence generationへcoalesceする
+- target evidence generationはrelay-local counterではなくcanonical evidence basisのSHA-256から導出する
+- supported evidenceはkind順、ASCII ID順、classification順、digest順で決定的にsortする
+- exact duplicate evidence carrierはgenerationを変えない
+- 同一kind／IDで異なるclassificationまたはdigestが存在する場合はgeneration constructionをfail closedにする
 
 ## 4. Next implementation order
 
-1. target evidence generationの構成方法を決定する
-2. 決定したgeneration digest／component ordering／collision semanticsをfixture化する
+1. unsupported／corrupt／unreadable evidenceをgeneration basisへ分類付きで含めるか、generation constructionをblockedとするか決定する
+2. 決定したinvalid-evidence classificationとdigest vectorを追加する
 3. relayで`POST /v1/transitions`のvalidate／signature verify／append-only storeを有効化する
 4. orphan index、durable queue、authority classification／effective-view projectionを実装する
 5. compatibility matrixを完成させる
@@ -86,4 +111,4 @@ publication state: v0.6.0 implementation in progress
 13. target到着後のre-evaluation失敗をtarget Knowledge Objectの保存失敗へ書き換えない
 14. in-memory taskだけをre-evaluationの唯一の記録にしない
 15. stale workerが新しいderived checkpointを上書きしない
-16. completed older generationがnewer pending intentを削除しない
+16. generation constructionが不完全な状態でcomplete checkpointを発行しない

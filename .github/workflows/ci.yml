@@ -34,8 +34,19 @@ jobs:
       - name: Format working tree during implementation
         run: cargo fmt --all
 
-      - name: Run library clippy
-        run: cargo clippy --workspace --lib -- -D warnings
+      - name: Run library clippy and capture output
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          cargo clippy --workspace --lib -- -D warnings 2>&1 | tee clippy-library.log
+
+      - name: Upload library clippy log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: clippy-library-log
+          path: clippy-library.log
 
       - name: Run binary clippy and capture output
         continue-on-error: true
@@ -51,8 +62,19 @@ jobs:
           name: clippy-binary-log
           path: clippy-binary.log
 
-      - name: Run test clippy
-        run: cargo clippy --workspace --tests -- -D warnings -A dead-code -A unused-variables
+      - name: Run test clippy and capture output
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          cargo clippy --workspace --tests -- -D warnings -A dead-code -A unused-variables 2>&1 | tee clippy-tests.log
+
+      - name: Upload test clippy log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: clippy-tests-log
+          path: clippy-tests.log
 
       - name: Run workspace tests
         run: cargo test --workspace

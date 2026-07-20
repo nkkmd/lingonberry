@@ -33,7 +33,8 @@ A last-known-good result is returned with `200 OK` even when the newest evidence
       {
         "kind": "transition",
         "evidenceId": "lb:transition:t2",
-        "classification": "corrupt"
+        "classification": "corrupt",
+        "reasonCode": "LB_EVIDENCE_PARSE_FAILED"
       }
     ]
   }
@@ -43,6 +44,14 @@ A last-known-good result is returned with `200 OK` even when the newest evidence
 `effectiveView.freshness` is `current`, `stale`, or `unavailable`.
 
 The body is authoritative. Implementations may also emit `Lingonberry-View-Freshness`, but clients MUST NOT depend on the header instead of the body.
+
+## Public diagnostics
+
+`evidenceObservation.diagnostics` follows `lb.http.effective-view.diagnostics.v1` in `EFFECTIVE_VIEW_DIAGNOSTICS.md`.
+
+Public diagnostics expose stable protocol fields and reason codes only. Filesystem paths, database identifiers, stack traces, parser exception text, worker identifiers, and other relay-internal details are forbidden.
+
+Diagnostics are deterministically ordered and exact duplicates are collapsed. Conflicting diagnostic content for the same evidence kind and identifier is not silently selected.
 
 ## Status codes
 
@@ -57,5 +66,6 @@ An incomplete latest observation alone is not a `409` or `503` condition.
 - Do not label a stale semantic result as current.
 - Do not omit the latest observation generation.
 - Do not suppress diagnostics for unusable evidence.
+- Do not expose implementation-specific error details through the public API.
 - Do not apply semantic effects from an incomplete generation.
 - Do not convert storage corruption into a normal stale response.

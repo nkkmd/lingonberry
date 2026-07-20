@@ -1,0 +1,12 @@
+{
+  "targetCommit": "succeeded",
+  "directEnqueue": "succeeded",
+  "durableIntent": true,
+  "previousCheckpoint": "view:target:g1",
+  "expected": {
+    "targetStored": true,
+    "publishSucceeded": true,
+    "reevaluationStatus": "pending",
+    "checkpoint": "view:target:g1"
+  }
+}

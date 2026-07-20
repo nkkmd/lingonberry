@@ -1,0 +1,9 @@
+{
+  "targetId": "lb:obj:target",
+  "transitions": [
+    {"id":"lb:transition:a","targetId":"lb:obj:target","transitionType":"replace","replacementId":"lb:obj:a","authority":"authorized"},
+    {"id":"lb:transition:b","targetId":"lb:obj:target","transitionType":"withdraw","authority":"authorized"},
+    {"id":"lb:transition:c","targetId":"lb:obj:target","transitionType":"replace","replacementId":"lb:obj:c","authority":"authorized","supersedesTransitionIds":["lb:transition:a","lb:transition:b"]}
+  ],
+  "expected":{"classification":"replaced","effectiveTransitionId":"lb:transition:c","replacementId":"lb:obj:c"}
+}

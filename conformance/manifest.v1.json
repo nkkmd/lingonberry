@@ -30,6 +30,8 @@
     {"id":"transition-authority.delegated-publisher","suite":"consumer","kind":"transition-authority","ruleVersion":"lb.transition.authority.v1","input":"transition-authority/delegated-publisher.input.json"},
     {"id":"transition-authority.unauthorized-publisher","suite":"consumer","kind":"transition-authority","ruleVersion":"lb.transition.authority.v1","input":"transition-authority/unauthorized-publisher.input.json"},
     {"id":"transition-authority.unknown-target-publisher","suite":"consumer","kind":"transition-authority","ruleVersion":"lb.transition.authority.v1","input":"transition-authority/unknown-target-publisher.input.json"},
+    {"id":"transition-orphan.missing-target","suite":"consumer","kind":"transition-orphan","ruleVersion":"lb.transition.orphan.v1","input":"transition-orphan/missing-target.input.json"},
+    {"id":"transition-orphan.target-arrival-reevaluation","suite":"consumer","kind":"transition-orphan-reevaluation","ruleVersion":"lb.transition.orphan.v1","input":"transition-orphan/target-arrival-reevaluation.input.json"},
     {"id":"transition-supersession.single-head","suite":"consumer","kind":"transition-supersession","ruleVersion":"lb.transition.supersession.v1","input":"transition-supersession/single-head.input.json"},
     {"id":"transition-supersession.parallel-authorized","suite":"consumer","kind":"transition-supersession","ruleVersion":"lb.transition.supersession.v1","input":"transition-supersession/parallel-authorized.input.json"},
     {"id":"transition-supersession.explicit","suite":"consumer","kind":"transition-supersession","ruleVersion":"lb.transition.supersession.v1","input":"transition-supersession/explicit-supersession.input.json"},

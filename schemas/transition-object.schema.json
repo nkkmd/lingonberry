@@ -1,0 +1,35 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://lingonberry.cultivationdata.net/schemas/v1/transition-object.schema.json",
+  "title": "Lingonberry Transition Object",
+  "type": "object",
+  "required": ["id", "schemaVersion", "objectType", "transitionType", "targetId", "issuedAt", "provenance", "rawRef"],
+  "properties": {
+    "id": {"type": "string", "pattern": "^lb:transition:[^\\s]+$"},
+    "schemaVersion": {"type": "string", "const": "0.1.0"},
+    "objectType": {"type": "string", "const": "transition"},
+    "transitionType": {"type": "string", "enum": ["replace", "withdraw"]},
+    "targetId": {"type": "string", "pattern": "^lb:obj:[^\\s]+$"},
+    "replacementId": {"type": "string", "pattern": "^lb:obj:[^\\s]+$"},
+    "issuedAt": {"type": "string", "format": "date-time"},
+    "reason": {"type": "string", "minLength": 1},
+    "provenance": {"$ref": "knowledge-object.schema.json#/properties/provenance"},
+    "rawRef": {"$ref": "knowledge-object.schema.json#/properties/rawRef"},
+    "identityClaims": {"type": "array"},
+    "meta": {"type": "object", "additionalProperties": true}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"transitionType": {"const": "replace"}}},
+      "then": {
+        "required": ["replacementId"],
+        "not": {"properties": {"replacementId": {"const": {"$data": "1/targetId"}}}}
+      }
+    },
+    {
+      "if": {"properties": {"transitionType": {"const": "withdraw"}}},
+      "then": {"not": {"required": ["replacementId"]}}
+    }
+  ],
+  "additionalProperties": false
+}

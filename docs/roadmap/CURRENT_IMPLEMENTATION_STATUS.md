@@ -35,10 +35,12 @@ publication state: v0.6.0 implementation in progress
 | transition envelope／route-isolation fixtures | PR #98で追加済み |
 | orphan transition rule `lb.transition.orphan.v1` | PR #98で追加済み |
 | missing-target retention／target-arrival re-evaluation fixtures | PR #98で追加済み |
+| durable re-evaluation queue `lb.transition.reevaluation.queue.v1` | PR #98で追加済み |
+| enqueue recovery／idempotent retry／checkpoint fixtures | PR #98で追加済み |
 | relay transition append-only storage／effective-view projection | 未着手 |
 | release checklist／CHANGELOG／version update | 未着手 |
 
-## 3. Fixed transition, identifier, and HTTP contract
+## 3. Fixed transition, identifier, HTTP, and queue contract
 
 - 元Knowledge Objectは変更・削除しない
 - replacement／withdrawalは専用Transition Objectとしてappend-only保存する
@@ -67,13 +69,20 @@ publication state: v0.6.0 implementation in progress
 - orphan中は`targetStatus=missing`、authorityは`unknown/target-unavailable`、effective view非適用とする
 - target到着後はderived stateだけを再評価し、transition bytes／identity／signature evidenceを変更しない
 - orphanのexact duplicateはidempotent、同一IDで異なるbytesはconflictのままとする
+- target Knowledge Objectを先にcanonical storageへcommitし、orphan再評価はdurable queueで非同期処理する
+- queue／worker失敗をtarget publish失敗へ書き換えない
+- enqueue障害時もdurable intentまたはreconciliationによって再評価漏れを回復可能にする
+- queue processingはat-least-onceとし、workerはidempotentにする
+- stale evidence snapshotからderived checkpointを更新しない
+- checkpointはcurrent snapshotの評価結果がdurably committedされた後だけ進める
+- abandoned claim、missing work、stale checkpointをrestart-safe reconciliationで検出する
 
 ## 4. Next implementation order
 
-1. target到着時のorphan再評価をpublish transaction内で同期実行するか、durable queueによる非同期処理とするか決定する
-2. 決定したre-evaluation trigger／checkpoint／failure semanticsをfixture化する
+1. re-evaluation queueをtransition単位にするか、target単位でcoalesceするか決定する
+2. 決定したwork key／generation／coalescing semanticsをfixture化する
 3. relayで`POST /v1/transitions`のvalidate／signature verify／append-only storeを有効化する
-4. orphan indexとauthority classification／effective-view projectionを実装する
+4. orphan index、durable queue、authority classification／effective-view projectionを実装する
 5. compatibility matrixを完成させる
 6. v0.6.0 release checklist／CHANGELOG／version更新へ進む
 
@@ -92,3 +101,5 @@ publication state: v0.6.0 implementation in progress
 11. unknown ruleを既知versionとして解釈しない
 12. fixtureと実装が不一致の場合、fixtureを自動更新して成功扱いしない
 13. target到着後のre-evaluation失敗をtarget Knowledge Objectの保存失敗へ書き換えない
+14. in-memory taskだけをre-evaluationの唯一の記録にしない
+15. stale workerが新しいderived checkpointを上書きしない

@@ -1,5 +1,4 @@
-#[allow(clippy::unnecessary_sort_by)]
-#[path = "effective_view_v2.rs"]
+#[path = "effective_view_release.rs"]
 mod effective_view;
 mod publish_contract;
 mod reevaluation_worker;

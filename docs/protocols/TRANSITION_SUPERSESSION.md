@@ -4,17 +4,24 @@ Rule version: `lb.transition.supersession.v1`
 
 ## Principle
 
-Multiple authorized transitions targeting the same Knowledge Object are not ordered by timestamp or identifier. They remain append-only evidence. The effective view is updated only when the authorized transition graph has one unambiguous active head.
+Multiple authorized transitions targeting the same Knowledge Object are never ordered by timestamp or identifier. They remain append-only evidence. The effective view changes only when the authorized transition graph has one unambiguous active head.
 
-## Supersession field
+## Multi-parent supersession
 
 A Transition Object may contain:
 
 ```json
-{"supersedesTransitionId":"lb:transition:previous"}
+{
+  "supersedesTransitionIds": [
+    "lb:transition:a",
+    "lb:transition:b"
+  ]
+}
 ```
 
-The referenced transition MUST:
+The array MUST be non-empty, contain unique transition IDs, and MUST NOT contain the enclosing transition ID.
+
+Every referenced transition MUST:
 
 - exist in the evaluated corpus;
 - target the same `targetId`;
@@ -22,7 +29,7 @@ The referenced transition MUST:
 - be classified `authorized`;
 - not be the transition itself.
 
-The field participates in `lb.transition.identity.v1`.
+The array participates in `lb.transition.identity.v1`. Array order is preserved by canonicalization and is therefore identity-significant. Producers SHOULD sort IDs lexically before signing so semantically equivalent parent sets produce one identity.
 
 ## Projection states
 
@@ -30,19 +37,16 @@ The field participates in `lb.transition.identity.v1`.
 - one authorized head of type `replace`: `replaced`
 - one authorized head of type `withdraw`: `withdrawn`
 - two or more authorized heads: `ambiguous`
-- cycle, missing superseded transition, cross-target reference, or unauthorized supersession edge: `invalid-transition-graph`
+- cycle, missing parent, cross-target reference, unauthorized parent, duplicate parent, or self-reference: `invalid-transition-graph`
 
 `unauthorized` and `unknown` transitions are retained but do not become graph heads and cannot resolve ambiguity.
+
+## Fork resolution
+
+A fork is atomically resolved only when a later authorized transition explicitly supersedes every current authorized head. Superseding only part of a fork leaves the remaining heads active and the result `ambiguous`.
 
 ## Fail-closed behavior
 
 An `ambiguous` or `invalid-transition-graph` result MUST NOT select a replacement, hide the original object, or mutate canonical storage.
 
-Timestamp, input order, and transition ID lexical order MUST NOT affect the result.
-
-## Fork resolution boundary
-
-The current `0.1.0` field references one predecessor. This resolves a linear chain but cannot atomically merge two or more authorized heads. Before relay effective-view projection is enabled, the protocol must choose between:
-
-1. retaining the single-parent field and resolving forks through a sequence of merge transitions; or
-2. replacing it with a multi-parent `supersedesTransitionIds` array so one transition can explicitly supersede every current head.
+Timestamp, input order, and transition ID lexical order MUST NOT choose a winner.

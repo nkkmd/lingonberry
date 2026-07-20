@@ -33,6 +33,8 @@ publication state: v0.6.0 implementation in progress
 | ASCII／Unicode／length-boundary ID fixtures | PR #98で追加済み |
 | dedicated `POST /v1/transitions` contract | PR #98で追加済み |
 | transition envelope／route-isolation fixtures | PR #98で追加済み |
+| orphan transition rule `lb.transition.orphan.v1` | PR #98で追加済み |
+| missing-target retention／target-arrival re-evaluation fixtures | PR #98で追加済み |
 | relay transition append-only storage／effective-view projection | 未着手 |
 | release checklist／CHANGELOG／version update | 未着手 |
 
@@ -61,13 +63,17 @@ publication state: v0.6.0 implementation in progress
 - transition requestのtop-level payload fieldは`transition`とする
 - route mismatch、`object`／`transition`同居、暗黙redirectは拒否する
 - signatureは既存`lb.http.publish.signature.v1`を再利用し、envelope field名も署名対象とする
+- target不在のvalid signed transitionはorphan evidenceとしてappend-only保存する
+- orphan中は`targetStatus=missing`、authorityは`unknown/target-unavailable`、effective view非適用とする
+- target到着後はderived stateだけを再評価し、transition bytes／identity／signature evidenceを変更しない
+- orphanのexact duplicateはidempotent、同一IDで異なるbytesはconflictのままとする
 
 ## 4. Next implementation order
 
-1. target Knowledge Objectがrelayに存在しないtransitionをrejectするか、orphan evidenceとして保存するか決定する
-2. 決定したtarget-existence classificationとHTTP responseをfixture化する
+1. target到着時のorphan再評価をpublish transaction内で同期実行するか、durable queueによる非同期処理とするか決定する
+2. 決定したre-evaluation trigger／checkpoint／failure semanticsをfixture化する
 3. relayで`POST /v1/transitions`のvalidate／signature verify／append-only storeを有効化する
-4. authority classificationとeffective-view projectionを実装する
+4. orphan indexとauthority classification／effective-view projectionを実装する
 5. compatibility matrixを完成させる
 6. v0.6.0 release checklist／CHANGELOG／version更新へ進む
 
@@ -85,3 +91,4 @@ publication state: v0.6.0 implementation in progress
 10. canonicalization、digest、signature対象bytesを暗黙に変更しない
 11. unknown ruleを既知versionとして解釈しない
 12. fixtureと実装が不一致の場合、fixtureを自動更新して成功扱いしない
+13. target到着後のre-evaluation失敗をtarget Knowledge Objectの保存失敗へ書き換えない

@@ -1,0 +1,59 @@
+{
+  "targetId": "lb:obj:target-1",
+  "snapshots": [
+    {
+      "generation": "evidence:sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "currentObservation": false,
+      "semanticCheckpoint": true,
+      "activeCursorLease": false,
+      "withinRecentPolicy": false
+    },
+    {
+      "generation": "evidence:sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "currentObservation": true,
+      "semanticCheckpoint": false,
+      "activeCursorLease": false,
+      "withinRecentPolicy": false
+    },
+    {
+      "generation": "evidence:sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "currentObservation": false,
+      "semanticCheckpoint": false,
+      "activeCursorLease": true,
+      "withinRecentPolicy": false
+    },
+    {
+      "generation": "evidence:sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "currentObservation": false,
+      "semanticCheckpoint": false,
+      "activeCursorLease": false,
+      "withinRecentPolicy": true
+    },
+    {
+      "generation": "evidence:sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "currentObservation": false,
+      "semanticCheckpoint": false,
+      "activeCursorLease": false,
+      "withinRecentPolicy": false
+    }
+  ],
+  "cursorRequestAfterCollection": {
+    "requestedGeneration": "evidence:sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "fallbackGeneration": "evidence:sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  },
+  "expected": {
+    "retainedGenerations": [
+      "evidence:sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "evidence:sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "evidence:sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "evidence:sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+    ],
+    "collectibleGenerations": [
+      "evidence:sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+    ],
+    "canonicalEvidenceDeleted": false,
+    "expiredRequestHttpStatus": 409,
+    "expiredRequestCode": "LB_DIAGNOSTIC_GENERATION_UNAVAILABLE",
+    "silentlySwitchedGeneration": false
+  }
+}

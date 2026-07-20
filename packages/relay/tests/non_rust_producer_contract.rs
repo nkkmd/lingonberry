@@ -68,10 +68,12 @@ fn wait_until_ready(port: u16) {
 }
 
 fn http_post(port: u16, body: &str) -> String {
-    let mut stream = TcpStream::connect(("127.0.0.1", port)).expect("connect to HTTP server");
+    let mut stream =
+        TcpStream::connect(("127.0.0.1", port)).expect("connect to HTTP server");
     let request = format!(
         "POST /v1/objects HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
-        body.len(), body,
+        body.len(),
+        body,
     );
     stream.write_all(request.as_bytes()).expect("write request");
     let mut response = String::new();
@@ -103,7 +105,6 @@ fn unique_temp_dir(label: &str) -> PathBuf {
         .expect("system clock")
         .as_nanos();
     let process_id = std::process::id();
-    std::env::temp_dir().join(format!(
-        "lingonberry-non-rust-producer-{label}-{process_id}-{nonce}"
-    ))
+    let name = format!("lingonberry-non-rust-producer-{label}-{process_id}-{nonce}");
+    std::env::temp_dir().join(name)
 }

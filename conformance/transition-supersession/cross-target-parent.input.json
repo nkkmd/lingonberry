@@ -1,0 +1,1 @@
+{"targetId":"lb:obj:target","transitions":[{"id":"lb:transition:other","transitionType":"withdraw","targetId":"lb:obj:other","authority":"authorized"},{"id":"lb:transition:merge","transitionType":"withdraw","targetId":"lb:obj:target","supersedesTransitionIds":["lb:transition:other"],"authority":"authorized"}],"expected":{"classification":"invalid-transition-graph"}}

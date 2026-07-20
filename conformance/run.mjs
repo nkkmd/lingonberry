@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 const root = dirname(fileURLToPath(import.meta.url));
 const manifest = JSON.parse(await readFile(resolve(root, 'manifest.v1.json'), 'utf8'));
 const semanticFields = ['type','createdAt','body','contexts','relations','status','lineage','attachments','labels'];
-const transitionFields = ['objectType','transitionType','targetId','replacementId','issuedAt','reason'];
+const transitionFields = ['objectType','transitionType','targetId','replacementId','supersedesTransitionId','issuedAt','reason'];
 
 function sortKeys(value) {
   if (Array.isArray(value)) return value.map(sortKeys);
@@ -34,6 +34,7 @@ function classifyTimestamp(value) {
 function classifyTransition(value) {
   if (value?.objectType !== 'transition' || value?.schemaVersion !== '0.1.0') return 'invalid';
   if (!/^lb:transition:\S+$/.test(value.id ?? '') || !/^lb:obj:\S+$/.test(value.targetId ?? '')) return 'invalid';
+  if (value.supersedesTransitionId !== undefined && (!/^lb:transition:\S+$/.test(value.supersedesTransitionId) || value.supersedesTransitionId === value.id)) return 'invalid';
   if (classifyTimestamp(value.issuedAt) !== 'valid' || !Array.isArray(value.provenance?.sources) || value.provenance.sources.length === 0) return 'invalid';
   if (typeof value.rawRef?.protocol !== 'string' || typeof value.rawRef?.sourceId !== 'string') return 'invalid';
   if (value.transitionType === 'replace') return /^lb:obj:\S+$/.test(value.replacementId ?? '') && value.replacementId !== value.targetId ? 'valid' : 'invalid';
@@ -42,12 +43,8 @@ function classifyTransition(value) {
 }
 function classifyTransitionAuthority(input) {
   const retain = true;
-  if (input.targetPublisherKey === null || input.targetPublisherKey === undefined) {
-    return {classification:'unknown',basis:'target-publisher-unknown',retain,applyToEffectiveView:false};
-  }
-  if (input.transitionPublisherKey === input.targetPublisherKey) {
-    return {classification:'authorized',basis:'original-publisher',retain,applyToEffectiveView:true};
-  }
+  if (input.targetPublisherKey === null || input.targetPublisherKey === undefined) return {classification:'unknown',basis:'target-publisher-unknown',retain,applyToEffectiveView:false};
+  if (input.transitionPublisherKey === input.targetPublisherKey) return {classification:'authorized',basis:'original-publisher',retain,applyToEffectiveView:true};
   let incomplete = false;
   for (const delegation of input.delegations ?? []) {
     if (delegation.verified !== true) { incomplete = true; continue; }
@@ -61,6 +58,23 @@ function classifyTransitionAuthority(input) {
   }
   if (incomplete) return {classification:'unknown',basis:'authority-evidence-incomplete',retain,applyToEffectiveView:false};
   return {classification:'unauthorized',basis:'no-applicable-authority',retain,applyToEffectiveView:false};
+}
+function projectTransitions(input) {
+  const authorized = input.transitions.filter((item) => item.authority === 'authorized');
+  const byId = new Map(authorized.map((item) => [item.id, item]));
+  const superseded = new Set();
+  for (const item of authorized) {
+    if (!item.supersedesTransitionId) continue;
+    const prior = byId.get(item.supersedesTransitionId);
+    if (!prior || prior.targetId !== input.targetId || item.targetId !== input.targetId || prior.id === item.id) return {classification:'invalid-transition-graph'};
+    superseded.add(prior.id);
+  }
+  const heads = authorized.filter((item) => item.targetId === input.targetId && !superseded.has(item.id));
+  if (heads.length === 0) return {classification:'active-original'};
+  if (heads.length > 1) return {classification:'ambiguous',headTransitionIds:heads.map((item) => item.id).sort()};
+  const head = heads[0];
+  if (head.transitionType === 'replace') return {classification:'replaced',effectiveTransitionId:head.id,replacementId:head.replacementId};
+  return {classification:'withdrawn',effectiveTransitionId:head.id};
 }
 function httpPublishSignatureTarget(request) {
   const target = structuredClone(request);
@@ -118,6 +132,8 @@ for (const testCase of manifest.cases) {
       if (testCase.expected) assert.equal(transitionIdentity(input), (await read(testCase.expected)).trimEnd());
     } else if (testCase.kind === 'transition-authority') {
       const input = JSON.parse(await read(testCase.input)); assert.deepEqual(classifyTransitionAuthority(input), input.expected);
+    } else if (testCase.kind === 'transition-supersession') {
+      const input = JSON.parse(await read(testCase.input)); assert.deepEqual(projectTransitions(input), input.expected);
     } else throw new Error(`unsupported conformance case kind: ${testCase.kind}`);
     results.push({id:testCase.id,suite:testCase.suite,status:'pass'});
   } catch (error) { results.push({id:testCase.id,suite:testCase.suite,status:'fail',error:error.message}); }

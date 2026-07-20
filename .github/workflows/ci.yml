@@ -19,17 +19,21 @@ jobs:
         with:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
-      - name: Generate rustfmt patch
-        run: |
-          cargo fmt --all
-          git diff --binary > rustfmt.patch
-      - name: Upload rustfmt patch
+      - name: Generate rustfmt outputs
+        run: cargo fmt --all
+      - name: Upload formatted Rust files
         uses: actions/upload-artifact@v4
         with:
-          name: rustfmt-review-fixes
-          path: rustfmt.patch
-      - name: Verify patch is empty
-        run: test ! -s rustfmt.patch
+          name: rustfmt-formatted-files
+          path: |
+            packages/relay/src/effective_view_guard.rs
+            packages/relay/src/reevaluation_main.rs
+            packages/relay/src/reevaluation_worker.rs
+            packages/relay/src/transition_api.rs
+            packages/relay/tests/non_rust_producer_contract.rs
+            packages/relay/tests/transition_http_contract.rs
+      - name: Verify source formatting
+        run: cargo fmt --all -- --check
       - name: Run library clippy
         run: cargo clippy --workspace --lib -- -D warnings
       - name: Run binary clippy

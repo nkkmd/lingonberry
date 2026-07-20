@@ -1,0 +1,21 @@
+{
+  "transitionPublisherKey": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "targetPublisherKey": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "issuedAt": "2026-07-20T00:00:00Z",
+  "delegations": [
+    {
+      "issuerKey": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "delegateKey": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "scopes": ["transition"],
+      "validFrom": "2026-07-01T00:00:00Z",
+      "validUntil": "2026-08-01T00:00:00Z",
+      "verified": true
+    }
+  ],
+  "expected": {
+    "classification": "authorized",
+    "basis": "delegated-publisher",
+    "retain": true,
+    "applyToEffectiveView": true
+  }
+}

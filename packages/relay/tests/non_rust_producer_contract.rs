@@ -8,6 +8,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 const BINARY: &str = env!("CARGO_BIN_EXE_lingonberry-relay");
 const OBJECT_ID: &str = "lb:obj:js-producer-http-contract";
+const CREATED_AT: &str = "2026-07-20T00:00:00Z";
 
 #[test]
 fn javascript_producer_publishes_through_real_http_path() {
@@ -15,18 +16,18 @@ fn javascript_producer_publishes_through_real_http_path() {
     let state_dir = unique_temp_dir("js-producer");
     fs::create_dir_all(&state_dir).expect("create state directory");
 
-    let producer = workspace.join("conformance/minimal-producer.mjs");
     let produced = Command::new("node")
-        .arg(producer)
-        .args(["--id", OBJECT_ID])
-        .args(["--created-at", "2026-07-20T00:00:00Z"])
+        .arg(workspace.join("conformance/minimal-producer.mjs"))
+        .args(["--id", OBJECT_ID, "--created-at", CREATED_AT])
         .output()
         .expect("run JavaScript producer");
-
-    let stderr = String::from_utf8_lossy(&produced.stderr);
-    assert!(produced.status.success(), "producer stderr={stderr}");
-
+    assert!(
+        produced.status.success(),
+        "producer stderr={}",
+        String::from_utf8_lossy(&produced.stderr),
+    );
     let request = String::from_utf8(produced.stdout).expect("producer output must be UTF-8");
+
     let port = available_port();
     let mut server = spawn_http_server(&state_dir, port);
     wait_until_ready(port);
@@ -35,8 +36,8 @@ fn javascript_producer_publishes_through_real_http_path() {
     assert!(response.starts_with("HTTP/1.1 201 "), "{response}");
     assert!(response.contains("\"status\":\"stored\""), "{response}");
     assert!(response.contains("\"code\":\"LB_OBJECT_STORED\""), "{response}");
-    let canonical_id = format!("\"canonicalId\":\"{OBJECT_ID}\"");
-    assert!(response.contains(&canonical_id), "{response}");
+    let expected_id = format!("\"canonicalId\":\"{OBJECT_ID}\"");
+    assert!(response.contains(&expected_id), "{response}");
 
     server.kill().ok();
     server.wait().ok();
@@ -67,19 +68,10 @@ fn wait_until_ready(port: u16) {
 }
 
 fn http_post(port: u16, body: &str) -> String {
-    let address = ("127.0.0.1", port);
-    let mut stream = TcpStream::connect(address).expect("connect to HTTP server");
+    let mut stream = TcpStream::connect(("127.0.0.1", port)).expect("connect to HTTP server");
     let request = format!(
-        concat!(
-            "POST /v1/objects HTTP/1.1\r\n",
-            "Host: 127.0.0.1\r\n",
-            "Content-Type: application/json\r\n",
-            "Content-Length: {}\r\n",
-            "Connection: close\r\n\r\n",
-            "{}"
-        ),
-        body.len(),
-        body
+        "POST /v1/objects HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+        body.len(), body,
     );
     stream.write_all(request.as_bytes()).expect("write request");
     let mut response = String::new();

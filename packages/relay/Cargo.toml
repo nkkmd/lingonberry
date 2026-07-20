@@ -14,6 +14,10 @@ name = "lingonberry-relay"
 path = "src/main_v0_6_release.rs"
 
 [[bin]]
+name = "lingonberry-reevaluate-transitions"
+path = "src/reevaluation_main.rs"
+
+[[bin]]
 name = "lingonberry-admin-auth-config"
 path = "src/admin_auth_config_main.rs"
 

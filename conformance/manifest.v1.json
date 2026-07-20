@@ -3,6 +3,8 @@
   "protocolContract": "docs/protocols/PROTOCOL_CONTRACT.md",
   "cases": [
     {"id":"canonicalization.object-key-order","suite":"producer","kind":"canonicalization","ruleVersion":"lb.canonical.json.v1","input":"canonicalization/object-key-order.input.json","expected":"canonicalization/object-key-order.expected.json"},
+    {"id":"protocol-id.valid-ascii","suite":"producer","kind":"protocol-id","ruleVersion":"lb.protocol.id.ascii.v1","input":"protocol-id/valid-ascii.input.json"},
+    {"id":"protocol-id.invalid-unicode","suite":"consumer","kind":"protocol-id","ruleVersion":"lb.protocol.id.ascii.v1","input":"protocol-id/invalid-unicode.input.json"},
     {"id":"identity-key-v2.minimal-object","suite":"producer","kind":"identity-key","ruleVersion":"lb.identity.key.v2","canonicalizationRuleVersion":"lb.canonical.json.v1","input":"identity-key-v2/minimal-object.input.json","expected":"identity-key-v2/minimal-object.expected.txt"},
     {"id":"identity-key-v2.relation-lineage","suite":"producer","kind":"identity-key","ruleVersion":"lb.identity.key.v2","canonicalizationRuleVersion":"lb.canonical.json.v1","input":"identity-key-v2/relation-lineage.input.json","expected":"identity-key-v2/relation-lineage.expected.txt"},
     {"id":"identity-key-v2.alternate-origin","suite":"producer","kind":"identity-key-equivalence","ruleVersion":"lb.identity.key.v2","canonicalizationRuleVersion":"lb.canonical.json.v1","input":"identity-key-v2/minimal-object.input.json","alternateInput":"identity-key-v2/minimal-object-alternate-origin.input.json"},

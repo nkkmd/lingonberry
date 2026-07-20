@@ -1,0 +1,15 @@
+{
+  "carrierIdentity": "http:publisher:307270eca005df54e3ca169c6139ffc228c4f0069c24ce1260fbf3394f51b9ac",
+  "storedAt": "2026-07-20T00:00:00Z",
+  "object": {
+    "id": "lb:obj:identity-v2-example",
+    "schemaVersion": "0.1.0",
+    "type": "inquiry",
+    "createdAt": "2026-07-11T00:00:00Z",
+    "body": {"text": "How should this knowledge be verified?", "language": "en"},
+    "contexts": {"topic": "test"},
+    "labels": ["identity-v2"],
+    "provenance": {"sources": [{"protocol": "example", "sourceId": "source-a"}]},
+    "rawRef": {"protocol": "example", "sourceId": "raw-a"}
+  }
+}

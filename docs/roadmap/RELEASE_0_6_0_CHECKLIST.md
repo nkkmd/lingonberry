@@ -13,6 +13,7 @@
 - [x] Stable public diagnostics
 - [x] Bounded diagnostic summary and pagination contract
 - [x] Diagnostic retention, cursor lease, read guard, and heartbeat contracts
+- [x] Existing `rebuild-index` and `catch-up-index` CLI compatibility retained
 
 ## Versioning and documentation
 
@@ -34,12 +35,12 @@
 - [x] `cargo test --workspace`
 - [x] JavaScript tests
 - [x] External conformance suite
-- [ ] Final candidate CI green after all release-document updates
+- [x] Final candidate validation green after release-document and compatibility updates
 
 ## Pre-merge
 
 - [ ] PR #98 marked ready for review
-- [ ] Final diff and compatibility review completed
+- [x] Final diff and compatibility review completed
 - [ ] Merge authorization confirmed
 
 ## Publication after merge

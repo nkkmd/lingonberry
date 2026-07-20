@@ -1,6 +1,6 @@
 # 現在の実装状況
 
-**Status: v0.6.0 release candidate pre-merge** | **Last updated: 2026-07-20**
+**Status: v0.6.0 merge-ready release candidate** | **Last updated: 2026-07-20**
 
 この文書は、Lingonberryの実装作業を中断・再開するときの引き継ぎ用正本です。
 
@@ -32,7 +32,8 @@ publication state: pre-merge; tag and GitHub Release not published
 - bounded summary and generation-fixed pagination contract
 - diagnostic retention／cursor lease／read guard／heartbeat conformance
 - all Rust workspace packages and `Cargo.lock` set to `0.6.0`
-- v0.6.0 release note／checklist／root README
+- root README／CHANGELOG／release note／release checklist synchronized
+- existing `rebuild-index`／`catch-up-index` CLI compatibility retained
 
 ## Fixed safety model
 
@@ -65,16 +66,16 @@ cargo run -p lingonberry-relay --bin lingonberry-reevaluate-transitions -- --rec
 
 ## Validation state
 
-The release-candidate line has passed:
+The release candidate has passed:
 
-- library Clippy
-- binary Clippy
+- source formatting in CI
+- library Clippy with warnings denied
+- binary Clippy with warnings denied
 - test-target Clippy compilation
 - `cargo test --workspace`
 - JavaScript tests
 - external conformance suite
-
-Final pre-merge validation must be repeated after README／CHANGELOG／status／PR synchronization.
+- existing index recovery process compatibility tests
 
 ## Known limitations
 
@@ -84,11 +85,11 @@ Final pre-merge validation must be repeated after README／CHANGELOG／status／
 - CI formats the checkout with `cargo fmt --all` before Rust validation.
 - Test-target Clippy is compile verification and does not deny warnings.
 
-## Remaining before merge
+## Remaining before publication
 
-1. Add the v0.6.0 CHANGELOG entry.
-2. Synchronize the release checklist and PR #98 body.
-3. Confirm final candidate CI green.
-4. Move PR #98 to review／merge-ready state.
-
-After merge: confirm main CI, publish annotated tag `v0.6.0`, publish the GitHub Release, and close Issue #97.
+1. Confirm the final normal release-gate CI on the documentation-finalized head.
+2. Mark PR #98 ready for review.
+3. Obtain merge authorization and merge PR #98.
+4. Confirm main-branch CI.
+5. Publish annotated tag `v0.6.0` and GitHub Release.
+6. Close Issue #97 as completed.

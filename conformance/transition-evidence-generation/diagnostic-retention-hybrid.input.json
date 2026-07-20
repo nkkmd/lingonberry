@@ -1,0 +1,49 @@
+{
+  "now": "2026-07-20T06:30:00Z",
+  "policy": {
+    "maximumRecentGenerations": 8,
+    "maximumAgeSeconds": 86400
+  },
+  "snapshots": [
+    {"generation":"evidence:sha256:g-current","observedAt":"2026-07-20T06:29:00Z","currentObservation":true,"semanticCheckpoint":false,"activeCursorLease":false},
+    {"generation":"evidence:sha256:g-semantic","observedAt":"2026-07-10T00:00:00Z","currentObservation":false,"semanticCheckpoint":true,"activeCursorLease":false},
+    {"generation":"evidence:sha256:g-cursor","observedAt":"2026-07-18T00:00:00Z","currentObservation":false,"semanticCheckpoint":false,"activeCursorLease":true},
+    {"generation":"evidence:sha256:g-01","observedAt":"2026-07-20T06:28:00Z","currentObservation":false,"semanticCheckpoint":false,"activeCursorLease":false},
+    {"generation":"evidence:sha256:g-02","observedAt":"2026-07-20T05:30:00Z","currentObservation":false,"semanticCheckpoint":false,"activeCursorLease":false},
+    {"generation":"evidence:sha256:g-03","observedAt":"2026-07-20T04:30:00Z","currentObservation":false,"semanticCheckpoint":false,"activeCursorLease":false},
+    {"generation":"evidence:sha256:g-04","observedAt":"2026-07-20T03:30:00Z","currentObservation":false,"semanticCheckpoint":false,"activeCursorLease":false},
+    {"generation":"evidence:sha256:g-05","observedAt":"2026-07-20T02:30:00Z","currentObservation":false,"semanticCheckpoint":false,"activeCursorLease":false},
+    {"generation":"evidence:sha256:g-06","observedAt":"2026-07-20T01:30:00Z","currentObservation":false,"semanticCheckpoint":false,"activeCursorLease":false},
+    {"generation":"evidence:sha256:g-07","observedAt":"2026-07-20T00:30:00Z","currentObservation":false,"semanticCheckpoint":false,"activeCursorLease":false},
+    {"generation":"evidence:sha256:g-08","observedAt":"2026-07-19T23:30:00Z","currentObservation":false,"semanticCheckpoint":false,"activeCursorLease":false},
+    {"generation":"evidence:sha256:g-09","observedAt":"2026-07-19T22:30:00Z","currentObservation":false,"semanticCheckpoint":false,"activeCursorLease":false},
+    {"generation":"evidence:sha256:g-boundary","observedAt":"2026-07-19T06:30:00Z","currentObservation":false,"semanticCheckpoint":false,"activeCursorLease":false},
+    {"generation":"evidence:sha256:g-too-old","observedAt":"2026-07-19T06:29:59Z","currentObservation":false,"semanticCheckpoint":false,"activeCursorLease":false}
+  ],
+  "expected": {
+    "recentPolicyRetainedGenerations": [
+      "evidence:sha256:g-01",
+      "evidence:sha256:g-02",
+      "evidence:sha256:g-03",
+      "evidence:sha256:g-04",
+      "evidence:sha256:g-05",
+      "evidence:sha256:g-06",
+      "evidence:sha256:g-07",
+      "evidence:sha256:g-08"
+    ],
+    "protectedOverrideGenerations": [
+      "evidence:sha256:g-current",
+      "evidence:sha256:g-semantic",
+      "evidence:sha256:g-cursor"
+    ],
+    "collectibleGenerations": [
+      "evidence:sha256:g-09",
+      "evidence:sha256:g-boundary",
+      "evidence:sha256:g-too-old"
+    ],
+    "countBound": 8,
+    "ageBoundSeconds": 86400,
+    "requiresBothRecentConditions": true,
+    "canonicalEvidenceDeleted": false
+  }
+}

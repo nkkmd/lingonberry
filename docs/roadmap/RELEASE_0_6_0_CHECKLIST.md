@@ -39,7 +39,7 @@
 
 ## Pre-merge
 
-- [ ] PR #98 marked ready for review
+- [x] PR #98 marked ready for review
 - [x] Final diff and compatibility review completed
 - [ ] Merge authorization confirmed
 

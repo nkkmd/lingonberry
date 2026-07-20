@@ -1,6 +1,7 @@
 mod effective_view;
 mod publish_contract;
 mod retrieval_contract;
+#[allow(clippy::manual_is_multiple_of)]
 mod transition_api;
 
 pub use effective_view::{effective_view_http_response, EffectiveViewHttpResponse};

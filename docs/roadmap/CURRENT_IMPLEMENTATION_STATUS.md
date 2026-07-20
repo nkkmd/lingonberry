@@ -47,9 +47,11 @@ Latest published releaseはv0.5.0です。
 | canonicalization golden fixture | Rust／JavaScript共有済み |
 | identity-key v2 golden fixture | Rust／JavaScript共有済み |
 | HTTP publish signature rule v1 | PR #98で追加済み |
-| valid Ed25519 signature golden vector | PR #98で追加済み |
-| tampered request signature rejection fixture | PR #98で追加済み |
-| digest／timestamp／legacy fixture expansion | 未着手 |
+| valid／tampered／malformed signature fixtures | PR #98で追加済み |
+| index generation digest rule／golden fixture | PR #98で追加済み |
+| timestamp semantics／valid／invalid fixture | PR #98で追加済み |
+| legacy identity-key v1 compatibility fixture | PR #98で追加済み |
+| producer／consumer／internal suite separation | PR #98で追加済み |
 | non-Rust producer integration | 未着手 |
 
 ## 4. v0.6.0 fixed contract
@@ -57,12 +59,15 @@ Latest published releaseはv0.5.0です。
 現在固定した外部契約は次のとおりです。
 
 - canonical JSON rule: `lb.canonical.json.v1`
-- identity rule: `lb.identity.key.v2`
+- identity rules: `lb.identity.key.v1`、`lb.identity.key.v2`
 - HTTP publish signature rule: `lb.http.publish.signature.v1`
+- timestamp rule: `lb.timestamp.rfc3339.utc.v1`
+- index generation rule: `lb.index.generation.v1`（内部派生状態。暗号用途ではない）
 - signature target: `publisher.signature`だけを除いたrequest全体のcanonical UTF-8 bytes
 - signature algorithm: Ed25519、pre-hashなし
 - public key: raw 32 bytesのlowercase hex
 - signature: raw 64 bytesのlowercase hex
+- timestampはcanonicalizationで変換せず、producerはUTC `Z`形式を使用する
 - protocol／schema／canonicalization／identity／signature／API／storage／journal／proof versionを独立軸として扱う
 - unknown／unsupported versionは既知versionへfallbackしない
 
@@ -96,12 +101,12 @@ publish
 
 ## 7. Next implementation order
 
-1. canonical object／record content digestのrule inventoryとgolden fixture化
-2. malformed public key／signature length／hex boundary fixture
-3. timestamp valid／invalid／boundary fixture
-4. legacy fixtureとcompatibility classification
-5. producer／consumer conformance resultの分離
-6. non-Rust minimal producerから実publish経路へのintegration test
+1. non-Rust minimal producerを独立moduleとして実装する
+2. producerが生成したcanonical bytes、identity key、signature targetをfixtureと照合する
+3. producer出力を実HTTP publish経路へ投入するintegration testを追加する
+4. relation／lineage、replacement／withdrawal fixtureを追加する
+5. conformance manifestとfixture corpusの改変検出を追加する
+6. v0.6.0 release checklist／CHANGELOG／version更新へ進む
 
 ## 8. 絶対に崩さない安全性ルール
 

@@ -35,23 +35,7 @@ jobs:
         run: cargo fmt --all
 
       - name: Run library clippy
-        id: library-clippy
-        continue-on-error: true
-        shell: bash
-        run: |
-          set -o pipefail
-          cargo clippy --workspace --lib -- -D warnings 2>&1 | tee clippy-library.log
-
-      - name: Upload library clippy log
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: clippy-library-log
-          path: clippy-library.log
-
-      - name: Fail after library clippy
-        if: steps.library-clippy.outcome == 'failure'
-        run: exit 1
+        run: cargo clippy --workspace --lib -- -D warnings
 
       - name: Run binary clippy
         run: cargo clippy --workspace --bins -- -D warnings -A dead-code

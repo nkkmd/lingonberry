@@ -19,7 +19,7 @@ mod v0_6_release {
 fn main() {
     let args = std::env::args().skip(1).collect::<Vec<_>>();
     match args.first().map(String::as_str) {
-        Some("rebuild-index") | Some("catch-up-index") => v0_5_index::run_main(),
-        _ => v0_6_release::run_main(),
+        Some("publish") | Some("serve-http") => v0_6_release::run_main(),
+        _ => v0_5_index::run_main(),
     }
 }

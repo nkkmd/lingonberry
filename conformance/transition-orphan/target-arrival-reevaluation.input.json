@@ -1,0 +1,29 @@
+{
+  "transitionId": "lb:transition:orphan-0001",
+  "storedTransitionIdentity": "lb:key:lb.transition.identity.v1:sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "storedTransitionBytesSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "before": {
+    "targetAvailable": false,
+    "transitionPublisherKey": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+  },
+  "after": {
+    "targetAvailable": true,
+    "targetPublisherKey": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+  },
+  "expected": {
+    "before": {
+      "targetStatus": "missing",
+      "authorityClassification": "unknown",
+      "authorityBasis": "target-unavailable",
+      "applyToEffectiveView": false
+    },
+    "after": {
+      "targetStatus": "available",
+      "authorityClassification": "authorized",
+      "authorityBasis": "original-publisher",
+      "applyToEffectiveView": true
+    },
+    "identityPreserved": true,
+    "storedBytesPreserved": true
+  }
+}

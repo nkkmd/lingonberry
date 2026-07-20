@@ -56,15 +56,29 @@ function projectTransitions(input) {
   const authorized = input.transitions.filter((item) => item.authority === 'authorized');
   const byId = new Map(authorized.map((item) => [item.id, item]));
   const superseded = new Set();
+  const edges = new Map();
   for (const item of authorized) {
     const parents = item.supersedesTransitionIds ?? [];
     if (!Array.isArray(parents) || new Set(parents).size !== parents.length) return {classification:'invalid-transition-graph'};
+    edges.set(item.id, parents);
     for (const parentId of parents) {
       const prior = byId.get(parentId);
       if (!prior || prior.targetId !== input.targetId || item.targetId !== input.targetId || prior.id === item.id) return {classification:'invalid-transition-graph'};
       superseded.add(prior.id);
     }
   }
+  const visiting = new Set();
+  const visited = new Set();
+  function hasCycle(id) {
+    if (visiting.has(id)) return true;
+    if (visited.has(id)) return false;
+    visiting.add(id);
+    for (const parentId of edges.get(id) ?? []) if (hasCycle(parentId)) return true;
+    visiting.delete(id);
+    visited.add(id);
+    return false;
+  }
+  for (const id of byId.keys()) if (hasCycle(id)) return {classification:'invalid-transition-graph'};
   const heads = authorized.filter((item) => item.targetId === input.targetId && !superseded.has(item.id));
   if (heads.length === 0) return {classification:'active-original'};
   if (heads.length > 1) return {classification:'ambiguous',headTransitionIds:heads.map((item) => item.id).sort()};

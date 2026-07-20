@@ -28,12 +28,13 @@ publication state: v0.6.0 implementation in progress
 | transition supersession `lb.transition.supersession.v1` | PR #98で追加済み |
 | multi-parent atomic fork merge | PR #98で追加済み |
 | parent-set identity normalization | PR #98で追加済み |
-| duplicate／self-reference／partial-fork fixtures | PR #98で追加済み |
 | cycle／missing／cross-target／unauthorized-parent fixtures | PR #98で追加済み |
+| protocol identifier rule `lb.protocol.id.ascii.v1` | PR #98で追加済み |
+| ASCII valid／Unicode invalid ID fixtures | PR #98で追加済み |
 | relay transition append-only storage／effective-view projection | 未着手 |
 | release checklist／CHANGELOG／version update | 未着手 |
 
-## 3. Fixed transition contract
+## 3. Fixed transition and identifier contract
 
 - 元Knowledge Objectは変更・削除しない
 - replacement／withdrawalは専用Transition Objectとしてappend-only保存する
@@ -45,15 +46,18 @@ publication state: v0.6.0 implementation in progress
 - 全headを列挙しない部分解消は`ambiguous`のままとする
 - duplicate parent、self-reference、missing parent、cross-target、unauthorized parent、cycleはfail closedにする
 - `ambiguous`／`invalid-transition-graph`では元objectを隠さず、replacementを選択しない
-- supersession parent setはtransition identity basisに含める
-- parent ID配列はidentity derivation時だけ辞書順sortし、同じ集合の順序違いを同一identityにする
+- parent ID配列はidentity derivation時だけASCII byte ascendingでsortする
 - stored Transition Objectや一般のcanonical JSON配列順は書き換えない
 - duplicate parentは正規化で除去せずinvalidとする
+- protocol IDは`A-Z a-z 0-9 . _ ~ : -`のみを許可する
+- object／transition／identity keyのprefixを固定し、IDはcase-sensitiveとする
+- valid IDをtrim、case-convert、percent-decode、Unicode-normalizeしない
+- legacy Unicode IDは証拠として保持できるが、v0.6 conforming IDとして再発行・parent参照しない
 
 ## 4. Next implementation order
 
-1. parent IDの辞書順をASCII限定で定義するか、Unicode／UTF-8 byte orderingまで規定するか決定する
-2. 決定したidentifier character set／ordering fixtureを追加する
+1. protocol IDの最大長とprefix別の長さ制限を決定する
+2. 決定したboundary fixtureを追加する
 3. relayでtransition validate／append-only storeを有効化する
 4. authority classificationとeffective-view projectionを実装する
 5. compatibility matrixを完成させる

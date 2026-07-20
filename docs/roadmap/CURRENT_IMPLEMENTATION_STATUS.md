@@ -6,8 +6,6 @@
 
 ## 1. Release state
 
-v0.5.0の機能実装、end-to-end smoke scenario、package version更新、release hardening、README／関連index文書の同期、main CI確認、tag、GitHub Release公開が完了しました。
-
 ```text
 released version: 0.5.0
 v0.6.0 parent issue: #97
@@ -18,45 +16,26 @@ publication state: v0.6.0 implementation in progress
 
 Latest published releaseはv0.5.0です。
 
-## 2. v0.5.0で実装済み
-
-| 項目 | 状態 |
-|---|---|
-| versioned publish ingestion contract | 実装・公開済み |
-| CLI／HTTP共通ingestion orchestrator | 実装・公開済み |
-| deterministic duplicate／conflict classification | 実装・公開済み |
-| versioned object retrieval contract | 実装・公開済み |
-| versioned basic query contract | 実装・公開済み |
-| deterministic index generation and content digest | 実装・公開済み |
-| rebuild／verification／atomic checkpoint | 実装・公開済み |
-| checkpoint-driven catch-up | 実装・公開済み |
-| corrupt／unsupported／ambiguous state fail-closed | 実装・公開済み |
-| restart／recovery／ambiguity smoke coverage | 実装・公開済み |
-| workspace package version 0.5.0 | 公開済み |
-| release checklist／release notes／CHANGELOG | 公開済み |
-
-## 3. v0.6.0で進行中
+## 2. v0.6.0で進行中
 
 | 項目 | 状態 |
 |---|---|
 | external protocol contract | PR #98で追加済み |
-| independent version axes | PR #98で追加済み |
-| initial compatibility matrix | PR #98で追加済み |
-| versioned conformance manifest | PR #98で追加済み |
-| standalone JavaScript conformance runner | PR #98で追加済み |
-| canonicalization golden fixture | Rust／JavaScript共有済み |
-| identity-key v2 golden fixture | Rust／JavaScript共有済み |
-| HTTP publish signature rule v1 | PR #98で追加済み |
-| valid／tampered／malformed signature fixtures | PR #98で追加済み |
-| index generation digest rule／golden fixture | PR #98で追加済み |
-| timestamp semantics／valid／invalid fixture | PR #98で追加済み |
-| legacy identity-key v1 compatibility fixture | PR #98で追加済み |
+| independent version axes／compatibility matrix | PR #98で追加済み |
+| versioned conformance manifest／runner | PR #98で追加済み |
+| canonicalization／identity v1・v2 fixtures | PR #98で追加済み |
+| HTTP publish signature rule／valid・invalid・malformed fixtures | PR #98で追加済み |
+| index generation digest rule／fixture | PR #98で追加済み |
+| timestamp semantics／fixtures | PR #98で追加済み |
 | producer／consumer／internal suite separation | PR #98で追加済み |
-| non-Rust producer integration | 未着手 |
+| standalone JavaScript minimal producer | PR #98で追加済み |
+| non-Rust producer → real HTTP publish integration | PR #98で追加済み |
+| conformance manifest integrity check | PR #98で追加済み |
+| relation／lineage identity fixture | PR #98で追加済み |
+| replacement／withdrawal schema and fixtures | 設計判断待ち |
+| release checklist／CHANGELOG／version update | 未着手 |
 
-## 4. v0.6.0 fixed contract
-
-現在固定した外部契約は次のとおりです。
+## 3. v0.6.0 fixed contract
 
 - canonical JSON rule: `lb.canonical.json.v1`
 - identity rules: `lb.identity.key.v1`、`lb.identity.key.v2`
@@ -68,47 +47,36 @@ Latest published releaseはv0.5.0です。
 - public key: raw 32 bytesのlowercase hex
 - signature: raw 64 bytesのlowercase hex
 - timestampはcanonicalizationで変換せず、producerはUTC `Z`形式を使用する
+- relationとlineageは別概念として保持し、identity v2のsemantic basisに含める
 - protocol／schema／canonicalization／identity／signature／API／storage／journal／proof versionを独立軸として扱う
 - unknown／unsupported versionは既知versionへfallbackしない
 
-## 5. Index lifecycle model
+## 4. External producer guarantee
 
-Canonical storageを正本とし、indexは検証・再構築可能な派生状態として扱います。
-
-- generationはcanonical ID集合とrecord contentから決定的に生成する
-- checkpointはconsistentなrebuild resultからのみatomicに保存する
-- missingまたはstale checkpointはcatch-up可能
-- corrupt、unsupported、ambiguous checkpoint／index stateは自動上書きしない
-- contradictory stateを成功扱いしない
-
-## 6. End-to-end保証
-
-CIは次の経路を実binaryで検証します。
+CIは次の経路をRust内部APIを使わずに検証します。
 
 ```text
-publish
+JavaScript producer
+→ Knowledge Object生成
+→ canonical signature target生成
+→ Ed25519署名
+→ HTTP publish request出力
+→ lingonberry-relay実binary
+→ POST /v1/objects
 → validate
-→ store
-→ retrieve
-→ query
-→ process restart
-→ retrieve／query
-→ rebuild／consistency verification
-→ checkpoint catch-up
+→ signature verify
+→ canonical storage
+→ LB_OBJECT_STORED
 ```
 
-さらにduplicate、conflict、defer、validation reject、corrupt checkpoint、ambiguous index rejectionを固定しています。
+## 5. Next implementation order
 
-## 7. Next implementation order
+1. replacement／withdrawalを既存knowledge objectのstatus／lineageで表現するか、専用transition objectを導入するか決定する
+2. 決定したschemaのvalid／invalid／conflict fixtureを追加する
+3. compatibility matrixを完成させる
+4. v0.6.0 release checklist／CHANGELOG／version更新へ進む
 
-1. non-Rust minimal producerを独立moduleとして実装する
-2. producerが生成したcanonical bytes、identity key、signature targetをfixtureと照合する
-3. producer出力を実HTTP publish経路へ投入するintegration testを追加する
-4. relation／lineage、replacement／withdrawal fixtureを追加する
-5. conformance manifestとfixture corpusの改変検出を追加する
-6. v0.6.0 release checklist／CHANGELOG／version更新へ進む
-
-## 8. 絶対に崩さない安全性ルール
+## 6. 絶対に崩さない安全性ルール
 
 1. validation未通過objectをcanonical storageへ保存しない
 2. conflict時に既存canonical recordを上書きしない

@@ -36,8 +36,13 @@ The field participates in `lb.transition.identity.v1`.
 
 ## Fail-closed behavior
 
-An `ambiguous` or `invalid-transition-graph` result MUST NOT select a replacement, hide the original object, or mutate canonical storage. A later authorized transition may resolve ambiguity only by explicitly superseding every currently authorized head. Because the schema carries one `supersedesTransitionId`, resolving a fork requires a sequence of authorized merge transitions or a future schema revision with a multi-parent field.
+An `ambiguous` or `invalid-transition-graph` result MUST NOT select a replacement, hide the original object, or mutate canonical storage.
 
-## Determinism
+Timestamp, input order, and transition ID lexical order MUST NOT affect the result.
 
-Input order, `issuedAt`, and transition ID lexical order MUST NOT affect the result.
+## Fork resolution boundary
+
+The current `0.1.0` field references one predecessor. This resolves a linear chain but cannot atomically merge two or more authorized heads. Before relay effective-view projection is enabled, the protocol must choose between:
+
+1. retaining the single-parent field and resolving forks through a sequence of merge transitions; or
+2. replacing it with a multi-parent `supersedesTransitionIds` array so one transition can explicitly supersede every current head.

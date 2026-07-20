@@ -72,8 +72,7 @@ fn http_post(port: u16, body: &str) -> String {
         TcpStream::connect(("127.0.0.1", port)).expect("connect to HTTP server");
     let request = format!(
         "POST /v1/objects HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
-        body.len(),
-        body,
+        body.len(), body,
     );
     stream.write_all(request.as_bytes()).expect("write request");
     let mut response = String::new();

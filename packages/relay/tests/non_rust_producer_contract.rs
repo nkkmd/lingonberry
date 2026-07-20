@@ -27,7 +27,7 @@ fn javascript_producer_publishes_through_real_http_path() {
     assert!(
         produced.status.success(),
         "producer stderr={}",
-        String::from_utf8_lossy(&produced.stderr)
+        String::from_utf8_lossy(&produced.stderr),
     );
     let request = String::from_utf8(produced.stdout).expect("producer output must be UTF-8");
 
@@ -40,11 +40,11 @@ fn javascript_producer_publishes_through_real_http_path() {
     assert!(response.contains("\"status\":\"stored\""), "{response}");
     assert!(
         response.contains("\"code\":\"LB_OBJECT_STORED\""),
-        "{response}"
+        "{response}",
     );
     assert!(
         response.contains("\"canonicalId\":\"lb:obj:js-producer-http-contract\""),
-        "{response}"
+        "{response}",
     );
 
     server.kill().ok();
@@ -80,7 +80,7 @@ fn http_post(port: u16, body: &str) -> String {
     let request = format!(
         "POST /v1/objects HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
         body.len(),
-        body
+        body,
     );
     stream.write_all(request.as_bytes()).expect("write request");
     let mut response = String::new();
@@ -113,6 +113,6 @@ fn unique_temp_dir(label: &str) -> PathBuf {
         .as_nanos();
     std::env::temp_dir().join(format!(
         "lingonberry-non-rust-producer-{label}-{}-{nonce}",
-        std::process::id()
+        std::process::id(),
     ))
 }

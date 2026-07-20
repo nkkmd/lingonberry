@@ -7,8 +7,20 @@ const fixture = JSON.parse(await readFile(new URL('./transition-evidence-generat
 const unusableFixture = JSON.parse(await readFile(new URL('./transition-evidence-generation/classified-unusable-set.input.json', import.meta.url), 'utf8'));
 const staleFixture = JSON.parse(await readFile(new URL('./transition-evidence-generation/last-known-good-stale.input.json', import.meta.url), 'utf8'));
 const staleReadFixture = JSON.parse(await readFile(new URL('./transition-evidence-generation/stale-read-api.input.json', import.meta.url), 'utf8'));
+const diagnosticFixture = JSON.parse(await readFile(new URL('./transition-evidence-generation/stable-diagnostics.input.json', import.meta.url), 'utf8'));
 const kindOrder = new Map([['target',0],['transition',1],['delegation',2],['revocation',3]]);
 const classifications = new Set(['supported','unsupported','corrupt','unreadable']);
+const diagnosticReasonClassifications = new Map([
+  ['LB_EVIDENCE_RULE_UNSUPPORTED','unsupported'],
+  ['LB_EVIDENCE_PARSE_FAILED','corrupt'],
+  ['LB_EVIDENCE_VALIDATION_FAILED','corrupt'],
+  ['LB_EVIDENCE_DIGEST_MISMATCH','corrupt'],
+  ['LB_EVIDENCE_SIGNATURE_INVALID','corrupt'],
+  ['LB_EVIDENCE_BYTES_UNREADABLE','unreadable'],
+  ['LB_EVIDENCE_INVENTORY_CONFLICT','corrupt'],
+]);
+const diagnosticRequiredFields = new Set(['kind','evidenceId','classification','reasonCode']);
+const diagnosticOptionalFields = new Set(['ruleVersion','digest']);
 
 function sortKeys(value) {
   if (Array.isArray(value)) return value.map(sortKeys);
@@ -86,6 +98,38 @@ function staleReadResponse(input) {
   };
 }
 
+function validateAndOrderDiagnostics(input) {
+  const seen = new Map();
+  for (const diagnostic of input.diagnostics) {
+    assert.ok(kindOrder.has(diagnostic.kind));
+    assert.notEqual(diagnostic.classification, 'supported');
+    assert.equal(diagnosticReasonClassifications.get(diagnostic.reasonCode), diagnostic.classification);
+    if (diagnostic.digest !== undefined) assert.match(diagnostic.digest, /^sha256:[0-9a-f]{64}$/);
+    const fields = Object.keys(diagnostic);
+    for (const required of diagnosticRequiredFields) assert.ok(fields.includes(required));
+    for (const field of fields) assert.ok(diagnosticRequiredFields.has(field) || diagnosticOptionalFields.has(field));
+    for (const forbidden of input.forbiddenFields) assert.equal(Object.hasOwn(diagnostic, forbidden), false);
+    const key = `${diagnostic.kind}\0${diagnostic.evidenceId}`;
+    const prior = seen.get(key);
+    if (prior) {
+      assert.deepEqual(diagnostic, prior, 'conflicting public diagnostics must not be silently selected');
+      continue;
+    }
+    seen.set(key, diagnostic);
+  }
+  const diagnostics = [...seen.values()].sort((a, b) =>
+    kindOrder.get(a.kind) - kindOrder.get(b.kind)
+      || Buffer.compare(Buffer.from(a.evidenceId, 'ascii'), Buffer.from(b.evidenceId, 'ascii'))
+      || Buffer.compare(Buffer.from(a.classification, 'ascii'), Buffer.from(b.classification, 'ascii'))
+      || Buffer.compare(Buffer.from(a.reasonCode, 'ascii'), Buffer.from(b.reasonCode, 'ascii'))
+  );
+  return {
+    valid: true,
+    orderedEvidenceIds: diagnostics.map((item) => item.evidenceId),
+    publicFieldSets: diagnostics.map((item) => Object.keys(item).sort()),
+  };
+}
+
 test('target evidence generation is deterministic and order independent', () => {
   assert.equal(evidenceGeneration(fixture), fixture.expectedGeneration);
   assert.equal(evidenceGeneration({...fixture,evidence:[...fixture.evidence].reverse()}), fixture.expectedGeneration);
@@ -120,4 +164,18 @@ test('incomplete current observation preserves and marks the last-known-good sem
 
 test('read API returns stale last-known-good state with authoritative body diagnostics', () => {
   assert.deepEqual(staleReadResponse(staleReadFixture), staleReadFixture.expected);
+});
+
+test('public diagnostics expose only stable protocol fields and deterministic reason codes', () => {
+  assert.deepEqual(validateAndOrderDiagnostics(diagnosticFixture), diagnosticFixture.expected);
+});
+
+test('public diagnostics reject implementation-specific fields and mismatched reason classifications', () => {
+  const leaked = structuredClone(diagnosticFixture);
+  leaked.diagnostics[0].storagePath = '/srv/relay/private/evidence.bin';
+  assert.throws(() => validateAndOrderDiagnostics(leaked));
+
+  const mismatched = structuredClone(diagnosticFixture);
+  mismatched.diagnostics[0].reasonCode = 'LB_EVIDENCE_PARSE_FAILED';
+  assert.throws(() => validateAndOrderDiagnostics(mismatched));
 });

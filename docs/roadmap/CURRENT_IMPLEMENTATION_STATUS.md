@@ -30,7 +30,7 @@ publication state: v0.6.0 implementation in progress
 | parent-set identity normalization | PR #98で追加済み |
 | cycle／missing／cross-target／unauthorized-parent fixtures | PR #98で追加済み |
 | protocol identifier rule `lb.protocol.id.ascii.v1` | PR #98で追加済み |
-| ASCII valid／Unicode invalid ID fixtures | PR #98で追加済み |
+| ASCII／Unicode／length-boundary ID fixtures | PR #98で追加済み |
 | relay transition append-only storage／effective-view projection | 未着手 |
 | release checklist／CHANGELOG／version update | 未着手 |
 
@@ -51,13 +51,15 @@ publication state: v0.6.0 implementation in progress
 - duplicate parentは正規化で除去せずinvalidとする
 - protocol IDは`A-Z a-z 0-9 . _ ~ : -`のみを許可する
 - object／transition／identity keyのprefixを固定し、IDはcase-sensitiveとする
-- valid IDをtrim、case-convert、percent-decode、Unicode-normalizeしない
-- legacy Unicode IDは証拠として保持できるが、v0.6 conforming IDとして再発行・parent参照しない
+- object IDとtransition IDはprefix込み最大255 ASCII bytesとする
+- identity keyはprefix込み最大512 ASCII bytesとする
+- valid IDをtrim、truncate、case-convert、percent-decode、Unicode-normalizeしない
+- legacy Unicode／over-limit IDは証拠として保持できるが、v0.6 conforming IDとして再発行・parent参照しない
 
 ## 4. Next implementation order
 
-1. protocol IDの最大長とprefix別の長さ制限を決定する
-2. 決定したboundary fixtureを追加する
+1. relay publish APIでKnowledge ObjectとTransition Objectを同一endpointのunionとして扱うか、別endpointへ分離するか決定する
+2. 決定したAPI envelope／response code／duplicate・conflict semanticsをfixture化する
 3. relayでtransition validate／append-only storeを有効化する
 4. authority classificationとeffective-view projectionを実装する
 5. compatibility matrixを完成させる

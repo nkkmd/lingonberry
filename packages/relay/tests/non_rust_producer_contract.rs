@@ -29,8 +29,7 @@ fn javascript_producer_publishes_through_real_http_path() {
         "producer stderr={}",
         String::from_utf8_lossy(&produced.stderr),
     );
-    let request =
-        String::from_utf8(produced.stdout).expect("producer output must be UTF-8");
+    let request = String::from_utf8(produced.stdout).expect("producer output must be UTF-8");
 
     let port = available_port();
     let mut server = spawn_http_server(&state_dir, port);
@@ -77,7 +76,8 @@ fn wait_until_ready(port: u16) {
 }
 
 fn http_post(port: u16, body: &str) -> String {
-    let mut stream = TcpStream::connect(("127.0.0.1", port)).expect("connect to HTTP server");
+    let mut stream =
+        TcpStream::connect(("127.0.0.1", port)).expect("connect to HTTP server");
     let request = format!(
         "POST /v1/objects HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
         body.len(),

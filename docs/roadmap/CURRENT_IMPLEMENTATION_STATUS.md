@@ -12,7 +12,7 @@ candidate version: 0.6.0
 parent issue: #97
 release candidate PR: #98
 branch: agent/v0.6.0-protocol-contract-foundation
-publication state: pre-merge; tag and GitHub Release not published
+publication state: ready for review; merge, tag, and GitHub Release not published
 ```
 
 ## v0.6.0で実装済み
@@ -33,7 +33,7 @@ publication state: pre-merge; tag and GitHub Release not published
 - diagnostic retention／cursor lease／read guard／heartbeat conformance
 - all Rust workspace packages and `Cargo.lock` set to `0.6.0`
 - root README／CHANGELOG／release note／release checklist synchronized
-- existing `rebuild-index`／`catch-up-index` CLI compatibility retained
+- existing `rebuild-index`／`catch-up-index`／`subscribe` CLI compatibility retained
 
 ## Fixed safety model
 
@@ -75,7 +75,7 @@ The release candidate has passed:
 - `cargo test --workspace`
 - JavaScript tests
 - external conformance suite
-- existing index recovery process compatibility tests
+- existing publish／query／index recovery process compatibility tests
 
 ## Known limitations
 
@@ -87,9 +87,7 @@ The release candidate has passed:
 
 ## Remaining before publication
 
-1. Confirm the final normal release-gate CI on the documentation-finalized head.
-2. Mark PR #98 ready for review.
-3. Obtain merge authorization and merge PR #98.
-4. Confirm main-branch CI.
-5. Publish annotated tag `v0.6.0` and GitHub Release.
-6. Close Issue #97 as completed.
+1. Obtain merge authorization and merge PR #98.
+2. Confirm main-branch CI.
+3. Publish annotated tag `v0.6.0` and GitHub Release.
+4. Close Issue #97 as completed.

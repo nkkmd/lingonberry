@@ -4,7 +4,7 @@ Rule version: `lb.transition.supersession.v1`
 
 ## Principle
 
-Multiple authorized transitions targeting the same Knowledge Object are never ordered by timestamp or identifier. They remain append-only evidence. The effective view changes only when the authorized transition graph has one unambiguous active head.
+Multiple authorized transitions targeting the same Knowledge Object are not ordered by timestamp or identifier. They remain append-only evidence. The effective view is updated only when the authorized transition graph has one unambiguous active head.
 
 ## Multi-parent supersession
 
@@ -13,15 +13,13 @@ A Transition Object may contain:
 ```json
 {
   "supersedesTransitionIds": [
-    "lb:transition:a",
-    "lb:transition:b"
+    "lb:transition:previous-a",
+    "lb:transition:previous-b"
   ]
 }
 ```
 
-The array MUST be non-empty, contain unique transition IDs, and MUST NOT contain the enclosing transition ID.
-
-Every referenced transition MUST:
+The array MUST be non-empty and contain unique transition IDs. Every referenced transition MUST:
 
 - exist in the evaluated corpus;
 - target the same `targetId`;
@@ -29,7 +27,15 @@ Every referenced transition MUST:
 - be classified `authorized`;
 - not be the transition itself.
 
-The array participates in `lb.transition.identity.v1`. Array order is preserved by canonicalization and is therefore identity-significant. Producers SHOULD sort IDs lexically before signing so semantically equivalent parent sets produce one identity.
+A transition resolves a fork atomically only when its parent set contains every currently authorized head. Referencing only part of the current head set leaves the graph `ambiguous`.
+
+## Parent-set semantics
+
+`supersedesTransitionIds` is semantically a set, not an ordered history.
+
+For `lb.transition.identity.v1`, a valid parent array is copied and sorted lexically before canonical JSON serialization. The stored object is not rewritten, general JSON array order remains unchanged, and duplicate IDs are rejected rather than removed.
+
+Permutations of the same valid parent set therefore produce the same transition identity.
 
 ## Projection states
 
@@ -41,12 +47,20 @@ The array participates in `lb.transition.identity.v1`. Array order is preserved 
 
 `unauthorized` and `unknown` transitions are retained but do not become graph heads and cannot resolve ambiguity.
 
-## Fork resolution
-
-A fork is atomically resolved only when a later authorized transition explicitly supersedes every current authorized head. Superseding only part of a fork leaves the remaining heads active and the result `ambiguous`.
-
 ## Fail-closed behavior
 
 An `ambiguous` or `invalid-transition-graph` result MUST NOT select a replacement, hide the original object, or mutate canonical storage.
 
-Timestamp, input order, and transition ID lexical order MUST NOT choose a winner.
+Timestamp, input order, transition ID order, and parent-array order MUST NOT select a winner.
+
+## Conformance boundary
+
+The conformance corpus fixes:
+
+- single authorized head projection;
+- parallel authorized heads remaining `ambiguous`;
+- linear supersession;
+- atomic multi-head fork resolution;
+- partial fork coverage remaining `ambiguous`;
+- duplicate and self-referencing parent rejection;
+- identity equivalence across parent-array permutations.

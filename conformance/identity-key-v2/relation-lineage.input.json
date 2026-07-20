@@ -1,0 +1,41 @@
+{
+  "id": "lb:obj:relation-lineage-0001",
+  "schemaVersion": "0.1.0",
+  "type": "synthesis",
+  "createdAt": "2026-07-20T00:00:00Z",
+  "body": {
+    "text": "A synthesis with explicit relation and lineage semantics.",
+    "language": "en"
+  },
+  "contexts": {
+    "topic": "conformance"
+  },
+  "relations": [
+    {
+      "source": "lb:obj:relation-lineage-0001",
+      "target": "lb:obj:evidence-0001",
+      "kind": "cites"
+    }
+  ],
+  "lineage": [
+    {
+      "type": "derived_from",
+      "target": "lb:obj:source-0001"
+    }
+  ],
+  "status": "active",
+  "provenance": {
+    "sources": [
+      {
+        "protocol": "lingonberry-conformance",
+        "sourceId": "fixture:relation-lineage-0001",
+        "observedAt": "2026-07-20T00:00:00Z"
+      }
+    ]
+  },
+  "rawRef": {
+    "protocol": "lingonberry-conformance",
+    "sourceId": "fixture:relation-lineage-0001"
+  },
+  "labels": ["relations", "lineage"]
+}

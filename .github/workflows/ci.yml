@@ -64,6 +64,7 @@ jobs:
           node --test
           conformance/manifest-integrity.test.mjs
           conformance/minimal-producer.test.mjs
+          conformance/transition-evidence-generation.test.mjs
           packages/codecs/test/canonicalization.test.mjs
           packages/identity/test/identity-claim-validator.test.mjs
           packages/validation/test/validation.test.mjs

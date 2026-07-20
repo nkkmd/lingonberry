@@ -31,8 +31,8 @@ jobs:
       - name: Cache Cargo artifacts
         uses: Swatinem/rust-cache@v2
 
-      - name: Format working tree during implementation
-        run: cargo fmt --all
+      - name: Check formatting
+        run: cargo fmt --all -- --check
 
       - name: Run library clippy
         run: cargo clippy --workspace --lib -- -D warnings
@@ -44,17 +44,7 @@ jobs:
         run: cargo clippy --workspace --tests -- -D warnings -A dead-code -A unused-variables
 
       - name: Run workspace tests
-        shell: bash
-        run: |
-          set -o pipefail
-          cargo test --workspace 2>&1 | tee workspace-tests.log
-
-      - name: Upload workspace test log
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: workspace-tests-log
-          path: workspace-tests.log
+        run: cargo test --workspace
 
   javascript:
     name: JavaScript tests

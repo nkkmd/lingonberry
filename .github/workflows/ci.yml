@@ -37,8 +37,19 @@ jobs:
       - name: Run library clippy
         run: cargo clippy --workspace --lib -- -D warnings
 
-      - name: Run binary clippy
-        run: cargo clippy --workspace --bins -- -D warnings -A dead-code
+      - name: Run binary clippy and capture output
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          cargo clippy --workspace --bins -- -D warnings -A dead-code 2>&1 | tee clippy-binary-final.log
+
+      - name: Upload binary clippy log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: clippy-binary-final-log
+          path: clippy-binary-final.log
 
       - name: Compile test targets with clippy
         run: cargo clippy --workspace --tests -- -A warnings

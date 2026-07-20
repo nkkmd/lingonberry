@@ -11,7 +11,12 @@
     "transitionType": {"type": "string", "enum": ["replace", "withdraw"]},
     "targetId": {"type": "string", "pattern": "^lb:obj:[^\\s]+$"},
     "replacementId": {"type": "string", "pattern": "^lb:obj:[^\\s]+$"},
-    "supersedesTransitionId": {"type": "string", "pattern": "^lb:transition:[^\\s]+$"},
+    "supersedesTransitionIds": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"type": "string", "pattern": "^lb:transition:[^\\s]+$"}
+    },
     "issuedAt": {"type": "string", "format": "date-time"},
     "reason": {"type": "string", "minLength": 1},
     "provenance": {"$ref": "knowledge-object.schema.json#/properties/provenance"},

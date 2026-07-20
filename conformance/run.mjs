@@ -14,10 +14,11 @@ function sortKeys(value) { if (Array.isArray(value)) return value.map(sortKeys);
 function canonicalJson(value) { return JSON.stringify(sortKeys(value)); }
 function selectedBasis(value, fields) { const basis = {}; for (const field of fields) if (Object.hasOwn(value, field)) basis[field] = value[field]; return basis; }
 function semanticBasis(value) { return selectedBasis(value, semanticFields); }
+function transitionBasis(value) { const basis = selectedBasis(value, transitionFields); if (Array.isArray(basis.supersedesTransitionIds)) basis.supersedesTransitionIds = [...basis.supersedesTransitionIds].sort(); return basis; }
 function fnv1a64(input) { let digest = 0xcbf29ce484222325n; for (const byte of Buffer.from(input, 'utf8')) { digest ^= BigInt(byte); digest = (digest * 0x100000001b3n) & 0xffffffffffffffffn; } return digest.toString(16).padStart(16, '0'); }
 function identityKeyV1(value) { return `lb:key:lb.identity.key.v1:fnv1a64:${fnv1a64(canonicalJson(semanticBasis(value)))}`; }
 function identityKeyV2(value) { return `lb:key:lb.identity.key.v2:sha256:${createHash('sha256').update(canonicalJson(semanticBasis(value)), 'utf8').digest('hex')}`; }
-function transitionIdentity(value) { return `lb:key:lb.transition.identity.v1:sha256:${createHash('sha256').update(canonicalJson(selectedBasis(value, transitionFields)), 'utf8').digest('hex')}`; }
+function transitionIdentity(value) { return `lb:key:lb.transition.identity.v1:sha256:${createHash('sha256').update(canonicalJson(transitionBasis(value)), 'utf8').digest('hex')}`; }
 function classifyTimestamp(value) { if (typeof value !== 'string') return 'invalid'; return /^\d{4}-(0[1-9]|1[0-2])-([0-2]\d|3[01])T([01]\d|2[0-3]):[0-5]\d:(?:[0-5]\d|60)(?:\.\d+)?Z$/.test(value) ? 'valid' : 'invalid'; }
 function classifyTransition(value) {
   if (value?.objectType !== 'transition' || value?.schemaVersion !== '0.1.0') return 'invalid';
@@ -87,6 +88,7 @@ for (const testCase of manifest.cases) {
     else if (testCase.kind === 'timestamp') { const input = JSON.parse(await read(testCase.input)); assert.equal(classifyTimestamp(input.createdAt), input.expectedClassification); if (input.expectedCanonicalValue) assert.equal(JSON.parse(canonicalJson({createdAt:input.createdAt})).createdAt, input.expectedCanonicalValue); }
     else if (testCase.kind === 'legacy-identity-v1') { const input = JSON.parse(await read(testCase.input)); const claim = input.identityClaims?.[0]; assert.equal(claim?.ruleVersion, 'lb.identity.key.v1'); assert.equal(claim?.canonicalId, input.id); assert.equal(claim?.identityKey, identityKeyV1(input)); assert.equal(testCase.expectedCompatibility, 'compatible'); }
     else if (testCase.kind === 'transition-object') { const input = JSON.parse(await read(testCase.input)); assert.equal(classifyTransition(input), testCase.expectedClassification); if (testCase.expected) assert.equal(transitionIdentity(input), (await read(testCase.expected)).trimEnd()); }
+    else if (testCase.kind === 'transition-identity-equivalence') { const input = JSON.parse(await read(testCase.input)); const alternate = JSON.parse(await read(testCase.alternateInput)); assert.equal(classifyTransition(input), 'valid'); assert.equal(classifyTransition(alternate), 'valid'); assert.equal(transitionIdentity(input), transitionIdentity(alternate)); }
     else if (testCase.kind === 'transition-authority') { const input = JSON.parse(await read(testCase.input)); assert.deepEqual(classifyTransitionAuthority(input), input.expected); }
     else if (testCase.kind === 'transition-supersession') { const input = JSON.parse(await read(testCase.input)); assert.deepEqual(projectTransitions(input), input.expected); }
     else throw new Error(`unsupported conformance case kind: ${testCase.kind}`);

@@ -17,11 +17,7 @@ function sortKeys(value) {
   return value;
 }
 function canonicalJson(value) { return JSON.stringify(sortKeys(value)); }
-function selectedBasis(value, fields) {
-  const basis = {};
-  for (const field of fields) if (Object.hasOwn(value, field)) basis[field] = value[field];
-  return basis;
-}
+function selectedBasis(value, fields) { const basis = {}; for (const field of fields) if (Object.hasOwn(value, field)) basis[field] = value[field]; return basis; }
 function semanticBasis(value) { return selectedBasis(value, semanticFields); }
 function fnv1a64(input) {
   let digest = 0xcbf29ce484222325n;
@@ -31,6 +27,10 @@ function fnv1a64(input) {
 function identityKeyV1(value) { return `lb:key:lb.identity.key.v1:fnv1a64:${fnv1a64(canonicalJson(semanticBasis(value)))}`; }
 function identityKeyV2(value) { return `lb:key:lb.identity.key.v2:sha256:${createHash('sha256').update(canonicalJson(semanticBasis(value)), 'utf8').digest('hex')}`; }
 function transitionIdentity(value) { return `lb:key:lb.transition.identity.v1:sha256:${createHash('sha256').update(canonicalJson(selectedBasis(value, transitionFields)), 'utf8').digest('hex')}`; }
+function classifyTimestamp(value) {
+  if (typeof value !== 'string') return 'invalid';
+  return /^\d{4}-(0[1-9]|1[0-2])-([0-2]\d|3[01])T([01]\d|2[0-3]):[0-5]\d:(?:[0-5]\d|60)(?:\.\d+)?Z$/.test(value) ? 'valid' : 'invalid';
+}
 function classifyTransition(value) {
   if (value?.objectType !== 'transition' || value?.schemaVersion !== '0.1.0') return 'invalid';
   if (!/^lb:transition:\S+$/.test(value.id ?? '') || !/^lb:obj:\S+$/.test(value.targetId ?? '')) return 'invalid';
@@ -39,6 +39,28 @@ function classifyTransition(value) {
   if (value.transitionType === 'replace') return /^lb:obj:\S+$/.test(value.replacementId ?? '') && value.replacementId !== value.targetId ? 'valid' : 'invalid';
   if (value.transitionType === 'withdraw') return Object.hasOwn(value, 'replacementId') ? 'invalid' : 'valid';
   return 'invalid';
+}
+function classifyTransitionAuthority(input) {
+  const retain = true;
+  if (input.targetPublisherKey === null || input.targetPublisherKey === undefined) {
+    return {classification:'unknown',basis:'target-publisher-unknown',retain,applyToEffectiveView:false};
+  }
+  if (input.transitionPublisherKey === input.targetPublisherKey) {
+    return {classification:'authorized',basis:'original-publisher',retain,applyToEffectiveView:true};
+  }
+  let incomplete = false;
+  for (const delegation of input.delegations ?? []) {
+    if (delegation.verified !== true) { incomplete = true; continue; }
+    if (delegation.issuerKey !== input.targetPublisherKey || delegation.delegateKey !== input.transitionPublisherKey) continue;
+    if (!Array.isArray(delegation.scopes) || !delegation.scopes.includes('transition')) continue;
+    if (classifyTimestamp(delegation.validFrom) !== 'valid' || classifyTimestamp(delegation.validUntil) !== 'valid') { incomplete = true; continue; }
+    if (delegation.revokedAt && classifyTimestamp(delegation.revokedAt) !== 'valid') { incomplete = true; continue; }
+    if (input.issuedAt < delegation.validFrom || input.issuedAt > delegation.validUntil) continue;
+    if (delegation.revokedAt && delegation.revokedAt <= input.issuedAt) continue;
+    return {classification:'authorized',basis:'delegated-publisher',retain,applyToEffectiveView:true};
+  }
+  if (incomplete) return {classification:'unknown',basis:'authority-evidence-incomplete',retain,applyToEffectiveView:false};
+  return {classification:'unauthorized',basis:'no-applicable-authority',retain,applyToEffectiveView:false};
 }
 function httpPublishSignatureTarget(request) {
   const target = structuredClone(request);
@@ -65,10 +87,6 @@ function indexGenerationDigest(input) {
   const idDigest = fnv1a64Lines([canonicalId]);
   const contentDigest = fnv1a64Lines([`${canonicalId}\0${recordFingerprint}`]);
   return {ruleVersion:'lb.index.generation.v1',recordFingerprint,recordCount:1,idDigest,contentDigest,generation:`idx:${idDigest}`};
-}
-function classifyTimestamp(value) {
-  if (typeof value !== 'string') return 'invalid';
-  return /^\d{4}-(0[1-9]|1[0-2])-([0-2]\d|3[01])T([01]\d|2[0-3]):[0-5]\d:(?:[0-5]\d|60)(?:\.\d+)?Z$/.test(value) ? 'valid' : 'invalid';
 }
 async function read(relativePath) { return readFile(resolve(root, relativePath), 'utf8'); }
 
@@ -98,6 +116,8 @@ for (const testCase of manifest.cases) {
     } else if (testCase.kind === 'transition-object') {
       const input = JSON.parse(await read(testCase.input)); assert.equal(classifyTransition(input), testCase.expectedClassification);
       if (testCase.expected) assert.equal(transitionIdentity(input), (await read(testCase.expected)).trimEnd());
+    } else if (testCase.kind === 'transition-authority') {
+      const input = JSON.parse(await read(testCase.input)); assert.deepEqual(classifyTransitionAuthority(input), input.expected);
     } else throw new Error(`unsupported conformance case kind: ${testCase.kind}`);
     results.push({id:testCase.id,suite:testCase.suite,status:'pass'});
   } catch (error) { results.push({id:testCase.id,suite:testCase.suite,status:'fail',error:error.message}); }

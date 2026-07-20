@@ -1,0 +1,14 @@
+{
+  "targetCommit": "succeeded",
+  "directEnqueue": "failed",
+  "durableIntent": true,
+  "reconciliation": "recreated-work",
+  "previousCheckpoint": "view:target:g1",
+  "expected": {
+    "targetStored": true,
+    "publishSucceeded": true,
+    "reevaluationStatusBeforeRecovery": "pending-recovery",
+    "reevaluationStatusAfterRecovery": "pending",
+    "checkpoint": "view:target:g1"
+  }
+}

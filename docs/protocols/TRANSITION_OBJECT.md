@@ -6,7 +6,7 @@
 
 A transition object records a replacement or withdrawal without mutating the original canonical knowledge object.
 
-Transition objects are append-only protocol objects. They have their own canonical ID, provenance, raw reference, identity, publisher signature, and conflict history.
+Transition objects are append-only protocol objects. They have their own canonical ID, provenance, raw reference, identity, publisher signature, authority classification, and conflict history.
 
 ## 2. Required fields
 
@@ -21,7 +21,7 @@ Transition objects are append-only protocol objects. They have their own canonic
 | `provenance` | origin evidence, using the same source structure as knowledge objects |
 | `rawRef` | carrier/source reference |
 
-Optional fields are `replacementId`, `reason`, `identityClaims`, and `meta`.
+Optional fields are `replacementId`, `supersedesTransitionId`, `reason`, `identityClaims`, and `meta`.
 
 ## 3. Type-specific invariants
 
@@ -33,7 +33,15 @@ A `replace` transition MUST include `replacementId`. `replacementId` MUST differ
 
 A `withdraw` transition MUST NOT include `replacementId`.
 
-## 4. Identity
+## 4. Explicit supersession
+
+`supersedesTransitionId` identifies one earlier authorized transition that this transition explicitly supersedes.
+
+The referenced transition MUST exist, target the same Knowledge Object, be structurally valid, and be authorized. A transition MUST NOT supersede itself.
+
+Timestamp and identifier ordering do not create implicit supersession. Multiple authorized heads without an explicit supersession chain produce an `ambiguous` effective view.
+
+## 5. Identity
 
 `lb.transition.identity.v1` is:
 
@@ -48,6 +56,7 @@ objectType
 transitionType
 targetId
 replacementId
+supersedesTransitionId
 issuedAt
 reason
 ```
@@ -60,28 +69,30 @@ lb:key:lb.transition.identity.v1:sha256:<64-lowercase-hex>
 
 Transport, provenance, raw references, metadata, canonical ID, and identity claims are excluded from the identity basis.
 
-## 5. Publish envelope
+## 6. Publish envelope
 
 Transition objects use the existing HTTP publish envelope and `lb.http.publish.signature.v1`. The publisher signs the complete request after removing only `publisher.signature`.
 
-## 6. Append-only behavior
+## 7. Append-only behavior
 
 Publishing a transition never rewrites or deletes the target object. A consumer derives an effective view from the transition log.
 
-Exact duplicate transitions are idempotent. Different transitions affecting the same target are retained until conflict-resolution policy classifies them.
+Exact duplicate transitions are idempotent. Authorized, unauthorized, unknown-authority, ambiguous, and disputed transitions remain retained.
 
-## 7. Validation boundary
+## 8. Validation boundary
 
 Structural validation, identity validation, signature validation, and append-only persistence are protocol concerns.
 
-Authorization to replace or withdraw a target is deliberately separate. A structurally valid transition is not automatically authorized to change an effective view.
+Authorization and supersession projection are derived classifications. Only one unambiguous authorized head may affect the effective view.
 
-## 8. Conformance
+## 9. Conformance
 
-The initial corpus fixes:
+The corpus fixes:
 
-- a valid replacement transition;
-- a valid withdrawal transition;
-- rejection of replacement without `replacementId`;
-- rejection of withdrawal with `replacementId`;
-- transition identity derivation.
+- valid replacement and withdrawal transitions;
+- invalid type-specific field combinations;
+- transition identity derivation;
+- original, delegated, unauthorized, and unknown authority;
+- one authorized head;
+- parallel authorized heads classified as `ambiguous`;
+- explicit supersession producing one effective head.

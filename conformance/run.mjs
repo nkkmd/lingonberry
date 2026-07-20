@@ -11,15 +11,8 @@ const manifestPath = resolve(root, 'manifest.v1.json');
 const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
 
 const semanticFieldsV2 = [
-  'type',
-  'createdAt',
-  'body',
-  'contexts',
-  'relations',
-  'status',
-  'lineage',
-  'attachments',
-  'labels',
+  'type', 'createdAt', 'body', 'contexts', 'relations',
+  'status', 'lineage', 'attachments', 'labels',
 ];
 
 function sortKeys(value) {
@@ -64,6 +57,40 @@ function ed25519PublicKeyFromRawHex(publicKeyHex) {
   });
 }
 
+function fnv1a64Lines(lines) {
+  const offsetBasis = 0xcbf29ce484222325n;
+  const prime = 0x100000001b3n;
+  const mask = 0xffffffffffffffffn;
+  let digest = offsetBasis;
+  for (const line of lines) {
+    for (const byte of Buffer.concat([Buffer.from(line, 'utf8'), Buffer.from([0x0a])])) {
+      digest ^= BigInt(byte);
+      digest = (digest * prime) & mask;
+    }
+  }
+  return `fnv1a64:${digest.toString(16).padStart(16, '0')}`;
+}
+
+function indexGenerationDigest(input) {
+  const canonicalId = input.object.id;
+  assert.equal(typeof canonicalId, 'string');
+  const recordFingerprint = fnv1a64Lines([
+    input.carrierIdentity,
+    input.storedAt,
+    canonicalJson(input.object),
+  ]);
+  const idDigest = fnv1a64Lines([canonicalId]);
+  const contentDigest = fnv1a64Lines([`${canonicalId}\0${recordFingerprint}`]);
+  return {
+    ruleVersion: 'lb.index.generation.v1',
+    recordFingerprint,
+    recordCount: 1,
+    idDigest,
+    contentDigest,
+    generation: `idx:${idDigest}`,
+  };
+}
+
 async function read(relativePath) {
   return readFile(resolve(root, relativePath), 'utf8');
 }
@@ -95,22 +122,19 @@ for (const testCase of manifest.cases) {
         ed25519PublicKeyFromRawHex(input.publisher.publicKey),
         Buffer.from(input.publisher.signature, 'hex'),
       ) ? 'valid' : 'invalid';
-
       assert.equal(actualVerification, testCase.expectedVerification);
-
-      if (testCase.target) {
-        assert.equal(actualTarget, await read(testCase.target));
-      }
+      if (testCase.target) assert.equal(actualTarget, await read(testCase.target));
       if (testCase.expected) {
         const expected = JSON.parse(await read(testCase.expected));
-        assert.equal(
-          createHash('sha256').update(actualTarget, 'utf8').digest('hex'),
-          expected.targetSha256,
-        );
+        assert.equal(createHash('sha256').update(actualTarget, 'utf8').digest('hex'), expected.targetSha256);
         assert.equal(input.publisher.publicKey, expected.publicKey);
         assert.equal(input.publisher.signature, expected.signature);
         assert.equal(expected.verification, testCase.expectedVerification);
       }
+    } else if (testCase.kind === 'index-generation-digest') {
+      const input = JSON.parse(await read(testCase.input));
+      const expected = JSON.parse(await read(testCase.expected));
+      assert.deepEqual(indexGenerationDigest(input), expected);
     } else {
       throw new Error(`unsupported conformance case kind: ${testCase.kind}`);
     }

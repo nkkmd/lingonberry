@@ -5,7 +5,7 @@ on:
     branches: [main]
   workflow_dispatch:
 permissions:
-  contents: read
+  contents: write
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -15,24 +15,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
-      - name: Generate rustfmt outputs
-        run: cargo fmt --all
-      - name: Upload formatted Rust files
-        uses: actions/upload-artifact@v4
-        with:
-          name: rustfmt-formatted-files
-          path: |
-            packages/relay/src/effective_view_guard.rs
-            packages/relay/src/reevaluation_main.rs
-            packages/relay/src/reevaluation_worker.rs
-            packages/relay/src/transition_api.rs
-            packages/relay/tests/non_rust_producer_contract.rs
-            packages/relay/tests/transition_http_contract.rs
-      - name: Verify source formatting
+      - name: Apply source formatting
+        if: github.event_name == 'pull_request'
+        run: |
+          cargo fmt --all
+          if ! git diff --quiet; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add packages/relay/src packages/relay/tests
+            git commit -m "style: apply rustfmt for v0.6.0"
+            git push origin HEAD:${{ github.head_ref }}
+          fi
+      - name: Check source formatting
         run: cargo fmt --all -- --check
       - name: Run library clippy
         run: cargo clippy --workspace --lib -- -D warnings

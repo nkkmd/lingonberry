@@ -29,7 +29,8 @@ fn javascript_producer_publishes_through_real_http_path() {
         "producer stderr={}",
         String::from_utf8_lossy(&produced.stderr),
     );
-    let request = String::from_utf8(produced.stdout).expect("producer output must be UTF-8");
+    let request =
+        String::from_utf8(produced.stdout).expect("producer output must be UTF-8");
 
     let port = available_port();
     let mut server = spawn_http_server(&state_dir, port);

@@ -1,0 +1,30 @@
+{
+  "request": {
+    "method": "GET",
+    "route": "/v1/effective-objects/lb:obj:target-1"
+  },
+  "semanticCheckpoint": {
+    "generation": "evidence:sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "classification": "replaced",
+    "replacementId": "lb:obj:replacement-1"
+  },
+  "observationCheckpoint": {
+    "generation": "evidence:sha256:2222222222222222222222222222222222222222222222222222222222222222",
+    "snapshotClassification": "incomplete",
+    "diagnostics": [
+      {
+        "kind": "transition",
+        "evidenceId": "lb:transition:t2",
+        "classification": "corrupt"
+      }
+    ]
+  },
+  "expected": {
+    "httpStatus": 200,
+    "freshness": "stale",
+    "bodyAuthoritative": true,
+    "semanticGeneration": "evidence:sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "observationGeneration": "evidence:sha256:2222222222222222222222222222222222222222222222222222222222222222",
+    "diagnosticCount": 1
+  }
+}

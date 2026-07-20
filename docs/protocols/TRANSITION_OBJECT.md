@@ -21,7 +21,7 @@ Transition objects are append-only protocol objects. They have their own canonic
 | `provenance` | origin evidence, using the same source structure as knowledge objects |
 | `rawRef` | carrier/source reference |
 
-Optional fields are `replacementId`, `supersedesTransitionId`, `reason`, `identityClaims`, and `meta`.
+Optional fields are `replacementId`, `supersedesTransitionIds`, `reason`, `identityClaims`, and `meta`.
 
 ## 3. Type-specific invariants
 
@@ -33,20 +33,22 @@ A `replace` transition MUST include `replacementId`. `replacementId` MUST differ
 
 A `withdraw` transition MUST NOT include `replacementId`.
 
-## 4. Explicit supersession
+## 4. Explicit multi-parent supersession
 
-`supersedesTransitionId` identifies one earlier authorized transition that this transition explicitly supersedes.
+`supersedesTransitionIds` is a non-empty array identifying earlier authorized transitions explicitly superseded by this transition.
 
-The referenced transition MUST exist, target the same Knowledge Object, be structurally valid, and be authorized. A transition MUST NOT supersede itself.
+Every referenced transition MUST exist, target the same Knowledge Object, be structurally valid, and be authorized. A transition MUST NOT supersede itself. Duplicate parent IDs are invalid and MUST NOT be silently removed.
 
-Timestamp and identifier ordering do not create implicit supersession. Multiple authorized heads without an explicit supersession chain produce an `ambiguous` effective view.
+A transition can atomically resolve a fork only when it explicitly supersedes every currently authorized head. Partial parent coverage leaves the effective view `ambiguous`.
+
+Timestamp, input order, and identifier order do not create implicit supersession.
 
 ## 5. Identity
 
 `lb.transition.identity.v1` is:
 
 ```text
-sha256(canonical-json(identity-basis))
+sha256(canonical-json(normalized-identity-basis))
 ```
 
 The identity basis contains, when present:
@@ -56,10 +58,14 @@ objectType
 transitionType
 targetId
 replacementId
-supersedesTransitionId
+supersedesTransitionIds
 issuedAt
 reason
 ```
+
+Before canonical JSON serialization, `supersedesTransitionIds` is copied and sorted lexically. This normalization is applied only to the identity basis; it does not rewrite the stored Transition Object or change general array-order semantics in `lb.canonical.json.v1`.
+
+Consequently, permutations of the same valid parent set produce the same transition identity. Duplicate parent entries remain structurally invalid.
 
 The encoded identity key is:
 
@@ -92,7 +98,10 @@ The corpus fixes:
 - valid replacement and withdrawal transitions;
 - invalid type-specific field combinations;
 - transition identity derivation;
+- parent-set order equivalence;
+- duplicate and self-referencing parent rejection;
 - original, delegated, unauthorized, and unknown authority;
 - one authorized head;
 - parallel authorized heads classified as `ambiguous`;
-- explicit supersession producing one effective head.
+- atomic full-fork supersession;
+- partial fork coverage remaining `ambiguous`.

@@ -11,7 +11,7 @@ path = "src/lib.rs"
 
 [[bin]]
 name = "lingonberry-relay"
-path = "src/main_v0_6.rs"
+path = "src/main_v0_6_release.rs"
 
 [[bin]]
 name = "lingonberry-admin-auth-config"

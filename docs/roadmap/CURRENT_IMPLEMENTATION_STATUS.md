@@ -31,10 +31,12 @@ publication state: v0.6.0 implementation in progress
 | cycle／missing／cross-target／unauthorized-parent fixtures | PR #98で追加済み |
 | protocol identifier rule `lb.protocol.id.ascii.v1` | PR #98で追加済み |
 | ASCII／Unicode／length-boundary ID fixtures | PR #98で追加済み |
+| dedicated `POST /v1/transitions` contract | PR #98で追加済み |
+| transition envelope／route-isolation fixtures | PR #98で追加済み |
 | relay transition append-only storage／effective-view projection | 未着手 |
 | release checklist／CHANGELOG／version update | 未着手 |
 
-## 3. Fixed transition and identifier contract
+## 3. Fixed transition, identifier, and HTTP contract
 
 - 元Knowledge Objectは変更・削除しない
 - replacement／withdrawalは専用Transition Objectとしてappend-only保存する
@@ -55,12 +57,16 @@ publication state: v0.6.0 implementation in progress
 - identity keyはprefix込み最大512 ASCII bytesとする
 - valid IDをtrim、truncate、case-convert、percent-decode、Unicode-normalizeしない
 - legacy Unicode／over-limit IDは証拠として保持できるが、v0.6 conforming IDとして再発行・parent参照しない
+- Knowledge Objectは`POST /v1/objects`、Transition Objectは`POST /v1/transitions`へ送る
+- transition requestのtop-level payload fieldは`transition`とする
+- route mismatch、`object`／`transition`同居、暗黙redirectは拒否する
+- signatureは既存`lb.http.publish.signature.v1`を再利用し、envelope field名も署名対象とする
 
 ## 4. Next implementation order
 
-1. relay publish APIでKnowledge ObjectとTransition Objectを同一endpointのunionとして扱うか、別endpointへ分離するか決定する
-2. 決定したAPI envelope／response code／duplicate・conflict semanticsをfixture化する
-3. relayでtransition validate／append-only storeを有効化する
+1. target Knowledge Objectがrelayに存在しないtransitionをrejectするか、orphan evidenceとして保存するか決定する
+2. 決定したtarget-existence classificationとHTTP responseをfixture化する
+3. relayで`POST /v1/transitions`のvalidate／signature verify／append-only storeを有効化する
 4. authority classificationとeffective-view projectionを実装する
 5. compatibility matrixを完成させる
 6. v0.6.0 release checklist／CHANGELOG／version更新へ進む

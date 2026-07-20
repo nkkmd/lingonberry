@@ -11,12 +11,12 @@ use lingonberry_core::{
     QuarantineStore, StorageBackend,
 };
 use lingonberry_protocol::{
-    build_capability_manifest, to_canonical_json, JsonValue, CARRIER_KIND_HTTP,
+    build_capability_manifest, parse_json, to_canonical_json, JsonValue, CARRIER_KIND_HTTP,
     DEFAULT_ACCESS_SCOPE, DEFAULT_RETENTION_HINT,
 };
 use lingonberry_relay::{
-    effective_view_http_response, ingest_transition_request, ingestion_http_response,
-    retrieval_http_response,
+    diagnostic_page_http_response, effective_view_http_response, ingest_transition_request,
+    ingestion_http_response, retrieval_http_response,
 };
 use lingonberry_validation::AcceptancePolicy;
 use std::collections::BTreeMap;
@@ -102,8 +102,14 @@ fn route(
         )),
         ("POST", "/v1/objects") => publish_object(body, backend),
         ("POST", "/v1/transitions") => publish_transition(body, backend),
+        ("GET", path) if is_diagnostic_path(path) => get_diagnostic_page(path),
         ("GET", path) if path.starts_with("/v1/effective-objects/") => {
-            get_effective_view(path.trim_start_matches("/v1/effective-objects/"), backend)
+            let target_id = path
+                .trim_start_matches("/v1/effective-objects/")
+                .split('?')
+                .next()
+                .unwrap_or_default();
+            get_effective_view(target_id, backend)
         }
         ("GET", path) if path.starts_with("/v1/objects/") => {
             get_object(path.trim_start_matches("/v1/objects/"), backend)
@@ -114,6 +120,12 @@ fn route(
             error_body("LB_ROUTE_NOT_FOUND", "route not found"),
         )),
     }
+}
+
+fn is_diagnostic_path(path: &str) -> bool {
+    let request_path = path.split('?').next().unwrap_or(path);
+    request_path.starts_with("/v1/effective-objects/")
+        && request_path.ends_with("/diagnostics")
 }
 
 fn publish_object(
@@ -131,8 +143,37 @@ fn publish_transition(
     body: &str,
     backend: &impl StorageBackend,
 ) -> Result<(u16, &'static str, JsonValue), String> {
+    if transition_is_self_replacement(body) {
+        return Ok((
+            400,
+            "Bad Request",
+            error_body(
+                "LB_TRANSITION_INVALID",
+                "replacementId must differ from targetId",
+            ),
+        ));
+    }
     let response = ingest_transition_request(body, backend, &runtime_state_dir());
     Ok((response.status_code, response.status_text, response.body))
+}
+
+fn transition_is_self_replacement(body: &str) -> bool {
+    let Ok(JsonValue::Object(request)) = parse_json(body) else {
+        return false;
+    };
+    let Some(JsonValue::Object(transition)) = request.get("transition") else {
+        return false;
+    };
+    if string_field(transition, "transitionType") != Some("replace") {
+        return false;
+    }
+    matches!(
+        (
+            string_field(transition, "targetId"),
+            string_field(transition, "replacementId")
+        ),
+        (Some(target), Some(replacement)) if target == replacement
+    )
 }
 
 fn get_effective_view(
@@ -141,6 +182,46 @@ fn get_effective_view(
 ) -> Result<(u16, &'static str, JsonValue), String> {
     let response = effective_view_http_response(target_id, backend, &runtime_state_dir());
     Ok((response.status_code, response.status_text, response.body))
+}
+
+fn get_diagnostic_page(path: &str) -> Result<(u16, &'static str, JsonValue), String> {
+    let (request_path, query) = path.split_once('?').unwrap_or((path, ""));
+    let target_id = request_path
+        .trim_start_matches("/v1/effective-objects/")
+        .trim_end_matches("/diagnostics");
+    let query = parse_query(query);
+    let generation = query.get("generation").map(String::as_str).unwrap_or("");
+    let cursor = query.get("cursor").map(String::as_str);
+    let limit = match query.get("limit") {
+        Some(value) => match value.parse::<usize>() {
+            Ok(value) => Some(value),
+            Err(_) => {
+                return Ok((
+                    400,
+                    "Bad Request",
+                    error_body("LB_DIAGNOSTIC_LIMIT_INVALID", "limit must be an integer"),
+                ))
+            }
+        },
+        None => None,
+    };
+    let response = diagnostic_page_http_response(
+        target_id,
+        generation,
+        cursor,
+        limit,
+        &runtime_state_dir(),
+    );
+    Ok((response.status_code, response.status_text, response.body))
+}
+
+fn parse_query(query: &str) -> BTreeMap<String, String> {
+    query
+        .split('&')
+        .filter(|part| !part.is_empty())
+        .filter_map(|part| part.split_once('='))
+        .map(|(key, value)| (key.to_string(), value.to_string()))
+        .collect()
 }
 
 fn get_object(
@@ -229,6 +310,13 @@ fn error_body(code: &str, message: &str) -> JsonValue {
         ("code", JsonValue::String(code.to_string())),
         ("message", JsonValue::String(message.to_string())),
     ])
+}
+
+fn string_field<'a>(map: &'a BTreeMap<String, JsonValue>, key: &str) -> Option<&'a str> {
+    match map.get(key) {
+        Some(JsonValue::String(value)) => Some(value),
+        _ => None,
+    }
 }
 
 fn object(entries: Vec<(&str, JsonValue)>) -> JsonValue {

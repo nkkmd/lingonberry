@@ -17,6 +17,10 @@
     {"id":"transition.valid-replace","suite":"producer","kind":"transition-object","ruleVersion":"lb.transition.identity.v1","input":"transition-object/valid-replace.input.json","expected":"transition-object/valid-replace.expected.txt","expectedClassification":"valid"},
     {"id":"transition.valid-withdraw","suite":"producer","kind":"transition-object","ruleVersion":"lb.transition.identity.v1","input":"transition-object/valid-withdraw.input.json","expectedClassification":"valid"},
     {"id":"transition.invalid-replace-missing-replacement","suite":"consumer","kind":"transition-object","ruleVersion":"lb.transition.identity.v1","input":"transition-object/invalid-replace-missing-replacement.input.json","expectedClassification":"invalid"},
-    {"id":"transition.invalid-withdraw-with-replacement","suite":"consumer","kind":"transition-object","ruleVersion":"lb.transition.identity.v1","input":"transition-object/invalid-withdraw-with-replacement.input.json","expectedClassification":"invalid"}
+    {"id":"transition.invalid-withdraw-with-replacement","suite":"consumer","kind":"transition-object","ruleVersion":"lb.transition.identity.v1","input":"transition-object/invalid-withdraw-with-replacement.input.json","expectedClassification":"invalid"},
+    {"id":"transition-authority.original-publisher","suite":"consumer","kind":"transition-authority","ruleVersion":"lb.transition.authority.v1","input":"transition-authority/original-publisher.input.json"},
+    {"id":"transition-authority.delegated-publisher","suite":"consumer","kind":"transition-authority","ruleVersion":"lb.transition.authority.v1","input":"transition-authority/delegated-publisher.input.json"},
+    {"id":"transition-authority.unauthorized-publisher","suite":"consumer","kind":"transition-authority","ruleVersion":"lb.transition.authority.v1","input":"transition-authority/unauthorized-publisher.input.json"},
+    {"id":"transition-authority.unknown-target-publisher","suite":"consumer","kind":"transition-authority","ruleVersion":"lb.transition.authority.v1","input":"transition-authority/unknown-target-publisher.input.json"}
   ]
 }

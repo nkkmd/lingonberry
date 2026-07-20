@@ -10,6 +10,9 @@ const root = dirname(fileURLToPath(import.meta.url));
 const manifest = JSON.parse(await readFile(resolve(root, 'manifest.v1.json'), 'utf8'));
 const semanticFields = ['type','createdAt','body','contexts','relations','status','lineage','attachments','labels'];
 const transitionFields = ['objectType','transitionType','targetId','replacementId','supersedesTransitionIds','issuedAt','reason'];
+const protocolId = /^lb:(?:obj|transition|key):[A-Za-z0-9._~:-]+$/;
+const objectId = /^lb:obj:[A-Za-z0-9._~:-]+$/;
+const transitionId = /^lb:transition:[A-Za-z0-9._~:-]+$/;
 function sortKeys(value) { if (Array.isArray(value)) return value.map(sortKeys); if (value !== null && typeof value === 'object') return Object.fromEntries(Object.keys(value).sort().map((key) => [key, sortKeys(value[key])])); return value; }
 function canonicalJson(value) { return JSON.stringify(sortKeys(value)); }
 function selectedBasis(value, fields) { const basis = {}; for (const field of fields) if (Object.hasOwn(value, field)) basis[field] = value[field]; return basis; }
@@ -22,15 +25,15 @@ function transitionIdentity(value) { return `lb:key:lb.transition.identity.v1:sh
 function classifyTimestamp(value) { if (typeof value !== 'string') return 'invalid'; return /^\d{4}-(0[1-9]|1[0-2])-([0-2]\d|3[01])T([01]\d|2[0-3]):[0-5]\d:(?:[0-5]\d|60)(?:\.\d+)?Z$/.test(value) ? 'valid' : 'invalid'; }
 function classifyTransition(value) {
   if (value?.objectType !== 'transition' || value?.schemaVersion !== '0.1.0') return 'invalid';
-  if (!/^lb:transition:\S+$/.test(value.id ?? '') || !/^lb:obj:\S+$/.test(value.targetId ?? '')) return 'invalid';
+  if (!transitionId.test(value.id ?? '') || !objectId.test(value.targetId ?? '')) return 'invalid';
   if (value.supersedesTransitionIds !== undefined) {
     if (!Array.isArray(value.supersedesTransitionIds) || value.supersedesTransitionIds.length === 0) return 'invalid';
     if (new Set(value.supersedesTransitionIds).size !== value.supersedesTransitionIds.length) return 'invalid';
-    if (value.supersedesTransitionIds.some((id) => !/^lb:transition:\S+$/.test(id) || id === value.id)) return 'invalid';
+    if (value.supersedesTransitionIds.some((id) => !transitionId.test(id) || id === value.id)) return 'invalid';
   }
   if (classifyTimestamp(value.issuedAt) !== 'valid' || !Array.isArray(value.provenance?.sources) || value.provenance.sources.length === 0) return 'invalid';
   if (typeof value.rawRef?.protocol !== 'string' || typeof value.rawRef?.sourceId !== 'string') return 'invalid';
-  if (value.transitionType === 'replace') return /^lb:obj:\S+$/.test(value.replacementId ?? '') && value.replacementId !== value.targetId ? 'valid' : 'invalid';
+  if (value.transitionType === 'replace') return objectId.test(value.replacementId ?? '') && value.replacementId !== value.targetId ? 'valid' : 'invalid';
   if (value.transitionType === 'withdraw') return Object.hasOwn(value, 'replacementId') ? 'invalid' : 'valid';
   return 'invalid';
 }
@@ -58,26 +61,18 @@ function projectTransitions(input) {
   const superseded = new Set();
   const edges = new Map();
   for (const item of authorized) {
+    if (!transitionId.test(item.id) || !objectId.test(item.targetId)) return {classification:'invalid-transition-graph'};
     const parents = item.supersedesTransitionIds ?? [];
     if (!Array.isArray(parents) || new Set(parents).size !== parents.length) return {classification:'invalid-transition-graph'};
     edges.set(item.id, parents);
     for (const parentId of parents) {
       const prior = byId.get(parentId);
-      if (!prior || prior.targetId !== input.targetId || item.targetId !== input.targetId || prior.id === item.id) return {classification:'invalid-transition-graph'};
+      if (!transitionId.test(parentId) || !prior || prior.targetId !== input.targetId || item.targetId !== input.targetId || prior.id === item.id) return {classification:'invalid-transition-graph'};
       superseded.add(prior.id);
     }
   }
-  const visiting = new Set();
-  const visited = new Set();
-  function hasCycle(id) {
-    if (visiting.has(id)) return true;
-    if (visited.has(id)) return false;
-    visiting.add(id);
-    for (const parentId of edges.get(id) ?? []) if (hasCycle(parentId)) return true;
-    visiting.delete(id);
-    visited.add(id);
-    return false;
-  }
+  const visiting = new Set(); const visited = new Set();
+  function hasCycle(id) { if (visiting.has(id)) return true; if (visited.has(id)) return false; visiting.add(id); for (const parentId of edges.get(id) ?? []) if (hasCycle(parentId)) return true; visiting.delete(id); visited.add(id); return false; }
   for (const id of byId.keys()) if (hasCycle(id)) return {classification:'invalid-transition-graph'};
   const heads = authorized.filter((item) => item.targetId === input.targetId && !superseded.has(item.id));
   if (heads.length === 0) return {classification:'active-original'};
@@ -95,6 +90,7 @@ const results = [];
 for (const testCase of manifest.cases) {
   try {
     if (testCase.kind === 'canonicalization') { const input = JSON.parse(await read(testCase.input)); const expected = await read(testCase.expected); const actual = canonicalJson(input); assert.equal(actual, expected); assert.equal(canonicalJson(JSON.parse(actual)), actual); }
+    else if (testCase.kind === 'protocol-id') { const input = JSON.parse(await read(testCase.input)); const classification = input.values.every((value) => protocolId.test(value)) ? 'valid' : 'invalid'; assert.equal(classification, input.expectedClassification); }
     else if (testCase.kind === 'identity-key') assert.equal(identityKeyV2(JSON.parse(await read(testCase.input))), (await read(testCase.expected)).trimEnd());
     else if (testCase.kind === 'identity-key-equivalence') assert.equal(identityKeyV2(JSON.parse(await read(testCase.input))), identityKeyV2(JSON.parse(await read(testCase.alternateInput))));
     else if (testCase.kind === 'http-publish-signature') { const input = JSON.parse(await read(testCase.input)); const target = httpPublishSignatureTarget(input); assert.equal(classifyHttpPublishSignature(input,target), testCase.expectedVerification); if (testCase.target) assert.equal(target, await read(testCase.target)); if (testCase.expected) { const expected = JSON.parse(await read(testCase.expected)); assert.equal(createHash('sha256').update(target,'utf8').digest('hex'), expected.targetSha256); assert.equal(input.publisher.publicKey, expected.publicKey); assert.equal(input.publisher.signature, expected.signature); } }

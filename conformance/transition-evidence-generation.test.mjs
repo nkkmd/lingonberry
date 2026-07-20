@@ -9,6 +9,7 @@ const staleFixture = JSON.parse(await readFile(new URL('./transition-evidence-ge
 const staleReadFixture = JSON.parse(await readFile(new URL('./transition-evidence-generation/stale-read-api.input.json', import.meta.url), 'utf8'));
 const diagnosticFixture = JSON.parse(await readFile(new URL('./transition-evidence-generation/stable-diagnostics.input.json', import.meta.url), 'utf8'));
 const paginationFixture = JSON.parse(await readFile(new URL('./transition-evidence-generation/diagnostic-pagination.input.json', import.meta.url), 'utf8'));
+const retentionFixture = JSON.parse(await readFile(new URL('./transition-evidence-generation/diagnostic-retention.input.json', import.meta.url), 'utf8'));
 const kindOrder = new Map([['target',0],['transition',1],['delegation',2],['revocation',3]]);
 const classifications = new Set(['supported','unsupported','corrupt','unreadable']);
 const diagnosticReasonClassifications = new Map([
@@ -162,6 +163,27 @@ function diagnosticPagination(input) {
   };
 }
 
+function diagnosticRetention(input) {
+  const retained = [];
+  const collectible = [];
+  for (const snapshot of input.snapshots) {
+    const protectedSnapshot = snapshot.currentObservation
+      || snapshot.semanticCheckpoint
+      || snapshot.activeCursorLease
+      || snapshot.withinRecentPolicy;
+    (protectedSnapshot ? retained : collectible).push(snapshot.generation);
+  }
+  assert.notEqual(input.cursorRequestAfterCollection.requestedGeneration, input.cursorRequestAfterCollection.fallbackGeneration);
+  return {
+    retainedGenerations: retained,
+    collectibleGenerations: collectible,
+    canonicalEvidenceDeleted: false,
+    expiredRequestHttpStatus: 409,
+    expiredRequestCode: 'LB_DIAGNOSTIC_GENERATION_UNAVAILABLE',
+    silentlySwitchedGeneration: false,
+  };
+}
+
 test('target evidence generation is deterministic and order independent', () => {
   assert.equal(evidenceGeneration(fixture), fixture.expectedGeneration);
   assert.equal(evidenceGeneration({...fixture,evidence:[...fixture.evidence].reverse()}), fixture.expectedGeneration);
@@ -214,4 +236,8 @@ test('public diagnostics reject implementation-specific fields and mismatched re
 
 test('diagnostic summaries are bounded and full pagination is generation pinned', () => {
   assert.deepEqual(diagnosticPagination(paginationFixture), paginationFixture.expected);
+});
+
+test('derived diagnostic retention protects current, semantic, cursor-pinned, and policy-recent generations', () => {
+  assert.deepEqual(diagnosticRetention(retentionFixture), retentionFixture.expected);
 });

@@ -1,0 +1,11 @@
+{
+  "ruleVersion": "lb.http.publish.signature.v1",
+  "canonicalizationRuleVersion": "lb.canonical.json.v1",
+  "algorithm": "Ed25519",
+  "publicKeyEncoding": "lowercase-hex-raw-32-bytes",
+  "signatureEncoding": "lowercase-hex-raw-64-bytes",
+  "targetSha256": "af23bdc74f4302616a5c5a53ca6a252e52f9d0d48386854da102e473ea24ab78",
+  "publicKey": "307270eca005df54e3ca169c6139ffc228c4f0069c24ce1260fbf3394f51b9ac",
+  "signature": "112e5d5444058e8e4366e40b1e7f4dd1b7e4d5a884342ec9845e567923d80a8aa73a003b52367a93663683593bde0b2c5c70be5433b58a0f3cbddcdbce2edb0a",
+  "verification": "valid"
+}

@@ -36,6 +36,7 @@ publication state: v0.6.0 implementation in progress
 | bounded generation-pinned diagnostic pagination | PR #98で追加済み |
 | hybrid derived diagnostic retention | PR #98で追加済み |
 | bounded sliding cursor lease | PR #98で追加済み |
+| bounded diagnostic read guard | PR #98で追加済み |
 | relay transition append-only storage／effective-view projection | 未着手 |
 | release checklist／CHANGELOG／version update | 未着手 |
 
@@ -76,11 +77,16 @@ publication state: v0.6.0 implementation in progress
 - invalid cursor、generation mismatch、invalid limit、失敗responseではleaseを延長しない
 - exact expiry instantではleaseをexpiredとして扱う
 - restart時にcursorのabsolute lifetimeをリセットしない
+- diagnostic page読取り前にtarget／generation／snapshotへbindした期限付きread guardを原子的に取得する
+- read guardのv0.6初期lifetimeは120秒とし、exact expiry instantではexpiredとする
+- guard取得とGC delete claimはtransaction／CAS等で直列化し、両方を同時成功させない
+- guard expiry前に完全な同一generation pageをmaterializeできない場合はpartial responseを返さない
+- process crash後は元のguard expiryを延長せず、expired guardをreconciliationで回収可能にする
 
 ## 4. Next implementation order
 
-1. cursor lease validationとsnapshot garbage collectionの排他方式を決定する
-2. 決定したread guard／transaction／CAS semanticsとcrash fixtureを追加する
+1. 120秒を超える正当なpage読取りに対してread guard更新を許すか、固定期限で失敗させるか決定する
+2. 決定したguard renewal／maximum operation lifetime／timeout semanticsをfixture化する
 3. relayで`POST /v1/transitions`のvalidate／signature verify／append-only storeを有効化する
 4. orphan index、durable queue、authority classification／effective-view projectionを実装する
 5. compatibility matrixを完成させる
@@ -116,3 +122,7 @@ publication state: v0.6.0 implementation in progress
 26. invalidまたは失敗したpage requestでcursor leaseを延長しない
 27. cursorのabsolute expiryを延長またはrestartでリセットしない
 28. lease検証後からpage読取り完了までに対象snapshotを回収しない
+29. read guardなしでdiagnostic pageをmaterializeしない
+30. committed GC delete claimと新規read guard取得を同時成功させない
+31. expired read guardを永久snapshot pinとして扱わない
+32. storage error後にpartial diagnostic pageを返さない

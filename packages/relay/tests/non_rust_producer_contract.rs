@@ -7,6 +7,7 @@ use std::thread;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 const BINARY: &str = env!("CARGO_BIN_EXE_lingonberry-relay");
+const OBJECT_ID: &str = "lb:obj:js-producer-http-contract";
 
 #[test]
 fn javascript_producer_publishes_through_real_http_path() {
@@ -14,23 +15,18 @@ fn javascript_producer_publishes_through_real_http_path() {
     let state_dir = unique_temp_dir("js-producer");
     fs::create_dir_all(&state_dir).expect("create state directory");
 
+    let producer = workspace.join("conformance/minimal-producer.mjs");
     let produced = Command::new("node")
-        .arg(workspace.join("conformance/minimal-producer.mjs"))
-        .args([
-            "--id",
-            "lb:obj:js-producer-http-contract",
-            "--created-at",
-            "2026-07-20T00:00:00Z",
-        ])
+        .arg(producer)
+        .args(["--id", OBJECT_ID])
+        .args(["--created-at", "2026-07-20T00:00:00Z"])
         .output()
         .expect("run JavaScript producer");
-    assert!(
-        produced.status.success(),
-        "producer stderr={}",
-        String::from_utf8_lossy(&produced.stderr),
-    );
-    let request = String::from_utf8(produced.stdout).expect("producer output must be UTF-8");
 
+    let stderr = String::from_utf8_lossy(&produced.stderr);
+    assert!(produced.status.success(), "producer stderr={stderr}");
+
+    let request = String::from_utf8(produced.stdout).expect("producer output must be UTF-8");
     let port = available_port();
     let mut server = spawn_http_server(&state_dir, port);
     wait_until_ready(port);
@@ -38,14 +34,9 @@ fn javascript_producer_publishes_through_real_http_path() {
     let response = http_post(port, request.trim_end());
     assert!(response.starts_with("HTTP/1.1 201 "), "{response}");
     assert!(response.contains("\"status\":\"stored\""), "{response}");
-    assert!(
-        response.contains("\"code\":\"LB_OBJECT_STORED\""),
-        "{response}",
-    );
-    assert!(
-        response.contains("\"canonicalId\":\"lb:obj:js-producer-http-contract\""),
-        "{response}",
-    );
+    assert!(response.contains("\"code\":\"LB_OBJECT_STORED\""), "{response}");
+    let canonical_id = format!("\"canonicalId\":\"{OBJECT_ID}\"");
+    assert!(response.contains(&canonical_id), "{response}");
 
     server.kill().ok();
     server.wait().ok();
@@ -76,12 +67,19 @@ fn wait_until_ready(port: u16) {
 }
 
 fn http_post(port: u16, body: &str) -> String {
-    let mut stream =
-        TcpStream::connect(("127.0.0.1", port)).expect("connect to HTTP server");
+    let address = ("127.0.0.1", port);
+    let mut stream = TcpStream::connect(address).expect("connect to HTTP server");
     let request = format!(
-        "POST /v1/objects HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+        concat!(
+            "POST /v1/objects HTTP/1.1\r\n",
+            "Host: 127.0.0.1\r\n",
+            "Content-Type: application/json\r\n",
+            "Content-Length: {}\r\n",
+            "Connection: close\r\n\r\n",
+            "{}"
+        ),
         body.len(),
-        body,
+        body
     );
     stream.write_all(request.as_bytes()).expect("write request");
     let mut response = String::new();
@@ -112,8 +110,8 @@ fn unique_temp_dir(label: &str) -> PathBuf {
         .duration_since(UNIX_EPOCH)
         .expect("system clock")
         .as_nanos();
+    let process_id = std::process::id();
     std::env::temp_dir().join(format!(
-        "lingonberry-non-rust-producer-{label}-{}-{nonce}",
-        std::process::id(),
+        "lingonberry-non-rust-producer-{label}-{process_id}-{nonce}"
     ))
 }

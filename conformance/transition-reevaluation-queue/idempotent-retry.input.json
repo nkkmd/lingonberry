@@ -7,6 +7,7 @@
     "effectiveTransitionId": "lb:transition:orphan-0001"
   },
   "previousCheckpoint": "view:target:g1",
+  "nextCheckpoint": "view:target:g2",
   "resultCommit": "succeeded",
   "snapshotStillCurrent": true,
   "expected": {

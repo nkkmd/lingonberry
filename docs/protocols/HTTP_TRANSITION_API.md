@@ -75,8 +75,9 @@ A conforming relay evaluates:
 7. publisher key and signature encoding;
 8. publisher signature verification;
 9. append-only duplicate or conflict classification;
-10. authority classification;
-11. effective-view graph projection.
+10. target availability classification;
+11. authority classification;
+12. effective-view graph projection.
 
 Failure at an earlier stage MUST NOT be represented as success at a later stage.
 
@@ -86,7 +87,7 @@ The API uses deterministic machine-readable codes.
 
 | HTTP | Code | Meaning |
 |---:|---|---|
-| 201 | `LB_TRANSITION_STORED` | new transition bytes durably stored |
+| 201 | `LB_TRANSITION_STORED` | new transition bytes durably stored, including an orphan transition |
 | 200 | `LB_TRANSITION_DUPLICATE` | exact idempotent duplicate already stored |
 | 400 | `LB_TRANSITION_ENVELOPE_INVALID` | wrong or malformed request envelope |
 | 400 | `LB_TRANSITION_INVALID` | structural or semantic validation failure |
@@ -95,7 +96,26 @@ The API uses deterministic machine-readable codes.
 | 422 | `LB_TRANSITION_RULE_UNSUPPORTED` | required schema, identity, or signature rule unsupported |
 | 500 | `LB_TRANSITION_STORAGE_ERROR` | durable storage failure |
 
-Authority classification is not an HTTP rejection after a structurally valid signed transition is stored. The response includes `authority.classification` and whether the transition currently affects the effective view.
+Authority classification or target absence is not an HTTP rejection after a structurally valid signed transition is stored. The response includes target status, authority classification, and whether the transition currently affects the effective view.
+
+A missing target response contains fields equivalent to:
+
+```json
+{
+  "status": "stored",
+  "code": "LB_TRANSITION_STORED",
+  "targetStatus": "missing",
+  "authority": {
+    "classification": "unknown",
+    "basis": "target-unavailable"
+  },
+  "effectiveView": {
+    "applied": false
+  }
+}
+```
+
+The relay MUST NOT return target-not-found solely because related protocol records arrived out of order.
 
 ## 7. Route isolation
 
@@ -111,4 +131,6 @@ No route mismatch is automatically rewritten or forwarded.
 
 ## 8. Storage boundary
 
-Publishing through `/v1/transitions` never mutates or deletes the target Knowledge Object. The Transition Object, its signed wire request, authority result, and derived projection state have separate lifecycle responsibilities.
+Publishing through `/v1/transitions` never mutates or deletes the target Knowledge Object. The Transition Object, its signed wire request, authority result, target resolution status, and derived projection state have separate lifecycle responsibilities.
+
+Target absence is governed by `lb.transition.orphan.v1` in [ORPHAN_TRANSITIONS.md](./ORPHAN_TRANSITIONS.md). Target arrival may trigger derived-state re-evaluation but MUST NOT rewrite the stored transition, transition identity, or signature evidence.

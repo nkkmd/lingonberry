@@ -62,7 +62,11 @@ jobs:
       - name: Run JavaScript tests
         run: >-
           node --test
+          conformance/minimal-producer.test.mjs
           packages/codecs/test/canonicalization.test.mjs
           packages/identity/test/identity-claim-validator.test.mjs
           packages/validation/test/validation.test.mjs
           tests/quarantine-replacement-crash-points.test.mjs
+
+      - name: Run external conformance suite
+        run: node conformance/run.mjs

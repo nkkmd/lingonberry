@@ -33,6 +33,7 @@ publication state: v0.6.0 implementation in progress
 | supported／unsupported／corrupt／unreadable marker vectors | PR #98で追加済み |
 | last-known-good effective view／stale read API | PR #98で追加済み |
 | stable public diagnostics `lb.http.effective-view.diagnostics.v1` | PR #98で追加済み |
+| bounded generation-pinned diagnostic pagination | PR #98で追加済み |
 | relay transition append-only storage／effective-view projection | 未着手 |
 | release checklist／CHANGELOG／version update | 未着手 |
 
@@ -69,11 +70,17 @@ publication state: v0.6.0 implementation in progress
 - public diagnosticsはstable reason codeとprotocol identifierだけを返し、storage path、row ID、stack trace、parser exception、worker IDを公開しない
 - diagnosticはkind、ASCII evidence ID、classification、reason codeの順で決定的にsortする
 - exact duplicate diagnosticはcollapseし、同一kind／IDの競合diagnosticを暗黙選択しない
+- 通常のeffective-view responseで返すdiagnosticは先頭20件までとする
+- `diagnosticSummary.total`／`byClassification`は対象generationの完全集合を正確に表す
+- 完全一覧は`GET /v1/effective-objects/{targetId}/diagnostics`で取得し、generationを必須にする
+- diagnostic paginationのdefault／maximum limitは100とする
+- cursorはtarget／generationへbindし、不透明でrelay内部identifierを公開しない
+- pagination中に異なるobservation generationを混在させない
 
 ## 4. Next implementation order
 
-1. public diagnosticsを全件返すか、上限・summary・paginationを導入するか決定する
-2. 決定したdiagnostic completeness／truncation semanticsをfixture化する
+1. 過去のobservation generationを全件保持するか、保持上限を設けて再構築可能なsnapshotだけを残すか決定する
+2. 決定したgeneration retention／expiration／cursor invalidation semanticsをfixture化する
 3. relayで`POST /v1/transitions`のvalidate／signature verify／append-only storeを有効化する
 4. orphan index、durable queue、authority classification／effective-view projectionを実装する
 5. compatibility matrixを完成させる
@@ -100,3 +107,6 @@ publication state: v0.6.0 implementation in progress
 17. unreadable evidenceにtrusted carrier digestがない状態で完全なgenerationを発行しない
 18. stale viewをcurrentとして返さない
 19. public diagnosticsへrelay内部情報や非安定なexception textを漏らさない
+20. diagnostic truncationを隠さない
+21. pagination中に別generationのdiagnosticを混在させない
+22. cursorへstorage path、row ID、ingestion sequenceを埋め込まない

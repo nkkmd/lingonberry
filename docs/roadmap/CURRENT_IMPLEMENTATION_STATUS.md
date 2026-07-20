@@ -34,6 +34,7 @@ publication state: v0.6.0 implementation in progress
 | last-known-good effective view／stale read API | PR #98で追加済み |
 | stable public diagnostics `lb.http.effective-view.diagnostics.v1` | PR #98で追加済み |
 | bounded generation-pinned diagnostic pagination | PR #98で追加済み |
+| bounded derived diagnostic retention | PR #98で追加済み |
 | relay transition append-only storage／effective-view projection | 未着手 |
 | release checklist／CHANGELOG／version update | 未着手 |
 
@@ -76,11 +77,16 @@ publication state: v0.6.0 implementation in progress
 - diagnostic paginationのdefault／maximum limitは100とする
 - cursorはtarget／generationへbindし、不透明でrelay内部identifierを公開しない
 - pagination中に異なるobservation generationを混在させない
+- canonical evidenceとimmutable carrier digestはderived snapshot expirationを理由に削除しない
+- current observation generationとsemantic checkpoint generationは常にderived snapshot retention対象とする
+- unexpired cursor leaseが参照するgenerationは保持する
+- cursor leaseは有限であり、永久retention pinにしない
+- 保持されていないgenerationのpaginationを別generationへ暗黙切替しない
 
 ## 4. Next implementation order
 
-1. 過去のobservation generationを全件保持するか、保持上限を設けて再構築可能なsnapshotだけを残すか決定する
-2. 決定したgeneration retention／expiration／cursor invalidation semanticsをfixture化する
+1. 非保護のrecent generation retentionを件数基準、時間基準、またはhybridのどれにするか決定する
+2. 決定したretention bound／cursor lease expiry／garbage-collection orderをfixture化する
 3. relayで`POST /v1/transitions`のvalidate／signature verify／append-only storeを有効化する
 4. orphan index、durable queue、authority classification／effective-view projectionを実装する
 5. compatibility matrixを完成させる
@@ -110,3 +116,6 @@ publication state: v0.6.0 implementation in progress
 20. diagnostic truncationを隠さない
 21. pagination中に別generationのdiagnosticを混在させない
 22. cursorへstorage path、row ID、ingestion sequenceを埋め込まない
+23. derived snapshot garbage collectionでcanonical evidenceを削除しない
+24. current observation／semantic checkpoint／active cursor参照generationを回収しない
+25. cursor leaseを無期限retentionとして扱わない

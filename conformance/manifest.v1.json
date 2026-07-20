@@ -32,7 +32,16 @@
       "canonicalizationRuleVersion": "lb.canonical.json.v1",
       "input": "http-publish-signature/minimal-request.input.json",
       "target": "http-publish-signature/minimal-request.target.json",
-      "expected": "http-publish-signature/minimal-request.expected.json"
+      "expected": "http-publish-signature/minimal-request.expected.json",
+      "expectedVerification": "valid"
+    },
+    {
+      "id": "http-publish-signature.tampered-request",
+      "kind": "http-publish-signature",
+      "ruleVersion": "lb.http.publish.signature.v1",
+      "canonicalizationRuleVersion": "lb.canonical.json.v1",
+      "input": "http-publish-signature/tampered-request.input.json",
+      "expectedVerification": "invalid"
     }
   ]
 }

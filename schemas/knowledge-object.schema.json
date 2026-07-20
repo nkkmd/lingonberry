@@ -1,292 +1,33 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://lingonberry.cultivationdata.net/schemas/v1/knowledge-object.schema.json",
-  "title": "Lingonberry Knowledge Object",
-  "description": "Protocol-native knowledge object schema for the Lingonberry protocol.",
-  "type": "object",
-  "required": ["id", "schemaVersion", "type", "createdAt", "body", "provenance", "rawRef"],
-  "properties": {
-    "id": {
-      "type": "string",
-      "pattern": "^lb:obj:[^\\s]+$",
-      "description": "Protocol-native canonical object ID."
-    },
-    "schemaVersion": {
-      "type": "string",
-      "const": "0.1.0",
-      "description": "Protocol object schema version."
-    },
-    "type": {
-      "type": "string",
-      "enum": ["inquiry", "observation", "claim", "evidence", "annotation", "synthesis", "translation", "reference", "concept"],
-      "description": "Semantic type of the knowledge object."
-    },
-    "createdAt": {
-      "type": "string",
-      "format": "date-time",
-      "description": "Canonical creation timestamp in UTC."
-    },
-    "body": {
-      "type": "object",
-      "required": ["text", "language"],
-      "properties": {
-        "text": {
-          "type": "string",
-          "minLength": 1
-        },
-        "language": {
-          "type": "string",
-          "pattern": "^[A-Za-z]{2,8}(-[A-Za-z0-9]{1,8})*$",
-          "description": "BCP47-style language tag."
-        }
-      },
-      "additionalProperties": false
-    },
-    "contexts": {
-      "type": "object",
-      "description": "Abstracted contextual metadata.",
-      "additionalProperties": true
-    },
-    "relations": {
-      "type": "array",
-      "items": {
-        "$ref": "#/definitions/relation"
-      },
-      "default": []
-    },
-    "status": {
-      "type": "string",
-      "enum": ["draft", "active", "superseded", "deprecated", "archived"],
-      "description": "Lifecycle state."
-    },
-    "lineage": {
-      "type": "array",
-      "items": {
-        "$ref": "#/definitions/lineageEdge"
-      },
-      "default": []
-    },
-    "provenance": {
-      "type": "object",
-      "required": ["sources"],
-      "properties": {
-        "sources": {
-          "type": "array",
-          "minItems": 1,
-          "items": {
-            "$ref": "#/definitions/provenanceSource"
-          }
-        }
-      },
-      "additionalProperties": false
-    },
-    "rawRef": {
-      "type": "object",
-      "required": ["protocol", "sourceId"],
-      "properties": {
-        "protocol": {
-          "type": "string",
-          "minLength": 1
-        },
-        "sourceId": {
-          "type": "string",
-          "minLength": 1
-        },
-        "locator": {
-          "type": "string",
-          "minLength": 1,
-          "description": "Optional retrieval hint."
-        },
-        "payloadHash": {
-          "type": "string",
-          "minLength": 1
-        }
-      },
-      "additionalProperties": false
-    },
-    "identityClaims": {
-      "type": "array",
-      "items": {
-        "$ref": "#/definitions/identityClaim"
-      },
-      "description": "Optional verifiable identity claims."
-    },
-    "attachments": {
-      "type": "array",
-      "items": {
-        "$ref": "#/definitions/attachment"
-      },
-      "default": []
-    },
-    "labels": {
-      "type": "array",
-      "items": {
-        "type": "string",
-        "minLength": 1
-      },
-      "default": []
-    },
-    "meta": {
-      "type": "object",
-      "description": "Optional non-semantic implementation metadata.",
-      "additionalProperties": true
-    }
+  "$schema":"http://json-schema.org/draft-07/schema#",
+  "$id":"https://lingonberry.cultivationdata.net/schemas/v1/knowledge-object.schema.json",
+  "title":"Lingonberry Knowledge Object",
+  "description":"Protocol-native knowledge object schema for the Lingonberry protocol.",
+  "type":"object",
+  "required":["id","schemaVersion","type","createdAt","body","provenance","rawRef"],
+  "properties":{
+    "id":{"type":"string","pattern":"^lb:obj:[A-Za-z0-9._~:-]+$","description":"Protocol-native canonical object ID."},
+    "schemaVersion":{"type":"string","const":"0.1.0","description":"Protocol object schema version."},
+    "type":{"type":"string","enum":["inquiry","observation","claim","evidence","annotation","synthesis","translation","reference","concept"],"description":"Semantic type of the knowledge object."},
+    "createdAt":{"type":"string","format":"date-time","description":"Canonical creation timestamp in UTC."},
+    "body":{"type":"object","required":["text","language"],"properties":{"text":{"type":"string","minLength":1},"language":{"type":"string","pattern":"^[A-Za-z]{2,8}(-[A-Za-z0-9]{1,8})*$","description":"BCP47-style language tag."}},"additionalProperties":false},
+    "contexts":{"type":"object","description":"Abstracted contextual metadata.","additionalProperties":true},
+    "relations":{"type":"array","items":{"$ref":"#/definitions/relation"},"default":[]},
+    "status":{"type":"string","enum":["draft","active","superseded","deprecated","archived"],"description":"Lifecycle state."},
+    "lineage":{"type":"array","items":{"$ref":"#/definitions/lineageEdge"},"default":[]},
+    "provenance":{"type":"object","required":["sources"],"properties":{"sources":{"type":"array","minItems":1,"items":{"$ref":"#/definitions/provenanceSource"}}},"additionalProperties":false},
+    "rawRef":{"type":"object","required":["protocol","sourceId"],"properties":{"protocol":{"type":"string","minLength":1},"sourceId":{"type":"string","minLength":1},"locator":{"type":"string","minLength":1,"description":"Optional retrieval hint."},"payloadHash":{"type":"string","minLength":1}},"additionalProperties":false},
+    "identityClaims":{"type":"array","items":{"$ref":"#/definitions/identityClaim"},"description":"Optional verifiable identity claims."},
+    "attachments":{"type":"array","items":{"$ref":"#/definitions/attachment"},"default":[]},
+    "labels":{"type":"array","items":{"type":"string","minLength":1},"default":[]},
+    "meta":{"type":"object","description":"Optional non-semantic implementation metadata.","additionalProperties":true}
   },
-  "definitions": {
-    "relation": {
-      "type": "object",
-      "required": ["source", "target"],
-      "properties": {
-        "source": {
-          "type": "string",
-          "minLength": 1
-        },
-        "target": {
-          "type": "string",
-          "minLength": 1
-        },
-        "kind": {
-          "type": "string",
-          "minLength": 1,
-          "description": "Optional relation type such as related_to, cites, derives_from."
-        }
-      },
-      "additionalProperties": false
-    },
-    "lineageEdge": {
-      "type": "object",
-      "required": ["type", "target"],
-      "properties": {
-        "type": {
-          "type": "string",
-          "enum": ["derived_from", "revises", "supersedes", "translates", "synthesizes"]
-        },
-        "target": {
-          "type": "string",
-          "minLength": 1
-        }
-      },
-      "additionalProperties": false
-    },
-    "provenanceSource": {
-      "type": "object",
-      "required": ["protocol", "sourceId"],
-      "properties": {
-        "protocol": {
-          "type": "string",
-          "minLength": 1
-        },
-        "sourceId": {
-          "type": "string",
-          "minLength": 1
-        },
-        "authorId": {
-          "type": "string",
-          "minLength": 1
-        },
-        "observedAt": {
-          "type": "string",
-          "format": "date-time"
-        }
-      },
-      "additionalProperties": false
-    },
-    "identityClaim": {
-      "type": "object",
-      "required": ["schemaVersion", "claimType", "ruleVersion", "identityKey", "canonicalId", "issuer", "issuedAt", "verification"],
-      "properties": {
-        "schemaVersion": {
-          "type": "string",
-          "const": "1"
-        },
-        "claimType": {
-          "type": "string",
-          "const": "identity"
-        },
-        "ruleVersion": {
-          "type": "string",
-          "minLength": 1
-        },
-        "identityKey": {
-          "type": "string",
-          "pattern": "^lb:key:[^\\s]+$"
-        },
-        "canonicalId": {
-          "type": "string",
-          "pattern": "^lb:obj:[^\\s]+$"
-        },
-        "issuer": {
-          "type": "object",
-          "required": ["protocol", "sourceId"],
-          "properties": {
-            "protocol": {
-              "type": "string",
-              "minLength": 1
-            },
-            "sourceId": {
-              "type": "string",
-              "minLength": 1
-            },
-            "signerId": {
-              "type": "string",
-              "minLength": 1
-            }
-          },
-          "additionalProperties": false
-        },
-        "issuedAt": {
-          "type": "string",
-          "format": "date-time"
-        },
-        "verification": {
-          "type": "object",
-          "required": ["method", "payloadHash"],
-          "properties": {
-            "method": {
-              "type": "string",
-              "minLength": 1
-            },
-            "payloadHash": {
-              "type": "string",
-              "pattern": "^sha256:[0-9a-f]{64}$"
-            },
-            "signature": {
-              "type": "string",
-              "minLength": 1
-            },
-            "status": {
-              "type": "string",
-              "enum": ["pending", "verified", "rejected"]
-            }
-          },
-          "additionalProperties": false
-        }
-      },
-      "additionalProperties": false
-    },
-    "attachment": {
-      "type": "object",
-      "required": ["type", "uri"],
-      "properties": {
-        "type": {
-          "type": "string",
-          "minLength": 1
-        },
-        "uri": {
-          "type": "string",
-          "minLength": 1
-        },
-        "title": {
-          "type": "string",
-          "minLength": 1
-        },
-        "mimeType": {
-          "type": "string",
-          "minLength": 1
-        }
-      },
-      "additionalProperties": false
-    }
+  "definitions":{
+    "relation":{"type":"object","required":["source","target"],"properties":{"source":{"type":"string","minLength":1},"target":{"type":"string","minLength":1},"kind":{"type":"string","minLength":1,"description":"Optional relation type such as related_to, cites, derives_from."}},"additionalProperties":false},
+    "lineageEdge":{"type":"object","required":["type","target"],"properties":{"type":{"type":"string","enum":["derived_from","revises","supersedes","translates","synthesizes"]},"target":{"type":"string","minLength":1}},"additionalProperties":false},
+    "provenanceSource":{"type":"object","required":["protocol","sourceId"],"properties":{"protocol":{"type":"string","minLength":1},"sourceId":{"type":"string","minLength":1},"authorId":{"type":"string","minLength":1},"observedAt":{"type":"string","format":"date-time"}},"additionalProperties":false},
+    "identityClaim":{"type":"object","required":["schemaVersion","claimType","ruleVersion","identityKey","canonicalId","issuer","issuedAt","verification"],"properties":{"schemaVersion":{"type":"string","const":"1"},"claimType":{"type":"string","const":"identity"},"ruleVersion":{"type":"string","minLength":1},"identityKey":{"type":"string","pattern":"^lb:key:[A-Za-z0-9._~:-]+$"},"canonicalId":{"type":"string","pattern":"^lb:obj:[A-Za-z0-9._~:-]+$"},"issuer":{"type":"object","required":["protocol","sourceId"],"properties":{"protocol":{"type":"string","minLength":1},"sourceId":{"type":"string","minLength":1},"signerId":{"type":"string","minLength":1}},"additionalProperties":false},"issuedAt":{"type":"string","format":"date-time"},"verification":{"type":"object","required":["method","payloadHash"],"properties":{"method":{"type":"string","minLength":1},"payloadHash":{"type":"string","pattern":"^sha256:[0-9a-f]{64}$"},"signature":{"type":"string","minLength":1},"status":{"type":"string","enum":["pending","verified","rejected"]}},"additionalProperties":false}},"additionalProperties":false},
+    "attachment":{"type":"object","required":["type","uri"],"properties":{"type":{"type":"string","minLength":1},"uri":{"type":"string","minLength":1},"title":{"type":"string","minLength":1},"mimeType":{"type":"string","minLength":1}},"additionalProperties":false}
   },
-  "additionalProperties": false
+  "additionalProperties":false
 }

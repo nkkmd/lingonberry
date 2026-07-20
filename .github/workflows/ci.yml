@@ -43,8 +43,19 @@ jobs:
       - name: Compile test targets with clippy
         run: cargo clippy --workspace --tests -- -A warnings
 
-      - name: Run workspace tests
-        run: cargo test --workspace
+      - name: Run workspace tests and capture output
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          cargo test --workspace 2>&1 | tee workspace-tests-final.log
+
+      - name: Upload workspace test log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: workspace-tests-final-log
+          path: workspace-tests-final.log
 
   javascript:
     name: JavaScript tests

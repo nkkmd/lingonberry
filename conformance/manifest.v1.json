@@ -24,6 +24,15 @@
       "canonicalizationRuleVersion": "lb.canonical.json.v1",
       "input": "identity-key-v2/minimal-object.input.json",
       "alternateInput": "identity-key-v2/minimal-object-alternate-origin.input.json"
+    },
+    {
+      "id": "http-publish-signature.minimal-request",
+      "kind": "http-publish-signature",
+      "ruleVersion": "lb.http.publish.signature.v1",
+      "canonicalizationRuleVersion": "lb.canonical.json.v1",
+      "input": "http-publish-signature/minimal-request.input.json",
+      "target": "http-publish-signature/minimal-request.target.json",
+      "expected": "http-publish-signature/minimal-request.expected.json"
     }
   ]
 }

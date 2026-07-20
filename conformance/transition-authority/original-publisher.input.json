@@ -1,0 +1,12 @@
+{
+  "transitionPublisherKey": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "targetPublisherKey": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "issuedAt": "2026-07-20T00:00:00Z",
+  "delegations": [],
+  "expected": {
+    "classification": "authorized",
+    "basis": "original-publisher",
+    "retain": true,
+    "applyToEffectiveView": true
+  }
+}

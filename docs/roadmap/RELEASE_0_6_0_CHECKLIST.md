@@ -28,7 +28,7 @@
 
 ## Validation
 
-- [x] Rust source formatted in CI with `cargo fmt --all`
+- [x] Rust source formatting verified with `cargo fmt --all -- --check`
 - [x] Library Clippy with warnings denied
 - [x] Binary Clippy with warnings denied
 - [x] Test targets compiled with Clippy
@@ -41,7 +41,7 @@
 
 - [x] PR #98 marked ready for review
 - [x] Final diff and compatibility review completed
-- [ ] Merge authorization confirmed
+- [x] Merge authorization confirmed
 
 ## Publication after merge
 

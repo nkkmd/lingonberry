@@ -29,7 +29,7 @@ Key additions:
 - bounded diagnostic summaries and generation-fixed pagination contracts;
 - conformance contracts for diagnostic retention, cursor leases, read guards, and bounded heartbeats.
 
-The Rust workspace packages are versioned as `0.6.0`. Publication of the `v0.6.0` tag and GitHub Release follows merge of PR #98 and successful main-branch CI.
+The Rust workspace packages are versioned as `0.6.0`. Publication of the `v0.6.0` tag and GitHub Release follows successful main-branch CI.
 
 ## Safety boundaries
 
@@ -74,7 +74,7 @@ cargo run -p lingonberry-relay --bin lingonberry-reevaluate-transitions -- --rec
 ## Validation
 
 ```bash
-cargo fmt --all
+cargo fmt --all -- --check
 cargo clippy --workspace --lib -- -D warnings
 cargo clippy --workspace --bins -- -D warnings -A dead-code
 cargo clippy --workspace --tests -- -A warnings

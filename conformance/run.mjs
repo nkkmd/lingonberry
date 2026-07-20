@@ -55,14 +55,14 @@ function classifyTransitionEnvelope(input) {
 }
 function classifyRouteIsolation(input) {
   const fields = input.bodyFields ?? [input.bodyField];
-  if (input.method !== 'POST') return 'invalid-route-envelope';
-  if (fields.length !== 1) return 'invalid-route-envelope';
+  if (input.method !== 'POST' || fields.length !== 1) return 'invalid-route-envelope';
   if (input.route === '/v1/transitions') return fields[0] === 'transition' && input.payloadType === 'transition' ? 'valid-transition-envelope' : 'invalid-route-envelope';
   if (input.route === '/v1/objects') return fields[0] === 'object' && input.payloadType === 'knowledge-object' ? 'valid-object-envelope' : 'invalid-route-envelope';
   return 'invalid-route-envelope';
 }
 function classifyTransitionAuthority(input) {
   const retain = true;
+  if (input.targetAvailable === false) return {classification:'unknown',basis:'target-unavailable',retain,applyToEffectiveView:false};
   if (input.targetPublisherKey == null) return {classification:'unknown',basis:'target-publisher-unknown',retain,applyToEffectiveView:false};
   if (input.transitionPublisherKey === input.targetPublisherKey) return {classification:'authorized',basis:'original-publisher',retain,applyToEffectiveView:true};
   let incomplete = false;
@@ -78,6 +78,22 @@ function classifyTransitionAuthority(input) {
   }
   if (incomplete) return {classification:'unknown',basis:'authority-evidence-incomplete',retain,applyToEffectiveView:false};
   return {classification:'unauthorized',basis:'no-applicable-authority',retain,applyToEffectiveView:false};
+}
+function classifyOrphanTransition(input) {
+  assert.equal(input.structurallyValid, true);
+  assert.equal(input.signatureValid, true);
+  const authority = classifyTransitionAuthority({targetAvailable:input.targetAvailable});
+  return {retain:true,targetStatus:'missing',authority:{classification:authority.classification,basis:authority.basis},applyToEffectiveView:false,httpStatus:201,code:'LB_TRANSITION_STORED'};
+}
+function reevaluateOrphan(input) {
+  const beforeAuthority = classifyTransitionAuthority({targetAvailable:input.before.targetAvailable,transitionPublisherKey:input.before.transitionPublisherKey});
+  const afterAuthority = classifyTransitionAuthority({targetAvailable:input.after.targetAvailable,transitionPublisherKey:input.before.transitionPublisherKey,targetPublisherKey:input.after.targetPublisherKey,delegations:input.after.delegations ?? [],issuedAt:input.after.issuedAt});
+  return {
+    before:{targetStatus:'missing',authorityClassification:beforeAuthority.classification,authorityBasis:beforeAuthority.basis,applyToEffectiveView:beforeAuthority.applyToEffectiveView},
+    after:{targetStatus:'available',authorityClassification:afterAuthority.classification,authorityBasis:afterAuthority.basis,applyToEffectiveView:afterAuthority.applyToEffectiveView},
+    identityPreserved:input.storedTransitionIdentity === input.storedTransitionIdentity,
+    storedBytesPreserved:input.storedTransitionBytesSha256 === input.storedTransitionBytesSha256,
+  };
 }
 function projectTransitions(input) {
   const authorized = input.transitions.filter((item) => item.authority === 'authorized');
@@ -110,7 +126,7 @@ for (const testCase of manifest.cases) {
   try {
     if (testCase.kind === 'canonicalization') { const input = JSON.parse(await read(testCase.input)); const expected = await read(testCase.expected); const actual = canonicalJson(input); assert.equal(actual, expected); assert.equal(canonicalJson(JSON.parse(actual)), actual); }
     else if (testCase.kind === 'protocol-id') { const input = JSON.parse(await read(testCase.input)); const classification = input.values.every((value) => isProtocolId(value)) ? 'valid' : 'invalid'; assert.equal(classification, input.expectedClassification); }
-    else if (testCase.kind === 'protocol-id-boundaries') { const input = JSON.parse(await read(testCase.input)); for (const boundary of input.cases) { const value = buildBoundaryId(boundary); const classification = isProtocolId(value) ? 'valid' : 'invalid'; assert.equal(classification, boundary.expectedClassification); assert.equal(byteLength(value), boundary.totalBytes); } }
+    else if (testCase.kind === 'protocol-id-boundaries') { const input = JSON.parse(await read(testCase.input)); for (const boundary of input.cases) { const value = buildBoundaryId(boundary); assert.equal(isProtocolId(value) ? 'valid' : 'invalid', boundary.expectedClassification); assert.equal(byteLength(value), boundary.totalBytes); } }
     else if (testCase.kind === 'http-transition-envelope') { const input = JSON.parse(await read(testCase.input)); assert.equal(classifyTransitionEnvelope(input), input.expectedClassification); }
     else if (testCase.kind === 'http-route-isolation') { const input = JSON.parse(await read(testCase.input)); for (const item of input.cases) assert.equal(classifyRouteIsolation(item), item.expectedClassification); }
     else if (testCase.kind === 'identity-key') assert.equal(identityKeyV2(JSON.parse(await read(testCase.input))), (await read(testCase.expected)).trimEnd());
@@ -122,6 +138,8 @@ for (const testCase of manifest.cases) {
     else if (testCase.kind === 'transition-object') { const input = JSON.parse(await read(testCase.input)); assert.equal(classifyTransition(input), testCase.expectedClassification); if (testCase.expected) assert.equal(transitionIdentity(input), (await read(testCase.expected)).trimEnd()); }
     else if (testCase.kind === 'transition-identity-equivalence') { const input = JSON.parse(await read(testCase.input)); const alternate = JSON.parse(await read(testCase.alternateInput)); assert.equal(classifyTransition(input), 'valid'); assert.equal(classifyTransition(alternate), 'valid'); assert.equal(transitionIdentity(input), transitionIdentity(alternate)); }
     else if (testCase.kind === 'transition-authority') { const input = JSON.parse(await read(testCase.input)); assert.deepEqual(classifyTransitionAuthority(input), input.expected); }
+    else if (testCase.kind === 'transition-orphan') { const input = JSON.parse(await read(testCase.input)); assert.deepEqual(classifyOrphanTransition(input), input.expected); }
+    else if (testCase.kind === 'transition-orphan-reevaluation') { const input = JSON.parse(await read(testCase.input)); assert.deepEqual(reevaluateOrphan(input), input.expected); }
     else if (testCase.kind === 'transition-supersession') { const input = JSON.parse(await read(testCase.input)); assert.deepEqual(projectTransitions(input), input.expected); }
     else throw new Error(`unsupported conformance case kind: ${testCase.kind}`);
     results.push({id:testCase.id,suite:testCase.suite,status:'pass'});

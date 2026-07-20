@@ -46,22 +46,22 @@ jobs:
       - name: Run binary clippy
         run: cargo clippy --workspace --bins -- -D warnings -A dead-code
 
-      - name: Run test clippy and capture output
+      - name: Run test clippy
+        run: cargo clippy --workspace --tests -- -D warnings -A dead-code -A unused-variables
+
+      - name: Run workspace tests and capture output
         continue-on-error: true
         shell: bash
         run: |
           set -o pipefail
-          cargo clippy --workspace --tests -- -D warnings -A dead-code -A unused-variables 2>&1 | tee clippy-tests.log
+          cargo test --workspace 2>&1 | tee workspace-tests.log
 
-      - name: Upload test clippy log
+      - name: Upload workspace test log
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: clippy-tests-log
-          path: clippy-tests.log
-
-      - name: Run workspace tests
-        run: cargo test --workspace
+          name: workspace-tests-log
+          path: workspace-tests.log
 
   javascript:
     name: JavaScript tests

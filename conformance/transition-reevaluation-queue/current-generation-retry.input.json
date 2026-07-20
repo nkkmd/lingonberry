@@ -1,0 +1,19 @@
+{
+  "deliveries": 2,
+  "evidenceGeneration": "evidence:target:g3",
+  "derivedResult": {
+    "authorityClassification": "authorized",
+    "projection": "replaced",
+    "effectiveTransitionId": "lb:transition:merge-0003"
+  },
+  "previousCheckpoint": "view:target:g1",
+  "nextCheckpoint": "view:target:g3",
+  "resultCommit": "succeeded",
+  "snapshotStillCurrent": true,
+  "expected": {
+    "transitionCopiesCreated": 0,
+    "derivedApplications": 1,
+    "checkpoint": "view:target:g3",
+    "queueStatus": "succeeded"
+  }
+}

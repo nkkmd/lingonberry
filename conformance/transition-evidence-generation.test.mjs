@@ -4,7 +4,9 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 const fixture = JSON.parse(await readFile(new URL('./transition-evidence-generation/minimal-supported-set.input.json', import.meta.url), 'utf8'));
+const unusableFixture = JSON.parse(await readFile(new URL('./transition-evidence-generation/classified-unusable-set.input.json', import.meta.url), 'utf8'));
 const kindOrder = new Map([['target',0],['transition',1],['delegation',2],['revocation',3]]);
+const classifications = new Set(['supported','unsupported','corrupt','unreadable']);
 
 function sortKeys(value) {
   if (Array.isArray(value)) return value.map(sortKeys);
@@ -22,12 +24,12 @@ function evidenceGeneration(input) {
   const seen = new Map();
   for (const item of input.evidence) {
     assert.ok(kindOrder.has(item.kind));
-    assert.equal(item.classification, 'supported');
+    assert.ok(classifications.has(item.classification));
     assert.match(item.digest, /^sha256:[0-9a-f]{64}$/);
     const key = `${item.kind}\0${item.id}`;
     const prior = seen.get(key);
     if (prior) {
-      assert.deepEqual(item, prior, 'same evidence id must not resolve to conflicting content');
+      assert.deepEqual(item, prior, 'same evidence id must not resolve to conflicting content or classification');
       continue;
     }
     seen.set(key, item);
@@ -40,6 +42,15 @@ function evidenceGeneration(input) {
   );
   const basis = {ruleVersion:'lb.transition.evidence-generation.v1',targetId:input.targetId,evidence};
   return `evidence:sha256:${createHash('sha256').update(canonicalJson(basis), 'utf8').digest('hex')}`;
+}
+
+function snapshotEffect(input) {
+  const incomplete = input.evidence.some((item) => item.classification !== 'supported');
+  return {
+    snapshotClassification: incomplete ? 'incomplete' : 'complete',
+    authorityClassification: incomplete ? 'unknown' : 'evaluated',
+    applyToEffectiveView: !incomplete,
+  };
 }
 
 test('target evidence generation is deterministic and order independent', () => {
@@ -55,4 +66,17 @@ test('same evidence id with conflicting digest is rejected', () => {
   const conflicting = structuredClone(fixture);
   conflicting.evidence.push({...fixture.evidence[0],digest:`sha256:${'f'.repeat(64)}`});
   assert.throws(() => evidenceGeneration(conflicting));
+});
+
+test('classified unusable evidence participates in deterministic generation and fails semantic effect closed', () => {
+  const generation = evidenceGeneration(unusableFixture);
+  assert.match(generation, /^evidence:sha256:[0-9a-f]{64}$/);
+  assert.equal(evidenceGeneration({...unusableFixture,evidence:[...unusableFixture.evidence].reverse()}), generation);
+  assert.deepEqual(snapshotEffect(unusableFixture), unusableFixture.expected);
+});
+
+test('repairing an unusable marker changes generation', () => {
+  const repaired = structuredClone(unusableFixture);
+  repaired.evidence[1].classification = 'supported';
+  assert.notEqual(evidenceGeneration(repaired), evidenceGeneration(unusableFixture));
 });

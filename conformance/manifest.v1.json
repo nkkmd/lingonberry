@@ -29,6 +29,10 @@
     {"id":"transition-supersession.parallel-authorized","suite":"consumer","kind":"transition-supersession","ruleVersion":"lb.transition.supersession.v1","input":"transition-supersession/parallel-authorized.input.json"},
     {"id":"transition-supersession.explicit","suite":"consumer","kind":"transition-supersession","ruleVersion":"lb.transition.supersession.v1","input":"transition-supersession/explicit-supersession.input.json"},
     {"id":"transition-supersession.atomic-fork-merge","suite":"consumer","kind":"transition-supersession","ruleVersion":"lb.transition.supersession.v1","input":"transition-supersession/atomic-fork-merge.input.json"},
-    {"id":"transition-supersession.partial-fork-merge","suite":"consumer","kind":"transition-supersession","ruleVersion":"lb.transition.supersession.v1","input":"transition-supersession/partial-fork-merge.input.json"}
+    {"id":"transition-supersession.partial-fork-merge","suite":"consumer","kind":"transition-supersession","ruleVersion":"lb.transition.supersession.v1","input":"transition-supersession/partial-fork-merge.input.json"},
+    {"id":"transition-supersession.cycle","suite":"consumer","kind":"transition-supersession","ruleVersion":"lb.transition.supersession.v1","input":"transition-supersession/cycle.input.json"},
+    {"id":"transition-supersession.missing-parent","suite":"consumer","kind":"transition-supersession","ruleVersion":"lb.transition.supersession.v1","input":"transition-supersession/missing-parent.input.json"},
+    {"id":"transition-supersession.cross-target-parent","suite":"consumer","kind":"transition-supersession","ruleVersion":"lb.transition.supersession.v1","input":"transition-supersession/cross-target-parent.input.json"},
+    {"id":"transition-supersession.unauthorized-parent","suite":"consumer","kind":"transition-supersession","ruleVersion":"lb.transition.supersession.v1","input":"transition-supersession/unauthorized-parent.input.json"}
   ]
 }

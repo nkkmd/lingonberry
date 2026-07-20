@@ -21,10 +21,7 @@
   "allOf": [
     {
       "if": {"properties": {"transitionType": {"const": "replace"}}},
-      "then": {
-        "required": ["replacementId"],
-        "not": {"properties": {"replacementId": {"const": {"$data": "1/targetId"}}}}
-      }
+      "then": {"required": ["replacementId"]}
     },
     {
       "if": {"properties": {"transitionType": {"const": "withdraw"}}},

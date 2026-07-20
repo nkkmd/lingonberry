@@ -65,6 +65,8 @@ jobs:
           conformance/manifest-integrity.test.mjs
           conformance/minimal-producer.test.mjs
           conformance/transition-evidence-generation.test.mjs
+          conformance/diagnostic-retention-hybrid.test.mjs
+          conformance/diagnostic-cursor-lease.test.mjs
           packages/codecs/test/canonicalization.test.mjs
           packages/identity/test/identity-claim-validator.test.mjs
           packages/validation/test/validation.test.mjs

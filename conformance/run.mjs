@@ -23,14 +23,10 @@ const semanticFieldsV2 = [
 ];
 
 function sortKeys(value) {
-  if (Array.isArray(value)) {
-    return value.map(sortKeys);
-  }
+  if (Array.isArray(value)) return value.map(sortKeys);
   if (value !== null && typeof value === 'object') {
     return Object.fromEntries(
-      Object.keys(value)
-        .sort()
-        .map((key) => [key, sortKeys(value[key])]),
+      Object.keys(value).sort().map((key) => [key, sortKeys(value[key])]),
     );
   }
   return value;
@@ -43,13 +39,9 @@ function canonicalJson(value) {
 function identityKeyV2(value) {
   const basis = {};
   for (const field of semanticFieldsV2) {
-    if (Object.hasOwn(value, field)) {
-      basis[field] = value[field];
-    }
+    if (Object.hasOwn(value, field)) basis[field] = value[field];
   }
-  const digest = createHash('sha256')
-    .update(canonicalJson(basis), 'utf8')
-    .digest('hex');
+  const digest = createHash('sha256').update(canonicalJson(basis), 'utf8').digest('hex');
   return `lb:key:lb.identity.key.v2:sha256:${digest}`;
 }
 
@@ -96,27 +88,29 @@ for (const testCase of manifest.cases) {
       assert.equal(identityKeyV2(input), identityKeyV2(alternate));
     } else if (testCase.kind === 'http-publish-signature') {
       const input = JSON.parse(await read(testCase.input));
-      const expectedTarget = await read(testCase.target);
-      const expected = JSON.parse(await read(testCase.expected));
       const actualTarget = httpPublishSignatureTarget(input);
+      const actualVerification = verify(
+        null,
+        Buffer.from(actualTarget, 'utf8'),
+        ed25519PublicKeyFromRawHex(input.publisher.publicKey),
+        Buffer.from(input.publisher.signature, 'hex'),
+      ) ? 'valid' : 'invalid';
 
-      assert.equal(actualTarget, expectedTarget);
-      assert.equal(
-        createHash('sha256').update(actualTarget, 'utf8').digest('hex'),
-        expected.targetSha256,
-      );
-      assert.equal(input.publisher.publicKey, expected.publicKey);
-      assert.equal(input.publisher.signature, expected.signature);
-      assert.equal(expected.verification, 'valid');
-      assert.equal(
-        verify(
-          null,
-          Buffer.from(actualTarget, 'utf8'),
-          ed25519PublicKeyFromRawHex(expected.publicKey),
-          Buffer.from(expected.signature, 'hex'),
-        ),
-        true,
-      );
+      assert.equal(actualVerification, testCase.expectedVerification);
+
+      if (testCase.target) {
+        assert.equal(actualTarget, await read(testCase.target));
+      }
+      if (testCase.expected) {
+        const expected = JSON.parse(await read(testCase.expected));
+        assert.equal(
+          createHash('sha256').update(actualTarget, 'utf8').digest('hex'),
+          expected.targetSha256,
+        );
+        assert.equal(input.publisher.publicKey, expected.publicKey);
+        assert.equal(input.publisher.signature, expected.signature);
+        assert.equal(expected.verification, testCase.expectedVerification);
+      }
     } else {
       throw new Error(`unsupported conformance case kind: ${testCase.kind}`);
     }
@@ -128,7 +122,4 @@ for (const testCase of manifest.cases) {
 
 const failed = results.filter((result) => result.status === 'fail');
 process.stdout.write(`${JSON.stringify({ manifestVersion: manifest.manifestVersion, results }, null, 2)}\n`);
-
-if (failed.length > 0) {
-  process.exitCode = 1;
-}
+if (failed.length > 0) process.exitCode = 1;

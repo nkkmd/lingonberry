@@ -8,6 +8,7 @@ const unusableFixture = JSON.parse(await readFile(new URL('./transition-evidence
 const staleFixture = JSON.parse(await readFile(new URL('./transition-evidence-generation/last-known-good-stale.input.json', import.meta.url), 'utf8'));
 const staleReadFixture = JSON.parse(await readFile(new URL('./transition-evidence-generation/stale-read-api.input.json', import.meta.url), 'utf8'));
 const diagnosticFixture = JSON.parse(await readFile(new URL('./transition-evidence-generation/stable-diagnostics.input.json', import.meta.url), 'utf8'));
+const paginationFixture = JSON.parse(await readFile(new URL('./transition-evidence-generation/diagnostic-pagination.input.json', import.meta.url), 'utf8'));
 const kindOrder = new Map([['target',0],['transition',1],['delegation',2],['revocation',3]]);
 const classifications = new Set(['supported','unsupported','corrupt','unreadable']);
 const diagnosticReasonClassifications = new Map([
@@ -98,7 +99,7 @@ function staleReadResponse(input) {
   };
 }
 
-function validateAndOrderDiagnostics(input) {
+function orderedDiagnostics(input) {
   const seen = new Map();
   for (const diagnostic of input.diagnostics) {
     assert.ok(kindOrder.has(diagnostic.kind));
@@ -108,7 +109,7 @@ function validateAndOrderDiagnostics(input) {
     const fields = Object.keys(diagnostic);
     for (const required of diagnosticRequiredFields) assert.ok(fields.includes(required));
     for (const field of fields) assert.ok(diagnosticRequiredFields.has(field) || diagnosticOptionalFields.has(field));
-    for (const forbidden of input.forbiddenFields) assert.equal(Object.hasOwn(diagnostic, forbidden), false);
+    for (const forbidden of input.forbiddenFields ?? []) assert.equal(Object.hasOwn(diagnostic, forbidden), false);
     const key = `${diagnostic.kind}\0${diagnostic.evidenceId}`;
     const prior = seen.get(key);
     if (prior) {
@@ -117,16 +118,47 @@ function validateAndOrderDiagnostics(input) {
     }
     seen.set(key, diagnostic);
   }
-  const diagnostics = [...seen.values()].sort((a, b) =>
+  return [...seen.values()].sort((a, b) =>
     kindOrder.get(a.kind) - kindOrder.get(b.kind)
       || Buffer.compare(Buffer.from(a.evidenceId, 'ascii'), Buffer.from(b.evidenceId, 'ascii'))
       || Buffer.compare(Buffer.from(a.classification, 'ascii'), Buffer.from(b.classification, 'ascii'))
       || Buffer.compare(Buffer.from(a.reasonCode, 'ascii'), Buffer.from(b.reasonCode, 'ascii'))
   );
+}
+
+function validateAndOrderDiagnostics(input) {
+  const diagnostics = orderedDiagnostics(input);
   return {
     valid: true,
     orderedEvidenceIds: diagnostics.map((item) => item.evidenceId),
     publicFieldSets: diagnostics.map((item) => Object.keys(item).sort()),
+  };
+}
+
+function diagnosticPagination(input) {
+  assert.equal(input.summaryLimit, 20);
+  assert.equal(input.pageDefaultLimit, 100);
+  assert.equal(input.pageMaximumLimit, 100);
+  const diagnostics = orderedDiagnostics(input);
+  const counts = {unsupported:0,corrupt:0,unreadable:0};
+  for (const diagnostic of diagnostics) counts[diagnostic.classification] += 1;
+  const returned = Math.min(input.summaryLimit, diagnostics.length);
+  return {
+    summary: {
+      total: diagnostics.length,
+      returned,
+      truncated: returned < diagnostics.length,
+      byClassification: counts,
+      orderedEvidenceIds: diagnostics.slice(0, returned).map((item) => item.evidenceId),
+    },
+    page: {
+      generationPinned: true,
+      defaultLimit: input.pageDefaultLimit,
+      maximumLimit: input.pageMaximumLimit,
+      cursorOpaque: true,
+      generationMismatchCode: 'LB_DIAGNOSTIC_GENERATION_UNAVAILABLE',
+      invalidCursorCode: 'LB_DIAGNOSTIC_CURSOR_INVALID',
+    },
   };
 }
 
@@ -178,4 +210,8 @@ test('public diagnostics reject implementation-specific fields and mismatched re
   const mismatched = structuredClone(diagnosticFixture);
   mismatched.diagnostics[0].reasonCode = 'LB_EVIDENCE_PARSE_FAILED';
   assert.throws(() => validateAndOrderDiagnostics(mismatched));
+});
+
+test('diagnostic summaries are bounded and full pagination is generation pinned', () => {
+  assert.deepEqual(diagnosticPagination(paginationFixture), paginationFixture.expected);
 });

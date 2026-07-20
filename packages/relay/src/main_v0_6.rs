@@ -6,9 +6,18 @@ mod existing_v0_5 {
     }
 }
 
-use lingonberry_core::{build_runtime_storage_backend, runtime_state_dir, StorageBackend};
-use lingonberry_protocol::{to_canonical_json, JsonValue};
-use lingonberry_relay::ingest_transition_request;
+use lingonberry_core::{
+    build_runtime_storage_backend, ingest_publish_request, retrieve_object, runtime_state_dir,
+    QuarantineStore, StorageBackend,
+};
+use lingonberry_protocol::{
+    build_capability_manifest, to_canonical_json, JsonValue, CARRIER_KIND_HTTP,
+    DEFAULT_ACCESS_SCOPE, DEFAULT_RETENTION_HINT,
+};
+use lingonberry_relay::{
+    ingest_transition_request, ingestion_http_response, retrieval_http_response,
+};
+use lingonberry_validation::AcceptancePolicy;
 use std::collections::BTreeMap;
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::{TcpListener, TcpStream};
@@ -16,9 +25,9 @@ use std::net::{TcpListener, TcpStream};
 fn main() {
     let args = std::env::args().skip(1).collect::<Vec<_>>();
     match args.first().map(String::as_str) {
-        Some("serve-http-v0.6") => {
+        Some("serve-http") => {
             let addr = args.get(1).map(String::as_str).unwrap_or("127.0.0.1:8787");
-            if let Err(error) = serve_http_v0_6(addr) {
+            if let Err(error) = serve_http(addr) {
                 eprintln!("{error}");
                 std::process::exit(70);
             }
@@ -27,7 +36,7 @@ fn main() {
     }
 }
 
-fn serve_http_v0_6(addr: &str) -> Result<(), String> {
+fn serve_http(addr: &str) -> Result<(), String> {
     let backend = build_runtime_storage_backend();
     let listener = TcpListener::bind(addr)
         .map_err(|error| format!("failed to bind {addr}: {error}"))?;
@@ -60,36 +69,75 @@ fn handle_connection(
     let (method, path) = parse_request_line(&request_line)?;
     let headers = read_headers(&mut reader)?;
     let body = read_body(&mut reader, &headers)?;
-    if method == "POST" && path == "/v1/transitions" {
-        let response = ingest_transition_request(&body, backend, &runtime_state_dir());
-        return write_response(
-            &mut stream,
-            response.status_code,
-            response.status_text,
-            &response.body,
-        )
-        .map_err(|error| error.to_string());
+    let (status_code, status_text, response_body) = route(&method, &path, &body, backend)?;
+    write_response(&mut stream, status_code, status_text, &response_body)
+        .map_err(|error| error.to_string())
+}
+
+fn route(
+    method: &str,
+    path: &str,
+    body: &str,
+    backend: &impl StorageBackend,
+) -> Result<(u16, &'static str, JsonValue), String> {
+    match (method, path) {
+        ("GET", "/v1/ready") => Ok((
+            200,
+            "OK",
+            object(vec![
+                ("status", JsonValue::String("ok".to_string())),
+                ("service", JsonValue::String("relay".to_string())),
+                ("version", JsonValue::String("0.6.0".to_string())),
+            ]),
+        )),
+        ("GET", "/v1/capabilities") => Ok((
+            200,
+            "OK",
+            build_capability_manifest(
+                CARRIER_KIND_HTTP,
+                DEFAULT_ACCESS_SCOPE,
+                DEFAULT_RETENTION_HINT,
+            ),
+        )),
+        ("POST", "/v1/objects") => publish_object(body, backend),
+        ("POST", "/v1/transitions") => publish_transition(body, backend),
+        ("GET", path) if path.starts_with("/v1/objects/") => {
+            get_object(path.trim_start_matches("/v1/objects/"), backend)
+        }
+        _ => Ok((
+            404,
+            "Not Found",
+            error_body("LB_ROUTE_NOT_FOUND", "route not found"),
+        )),
     }
-    write_response(
-        &mut stream,
-        404,
-        "Not Found",
-        &JsonValue::Object(BTreeMap::from([
-            ("status".to_string(), JsonValue::String("error".to_string())),
-            (
-                "code".to_string(),
-                JsonValue::String("LB_ROUTE_NOT_FOUND".to_string()),
-            ),
-            (
-                "message".to_string(),
-                JsonValue::String(
-                    "serve-http-v0.6 currently exposes the dedicated transition route"
-                        .to_string(),
-                ),
-            ),
-        ])),
-    )
-    .map_err(|error| error.to_string())
+}
+
+fn publish_object(
+    body: &str,
+    backend: &impl StorageBackend,
+) -> Result<(u16, &'static str, JsonValue), String> {
+    let quarantine = QuarantineStore::new(runtime_state_dir());
+    let policy = AcceptancePolicy::from_env()?;
+    let result = ingest_publish_request(body, backend, &quarantine, &policy);
+    let response = ingestion_http_response(&result);
+    Ok((response.status_code, response.status_text, response.body))
+}
+
+fn publish_transition(
+    body: &str,
+    backend: &impl StorageBackend,
+) -> Result<(u16, &'static str, JsonValue), String> {
+    let response = ingest_transition_request(body, backend, &runtime_state_dir());
+    Ok((response.status_code, response.status_text, response.body))
+}
+
+fn get_object(
+    canonical_id: &str,
+    backend: &impl StorageBackend,
+) -> Result<(u16, &'static str, JsonValue), String> {
+    let result = retrieve_object(canonical_id, backend);
+    let response = retrieval_http_response(&result);
+    Ok((response.status_code, response.status_text, response.body))
 }
 
 fn parse_request_line(line: &str) -> Result<(String, String), String> {
@@ -160,5 +208,22 @@ fn write_response(
         stream,
         "HTTP/1.1 {status_code} {status_text}\r\nContent-Type: application/json; charset=utf-8\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body_json}",
         body_json.len()
+    )
+}
+
+fn error_body(code: &str, message: &str) -> JsonValue {
+    object(vec![
+        ("status", JsonValue::String("error".to_string())),
+        ("code", JsonValue::String(code.to_string())),
+        ("message", JsonValue::String(message.to_string())),
+    ])
+}
+
+fn object(entries: Vec<(&str, JsonValue)>) -> JsonValue {
+    JsonValue::Object(
+        entries
+            .into_iter()
+            .map(|(key, value)| (key.to_string(), value))
+            .collect(),
     )
 }

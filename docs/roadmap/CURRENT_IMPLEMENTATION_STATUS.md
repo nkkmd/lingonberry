@@ -27,7 +27,8 @@ publication state: v0.6.0 implementation in progress
 | transition authority `lb.transition.authority.v1` | PR #98で追加済み |
 | authority authorized／unauthorized／unknown fixtures | PR #98で追加済み |
 | transition supersession `lb.transition.supersession.v1` | PR #98で追加済み |
-| single head／parallel ambiguity／explicit supersession fixtures | PR #98で追加済み |
+| multi-parent atomic fork merge | PR #98で追加済み |
+| duplicate／self-reference／partial-fork fixtures | PR #98で追加済み |
 | relay transition append-only storage／effective-view projection | 未着手 |
 | release checklist／CHANGELOG／version update | 未着手 |
 
@@ -39,18 +40,21 @@ publication state: v0.6.0 implementation in progress
 - authorityは`authorized`／`unauthorized`／`unknown`として派生判定する
 - effective viewへ適用できるのはauthorized transitionのみ
 - 複数authorized transitionをtimestampやID順で自動解決しない
-- 明示的な`supersedesTransitionId`がない複数headは`ambiguous`としてfail closedにする
+- `supersedesTransitionIds`で複数のauthorized headを原子的に解消する
+- 全headを列挙しない部分解消は`ambiguous`のままとする
+- duplicate parent、self-reference、missing parent、cross-target、cycleはfail closedにする
 - `ambiguous`／`invalid-transition-graph`では元objectを隠さず、replacementを選択しない
-- supersession fieldはtransition identity basisに含める
+- supersession parent setはtransition identity basisに含める
 
 ## 4. Next implementation order
 
-1. forkした複数headを解決するsupersession表現を決定する
-2. 決定したgraph modelのcycle／missing parent／cross-target fixtureを追加する
-3. relayでtransition validate／append-only storeを有効化する
-4. authority classificationとeffective-view projectionを実装する
-5. compatibility matrixを完成させる
-6. v0.6.0 release checklist／CHANGELOG／version更新へ進む
+1. `supersedesTransitionIds`を順序付き配列としてidentityへ含めるか、集合として正規化するか決定する
+2. 決定したcanonical parent-set ruleの順序差fixtureを追加する
+3. cycle／missing parent／cross-target／unauthorized parent fixtureを追加する
+4. relayでtransition validate／append-only storeを有効化する
+5. authority classificationとeffective-view projectionを実装する
+6. compatibility matrixを完成させる
+7. v0.6.0 release checklist／CHANGELOG／version更新へ進む
 
 ## 5. 絶対に崩さない安全性ルール
 

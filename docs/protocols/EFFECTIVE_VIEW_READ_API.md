@@ -29,6 +29,16 @@ A last-known-good result is returned with `200 OK` even when the newest evidence
   "evidenceObservation": {
     "generation": "evidence:sha256:<latest observation generation>",
     "snapshotClassification": "incomplete",
+    "diagnosticSummary": {
+      "total": 245,
+      "returned": 20,
+      "truncated": true,
+      "byClassification": {
+        "unsupported": 12,
+        "corrupt": 228,
+        "unreadable": 5
+      }
+    },
     "diagnostics": [
       {
         "kind": "transition",
@@ -53,6 +63,18 @@ Public diagnostics expose stable protocol fields and reason codes only. Filesyst
 
 Diagnostics are deterministically ordered and exact duplicates are collapsed. Conflicting diagnostic content for the same evidence kind and identifier is not silently selected.
 
+## Diagnostic response bound
+
+The normal effective-view response returns at most 20 diagnostics. `diagnosticSummary.total` and `byClassification` describe the complete diagnostic set for the stated observation generation. `returned` is the number present in this response and `truncated` is exactly `returned < total`.
+
+The complete diagnostic set is available through the generation-bound pagination contract in `EFFECTIVE_VIEW_DIAGNOSTIC_PAGINATION.md`:
+
+```text
+GET /v1/effective-objects/{targetId}/diagnostics
+```
+
+The normal read endpoint MUST NOT return an unbounded diagnostic array.
+
 ## Status codes
 
 - `200`: target and effective-view state are readable, including stale last-known-good state.
@@ -65,7 +87,8 @@ An incomplete latest observation alone is not a `409` or `503` condition.
 
 - Do not label a stale semantic result as current.
 - Do not omit the latest observation generation.
-- Do not suppress diagnostics for unusable evidence.
+- Do not suppress the diagnostic summary for unusable evidence.
+- Do not hide diagnostic truncation.
 - Do not expose implementation-specific error details through the public API.
 - Do not apply semantic effects from an incomplete generation.
 - Do not convert storage corruption into a normal stale response.

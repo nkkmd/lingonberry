@@ -1,0 +1,18 @@
+{
+  "transitionId": "lb:transition:orphan-0001",
+  "targetId": "lb:obj:not-yet-arrived",
+  "targetAvailable": false,
+  "structurallyValid": true,
+  "signatureValid": true,
+  "expected": {
+    "retain": true,
+    "targetStatus": "missing",
+    "authority": {
+      "classification": "unknown",
+      "basis": "target-unavailable"
+    },
+    "applyToEffectiveView": false,
+    "httpStatus": 201,
+    "code": "LB_TRANSITION_STORED"
+  }
+}

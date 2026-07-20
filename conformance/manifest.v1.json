@@ -13,6 +13,10 @@
     {"id":"index-generation-digest.single-record","suite":"internal","kind":"index-generation-digest","ruleVersion":"lb.index.generation.v1","canonicalizationRuleVersion":"lb.canonical.json.v1","input":"index-generation-digest/single-record.input.json","expected":"index-generation-digest/single-record.expected.json"},
     {"id":"timestamp.valid-utc","suite":"producer","kind":"timestamp","ruleVersion":"lb.timestamp.rfc3339.utc.v1","input":"timestamp/valid-utc.input.json"},
     {"id":"timestamp.invalid-missing-zone","suite":"consumer","kind":"timestamp","ruleVersion":"lb.timestamp.rfc3339.utc.v1","input":"timestamp/invalid-missing-zone.input.json"},
-    {"id":"legacy.identity-key-v1","suite":"consumer","kind":"legacy-identity-v1","ruleVersion":"lb.identity.key.v1","input":"../fixtures/knowledge-object/with-identity-claim.json","expectedCompatibility":"compatible"}
+    {"id":"legacy.identity-key-v1","suite":"consumer","kind":"legacy-identity-v1","ruleVersion":"lb.identity.key.v1","input":"../fixtures/knowledge-object/with-identity-claim.json","expectedCompatibility":"compatible"},
+    {"id":"transition.valid-replace","suite":"producer","kind":"transition-object","ruleVersion":"lb.transition.identity.v1","input":"transition-object/valid-replace.input.json","expected":"transition-object/valid-replace.expected.txt","expectedClassification":"valid"},
+    {"id":"transition.valid-withdraw","suite":"producer","kind":"transition-object","ruleVersion":"lb.transition.identity.v1","input":"transition-object/valid-withdraw.input.json","expectedClassification":"valid"},
+    {"id":"transition.invalid-replace-missing-replacement","suite":"consumer","kind":"transition-object","ruleVersion":"lb.transition.identity.v1","input":"transition-object/invalid-replace-missing-replacement.input.json","expectedClassification":"invalid"},
+    {"id":"transition.invalid-withdraw-with-replacement","suite":"consumer","kind":"transition-object","ruleVersion":"lb.transition.identity.v1","input":"transition-object/invalid-withdraw-with-replacement.input.json","expectedClassification":"invalid"}
   ]
 }

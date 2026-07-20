@@ -106,9 +106,15 @@ A producer MUST emit the timestamp form required by the selected schema. Canonic
 
 `relations` represents semantic statements between objects. `lineage` represents derivation or revision history. Implementations MUST NOT collapse the two concepts.
 
-Replacement and withdrawal are append-only state transitions. They MUST NOT physically overwrite the existing canonical record. A conflict MUST NOT overwrite an existing canonical object.
+Replacement and withdrawal are represented by dedicated append-only Transition Objects defined in [TRANSITION_OBJECT.md](./TRANSITION_OBJECT.md). Publishing a transition MUST NOT physically overwrite or delete the target Knowledge Object.
 
-The exact replacement and withdrawal schemas remain versioned protocol modules and will be fixed by dedicated v0.6 fixtures.
+Transition authority is classified by `lb.transition.authority.v1`. Structurally valid signed transitions remain retained, but only `authorized` transitions may affect an effective view.
+
+Transition conflicts are projected by `lb.transition.supersession.v1`, defined in [TRANSITION_SUPERSESSION.md](./TRANSITION_SUPERSESSION.md). Multiple authorized heads are `ambiguous` unless a later authorized transition explicitly supersedes every current head through `supersedesTransitionIds`.
+
+The parent array is semantically a set. Duplicate entries are invalid. For `lb.transition.identity.v1` derivation only, a valid parent array is copied and sorted lexically before canonical serialization. General array-order semantics and stored object bytes remain unchanged.
+
+An ambiguous or invalid transition graph MUST fail closed and MUST NOT select a replacement, hide the original object, or mutate canonical storage.
 
 ## 9. Validation levels
 

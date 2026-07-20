@@ -173,10 +173,7 @@ fn cyclic_graph_response(
                     JsonValue::String("unresolved".to_string()),
                 ),
                 ("generation", JsonValue::Null),
-                (
-                    "freshness",
-                    JsonValue::String("unavailable".to_string()),
-                ),
+                ("freshness", JsonValue::String("unavailable".to_string())),
             ]),
         ),
         ("evidenceObservation", observation),

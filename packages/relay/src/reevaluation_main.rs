@@ -5,7 +5,9 @@ use lingonberry_relay::{
 };
 
 fn main() {
-    let reconcile = std::env::args().skip(1).any(|argument| argument == "--reconcile");
+    let reconcile = std::env::args()
+        .skip(1)
+        .any(|argument| argument == "--reconcile");
     let backend = build_runtime_storage_backend();
     let state_dir = runtime_state_dir();
     let result = if reconcile {

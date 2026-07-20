@@ -26,10 +26,7 @@ impl StorageBackend for EmptyBackend {
         Ok(None)
     }
 
-    fn get_raw_request(
-        &self,
-        _canonical_id: &str,
-    ) -> Result<Option<RawRequestRecord>, StoreError> {
+    fn get_raw_request(&self, _canonical_id: &str) -> Result<Option<RawRequestRecord>, StoreError> {
         Ok(None)
     }
 
@@ -86,14 +83,14 @@ fn signed_request(transition_type: &str, replacement_id: Option<&str>, reason: &
     let public_der = key_dir.join("public.der");
     let message_path = key_dir.join("message.bin");
     let signature_path = key_dir.join("signature.bin");
-    run(Command::new("openssl").args(["genpkey", "-algorithm", "ED25519", "-out"]).arg(&private_key));
-    run(
-        Command::new("openssl")
-            .args(["pkey", "-in"])
-            .arg(&private_key)
-            .args(["-pubout", "-outform", "DER", "-out"])
-            .arg(&public_der),
-    );
+    run(Command::new("openssl")
+        .args(["genpkey", "-algorithm", "ED25519", "-out"])
+        .arg(&private_key));
+    run(Command::new("openssl")
+        .args(["pkey", "-in"])
+        .arg(&private_key)
+        .args(["-pubout", "-outform", "DER", "-out"])
+        .arg(&public_der));
     let der = fs::read(&public_der).expect("read public key");
     let public_key = hex(&der[der.len() - 32..]);
 
@@ -122,14 +119,8 @@ fn signed_request(transition_type: &str, replacement_id: Option<&str>, reason: &
             "issuedAt".to_string(),
             JsonValue::String("2026-07-20T08:00:00Z".to_string()),
         ),
-        (
-            "reason".to_string(),
-            JsonValue::String(reason.to_string()),
-        ),
-        (
-            "provenance".to_string(),
-            JsonValue::Object(BTreeMap::new()),
-        ),
+        ("reason".to_string(), JsonValue::String(reason.to_string())),
+        ("provenance".to_string(), JsonValue::Object(BTreeMap::new())),
         ("rawRef".to_string(), JsonValue::Object(BTreeMap::new())),
     ]);
     if let Some(replacement_id) = replacement_id {
@@ -146,18 +137,19 @@ fn signed_request(transition_type: &str, replacement_id: Option<&str>, reason: &
                 JsonValue::String(public_key.clone()),
             )])),
         ),
-        ("transition".to_string(), JsonValue::Object(transition.clone())),
+        (
+            "transition".to_string(),
+            JsonValue::Object(transition.clone()),
+        ),
     ]));
     fs::write(&message_path, to_canonical_json(&unsigned)).expect("write message");
-    run(
-        Command::new("openssl")
-            .args(["pkeyutl", "-sign", "-inkey"])
-            .arg(&private_key)
-            .args(["-rawin", "-in"])
-            .arg(&message_path)
-            .arg("-out")
-            .arg(&signature_path),
-    );
+    run(Command::new("openssl")
+        .args(["pkeyutl", "-sign", "-inkey"])
+        .arg(&private_key)
+        .args(["-rawin", "-in"])
+        .arg(&message_path)
+        .arg("-out")
+        .arg(&signature_path));
     let signature = hex(&fs::read(&signature_path).expect("read signature"));
     let request = JsonValue::Object(BTreeMap::from([
         ("transition".to_string(), JsonValue::Object(transition)),

@@ -57,7 +57,10 @@ pub fn reconcile_reevaluation_queue(
 
 pub fn reevaluation_report_json(report: &ReevaluationReport) -> JsonValue {
     JsonValue::Object(BTreeMap::from([
-        ("status".to_string(), JsonValue::String("completed".to_string())),
+        (
+            "status".to_string(),
+            JsonValue::String("completed".to_string()),
+        ),
         (
             "scannedIntents".to_string(),
             JsonValue::Number(report.scanned_intents.to_string()),
@@ -133,7 +136,10 @@ fn append_checkpoint(
             "ruleVersion".to_string(),
             JsonValue::String("lb.transition.reevaluation.queue.v1".to_string()),
         ),
-        ("targetId".to_string(), JsonValue::String(target_id.to_string())),
+        (
+            "targetId".to_string(),
+            JsonValue::String(target_id.to_string()),
+        ),
         ("status".to_string(), JsonValue::String(status.to_string())),
         ("generation".to_string(), JsonValue::String(generation)),
         (

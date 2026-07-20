@@ -1,0 +1,30 @@
+{
+  "targetId": "lb:obj:target-1",
+  "generation": "evidence:sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "summaryLimit": 20,
+  "pageDefaultLimit": 100,
+  "pageMaximumLimit": 100,
+  "diagnostics": [
+    {"kind":"transition","evidenceId":"lb:transition:t03","classification":"corrupt","reasonCode":"LB_EVIDENCE_PARSE_FAILED"},
+    {"kind":"transition","evidenceId":"lb:transition:t01","classification":"unsupported","reasonCode":"LB_EVIDENCE_RULE_UNSUPPORTED"},
+    {"kind":"delegation","evidenceId":"lb:key:d01","classification":"unreadable","reasonCode":"LB_EVIDENCE_BYTES_UNREADABLE"},
+    {"kind":"transition","evidenceId":"lb:transition:t02","classification":"corrupt","reasonCode":"LB_EVIDENCE_VALIDATION_FAILED"}
+  ],
+  "expected": {
+    "summary": {
+      "total": 4,
+      "returned": 4,
+      "truncated": false,
+      "byClassification": {"unsupported":1,"corrupt":2,"unreadable":1},
+      "orderedEvidenceIds": ["lb:transition:t01","lb:transition:t02","lb:transition:t03","lb:key:d01"]
+    },
+    "page": {
+      "generationPinned": true,
+      "defaultLimit": 100,
+      "maximumLimit": 100,
+      "cursorOpaque": true,
+      "generationMismatchCode": "LB_DIAGNOSTIC_GENERATION_UNAVAILABLE",
+      "invalidCursorCode": "LB_DIAGNOSTIC_CURSOR_INVALID"
+    }
+  }
+}

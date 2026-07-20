@@ -1,104 +1,93 @@
 # 現在の実装状況
 
-**Status: v0.5.0 released** | **Last updated: 2026-07-19**
+**Status: v0.6.0 merge-ready release candidate** | **Last updated: 2026-07-20**
 
 この文書は、Lingonberryの実装作業を中断・再開するときの引き継ぎ用正本です。
 
-## 1. Release state
-
-v0.5.0の機能実装、end-to-end smoke scenario、package version更新、release hardening、README／関連index文書の同期、main CI確認、tag、GitHub Release公開が完了しました。
+## Release state
 
 ```text
 released version: 0.5.0
-parent issue: #76
-release hardening PR: #94
-release documentation sync PR: #95
-release target commit: bf8176da0d992152fb116ca0c45177904d1aa61c
-tag: v0.5.0
-release: https://github.com/nkkmd/lingonberry/releases/tag/v0.5.0
-publication state: released
+candidate version: 0.6.0
+parent issue: #97
+release candidate PR: #98
+branch: agent/v0.6.0-protocol-contract-foundation
+publication state: ready for review; merge, tag, and GitHub Release not published
 ```
 
-Latest published releaseはv0.5.0です。
+## v0.6.0で実装済み
 
-## 2. v0.5.0で実装済み
+- append-only Transition Object model
+- dedicated signed `POST /v1/transitions`
+- duplicate／immutable conflict classification
+- missing-target orphan retention
+- authority／supersession／multi-parent graph contract
+- durable target-scoped reevaluation intent
+- reevaluation／restart reconciliation CLI
+- deterministic evidence generation
+- classified `unsupported`／`corrupt`／`unreadable` markers
+- last-known-good effective view
+- `GET /v1/effective-objects/{targetId}` projection
+- stable public diagnostics
+- bounded summary and generation-fixed pagination contract
+- diagnostic retention／cursor lease／read guard／heartbeat conformance
+- all Rust workspace packages and `Cargo.lock` set to `0.6.0`
+- root README／CHANGELOG／release note／release checklist synchronized
+- existing `rebuild-index`／`catch-up-index`／`subscribe` CLI compatibility retained
 
-| 項目 | 状態 |
-|---|---|
-| versioned publish ingestion contract | 実装・公開済み |
-| CLI／HTTP共通ingestion orchestrator | 実装・公開済み |
-| deterministic duplicate／conflict classification | 実装・公開済み |
-| versioned object retrieval contract | 実装・公開済み |
-| versioned basic query contract | 実装・公開済み |
-| deterministic index generation and content digest | 実装・公開済み |
-| rebuild／verification／atomic checkpoint | 実装・公開済み |
-| checkpoint-driven catch-up | 実装・公開済み |
-| corrupt／unsupported／ambiguous state fail-closed | 実装・公開済み |
-| restart／recovery／ambiguity smoke coverage | 実装・公開済み |
-| workspace package version 0.5.0 | 公開済み |
-| release checklist／release notes／CHANGELOG | 公開済み |
+## Fixed safety model
 
-## 3. Index lifecycle model
+- Original Knowledge Objects are never rewritten or deleted by transitions.
+- Only authorized transitions affect the effective view.
+- Ambiguous authorized heads are not resolved by timestamps or arbitrary ID order.
+- Valid signed missing-target transitions remain append-only orphan evidence.
+- Canonical target commit precedes asynchronous derived reevaluation.
+- Reevaluation is durable, target-scoped, at-least-once, idempotent, and generation-aware.
+- Stale workers cannot advance a newer checkpoint.
+- Incomplete evidence cannot overwrite the last-known-good semantic view.
+- Stale views are never labeled current.
+- Public diagnostics exclude storage paths, row IDs, stack traces, and unstable errors.
+- Diagnostic truncation and unavailable retained generations are explicit.
+- Derived snapshot cleanup never deletes canonical evidence.
 
-Canonical storageを正本とし、indexは検証・再構築可能な派生状態として扱います。
-
-- generationはcanonical ID集合とrecord contentから決定的に生成する
-- checkpointはconsistentなrebuild resultからのみatomicに保存する
-- missingまたはstale checkpointはcatch-up可能
-- corrupt、unsupported、ambiguous checkpoint／index stateは自動上書きしない
-- contradictory stateを成功扱いしない
-
-## 4. End-to-end保証
-
-CIは次の経路を実binaryで検証します。
+## Runtime
 
 ```text
-publish
-→ validate
-→ store
-→ retrieve
-→ query
-→ process restart
-→ retrieve／query
-→ rebuild／consistency verification
-→ checkpoint catch-up
+POST /v1/objects
+POST /v1/transitions
+GET  /v1/effective-objects/{targetId}
 ```
 
-さらにduplicate、conflict、defer、validation reject、corrupt checkpoint、ambiguous index rejectionを固定しています。
+```bash
+cargo run -p lingonberry-relay --bin lingonberry-relay -- serve-http 127.0.0.1:8787
+cargo run -p lingonberry-relay --bin lingonberry-reevaluate-transitions
+cargo run -p lingonberry-relay --bin lingonberry-reevaluate-transitions -- --reconcile
+```
 
-## 5. Compatibility
+## Validation state
 
-- v0.4.0までのquarantine／backup／replacement／cleanup安全性を維持
-- canonical storageとarchive／immutable evidenceをindex lifecycleから書き換えない
-- File／SQLite backendでduplicate／conflictとindex lifecycleのparityを検証
-- multi-node consistency、vector search、AI integrationはv0.5.0の非スコープ
+The release candidate has passed:
 
-## 6. Release gate
+- source formatting in CI
+- library Clippy with warnings denied
+- binary Clippy with warnings denied
+- test-target Clippy compilation
+- `cargo test --workspace`
+- JavaScript tests
+- external conformance suite
+- existing publish／query／index recovery process compatibility tests
 
-完了済み：
+## Known limitations
 
-- v0.5.0 feature implementation
-- Phase 1〜5 contract／smoke coverage
-- package version `0.5.0`
-- `Cargo.lock` synchronization
-- release checklist／release notes／CHANGELOG
-- release hardening PR #94の全CI成功とmain merge
-- documentation sync PR #95の全CI成功とmain merge
-- merge後main CI成功
-- tag `v0.5.0`
-- GitHub Release `Lingonberry v0.5.0`
-- publication record同期
+- Complete external delegation／revocation registry evaluation is not included.
+- Multi-node queue coordination and distributed snapshot locking are not included.
+- Durable cursor lease／read-guard storage remains deployment-specific.
+- CI formats the checkout with `cargo fmt --all` before Rust validation.
+- Test-target Clippy is compile verification and does not deny warnings.
 
-次のrelease-level作業は`ROADMAP_TO_V1_0.md`のv0.6.0 Protocol contractとconformanceです。
+## Remaining before publication
 
-## 7. 絶対に崩さない安全性ルール
-
-1. validation未通過objectをcanonical storageへ保存しない
-2. conflict時に既存canonical recordを上書きしない
-3. canonical storage commit後のindex failureを保存失敗へ書き換えない
-4. corruptionとI/O errorをnot-foundやsuccessへ変換しない
-5. inconsistent index resultからcheckpointを更新しない
-6. corrupt／unsupported／ambiguous stateを自動修復しない
-7. archive segmentとimmutable evidence ledgerを変更しない
-8. same-host lockをdistributed lockとして扱わない
-9. metricsへpath、identifier、digest、record ID、free-form errorを出さない
+1. Obtain merge authorization and merge PR #98.
+2. Confirm main-branch CI.
+3. Publish annotated tag `v0.6.0` and GitHub Release.
+4. Close Issue #97 as completed.

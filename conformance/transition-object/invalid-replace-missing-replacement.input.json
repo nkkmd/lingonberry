@@ -1,0 +1,1 @@
+{"id":"lb:transition:replace-invalid","schemaVersion":"0.1.0","objectType":"transition","transitionType":"replace","targetId":"lb:obj:example-0001","issuedAt":"2026-07-20T01:42:00Z","provenance":{"sources":[{"protocol":"lingonberry","sourceId":"transition:draft:replace-invalid"}]},"rawRef":{"protocol":"lingonberry","sourceId":"transition:draft:replace-invalid"}}

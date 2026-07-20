@@ -1,0 +1,48 @@
+{
+  "ruleVersion": "lb.http.effective-view.diagnostic-read-guard.v1",
+  "guardLifetimeSeconds": 120,
+  "request": {
+    "targetId": "lb:obj:target-1",
+    "generation": "evidence:sha256:guarded-generation",
+    "cursorValid": true,
+    "targetMatches": true,
+    "generationMatches": true,
+    "cursorLeaseActive": true,
+    "limitValid": true,
+    "snapshotRetained": true,
+    "deleteClaimCommitted": false
+  },
+  "guard": {
+    "issuedAtEpochSeconds": 1000,
+    "expiresAtEpochSeconds": 1120,
+    "readCompletedAtEpochSeconds": 1100
+  },
+  "raceCases": [
+    {
+      "name": "reader-wins",
+      "guardCommitted": true,
+      "deleteClaimCommitted": false,
+      "expected": "page-readable"
+    },
+    {
+      "name": "gc-wins",
+      "guardCommitted": false,
+      "deleteClaimCommitted": true,
+      "expected": "generation-unavailable"
+    }
+  ],
+  "expected": {
+    "guardAcquired": true,
+    "guardActiveAtReadCompletion": true,
+    "guardLifetimeSeconds": 120,
+    "partialPageAllowed": false,
+    "generationSwitchAllowed": false,
+    "expiredGuardPinsSnapshot": false,
+    "generationUnavailableCode": "LB_DIAGNOSTIC_GENERATION_UNAVAILABLE",
+    "pageReadFailureCode": "LB_DIAGNOSTIC_PAGE_READ_FAILED",
+    "serializedRaceOutcomes": [
+      "page-readable",
+      "generation-unavailable"
+    ]
+  }
+}

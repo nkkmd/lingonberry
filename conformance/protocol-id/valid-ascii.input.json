@@ -1,0 +1,1 @@
+{"values":["lb:obj:Example_01.test~v1","lb:transition:replace-01:branch_a","lb:key:lb.identity.key.v2:sha256:0123456789abcdef"],"expectedClassification":"valid"}

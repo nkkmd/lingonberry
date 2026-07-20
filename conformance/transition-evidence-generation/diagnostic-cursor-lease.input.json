@@ -1,0 +1,49 @@
+{
+  "idleTimeoutSeconds": 900,
+  "absoluteLifetimeSeconds": 3600,
+  "issuedAt": "2026-07-20T00:00:00Z",
+  "events": [
+    {
+      "id": "initial",
+      "at": "2026-07-20T00:00:00Z",
+      "successfulPage": true,
+      "requestValid": true
+    },
+    {
+      "id": "valid-page",
+      "at": "2026-07-20T00:10:00Z",
+      "successfulPage": true,
+      "requestValid": true
+    },
+    {
+      "id": "invalid-cursor",
+      "at": "2026-07-20T00:20:00Z",
+      "successfulPage": false,
+      "requestValid": false
+    },
+    {
+      "id": "valid-near-cap",
+      "at": "2026-07-20T00:55:00Z",
+      "successfulPage": true,
+      "requestValid": true
+    },
+    {
+      "id": "at-absolute-expiry",
+      "at": "2026-07-20T01:00:00Z",
+      "successfulPage": false,
+      "requestValid": true
+    }
+  ],
+  "expected": {
+    "initialIdleExpiresAt": "2026-07-20T00:15:00.000Z",
+    "afterValidPageIdleExpiresAt": "2026-07-20T00:25:00.000Z",
+    "afterInvalidRequestIdleExpiresAt": "2026-07-20T00:25:00.000Z",
+    "afterNearCapIdleExpiresAt": "2026-07-20T01:00:00.000Z",
+    "absoluteExpiresAt": "2026-07-20T01:00:00.000Z",
+    "activeAtAbsoluteExpiry": false,
+    "invalidRequestExtended": false,
+    "absoluteExpiryMoved": false,
+    "expiredRequestHttpStatus": 409,
+    "expiredRequestCode": "LB_DIAGNOSTIC_GENERATION_UNAVAILABLE"
+  }
+}

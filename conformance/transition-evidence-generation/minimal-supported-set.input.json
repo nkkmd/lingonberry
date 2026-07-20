@@ -1,0 +1,30 @@
+{
+  "targetId": "lb:obj:target-1",
+  "evidence": [
+    {
+      "kind": "transition",
+      "id": "lb:transition:t2",
+      "classification": "supported",
+      "digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+    },
+    {
+      "kind": "target",
+      "id": "lb:obj:target-1",
+      "classification": "supported",
+      "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    {
+      "kind": "delegation",
+      "id": "lb:key:delegation-1",
+      "classification": "supported",
+      "digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333"
+    },
+    {
+      "kind": "transition",
+      "id": "lb:transition:t1",
+      "classification": "supported",
+      "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+    }
+  ],
+  "expectedGeneration": "evidence:sha256:6607741484f1555b0502efd58083c266c5958294068d43ac6a8b35ec114aa320"
+}

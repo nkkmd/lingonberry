@@ -1,0 +1,1 @@
+{"id":"lb:transition:self","schemaVersion":"0.1.0","objectType":"transition","transitionType":"withdraw","targetId":"lb:obj:target","supersedesTransitionIds":["lb:transition:self"],"issuedAt":"2026-07-20T00:00:00Z","provenance":{"sources":[{"protocol":"test","sourceId":"self"}]},"rawRef":{"protocol":"test","sourceId":"self"}}

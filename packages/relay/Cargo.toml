@@ -1,6 +1,6 @@
 [package]
 name = "lingonberry-relay"
-version = "0.5.0"
+version = "0.6.0"
 edition = "2021"
 license = "Apache-2.0"
 autobins = false
@@ -11,7 +11,11 @@ path = "src/lib.rs"
 
 [[bin]]
 name = "lingonberry-relay"
-path = "src/main_v0_5_index.rs"
+path = "src/main_v0_6_final.rs"
+
+[[bin]]
+name = "lingonberry-reevaluate-transitions"
+path = "src/reevaluation_main.rs"
 
 [[bin]]
 name = "lingonberry-admin-auth-config"

@@ -1,0 +1,27 @@
+{
+  "semanticCheckpoint": {
+    "generation": "evidence:sha256:g1",
+    "classification": "replaced",
+    "replacementId": "lb:obj:replacement-1"
+  },
+  "observationCheckpoint": {
+    "generation": "evidence:sha256:g2",
+    "snapshotClassification": "incomplete",
+    "diagnosticClassifications": ["corrupt"]
+  },
+  "expected": {
+    "effectiveView": {
+      "generation": "evidence:sha256:g1",
+      "freshness": "stale",
+      "classification": "replaced",
+      "replacementId": "lb:obj:replacement-1"
+    },
+    "evidenceObservation": {
+      "generation": "evidence:sha256:g2",
+      "snapshotClassification": "incomplete",
+      "applyToEffectiveView": false
+    },
+    "semanticCheckpointAdvanced": false,
+    "observationCheckpointAdvanced": true
+  }
+}

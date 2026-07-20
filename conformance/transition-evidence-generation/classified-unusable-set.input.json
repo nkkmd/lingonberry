@@ -1,0 +1,34 @@
+{
+  "targetId": "lb:obj:target-1",
+  "evidence": [
+    {
+      "kind": "target",
+      "id": "lb:obj:target-1",
+      "classification": "supported",
+      "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+    },
+    {
+      "kind": "transition",
+      "id": "lb:transition:t1",
+      "classification": "corrupt",
+      "digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+    },
+    {
+      "kind": "delegation",
+      "id": "lb:key:delegation-1",
+      "classification": "unsupported",
+      "digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333"
+    },
+    {
+      "kind": "revocation",
+      "id": "lb:key:revocation-1",
+      "classification": "unreadable",
+      "digest": "sha256:4444444444444444444444444444444444444444444444444444444444444444"
+    }
+  ],
+  "expected": {
+    "snapshotClassification": "incomplete",
+    "authorityClassification": "unknown",
+    "applyToEffectiveView": false
+  }
+}

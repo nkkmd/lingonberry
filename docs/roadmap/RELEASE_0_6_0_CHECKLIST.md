@@ -19,11 +19,11 @@
 - [x] Rust workspace packages set to `0.6.0`
 - [x] `Cargo.lock` synchronized to `0.6.0`
 - [x] Root `README.md` updated for v0.6.0
+- [x] `CHANGELOG.md` v0.6.0 entry added
 - [x] Current implementation status synchronized
 - [x] v0.6.0 release note added
 - [x] v0.6.0 release checklist added
-- [ ] `CHANGELOG.md` v0.6.0 entry merged
-- [ ] PR #98 body synchronized
+- [x] PR #98 title and body synchronized
 
 ## Validation
 
@@ -34,7 +34,7 @@
 - [x] `cargo test --workspace`
 - [x] JavaScript tests
 - [x] External conformance suite
-- [ ] Final candidate CI green after documentation synchronization
+- [ ] Final candidate CI green after all release-document updates
 
 ## Pre-merge
 

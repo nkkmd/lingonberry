@@ -1,0 +1,38 @@
+{
+  "diagnostics": [
+    {
+      "kind": "delegation",
+      "evidenceId": "lb:key:delegation-2",
+      "classification": "unsupported",
+      "reasonCode": "LB_EVIDENCE_RULE_UNSUPPORTED",
+      "ruleVersion": "lb.delegation.future.v9",
+      "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    },
+    {
+      "kind": "transition",
+      "evidenceId": "lb:transition:t2",
+      "classification": "corrupt",
+      "reasonCode": "LB_EVIDENCE_PARSE_FAILED",
+      "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ],
+  "forbiddenFields": [
+    "storagePath",
+    "rowId",
+    "stackTrace",
+    "parserError",
+    "workerId",
+    "receivedAt"
+  ],
+  "expected": {
+    "valid": true,
+    "orderedEvidenceIds": [
+      "lb:transition:t2",
+      "lb:key:delegation-2"
+    ],
+    "publicFieldSets": [
+      ["classification", "digest", "evidenceId", "kind", "reasonCode"],
+      ["classification", "digest", "evidenceId", "kind", "reasonCode", "ruleVersion"]
+    ]
+  }
+}

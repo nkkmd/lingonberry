@@ -6,6 +6,7 @@ import test from 'node:test';
 const fixture = JSON.parse(await readFile(new URL('./transition-evidence-generation/minimal-supported-set.input.json', import.meta.url), 'utf8'));
 const unusableFixture = JSON.parse(await readFile(new URL('./transition-evidence-generation/classified-unusable-set.input.json', import.meta.url), 'utf8'));
 const staleFixture = JSON.parse(await readFile(new URL('./transition-evidence-generation/last-known-good-stale.input.json', import.meta.url), 'utf8'));
+const staleReadFixture = JSON.parse(await readFile(new URL('./transition-evidence-generation/stale-read-api.input.json', import.meta.url), 'utf8'));
 const kindOrder = new Map([['target',0],['transition',1],['delegation',2],['revocation',3]]);
 const classifications = new Set(['supported','unsupported','corrupt','unreadable']);
 
@@ -71,6 +72,20 @@ function preserveLastKnownGood(input) {
   };
 }
 
+function staleReadResponse(input) {
+  assert.equal(input.request.method, 'GET');
+  assert.match(input.request.route, /^\/v1\/effective-objects\/lb:obj:/);
+  assert.equal(input.observationCheckpoint.snapshotClassification, 'incomplete');
+  return {
+    httpStatus: 200,
+    freshness: 'stale',
+    bodyAuthoritative: true,
+    semanticGeneration: input.semanticCheckpoint.generation,
+    observationGeneration: input.observationCheckpoint.generation,
+    diagnosticCount: input.observationCheckpoint.diagnostics.length,
+  };
+}
+
 test('target evidence generation is deterministic and order independent', () => {
   assert.equal(evidenceGeneration(fixture), fixture.expectedGeneration);
   assert.equal(evidenceGeneration({...fixture,evidence:[...fixture.evidence].reverse()}), fixture.expectedGeneration);
@@ -101,4 +116,8 @@ test('repairing an unusable marker changes generation', () => {
 
 test('incomplete current observation preserves and marks the last-known-good semantic view stale', () => {
   assert.deepEqual(preserveLastKnownGood(staleFixture), staleFixture.expected);
+});
+
+test('read API returns stale last-known-good state with authoritative body diagnostics', () => {
+  assert.deepEqual(staleReadResponse(staleReadFixture), staleReadFixture.expected);
 });

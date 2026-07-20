@@ -31,14 +31,8 @@ jobs:
       - name: Cache Cargo artifacts
         uses: Swatinem/rust-cache@v2
 
-      - name: Format source
-        run: cargo fmt --all
-
-      - name: Upload formatted effective view source
-        uses: actions/upload-artifact@v4
-        with:
-          name: formatted-effective-view
-          path: packages/relay/src/effective_view_v2.rs
+      - name: Check formatting
+        run: cargo fmt --all -- --check
 
       - name: Run library clippy
         run: cargo clippy --workspace --lib -- -D warnings
@@ -49,19 +43,8 @@ jobs:
       - name: Run test clippy
         run: cargo clippy --workspace --tests -- -D warnings -A dead-code -A unused-variables
 
-      - name: Run workspace tests and capture output
-        continue-on-error: true
-        shell: bash
-        run: |
-          set -o pipefail
-          cargo test --workspace 2>&1 | tee workspace-tests.log
-
-      - name: Upload workspace test log
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: workspace-tests-log
-          path: workspace-tests.log
+      - name: Run workspace tests
+        run: cargo test --workspace
 
   javascript:
     name: JavaScript tests

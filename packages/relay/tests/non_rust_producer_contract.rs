@@ -38,7 +38,10 @@ fn javascript_producer_publishes_through_real_http_path() {
     let response = http_post(port, request.trim_end());
     assert!(response.starts_with("HTTP/1.1 201 "), "{response}");
     assert!(response.contains("\"status\":\"stored\""), "{response}");
-    assert!(response.contains("\"code\":\"LB_OBJECT_STORED\""), "{response}");
+    assert!(
+        response.contains("\"code\":\"LB_OBJECT_STORED\""),
+        "{response}"
+    );
     assert!(
         response.contains("\"canonicalId\":\"lb:obj:js-producer-http-contract\""),
         "{response}"
@@ -81,7 +84,9 @@ fn http_post(port: u16, body: &str) -> String {
     );
     stream.write_all(request.as_bytes()).expect("write request");
     let mut response = String::new();
-    stream.read_to_string(&mut response).expect("read response");
+    stream
+        .read_to_string(&mut response)
+        .expect("read response");
     response
 }
 

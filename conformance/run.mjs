@@ -95,6 +95,23 @@ function reevaluateOrphan(input) {
     storedBytesPreserved:input.storedTransitionBytesSha256 === input.storedTransitionBytesSha256,
   };
 }
+function classifyQueueCommit(input) {
+  assert.equal(input.targetCommit, 'succeeded');
+  assert.equal(input.durableIntent, true);
+  return {targetStored:true,publishSucceeded:true,reevaluationStatus:input.directEnqueue === 'succeeded' ? 'pending' : 'pending-recovery',checkpoint:input.previousCheckpoint};
+}
+function classifyQueueRecovery(input) {
+  assert.equal(input.targetCommit, 'succeeded');
+  assert.equal(input.directEnqueue, 'failed');
+  assert.equal(input.durableIntent, true);
+  assert.equal(input.reconciliation, 'recreated-work');
+  return {targetStored:true,publishSucceeded:true,reevaluationStatusBeforeRecovery:'pending-recovery',reevaluationStatusAfterRecovery:'pending',checkpoint:input.previousCheckpoint};
+}
+function classifyQueueRetry(input) {
+  assert.ok(input.deliveries >= 2);
+  const committed = input.resultCommit === 'succeeded' && input.snapshotStillCurrent === true;
+  return {transitionCopiesCreated:0,derivedApplications:committed ? 1 : 0,checkpoint:committed ? input.nextCheckpoint : input.previousCheckpoint,queueStatus:committed ? 'succeeded' : 'retryable-failed'};
+}
 function projectTransitions(input) {
   const authorized = input.transitions.filter((item) => item.authority === 'authorized');
   const byId = new Map(authorized.map((item) => [item.id, item])); const superseded = new Set(); const edges = new Map();
@@ -140,6 +157,9 @@ for (const testCase of manifest.cases) {
     else if (testCase.kind === 'transition-authority') { const input = JSON.parse(await read(testCase.input)); assert.deepEqual(classifyTransitionAuthority(input), input.expected); }
     else if (testCase.kind === 'transition-orphan') { const input = JSON.parse(await read(testCase.input)); assert.deepEqual(classifyOrphanTransition(input), input.expected); }
     else if (testCase.kind === 'transition-orphan-reevaluation') { const input = JSON.parse(await read(testCase.input)); assert.deepEqual(reevaluateOrphan(input), input.expected); }
+    else if (testCase.kind === 'transition-reevaluation-queue-commit') { const input = JSON.parse(await read(testCase.input)); assert.deepEqual(classifyQueueCommit(input), input.expected); }
+    else if (testCase.kind === 'transition-reevaluation-queue-recovery') { const input = JSON.parse(await read(testCase.input)); assert.deepEqual(classifyQueueRecovery(input), input.expected); }
+    else if (testCase.kind === 'transition-reevaluation-queue-retry') { const input = JSON.parse(await read(testCase.input)); assert.deepEqual(classifyQueueRetry(input), input.expected); }
     else if (testCase.kind === 'transition-supersession') { const input = JSON.parse(await read(testCase.input)); assert.deepEqual(projectTransitions(input), input.expected); }
     else throw new Error(`unsupported conformance case kind: ${testCase.kind}`);
     results.push({id:testCase.id,suite:testCase.suite,status:'pass'});

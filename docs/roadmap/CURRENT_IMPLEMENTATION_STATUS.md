@@ -31,10 +31,12 @@ publication state: v0.6.0 implementation in progress
 | durable re-evaluation queue／target-scoped coalescing | PR #98で追加済み |
 | deterministic evidence generation `lb.transition.evidence-generation.v1` | PR #98で追加済み |
 | supported／unsupported／corrupt／unreadable marker vectors | PR #98で追加済み |
+| last-known-good effective view／stale read API | PR #98で追加済み |
+| stable public diagnostics `lb.http.effective-view.diagnostics.v1` | PR #98で追加済み |
 | relay transition append-only storage／effective-view projection | 未着手 |
 | release checklist／CHANGELOG／version update | 未着手 |
 
-## 3. Fixed transition, identifier, HTTP, queue, and generation contract
+## 3. Fixed transition, identifier, HTTP, queue, generation, and read contract
 
 - 元Knowledge Objectは変更・削除しない
 - replacement／withdrawalは専用Transition Objectとしてappend-only保存する
@@ -61,11 +63,17 @@ publication state: v0.6.0 implementation in progress
 - unusable markerはimmutable carrier digestを必須とし、trusted digestも読めるbytesもない場合はgenerationを捏造しない
 - unusable evidenceを含むsnapshotは`incomplete`、authorityは`unknown`、effective view非適用とする
 - evidenceがsupportedへ変化・明示的に修復された場合はgenerationを変更して再評価する
+- incomplete observation時はlast-known-good semantic viewを維持し、`freshness=stale`として返す
+- semantic checkpointとobservation checkpointを分離する
+- `GET /v1/effective-objects/{targetId}`はstale viewでも`200 OK`を返し、bodyを正本とする
+- public diagnosticsはstable reason codeとprotocol identifierだけを返し、storage path、row ID、stack trace、parser exception、worker IDを公開しない
+- diagnosticはkind、ASCII evidence ID、classification、reason codeの順で決定的にsortする
+- exact duplicate diagnosticはcollapseし、同一kind／IDの競合diagnosticを暗黙選択しない
 
 ## 4. Next implementation order
 
-1. incomplete snapshot到着時にlast-known-good effective viewを維持するか、targetをfail-closedな原状態へ戻すか決定する
-2. 決定したeffective-view checkpoint／diagnostic checkpoint semanticsをfixture化する
+1. public diagnosticsを全件返すか、上限・summary・paginationを導入するか決定する
+2. 決定したdiagnostic completeness／truncation semanticsをfixture化する
 3. relayで`POST /v1/transitions`のvalidate／signature verify／append-only storeを有効化する
 4. orphan index、durable queue、authority classification／effective-view projectionを実装する
 5. compatibility matrixを完成させる
@@ -90,3 +98,5 @@ publication state: v0.6.0 implementation in progress
 15. stale workerが新しいderived checkpointを上書きしない
 16. incomplete snapshotからauthorized semantic effectを生成しない
 17. unreadable evidenceにtrusted carrier digestがない状態で完全なgenerationを発行しない
+18. stale viewをcurrentとして返さない
+19. public diagnosticsへrelay内部情報や非安定なexception textを漏らさない

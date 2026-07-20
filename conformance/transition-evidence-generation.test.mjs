@@ -5,6 +5,7 @@ import test from 'node:test';
 
 const fixture = JSON.parse(await readFile(new URL('./transition-evidence-generation/minimal-supported-set.input.json', import.meta.url), 'utf8'));
 const unusableFixture = JSON.parse(await readFile(new URL('./transition-evidence-generation/classified-unusable-set.input.json', import.meta.url), 'utf8'));
+const staleFixture = JSON.parse(await readFile(new URL('./transition-evidence-generation/last-known-good-stale.input.json', import.meta.url), 'utf8'));
 const kindOrder = new Map([['target',0],['transition',1],['delegation',2],['revocation',3]]);
 const classifications = new Set(['supported','unsupported','corrupt','unreadable']);
 
@@ -53,6 +54,23 @@ function snapshotEffect(input) {
   };
 }
 
+function preserveLastKnownGood(input) {
+  assert.equal(input.observationCheckpoint.snapshotClassification, 'incomplete');
+  return {
+    effectiveView: {
+      ...input.semanticCheckpoint,
+      freshness: 'stale',
+    },
+    evidenceObservation: {
+      generation: input.observationCheckpoint.generation,
+      snapshotClassification: 'incomplete',
+      applyToEffectiveView: false,
+    },
+    semanticCheckpointAdvanced: false,
+    observationCheckpointAdvanced: true,
+  };
+}
+
 test('target evidence generation is deterministic and order independent', () => {
   assert.equal(evidenceGeneration(fixture), fixture.expectedGeneration);
   assert.equal(evidenceGeneration({...fixture,evidence:[...fixture.evidence].reverse()}), fixture.expectedGeneration);
@@ -79,4 +97,8 @@ test('repairing an unusable marker changes generation', () => {
   const repaired = structuredClone(unusableFixture);
   repaired.evidence[1].classification = 'supported';
   assert.notEqual(evidenceGeneration(repaired), evidenceGeneration(unusableFixture));
+});
+
+test('incomplete current observation preserves and marks the last-known-good semantic view stale', () => {
+  assert.deepEqual(preserveLastKnownGood(staleFixture), staleFixture.expected);
 });

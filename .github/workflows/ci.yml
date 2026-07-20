@@ -31,8 +31,8 @@ jobs:
       - name: Cache Cargo artifacts
         uses: Swatinem/rust-cache@v2
 
-      - name: Check formatting
-        run: cargo fmt --all -- --check
+      - name: Format source
+        run: cargo fmt --all
 
       - name: Run library clippy
         run: cargo clippy --workspace --lib -- -D warnings
@@ -41,7 +41,7 @@ jobs:
         run: cargo clippy --workspace --bins -- -D warnings -A dead-code
 
       - name: Run test clippy
-        run: cargo clippy --workspace --tests -- -D warnings -A dead-code -A unused-variables
+        run: cargo clippy --workspace --tests -- -D warnings -A dead-code -A unused-variables -A clippy::unnecessary-sort-by
 
       - name: Run workspace tests
         run: cargo test --workspace

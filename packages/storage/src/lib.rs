@@ -1,6 +1,7 @@
 mod doctor;
 mod migration;
 mod migration_runtime;
+pub mod recovery;
 
 pub use doctor::{run_storage_doctor, DoctorCheck, DoctorReport, DoctorSeverity};
 pub use migration::{

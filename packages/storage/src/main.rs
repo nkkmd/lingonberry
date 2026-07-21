@@ -45,6 +45,10 @@ fn run(args: Vec<String>) -> Result<(), String> {
                             JsonValue::String("health".to_string()),
                             JsonValue::String("ready".to_string()),
                             JsonValue::String("metrics".to_string()),
+                            JsonValue::String("backup".to_string()),
+                            JsonValue::String("restore".to_string()),
+                            JsonValue::String("index".to_string()),
+                            JsonValue::String("drill".to_string()),
                             JsonValue::String("run".to_string()),
                         ]),
                     ),
@@ -72,6 +76,16 @@ fn run(args: Vec<String>) -> Result<(), String> {
             print_metrics(&config);
             Ok(())
         }
+        "backup" => lingonberry_storage::recovery::handle_backup(
+            &config,
+            &backend,
+            &invocation.command_args,
+        ),
+        "restore" => {
+            lingonberry_storage::recovery::handle_restore(&config, &invocation.command_args)
+        }
+        "index" => lingonberry_storage::recovery::handle_index(&backend, &invocation.command_args),
+        "drill" => lingonberry_storage::recovery::handle_drill(&config, &invocation.command_args),
         "run" => {
             print_runtime_status(&config);
             Ok(())

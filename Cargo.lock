@@ -105,6 +105,7 @@ name = "lingonberry-storage"
 version = "0.7.0"
 dependencies = [
  "lingonberry-core",
+ "lingonberry-indexer",
  "lingonberry-protocol",
 ]
 

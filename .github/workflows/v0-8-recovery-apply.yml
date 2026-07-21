@@ -1,0 +1,271 @@
+name: v0.8 recovery integration
+on:
+  pull_request:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  apply:
+    if: github.head_ref == 'release/v0.8.0-operational-readiness'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: release/v0.8.0-operational-readiness
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt,clippy
+      - name: Apply backup restore index and drill integration
+        shell: python
+        run: |
+          from pathlib import Path
+
+          cargo = Path('packages/storage/Cargo.toml')
+          text = cargo.read_text()
+          if 'lingonberry-indexer' not in text:
+              text += 'lingonberry-indexer = { path = "../indexer" }\n'
+          cargo.write_text(text)
+
+          main = Path('packages/storage/src/main.rs')
+          text = main.read_text()
+          text = text.replace(
+              'use lingonberry_core::StorageBackend;',
+              'use lingonberry_core::{export_archive, import_archive, StorageBackend};\nuse lingonberry_indexer::{index_rebuild_result_json, rebuild_index, verify_index, IndexConsistencyStatus, IndexSnapshot};'
+          )
+          text = text.replace('use std::env;\nuse std::process;', 'use std::env;\nuse std::fs;\nuse std::path::{Path, PathBuf};\nuse std::process;\nuse std::time::{SystemTime, UNIX_EPOCH};')
+          text = text.replace(
+              '                            JsonValue::String("metrics".to_string()),\n                            JsonValue::String("run".to_string()),',
+              '                            JsonValue::String("metrics".to_string()),\n                            JsonValue::String("backup".to_string()),\n                            JsonValue::String("restore".to_string()),\n                            JsonValue::String("index".to_string()),\n                            JsonValue::String("drill".to_string()),\n                            JsonValue::String("run".to_string()),',
+              1,
+          )
+          dispatch = '''        "metrics" => {
+              print_metrics(&config);
+              Ok(())
+          }
+          "run" => {'''
+          replacement = '''        "metrics" => {
+              print_metrics(&config);
+              Ok(())
+          }
+          "backup" => handle_backup(&config, &backend, &invocation.command_args),
+          "restore" => handle_restore(&config, &invocation.command_args),
+          "index" => handle_index(&backend, &invocation.command_args),
+          "drill" => handle_drill(&config, &invocation.command_args),
+          "run" => {'''
+          if dispatch not in text:
+              raise SystemExit('dispatch marker not found')
+          text = text.replace(dispatch, replacement, 1)
+
+          marker = '\nfn handle_append(pathname: &str, backend: &impl StorageBackend) -> Result<(), String> {'
+          addition = r'''
+          fn handle_backup(
+              config: &StorageRuntimeConfig,
+              backend: &impl StorageBackend,
+              args: &[String],
+          ) -> Result<(), String> {
+              let Some(action) = args.first().map(String::as_str) else {
+                  return Err("usage: lingonberry-storage backup <create|verify> [archive-dir]".to_string());
+              };
+              match action {
+                  "create" => {
+                      let archive_dir = args
+                          .get(1)
+                          .map(PathBuf::from)
+                          .unwrap_or_else(|| config.backup_dir.join(format!("archive-{}", unix_timestamp())));
+                      refuse_symlink_path(&archive_dir)?;
+                      if archive_dir.exists() && fs::read_dir(&archive_dir).map_err(|e| e.to_string())?.next().is_some() {
+                          return Err(format!("backup destination is not empty: {}", archive_dir.display()));
+                      }
+                      let report = export_archive(backend, &archive_dir).map_err(|error| error.to_string())?;
+                      verify_archive_isolated(config, &archive_dir)?;
+                      println!("{}", to_canonical_json(&json_object(vec![
+                          ("status", JsonValue::String("verified".to_string())),
+                          ("archiveDir", JsonValue::String(report.archive_dir.to_string_lossy().to_string())),
+                          ("recordCount", JsonValue::Number(report.record_count.to_string())),
+                      ])));
+                      Ok(())
+                  }
+                  "verify" => {
+                      let archive_dir = required_path(args.get(1), "usage: lingonberry-storage backup verify <archive-dir>")?;
+                      let count = verify_archive_isolated(config, &archive_dir)?;
+                      println!("{}", to_canonical_json(&json_object(vec![
+                          ("status", JsonValue::String("verified".to_string())),
+                          ("archiveDir", JsonValue::String(archive_dir.to_string_lossy().to_string())),
+                          ("recordCount", JsonValue::Number(count.to_string())),
+                      ])));
+                      Ok(())
+                  }
+                  _ => Err("usage: lingonberry-storage backup <create|verify> [archive-dir]".to_string()),
+              }
+          }
+
+          fn handle_restore(config: &StorageRuntimeConfig, args: &[String]) -> Result<(), String> {
+              let Some(action) = args.first().map(String::as_str) else {
+                  return Err("usage: lingonberry-storage restore <plan|apply> <archive-dir> <target-dir>".to_string());
+              };
+              let archive_dir = required_path(args.get(1), "usage: lingonberry-storage restore <plan|apply> <archive-dir> <target-dir>")?;
+              let target_dir = required_path(args.get(2), "usage: lingonberry-storage restore <plan|apply> <archive-dir> <target-dir>")?;
+              validate_restore_target(config, &target_dir)?;
+              match action {
+                  "plan" => {
+                      let count = verify_archive_isolated(config, &archive_dir)?;
+                      println!("{}", to_canonical_json(&json_object(vec![
+                          ("status", JsonValue::String("planned".to_string())),
+                          ("readOnlyTarget", JsonValue::Bool(true)),
+                          ("archiveDir", JsonValue::String(archive_dir.to_string_lossy().to_string())),
+                          ("targetDir", JsonValue::String(target_dir.to_string_lossy().to_string())),
+                          ("recordCount", JsonValue::Number(count.to_string())),
+                      ])));
+                      Ok(())
+                  }
+                  "apply" => {
+                      ensure_empty_target(&target_dir)?;
+                      let target = build_storage_backend_at(&target_dir);
+                      let report = import_archive(&target, &archive_dir).map_err(|error| error.to_string())?;
+                      let verification = rebuild_index(&target);
+                      if verification.status != IndexConsistencyStatus::Consistent {
+                          return Err(format!("restored index verification failed: {}", verification.message));
+                      }
+                      println!("{}", to_canonical_json(&json_object(vec![
+                          ("status", JsonValue::String("restored".to_string())),
+                          ("archiveDir", JsonValue::String(archive_dir.to_string_lossy().to_string())),
+                          ("targetDir", JsonValue::String(target_dir.to_string_lossy().to_string())),
+                          ("recordCount", JsonValue::Number(report.record_count.to_string())),
+                          ("duplicateCount", JsonValue::Number(report.duplicate_count.to_string())),
+                      ])));
+                      Ok(())
+                  }
+                  _ => Err("usage: lingonberry-storage restore <plan|apply> <archive-dir> <target-dir>".to_string()),
+              }
+          }
+
+          fn handle_index(backend: &impl StorageBackend, args: &[String]) -> Result<(), String> {
+              let Some(action) = args.first().map(String::as_str) else {
+                  return Err("usage: lingonberry-storage index <verify|rebuild>".to_string());
+              };
+              let result = match action {
+                  "rebuild" => rebuild_index(backend),
+                  "verify" => {
+                      let snapshot = IndexSnapshot::from_backend(backend).map_err(|error| error.to_string())?;
+                      verify_index(backend, snapshot)
+                  }
+                  _ => return Err("usage: lingonberry-storage index <verify|rebuild>".to_string()),
+              };
+              println!("{}", to_canonical_json(&index_rebuild_result_json(&result)));
+              if result.status == IndexConsistencyStatus::Consistent {
+                  Ok(())
+              } else {
+                  Err(format!("index operation failed: {}", result.message))
+              }
+          }
+
+          fn handle_drill(config: &StorageRuntimeConfig, args: &[String]) -> Result<(), String> {
+              if args.first().map(String::as_str) != Some("restore") {
+                  return Err("usage: lingonberry-storage drill restore <archive-dir>".to_string());
+              }
+              let archive_dir = required_path(args.get(1), "usage: lingonberry-storage drill restore <archive-dir>")?;
+              let count = verify_archive_isolated(config, &archive_dir)?;
+              println!("{}", to_canonical_json(&json_object(vec![
+                  ("status", JsonValue::String("passed".to_string())),
+                  ("isolated", JsonValue::Bool(true)),
+                  ("archiveDir", JsonValue::String(archive_dir.to_string_lossy().to_string())),
+                  ("recordCount", JsonValue::Number(count.to_string())),
+              ])));
+              Ok(())
+          }
+
+          fn verify_archive_isolated(config: &StorageRuntimeConfig, archive_dir: &Path) -> Result<usize, String> {
+              refuse_symlink_path(archive_dir)?;
+              let target_dir = config.temp_dir.join(format!("restore-drill-{}", unix_timestamp()));
+              if target_dir.exists() {
+                  return Err(format!("isolated restore target already exists: {}", target_dir.display()));
+              }
+              fs::create_dir_all(&target_dir).map_err(|error| error.to_string())?;
+              let outcome = (|| {
+                  let target = build_storage_backend_at(&target_dir);
+                  let report = import_archive(&target, archive_dir).map_err(|error| error.to_string())?;
+                  let verification = rebuild_index(&target);
+                  if verification.status != IndexConsistencyStatus::Consistent {
+                      return Err(format!("isolated restore index verification failed: {}", verification.message));
+                  }
+                  Ok(report.record_count + report.duplicate_count)
+              })();
+              let cleanup = fs::remove_dir_all(&target_dir).map_err(|error| error.to_string());
+              match (outcome, cleanup) {
+                  (Ok(count), Ok(())) => Ok(count),
+                  (Err(error), _) => Err(error),
+                  (Ok(_), Err(error)) => Err(format!("isolated restore cleanup failed: {error}")),
+              }
+          }
+
+          fn validate_restore_target(config: &StorageRuntimeConfig, target: &Path) -> Result<(), String> {
+              refuse_symlink_path(target)?;
+              if target == config.data_dir || target == config.state_dir {
+                  return Err("restore target must be isolated from the active state and data directories".to_string());
+              }
+              Ok(())
+          }
+
+          fn ensure_empty_target(target: &Path) -> Result<(), String> {
+              if target.exists() {
+                  let metadata = fs::symlink_metadata(target).map_err(|error| error.to_string())?;
+                  if !metadata.is_dir() {
+                      return Err(format!("restore target is not a directory: {}", target.display()));
+                  }
+                  if fs::read_dir(target).map_err(|error| error.to_string())?.next().is_some() {
+                      return Err(format!("restore target is not empty: {}", target.display()));
+                  }
+              } else {
+                  fs::create_dir_all(target).map_err(|error| error.to_string())?;
+              }
+              Ok(())
+          }
+
+          fn refuse_symlink_path(path: &Path) -> Result<(), String> {
+              match fs::symlink_metadata(path) {
+                  Ok(metadata) if metadata.file_type().is_symlink() => Err(format!("refusing symbolic link path: {}", path.display())),
+                  Ok(_) => Ok(()),
+                  Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+                  Err(error) => Err(format!("cannot inspect {}: {error}", path.display())),
+              }
+          }
+
+          fn required_path(value: Option<&String>, usage: &str) -> Result<PathBuf, String> {
+              value.map(PathBuf::from).ok_or_else(|| usage.to_string())
+          }
+
+          fn unix_timestamp() -> u64 {
+              SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs()
+          }
+          '''.replace('          ', '')
+          if marker not in text:
+              raise SystemExit('append marker not found')
+          text = text.replace(marker, '\n' + addition + marker, 1)
+          text = text.replace(
+              '        || error.contains("readiness detected")\n    {',
+              '        || error.contains("readiness detected")\n        || error.contains("index operation failed")\n        || error.contains("restored index verification failed")\n    {',
+              1,
+          )
+          main.write_text(text)
+      - run: cargo fmt --all
+      - run: cargo clippy --workspace --lib --bins -- -D warnings -A dead-code
+      - run: cargo test --workspace
+      - name: Smoke test operator recovery commands
+        run: |
+          set -eux
+          root="$(mktemp -d)"
+          cargo run -q -p lingonberry-storage -- --state-dir "$root/state" --data-dir "$root/data" --backup-dir "$root/backups" --temp-dir "$root/tmp" backup create "$root/archive"
+          cargo run -q -p lingonberry-storage -- --state-dir "$root/state" --data-dir "$root/data" --backup-dir "$root/backups" --temp-dir "$root/tmp" backup verify "$root/archive"
+          cargo run -q -p lingonberry-storage -- --state-dir "$root/state" --data-dir "$root/data" --backup-dir "$root/backups" --temp-dir "$root/tmp" restore plan "$root/archive" "$root/restored"
+          cargo run -q -p lingonberry-storage -- --state-dir "$root/state" --data-dir "$root/data" --backup-dir "$root/backups" --temp-dir "$root/tmp" restore apply "$root/archive" "$root/restored"
+          cargo run -q -p lingonberry-storage -- --state-dir "$root/state" --data-dir "$root/data" --backup-dir "$root/backups" --temp-dir "$root/tmp" index verify
+          cargo run -q -p lingonberry-storage -- --state-dir "$root/state" --data-dir "$root/data" --backup-dir "$root/backups" --temp-dir "$root/tmp" index rebuild
+          cargo run -q -p lingonberry-storage -- --state-dir "$root/state" --data-dir "$root/data" --backup-dir "$root/backups" --temp-dir "$root/tmp" drill restore "$root/archive"
+      - name: Commit recovery integration
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add packages/storage/Cargo.toml packages/storage/src/main.rs Cargo.lock
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "feat(storage): integrate backup restore and index operations"
+          git push

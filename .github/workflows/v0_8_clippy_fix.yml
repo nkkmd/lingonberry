@@ -1,7 +1,9 @@
 name: v0.8 Clippy fix
 on:
-  push:
-    branches: [release/v0.8.0-operational-readiness]
+  pull_request:
+    paths:
+      - 'packages/storage/**'
+      - '.github/workflows/v0_8_clippy_fix.yml'
 permissions:
   contents: write
 jobs:

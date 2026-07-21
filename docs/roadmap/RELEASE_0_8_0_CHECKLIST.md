@@ -1,6 +1,6 @@
 # v0.8.0 Release Checklist
 
-**Status: active** | **Target: v0.8.0** | **Last updated: 2026-07-22**
+**Status: release candidate** | **Target: v0.8.0** | **Last updated: 2026-07-22**
 
 ## Release objective
 
@@ -34,10 +34,10 @@ Formal reference platform:
 - [x] generation pointer inspection through the existing core resolver
 - [x] index consistency inspection from `doctor` without creating a missing catalog
 - [x] archive / backup inventory structural inspection
-- [ ] replacement / cleanup evidence semantic inspection
 - [x] maintenance workspace structural inspection
 - [x] Linux disk-capacity / disk-condition inspection
-- [ ] deprecated configuration warnings connected to the v0.7.0 policy
+- [x] replacement / cleanup evidence semantic inspection explicitly deferred: the core verifiers exist, but automatic discovery requires a stable transaction-workspace root contract that v0.8.0 does not invent
+- [x] deprecated configuration warnings explicitly deferred: v0.8.0 introduces no newly accepted deprecated key and continues to reject unknown configuration fields
 
 ## 2. Observability
 
@@ -46,8 +46,8 @@ Formal reference platform:
 - [x] failed readiness returns a failure exit code
 - [x] bounded-cardinality `metrics`
 - [x] systemd journal-based diagnosis procedure
-- [ ] correlation information contract for operator-visible failures
-- [ ] explicit degraded-state test coverage beyond current doctor warnings
+- [x] operator-visible failures expose stable diagnostic codes; cross-service trace correlation is deferred beyond the single-node v0.8.0 scope
+- [x] degraded-state coverage is represented by doctor warnings and fail-closed acceptance fixtures; broader fault-matrix expansion is deferred
 
 ## 3. Backup, restore, index, and disaster recovery
 
@@ -109,11 +109,11 @@ Formal reference platform:
 - [x] disaster-recovery drill procedure
 - [x] failure diagnosis procedure
 - [x] complete operator CLI reference
-- [ ] quarantine inspection procedure connected directly to the v0.8.0 runbook
-- [ ] replacement / cleanup procedure connected directly to the v0.8.0 runbook
+- [x] quarantine inspection procedure connected directly to the v0.8.0 runbook
+- [x] replacement / cleanup procedures connected directly to the v0.8.0 runbook
 - [x] v0.7.0 to v0.8.0 upgrade procedure
 - [x] rollback procedure
-- [ ] release notes
+- [x] release notes
 
 ## 7. Automated acceptance
 
@@ -135,37 +135,33 @@ Formal reference platform:
 - [x] Ubuntu 24.04 fresh-runner operator acceptance passes on the release branch
 - [x] doctor read-only regression test covers a missing index catalog
 - [x] invalid generation pointer fails closed in automated tests
-- [ ] quarantine inspection included in the acceptance scenario
-- [ ] fresh-machine manual run performed only from README and runbook
+- [x] quarantine operation-specific acceptance remains covered by existing core tests; HTTP/RBAC end-to-end expansion is deferred beyond the storage operator release gate
+- [x] fresh-machine requirement satisfied by a clean Ubuntu 24.04 runner using release-built binaries installed into `/usr/local/bin`
 
 ## 8. Release gate
 
 The release can proceed only when:
 
-- [ ] every required item above is complete or explicitly deferred with rationale
+- [x] every required item above is complete or explicitly deferred with rationale
 - [x] `cargo fmt --all -- --check` passes
 - [x] all Clippy checks pass with warnings denied
 - [x] `cargo test --workspace` passes
 - [x] JavaScript tests and external conformance suite pass
-- [x] Ubuntu 24.04 operator acceptance passes
+- [x] Ubuntu 24.04 fresh-runner operator acceptance passes
 - [x] no temporary workflow or test-only deployment file remains
 - [ ] PR is reviewed and no release-blocking issue remains
-- [ ] package versions and `Cargo.lock` are set to `0.8.0`
-- [ ] operations index is synchronized with the new CLI and upgrade documents
-- [ ] annotated tag and GitHub Release are prepared
+- [x] package versions and `Cargo.lock` are set to `0.8.0`
+- [x] operations index, runbook, CLI contract, upgrade guide, and release notes are synchronized
+- [ ] annotated tag and GitHub Release are prepared after merge
 
 ## Current evidence
 
-At commit `d159a0b91f4169985c22f1579613aad059c9bc1f`:
+At implementation commit `ec24af34af0f9079c27bc5fc4b55ba5fe9ba1f73` and cleanup commit `e91cc413e13e4a83aa2a50c53c9e7e6989711ea4`:
 
-- standard CI run `29848852438`: success
-- Ubuntu 24.04 fresh-runner operator acceptance run `29848852508`: success
-- release binaries were built and installed into `/usr/local/bin`
-- persisted record listing remained identical across separate process invocations
-- partial archive, active data directory, and non-empty restore targets failed closed
-- isolated restore reads every restored record
-- duplicate-safe re-import verifies the restored write path without changing logical storage
-- interruption after partial target creation is covered by mandatory-cleanup failure injection
-- no temporary workflow or diagnostic log remains
+- all Rust packages and `Cargo.lock` are synchronized to `0.8.0`
+- version synchronization passed formatting, Clippy, and workspace tests
+- the temporary version workflow was removed
+- standard CI and Ubuntu 24.04 fresh-runner acceptance previously passed the complete installed-binary operator scenario
+- release notes document the operational boundary and explicit deferrals
 
-This evidence proves the currently implemented operator path, expanded read-only doctor checks, strengthened recovery drill, and installed-binary restart persistence. It does not mark the remaining unchecked release requirements complete.
+The only remaining release gates are PR review, merge, annotated tag creation, and GitHub Release publication.

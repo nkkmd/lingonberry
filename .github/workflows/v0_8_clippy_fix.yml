@@ -14,7 +14,8 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy,rustfmt
-      - run: cargo clippy --workspace --lib --fix --allow-dirty --allow-staged -- -D warnings
+      - name: Apply Clippy fixes
+        run: cargo clippy --workspace --lib --fix --allow-dirty --allow-staged -- -D warnings
       - run: cargo fmt --all
       - name: Commit fixes
         run: |

@@ -1,6 +1,6 @@
 # Lingonberry v0.7.0 release note
 
-**Status: release candidate** | **Date: 2026-07-21**
+**Status: published** | **Date: 2026-07-21** | **Release target: `b364ac0c19e9dcec10c25db22a850c9d096b0f9b`**
 
 ## Summary
 
@@ -40,7 +40,7 @@ Use `resume` after interruption and `rollback` before commit when recovery polic
 
 ## Validation
 
-The release candidate is gated by:
+The published release passed:
 
 - `cargo fmt --all -- --check`
 - library and binary Clippy with warnings denied
@@ -52,3 +52,11 @@ The release candidate is gated by:
 ## Compatibility
 
 Protocol and public object-lifecycle contracts remain unchanged. Existing v0.4.0-v0.6.0 durable layouts without a storage manifest are treated as legacy unversioned state and require a verified backup before migration.
+
+## Publication
+
+- Tag: `v0.7.0`
+- Release target: `b364ac0c19e9dcec10c25db22a850c9d096b0f9b`
+- Parent issue: #99, closed as completed
+- Release candidate PR: #100, merged
+- Post-release documentation PR: #101, merged

@@ -3,9 +3,12 @@ use crate::{
     MIGRATION_JOURNAL_FILE,
 };
 use lingonberry_core::resolve_quarantine_active_generation;
+use lingonberry_core::resolve_quarantine_active_generation;
+use lingonberry_indexer::{verify_index, IndexConsistencyStatus, IndexSnapshot};
 use lingonberry_indexer::{verify_index, IndexConsistencyStatus, IndexSnapshot};
 use std::fs;
 use std::path::Path;
+use std::process::Command;
 use std::process::Command;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -216,6 +219,286 @@ fn check_regular_file(name: &'static str, path: &Path) -> DoctorCheck {
             "LB_DOCTOR_FILE_METADATA",
             format!("cannot inspect {}: {error}", path.display()),
         ),
+    }
+}
+
+fn check_generation_pointer(config: &StorageRuntimeConfig) -> DoctorCheck {
+    match resolve_quarantine_active_generation(&config.state_dir) {
+        Ok(generation) => match generation.transaction_id {
+            Some(transaction_id) => ok(
+                "generation_pointer",
+                "LB_DOCTOR_GENERATION_POINTER_OK",
+                format!(
+                    "current quarantine generation {transaction_id} is bound to verified metadata"
+                ),
+            ),
+            None => ok(
+                "generation_pointer",
+                "LB_DOCTOR_GENERATION_POINTER_LEGACY_ROOT",
+                "no generation pointer is present; quarantine uses the state root",
+            ),
+        },
+        Err(error) => failed(
+            "generation_pointer",
+            "LB_DOCTOR_GENERATION_POINTER_INVALID",
+            error.to_string(),
+        ),
+    }
+}
+
+fn check_index(config: &StorageRuntimeConfig) -> DoctorCheck {
+    let backend = crate::build_storage_backend_at(&config.data_dir);
+    let snapshot = match IndexSnapshot::from_backend(&backend) {
+        Ok(snapshot) => snapshot,
+        Err(error) => {
+            return failed(
+                "index",
+                "LB_DOCTOR_INDEX_SNAPSHOT_FAILED",
+                error.to_string(),
+            )
+        }
+    };
+    let result = verify_index(&backend, snapshot);
+    match result.status {
+        IndexConsistencyStatus::Consistent => {
+            ok("index", "LB_DOCTOR_INDEX_CONSISTENT", result.message)
+        }
+        _ => failed("index", "LB_DOCTOR_INDEX_INCONSISTENT", result.message),
+    }
+}
+
+fn check_backup_inventory(config: &StorageRuntimeConfig) -> DoctorCheck {
+    let entries = match fs::read_dir(&config.backup_dir) {
+        Ok(entries) => entries,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            return warning(
+                "backup_inventory",
+                "LB_DOCTOR_BACKUP_DIRECTORY_MISSING",
+                format!("{} does not exist", config.backup_dir.display()),
+            )
+        }
+        Err(error) => {
+            return failed(
+                "backup_inventory",
+                "LB_DOCTOR_BACKUP_DIRECTORY_UNREADABLE",
+                error.to_string(),
+            )
+        }
+    };
+    let mut archive_count = 0usize;
+    for entry in entries {
+        let entry = match entry {
+            Ok(entry) => entry,
+            Err(error) => {
+                return failed(
+                    "backup_inventory",
+                    "LB_DOCTOR_BACKUP_ENTRY_UNREADABLE",
+                    error.to_string(),
+                )
+            }
+        };
+        let metadata = match fs::symlink_metadata(entry.path()) {
+            Ok(metadata) => metadata,
+            Err(error) => {
+                return failed(
+                    "backup_inventory",
+                    "LB_DOCTOR_BACKUP_ENTRY_METADATA",
+                    error.to_string(),
+                )
+            }
+        };
+        if metadata.file_type().is_symlink() {
+            return failed(
+                "backup_inventory",
+                "LB_DOCTOR_BACKUP_SYMLINK_REJECTED",
+                format!("{} is a symbolic link", entry.path().display()),
+            );
+        }
+        if !metadata.is_dir() {
+            return failed(
+                "backup_inventory",
+                "LB_DOCTOR_BACKUP_ENTRY_NOT_DIRECTORY",
+                format!("{} is not an archive directory", entry.path().display()),
+            );
+        }
+        let manifest = entry.path().join("manifest.json");
+        match fs::symlink_metadata(&manifest) {
+            Ok(metadata) if metadata.is_file() && !metadata.file_type().is_symlink() => {
+                archive_count += 1
+            }
+            Ok(_) => {
+                return failed(
+                    "backup_inventory",
+                    "LB_DOCTOR_BACKUP_MANIFEST_INVALID",
+                    format!("{} is not a regular manifest", manifest.display()),
+                )
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                return warning(
+                    "backup_inventory",
+                    "LB_DOCTOR_BACKUP_PARTIAL_ARCHIVE",
+                    format!("{} has no manifest.json", entry.path().display()),
+                )
+            }
+            Err(error) => {
+                return failed(
+                    "backup_inventory",
+                    "LB_DOCTOR_BACKUP_MANIFEST_METADATA",
+                    error.to_string(),
+                )
+            }
+        }
+    }
+    if archive_count == 0 {
+        warning(
+            "backup_inventory",
+            "LB_DOCTOR_BACKUP_NONE",
+            "no structurally complete backup archive is present",
+        )
+    } else {
+        ok(
+            "backup_inventory",
+            "LB_DOCTOR_BACKUP_INVENTORY_OK",
+            format!("{archive_count} structurally complete backup archive(s) found"),
+        )
+    }
+}
+
+fn check_operational_workspace(config: &StorageRuntimeConfig) -> DoctorCheck {
+    let entries = match fs::read_dir(&config.state_dir) {
+        Ok(entries) => entries,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            return warning(
+                "operational_workspace",
+                "LB_DOCTOR_WORKSPACE_STATE_MISSING",
+                "state directory does not exist",
+            )
+        }
+        Err(error) => {
+            return failed(
+                "operational_workspace",
+                "LB_DOCTOR_WORKSPACE_UNREADABLE",
+                error.to_string(),
+            )
+        }
+    };
+    let mut workspace_count = 0usize;
+    for entry in entries.flatten() {
+        let name = entry.file_name();
+        let name = name.to_string_lossy();
+        if !(name.contains("replacement")
+            || name.contains("cleanup")
+            || name.contains("generation")
+            || name.contains("migration"))
+        {
+            continue;
+        }
+        workspace_count += 1;
+        match fs::symlink_metadata(entry.path()) {
+            Ok(metadata) if metadata.file_type().is_symlink() => {
+                return failed(
+                    "operational_workspace",
+                    "LB_DOCTOR_WORKSPACE_SYMLINK_REJECTED",
+                    format!("{} is a symbolic link", entry.path().display()),
+                )
+            }
+            Ok(metadata) if !(metadata.is_dir() || metadata.is_file()) => {
+                return failed(
+                    "operational_workspace",
+                    "LB_DOCTOR_WORKSPACE_SPECIAL_FILE",
+                    format!("{} is a special file", entry.path().display()),
+                )
+            }
+            Ok(_) => {}
+            Err(error) => {
+                return failed(
+                    "operational_workspace",
+                    "LB_DOCTOR_WORKSPACE_METADATA",
+                    error.to_string(),
+                )
+            }
+        }
+    }
+    ok(
+        "operational_workspace",
+        "LB_DOCTOR_WORKSPACE_STRUCTURAL_OK",
+        format!("{workspace_count} maintenance workspace entry or entries inspected"),
+    )
+}
+
+fn check_disk_capacity(config: &StorageRuntimeConfig) -> DoctorCheck {
+    let target = if config.data_dir.exists() {
+        &config.data_dir
+    } else {
+        &config.state_dir
+    };
+    let output = match Command::new("df").arg("-Pk").arg(target).output() {
+        Ok(output) if output.status.success() => output,
+        Ok(output) => {
+            return warning(
+                "disk_capacity",
+                "LB_DOCTOR_DISK_CAPACITY_UNAVAILABLE",
+                format!("df exited with status {}", output.status),
+            )
+        }
+        Err(error) => {
+            return warning(
+                "disk_capacity",
+                "LB_DOCTOR_DISK_CAPACITY_UNAVAILABLE",
+                error.to_string(),
+            )
+        }
+    };
+    let text = String::from_utf8_lossy(&output.stdout);
+    let Some(line) = text.lines().last() else {
+        return warning(
+            "disk_capacity",
+            "LB_DOCTOR_DISK_CAPACITY_UNAVAILABLE",
+            "df returned no filesystem row",
+        );
+    };
+    let fields: Vec<&str> = line.split_whitespace().collect();
+    if fields.len() < 6 {
+        return warning(
+            "disk_capacity",
+            "LB_DOCTOR_DISK_CAPACITY_UNAVAILABLE",
+            "df returned an unsupported row",
+        );
+    }
+    let available_kib = match fields[3].parse::<u64>() {
+        Ok(value) => value,
+        Err(_) => {
+            return warning(
+                "disk_capacity",
+                "LB_DOCTOR_DISK_CAPACITY_UNAVAILABLE",
+                "df available capacity is not numeric",
+            )
+        }
+    };
+    let capacity_kib = fields[1].parse::<u64>().unwrap_or_default();
+    let available_percent = if capacity_kib == 0 {
+        0
+    } else {
+        available_kib.saturating_mul(100) / capacity_kib
+    };
+    if available_kib < 64 * 1024 || available_percent < 2 {
+        failed(
+            "disk_capacity",
+            "LB_DOCTOR_DISK_CRITICAL",
+            format!("only {available_kib} KiB ({available_percent}%) is available"),
+        )
+    } else if available_kib < 512 * 1024 || available_percent < 10 {
+        warning(
+            "disk_capacity",
+            "LB_DOCTOR_DISK_LOW",
+            format!("{available_kib} KiB ({available_percent}%) is available"),
+        )
+    } else {
+        ok(
+            "disk_capacity",
+            "LB_DOCTOR_DISK_OK",
+            format!("{available_kib} KiB ({available_percent}%) is available"),
+        )
     }
 }
 

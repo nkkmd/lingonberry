@@ -123,9 +123,37 @@ sudo -u lingonberry env $(cat /etc/lingonberry/storage.env | xargs) \
   /usr/local/bin/lingonberry-storage drill restore /var/backups/lingonberry/manual-backup
 ```
 
-The drill restores into a temporary isolated directory, verifies consistency, and removes the temporary directory.
+A passing drill reports `readVerified`, `writeVerified`, and `cleanupVerified` as `true`. It restores into a temporary isolated directory, reads every restored record, verifies a duplicate-safe re-import, checks index consistency, and removes the temporary directory.
 
-## 10. Ubuntu failure diagnosis
+## 10. Restart persistence check
+
+Capture the persisted record listing, restart the long-running service, and compare the listing after readiness returns.
+
+```bash
+sudo -u lingonberry env $(cat /etc/lingonberry/storage.env | xargs) \
+  /usr/local/bin/lingonberry-storage list > /tmp/lingonberry-list-before.json
+sudo systemctl restart lingonberry-relay.service
+curl -fsS http://127.0.0.1:8787/v1/ready
+sudo -u lingonberry env $(cat /etc/lingonberry/storage.env | xargs) \
+  /usr/local/bin/lingonberry-storage list > /tmp/lingonberry-list-after.json
+cmp /tmp/lingonberry-list-before.json /tmp/lingonberry-list-after.json
+```
+
+A mismatch is a release-blocking persistence failure. Preserve both files and the journal output before further action.
+
+## 11. Quarantine inspection and maintenance routing
+
+The integrated storage CLI does not duplicate the existing proof-bound quarantine administration surfaces.
+
+- Inspection, authentication, and authorization: [Quarantine Admin HTTP and RBAC](./QUARANTINE_ADMIN_HTTP.md)
+- Backup, verification, and restore: [Quarantine Backup / Verify / Restore](./QUARANTINE_BACKUP_RESTORE.md)
+- Replacement preview and proof: [Replacement Preview Runbook](./QUARANTINE_REPLACEMENT_PREVIEW_RUNBOOK.md)
+- Replacement recovery: [Replacement Recovery Runbook](./QUARANTINE_REPLACEMENT_RECOVERY_RUNBOOK.md)
+- Verified cleanup: [Cleanup Operations Runbook](./QUARANTINE_REPLACEMENT_CLEANUP_RUNBOOK.md)
+
+Pointer, journal, proof, inventory, completion-evidence, and cleanup-evidence files must never be manually repaired. Use the corresponding verifier, resume, rollback, or explicitly acknowledged cleanup procedure.
+
+## 12. Ubuntu failure diagnosis
 
 ```bash
 systemctl --failed

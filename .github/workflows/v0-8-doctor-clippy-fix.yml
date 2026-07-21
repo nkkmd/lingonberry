@@ -1,12 +1,11 @@
 name: v0.8 doctor clippy fix
 on:
-  pull_request:
-    branches: [main]
+  push:
+    branches: [release/v0.8.0-operational-readiness]
 permissions:
   contents: write
 jobs:
   apply:
-    if: github.head_ref == 'release/v0.8.0-operational-readiness'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -28,39 +27,20 @@ jobs:
     let catalog_path = crate::runtime_storage_layout(config).catalog_path;
     match fs::symlink_metadata(&catalog_path) {
         Ok(metadata) if metadata.file_type().is_symlink() => {
-            return failed(
-                "index",
-                "LB_DOCTOR_INDEX_SYMLINK_REJECTED",
-                format!("{} is a symbolic link", catalog_path.display()),
-            )
+            return failed("index", "LB_DOCTOR_INDEX_SYMLINK_REJECTED", format!("{} is a symbolic link", catalog_path.display()))
         }
         Ok(metadata) if !metadata.is_file() => {
-            return failed(
-                "index",
-                "LB_DOCTOR_INDEX_NOT_REGULAR_FILE",
-                format!("{} is not a regular index file", catalog_path.display()),
-            )
+            return failed("index", "LB_DOCTOR_INDEX_NOT_REGULAR_FILE", format!("{} is not a regular index file", catalog_path.display()))
         }
         Ok(_) => {}
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-            return warning(
-                "index",
-                "LB_DOCTOR_INDEX_MISSING",
-                format!("{} does not exist", catalog_path.display()),
-            )
+            return warning("index", "LB_DOCTOR_INDEX_MISSING", format!("{} does not exist", catalog_path.display()))
         }
-        Err(error) => {
-            return failed(
-                "index",
-                "LB_DOCTOR_INDEX_METADATA",
-                error.to_string(),
-            )
-        }
+        Err(error) => return failed("index", "LB_DOCTOR_INDEX_METADATA", error.to_string()),
     }
     let backend = crate::build_storage_backend_at(&config.data_dir);
 '''
-          if old not in s:
-              raise SystemExit('check_index marker missing')
+          if old not in s: raise SystemExit('check_index marker missing')
           s=s.replace(old,new,1)
           old_div='''    let available_percent = if capacity_kib == 0 {
         0
@@ -73,8 +53,7 @@ jobs:
         .checked_div(capacity_kib)
         .unwrap_or_default();
 '''
-          if old_div not in s:
-              raise SystemExit('disk division marker missing')
+          if old_div not in s: raise SystemExit('disk division marker missing')
           s=s.replace(old_div,new_div,1)
           p.write_text(s)
           PY
@@ -85,7 +64,7 @@ jobs:
         run: |
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git rm -f doctor-clippy.log doctor-test.log
+          git rm -f doctor-clippy.log doctor-test.log .github/v0-8-doctor-fix.trigger
           git add packages/storage/src/doctor.rs
           git commit -m "fix(storage): preserve doctor read-only index inspection"
           git push

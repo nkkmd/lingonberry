@@ -34,10 +34,7 @@ impl StorageFormatManifest {
         output.push('\n');
         output.push_str(&format!("format_version={}\n", self.format_version));
         output.push_str(&format!("layout_id={}\n", encode_value(&self.layout_id)));
-        output.push_str(&format!(
-            "created_by={}\n",
-            encode_value(&self.created_by)
-        ));
+        output.push_str(&format!("created_by={}\n", encode_value(&self.created_by)));
         if let Some(version) = self.source_format_version {
             output.push_str(&format!("source_format_version={version}\n"));
         }
@@ -165,11 +162,7 @@ pub fn plan_migration(inspection: &StorageInspection) -> Result<MigrationPlan, S
                 MigrationStep::Commit,
             ],
         ),
-        StorageFormatState::LegacyUnversioned { .. } => (
-            None,
-            true,
-            standard_migration_steps(),
-        ),
+        StorageFormatState::LegacyUnversioned { .. } => (None, true, standard_migration_steps()),
         StorageFormatState::Supported(manifest) => {
             if manifest.format_version == CURRENT_STORAGE_FORMAT_VERSION {
                 return Err("storage is already at the current format".to_string());
@@ -527,20 +520,13 @@ fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), String> {
 }
 
 fn read_utf8(path: &Path) -> Result<String, String> {
-    fs::read_to_string(path).map_err(|error| {
-        format!(
-            "failed to read {}: {error}",
-            path.display()
-        )
-    })
+    fs::read_to_string(path).map_err(|error| format!("failed to read {}: {error}", path.display()))
 }
 
 fn parse_document(input: &str, expected_magic: &str) -> Result<BTreeMap<String, String>, String> {
     let mut lines = input.lines();
     if lines.next() != Some(expected_magic) {
-        return Err(format!(
-            "invalid document magic; expected {expected_magic}"
-        ));
+        return Err(format!("invalid document magic; expected {expected_magic}"));
     }
     let mut fields = BTreeMap::new();
     for (index, line) in lines.enumerate() {
@@ -560,7 +546,10 @@ fn parse_document(input: &str, expected_magic: &str) -> Result<BTreeMap<String, 
     Ok(fields)
 }
 
-fn reject_unknown_fields(fields: &BTreeMap<String, String>, allowed: &[&str]) -> Result<(), String> {
+fn reject_unknown_fields(
+    fields: &BTreeMap<String, String>,
+    allowed: &[&str],
+) -> Result<(), String> {
     let allowed = allowed.iter().copied().collect::<BTreeSet<_>>();
     for key in fields.keys() {
         if !allowed.contains(key.as_str()) {
@@ -715,8 +704,7 @@ mod tests {
     #[test]
     fn journal_rejects_skipping_verification() {
         let dir = temp_dir("journal");
-        fs::write(dir.join("canonical-catalog.sqlite3"), b"fixture")
-            .expect("write fixture");
+        fs::write(dir.join("canonical-catalog.sqlite3"), b"fixture").expect("write fixture");
         let inspection = inspect_storage(&dir).expect("inspect");
         let plan = plan_migration(&inspection).expect("plan");
         let mut journal = MigrationJournal::from_plan(&plan);

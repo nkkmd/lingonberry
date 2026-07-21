@@ -1,3 +1,18 @@
+mod migration;
+mod migration_runtime;
+
+pub use migration::{
+    inspect_storage, plan_migration, read_migration_journal, verify_source_binding,
+    write_migration_journal, write_storage_manifest, MigrationJournal, MigrationPlan,
+    MigrationStage, MigrationStep, StorageFormatManifest, StorageFormatState, StorageInspection,
+    CURRENT_LAYOUT_ID, CURRENT_STORAGE_FORMAT_VERSION, MIGRATION_JOURNAL_FILE,
+    STORAGE_MANIFEST_FILE,
+};
+pub use migration_runtime::{
+    apply_migration, commit_migration, create_verified_migration_backup, prepare_migration,
+    resume_migration, rollback_migration, MigrationPreparation, VerifiedMigrationBackup,
+};
+
 use lingonberry_core::{runtime_state_dir, SqliteStorageBackend};
 use lingonberry_protocol::{read_json_file, JsonValue};
 use std::collections::BTreeMap;

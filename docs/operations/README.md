@@ -1,8 +1,17 @@
 # Operations
 
-**Status: active** | **Latest published release: v0.7.0** | **Next release target: v0.8.0** | **Last updated: 2026-07-21**
+**Status: active** | **Latest published release: v0.7.0** | **Next release target: v0.8.0** | **Last updated: 2026-07-22**
 
 このディレクトリには、Lingonberryの技術決定、運用契約、operator runbook、機械可読なfailure／crash inventoryを置きます。
+
+## v0.8.0 operational readiness
+
+- [Supported Platforms](./SUPPORTED_PLATFORMS.md)
+- [v0.8.0 Operator Runbook](./V0_8_OPERATOR_RUNBOOK.md)
+- [Systemd Unit Templates](./SYSTEMD_UNIT_TEMPLATES.md)
+- [Operational Readiness Backlog](../roadmap/OPERATIONAL_READINESS_BACKLOG.md)
+
+v0.8.0の正式なLinux基準環境は、Ubuntu Server 24.04 LTS、x86_64、systemdです。リリース時にはこの環境で診断、systemd起動契約、backup、isolated restore、index再構築、DR drillまでを検証します。他のsystemdベースLinuxはbest-effort supportとし、実装とデータ契約はUbuntu固有にしません。
 
 作業再開時は、[現在の実装状況](../roadmap/CURRENT_IMPLEMENTATION_STATUS.md)、[v0.7.0 Release Checklist](../roadmap/RELEASE_0_7_0_CHECKLIST.md)、[v0.7.0 Release Notes](../roadmap/RELEASE_0_7_0_RELEASE_NOTE.md)、[Storage Migration and Upgrade Contract](./STORAGE_MIGRATION_AND_UPGRADE.md)を最初に確認してください。
 

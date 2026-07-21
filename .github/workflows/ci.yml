@@ -5,7 +5,7 @@ on:
     branches: [main]
   workflow_dispatch:
 permissions:
-  contents: read
+  contents: write
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -29,6 +29,28 @@ jobs:
         run: cargo clippy --workspace --tests -- -A warnings
       - name: Run workspace tests
         run: cargo test --workspace
+  release-version-sync:
+    name: Synchronize v0.7.0 versions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Update workspace versions and lockfile
+        run: |
+          find packages -name Cargo.toml -type f -print0 | xargs -0 sed -i 's/^version = "0\.6\.0"$/version = "0.7.0"/'
+          cargo check --workspace
+      - name: Commit version synchronization
+        run: |
+          if git diff --quiet; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add packages/*/Cargo.toml Cargo.lock
+          git commit -m "chore: synchronize workspace version 0.7.0"
+          git push origin HEAD:${{ github.head_ref }}
   javascript:
     name: JavaScript tests
     runs-on: ubuntu-latest

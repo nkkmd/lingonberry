@@ -32,7 +32,7 @@ Key additions:
 - v0.7.0 to v0.8.0 systemd upgrade and compatible rollback procedures;
 - fresh-runner acceptance using release-built binaries installed into `/usr/local/bin`.
 
-All Rust workspace packages and `Cargo.lock` are versioned as `0.8.0` on the release branch. The annotated `v0.8.0` tag and GitHub Release are created only after review and merge.
+All Rust workspace packages and `Cargo.lock` are versioned as `0.8.0`. The `v0.8.0` tag and GitHub Release are published.
 
 ## Safety boundaries
 

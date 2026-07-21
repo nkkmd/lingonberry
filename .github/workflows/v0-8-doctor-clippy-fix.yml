@@ -15,22 +15,40 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt,clippy
-      - name: Capture diagnostic
+      - name: Remove duplicate block and validate
         run: |
           python3 - <<'PY'
           from pathlib import Path
           p=Path('packages/storage/src/doctor.rs')
-          p.write_text(p.read_text().replace('text.lines().last()', 'text.lines().next_back()'))
+          s=p.read_text()
+          for line in [
+              'use lingonberry_core::resolve_quarantine_active_generation;\n',
+              'use lingonberry_indexer::{verify_index, IndexConsistencyStatus, IndexSnapshot};\n',
+              'use std::process::Command;\n',
+          ]:
+              while s.count(line) > 1:
+                  first=s.find(line)
+                  second=s.find(line, first+len(line))
+                  s=s[:second]+s[second+len(line):]
+          marker='fn check_generation_pointer(config: &StorageRuntimeConfig) -> DoctorCheck {'
+          first=s.find(marker)
+          second=s.find(marker, first+len(marker))
+          aggregate=s.find('fn aggregate_severity(checks: &[DoctorCheck]) -> DoctorSeverity {')
+          if first < 0 or aggregate < 0:
+              raise SystemExit('doctor markers missing')
+          if second >= 0:
+              s=s[:second]+s[aggregate:]
+          s=s.replace('text.lines().last()', 'text.lines().next_back()')
+          p.write_text(s)
           PY
           cargo fmt --all
-          set +e
-          cargo clippy -q --workspace --lib -- -D warnings -A dead-code > doctor-clippy.log 2>&1
-          echo "exit_status=$?" >> doctor-clippy.log
-          set -e
-      - name: Commit diagnostic
+          cargo clippy --workspace --lib --bins -- -D warnings -A dead-code
+          cargo test --workspace
+      - name: Commit
         run: |
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add packages/storage/src/doctor.rs doctor-clippy.log
-          git commit -m "test(storage): capture doctor clippy diagnostic"
+          git rm -f doctor-clippy.log
+          git add packages/storage/src/doctor.rs
+          git commit -m "fix(storage): deduplicate expanded doctor checks"
           git push

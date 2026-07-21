@@ -1,10 +1,59 @@
 # Operations
 
-**Status: active** | **Latest published release: v0.5.0** | **Next release target: v0.6.0** | **Last updated: 2026-07-19**
+**Status: active** | **Latest published release: v0.7.0** | **Next release target: v0.8.0** | **Last updated: 2026-07-21**
 
 このディレクトリには、Lingonberryの技術決定、運用契約、operator runbook、機械可読なfailure／crash inventoryを置きます。
 
-作業再開時は、[現在の実装状況](../roadmap/CURRENT_IMPLEMENTATION_STATUS.md)、[v0.5.0 Release Checklist](../roadmap/RELEASE_0_5_0_CHECKLIST.md)、[v0.5.0 Release Notes](../roadmap/RELEASE_0_5_0_RELEASE_NOTE.md)を最初に確認してください。
+作業再開時は、[現在の実装状況](../roadmap/CURRENT_IMPLEMENTATION_STATUS.md)、[v0.7.0 Release Checklist](../roadmap/RELEASE_0_7_0_CHECKLIST.md)、[v0.7.0 Release Notes](../roadmap/RELEASE_0_7_0_RELEASE_NOTE.md)、[Storage Migration and Upgrade Contract](./STORAGE_MIGRATION_AND_UPGRADE.md)を最初に確認してください。
+
+## v0.7.0 storage migration and upgrade
+
+- [Storage Migration and Upgrade Contract](./STORAGE_MIGRATION_AND_UPGRADE.md)
+- [v0.7.0 Release Checklist](../roadmap/RELEASE_0_7_0_CHECKLIST.md)
+- [v0.7.0 Release Notes](../roadmap/RELEASE_0_7_0_RELEASE_NOTE.md)
+
+v0.7.0では、既存のsingle-node data directoryを明示的なoperator workflowで現在のstorage formatへ移行できます。通常起動時のimplicit migrationはありません。
+
+```text
+inspect
+→ plan
+→ verified backup
+→ apply
+→ verify
+→ commit
+→ resume or rollback when interrupted
+```
+
+主な安全境界:
+
+- unknown newer format、malformed manifest、unsupported layout、symlink、special fileはmutation前にfail closed
+- migration planはsource inventory digestとtarget format versionへdeterministically bound
+- non-empty legacy stateはverified backup evidenceなしにmigratingへ進まない
+- target formatはdurable verification前にcommittedにならない
+- v1 format migrationはcanonical object dataをsemantic rewriteしない
+- committed migrationのautomatic downgradeは行わず、compatible verified backupからrestoreする
+
+Operator CLI:
+
+```bash
+cargo run -p lingonberry-storage --bin lingonberry-storage-migrate -- inspect
+cargo run -p lingonberry-storage --bin lingonberry-storage-migrate -- plan
+cargo run -p lingonberry-storage --bin lingonberry-storage-migrate -- apply
+cargo run -p lingonberry-storage --bin lingonberry-storage-migrate -- status
+cargo run -p lingonberry-storage --bin lingonberry-storage-migrate -- resume
+cargo run -p lingonberry-storage --bin lingonberry-storage-migrate -- rollback
+```
+
+## v0.6.0 transitions and effective views
+
+- [v0.6.0 Release Checklist](../roadmap/RELEASE_0_6_0_CHECKLIST.md)
+- [v0.6.0 Release Notes](../roadmap/RELEASE_0_6_0_RELEASE_NOTE.md)
+- [Transition HTTP API](../protocols/HTTP_TRANSITION_API.md)
+- [Effective View Read API](../protocols/EFFECTIVE_VIEW_READ_API.md)
+- [Transition Reevaluation Queue](../protocols/TRANSITION_REEVALUATION_QUEUE.md)
+- [Last-known-good Effective View](../protocols/LAST_KNOWN_GOOD_EFFECTIVE_VIEW.md)
+
+v0.6.0では、original Knowledge Objectを変更せず、append-only Transition Objectとdeterministic effective viewを導入しました。
 
 ## v0.5.0 normal object lifecycle
 
@@ -14,10 +63,7 @@
 - [Index Lifecycle Contract](../../packages/indexer/INDEX_LIFECYCLE.md)
 - [Index Catch-up Contract](../../packages/indexer/INDEX_CATCH_UP.md)
 
-v0.5.0は2026-07-19に公開されました。canonical storageを正本とし、indexをdeterministicに検証・再構築可能な派生状態として扱います。corrupt、unsupported、partial、stale、ambiguous stateはfail closedで扱い、inconsistent resultからcheckpointを更新しません。
-
-- Tag: `v0.5.0`
-- Release target commit: `bf8176da0d992152fb116ca0c45177904d1aa61c`
+v0.5.0ではcanonical storageを正本とし、indexをdeterministicに検証・再構築可能な派生状態として扱います。
 
 ## v0.4.0 verified cleanup
 
@@ -51,7 +97,7 @@ v0.4.0 cleanupはexact-subject、proof-bound、operator-triggered、double opt-i
 - [Multi-node Conflict Policy](./MULTI_NODE_CONFLICT_POLICY.md)
 - [Multi-node Capacity and Placement Policy](./MULTI_NODE_CAPACITY_AND_PLACEMENT_POLICY.md)
 
-Multi-node文書は将来構成の契約です。quarantine replacement／cleanup operation lockはsame-host coordinationであり、distributed lockではありません。
+Multi-node文書は将来構成の契約です。quarantine replacement／cleanup operation lockとstorage migration lockはsame-host coordinationであり、distributed lockではありません。
 
 ## Quarantine administration
 
@@ -99,7 +145,10 @@ Canonical sequence: backup v2 verification → replacement preview/proof verific
 - [Container Execution Templates](./CONTAINER_EXECUTION_TEMPLATES.md)
 - [Systemd Unit Templates](./SYSTEMD_UNIT_TEMPLATES.md)
 - [Migration and Schema Versioning](./MIGRATION_AND_SCHEMA_VERSIONING.md)
+- [Storage Migration and Upgrade Contract](./STORAGE_MIGRATION_AND_UPGRADE.md)
 - [Legacy Admin Token Deprecation](../roadmap/RBAC_LEGACY_TOKEN_DEPRECATION.md)
+- [v0.7.0 Release Notes](../roadmap/RELEASE_0_7_0_RELEASE_NOTE.md)
+- [v0.6.0 Release Notes](../roadmap/RELEASE_0_6_0_RELEASE_NOTE.md)
 - [v0.5.0 Release Notes](../roadmap/RELEASE_0_5_0_RELEASE_NOTE.md)
 - [v0.4.0 Release Notes](../roadmap/RELEASE_0_4_0_RELEASE_NOTE.md)
 - [v0.3.0 Release Notes](../roadmap/RELEASE_0_3_0_RELEASE_NOTE.md)

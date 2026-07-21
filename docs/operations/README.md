@@ -1,20 +1,35 @@
 # Operations
 
-**Status: active** | **Latest published release: v0.7.0** | **Next release target: v0.8.0** | **Last updated: 2026-07-22**
+**Status: active** | **Latest published release: v0.8.0** | **Next release target: v0.9.0** | **Last updated: 2026-07-22**
 
 このディレクトリには、Lingonberryの技術決定、運用契約、operator runbook、機械可読なfailure／crash inventoryを置きます。
 
 ## v0.8.0 operational readiness
 
 - [v0.8.0 Release Checklist](../roadmap/RELEASE_0_8_0_CHECKLIST.md)
+- [v0.8.0 Release Notes](../roadmap/RELEASE_0_8_0_RELEASE_NOTE.md)
 - [Supported Platforms](./SUPPORTED_PLATFORMS.md)
 - [v0.8.0 Operator Runbook](./V0_8_OPERATOR_RUNBOOK.md)
+- [Operator CLI Contract](./OPERATOR_CLI_CONTRACT.md)
+- [v0.8.0 Upgrade and Rollback](./V0_8_UPGRADE_AND_ROLLBACK.md)
 - [Systemd Unit Templates](./SYSTEMD_UNIT_TEMPLATES.md)
-- [Operational Readiness Backlog](../roadmap/OPERATIONAL_READINESS_BACKLOG.md)
 
-v0.8.0の正式なLinux基準環境は、Ubuntu Server 24.04 LTS、x86_64、systemdです。リリース時にはこの環境で診断、systemd起動契約、backup、isolated restore、index再構築、DR drillまでを検証します。他のsystemdベースLinuxはbest-effort supportとし、実装とデータ契約はUbuntu固有にしません。
+v0.8.0の正式なLinux基準環境は、Ubuntu Server 24.04 LTS、x86_64、systemdです。この環境でread-only diagnosis、systemd起動契約、verified backup、isolated restore、index再構築、DR drill、restart persistenceを検証しました。他のsystemdベースLinuxはbest-effort supportとし、実装とデータ契約はUbuntu固有にしません。
 
-作業再開時は、[現在の実装状況](../roadmap/CURRENT_IMPLEMENTATION_STATUS.md)、[v0.8.0 Release Checklist](../roadmap/RELEASE_0_8_0_CHECKLIST.md)、[v0.8.0 Operator Runbook](./V0_8_OPERATOR_RUNBOOK.md)、[Supported Platforms](./SUPPORTED_PLATFORMS.md)、[Storage Migration and Upgrade Contract](./STORAGE_MIGRATION_AND_UPGRADE.md)を最初に確認してください。
+Canonical operator path:
+
+```text
+install release-built binaries
+→ configure
+→ doctor / ready
+→ start relay with systemd
+→ publish / inspect
+→ backup create / verify
+→ isolated restore plan / apply
+→ index verify / rebuild
+→ isolated DR drill
+→ journalctl / status / doctor / metrics diagnosis
+```
 
 ## v0.7.0 storage migration and upgrade
 
@@ -34,64 +49,13 @@ inspect
 → resume or rollback when interrupted
 ```
 
-主な安全境界:
-
-- unknown newer format、malformed manifest、unsupported layout、symlink、special fileはmutation前にfail closed
-- migration planはsource inventory digestとtarget format versionへdeterministically bound
-- non-empty legacy stateはverified backup evidenceなしにmigratingへ進まない
-- target formatはdurable verification前にcommittedにならない
-- v1 format migrationはcanonical object dataをsemantic rewriteしない
-- committed migrationのautomatic downgradeは行わず、compatible verified backupからrestoreする
-
-Operator CLI:
-
-```bash
-cargo run -p lingonberry-storage --bin lingonberry-storage-migrate -- inspect
-cargo run -p lingonberry-storage --bin lingonberry-storage-migrate -- plan
-cargo run -p lingonberry-storage --bin lingonberry-storage-migrate -- apply
-cargo run -p lingonberry-storage --bin lingonberry-storage-migrate -- status
-cargo run -p lingonberry-storage --bin lingonberry-storage-migrate -- resume
-cargo run -p lingonberry-storage --bin lingonberry-storage-migrate -- rollback
-```
-
-## v0.6.0 transitions and effective views
-
-- [v0.6.0 Release Checklist](../roadmap/RELEASE_0_6_0_CHECKLIST.md)
-- [v0.6.0 Release Notes](../roadmap/RELEASE_0_6_0_RELEASE_NOTE.md)
-- [Transition HTTP API](../protocols/HTTP_TRANSITION_API.md)
-- [Effective View Read API](../protocols/EFFECTIVE_VIEW_READ_API.md)
-- [Transition Reevaluation Queue](../protocols/TRANSITION_REEVALUATION_QUEUE.md)
-- [Last-known-good Effective View](../protocols/LAST_KNOWN_GOOD_EFFECTIVE_VIEW.md)
-
-v0.6.0では、original Knowledge Objectを変更せず、append-only Transition Objectとdeterministic effective viewを導入しました。
-
-## v0.5.0 normal object lifecycle
-
-- [v0.5.0 Release Roadmap](../roadmap/RELEASE_0_5_0_ROADMAP.md)
-- [v0.5.0 Release Checklist](../roadmap/RELEASE_0_5_0_CHECKLIST.md)
-- [v0.5.0 Release Notes](../roadmap/RELEASE_0_5_0_RELEASE_NOTE.md)
-- [Index Lifecycle Contract](../../packages/indexer/INDEX_LIFECYCLE.md)
-- [Index Catch-up Contract](../../packages/indexer/INDEX_CATCH_UP.md)
-
-v0.5.0ではcanonical storageを正本とし、indexをdeterministicに検証・再構築可能な派生状態として扱います。
-
-## v0.4.0 verified cleanup
-
-- [Quarantine Replacement Retention Policy](./QUARANTINE_REPLACEMENT_RETENTION_POLICY.md)
-- [Cleanup Operations Runbook](./QUARANTINE_REPLACEMENT_CLEANUP_RUNBOOK.md)
-- [Cleanup Failure-point Inventory](./quarantine-replacement-cleanup-failure-points.v1.json)
-- [Cleanup Crash Matrix](./quarantine-replacement-cleanup-crash-matrix.v1.json)
-- [v0.4.0 Smoke Test Procedure](./QUARANTINE_REPLACEMENT_V0_4_0_SMOKE_TEST.md)
-
-v0.4.0 cleanupはexact-subject、proof-bound、operator-triggered、double opt-inです。scheduled／unattended cleanupはなく、terminal cleanup transaction workspaceは運用証拠として保持します。
-
 ## Quickstart
 
 - [Knowledge Object Publish Quickstart](./KNOWLEDGE_OBJECT_PUBLISH_QUICKSTART.md)
 - [Relay Quickstart](./RELAY_QUICKSTART.md)
 - [Storage Node Quickstart](./STORAGE_NODE_QUICKSTART.md)
 
-## Contracts and Specs
+## Contracts and specifications
 
 - [技術決定 ADR](./TECH_DECISION_ADR.md)
 - [運用前提メモ](./OPERATIONAL_PREMISES_MEMO.md)
@@ -99,15 +63,7 @@ v0.4.0 cleanupはexact-subject、proof-bound、operator-triggered、double opt-i
 - [HTTP Carrier Contract](./HTTP_CARRIER_CONTRACT.md)
 - [File / Archive Carrier Contract](./FILE_ARCHIVE_CARRIER_CONTRACT.md)
 - [Carrier Capability Negotiation](./CARRIER_CAPABILITY_NEGOTIATION.md)
-
-## Multi-node
-
-- [Multi-node Discovery and Topology](./MULTI_NODE_DISCOVERY_AND_TOPOLOGY.md)
-- [Multi-node Sync Contract](./MULTI_NODE_SYNC_CONTRACT.md)
-- [Multi-node Conflict Policy](./MULTI_NODE_CONFLICT_POLICY.md)
-- [Multi-node Capacity and Placement Policy](./MULTI_NODE_CAPACITY_AND_PLACEMENT_POLICY.md)
-
-Multi-node文書は将来構成の契約です。quarantine replacement／cleanup operation lockとstorage migration lockはsame-host coordinationであり、distributed lockではありません。
+- [Storage Migration and Upgrade Contract](./STORAGE_MIGRATION_AND_UPGRADE.md)
 
 ## Quarantine administration
 
@@ -126,7 +82,7 @@ Multi-node文書は将来構成の契約です。quarantine replacement／cleanu
 - [Quarantine JSONL Index, Rotation, and Maintenance](./QUARANTINE_JSONL_MAINTENANCE.md)
 - [Quarantine Compaction Preview and Proof](./QUARANTINE_COMPACTION_PROOF.md)
 
-## Quarantine verified replacement
+## Quarantine verified replacement and cleanup
 
 - [Replacement Policy and Semantic-equivalence Contract](./QUARANTINE_REPLACEMENT_POLICY.md)
 - [Replacement Preview and Proof Contract](./QUARANTINE_REPLACEMENT_PREVIEW.md)
@@ -135,9 +91,24 @@ Multi-node文書は将来構成の契約です。quarantine replacement／cleanu
 - [Generation-directory Contract](./QUARANTINE_REPLACEMENT_GENERATION.md)
 - [Replacement Recovery Runbook](./QUARANTINE_REPLACEMENT_RECOVERY_RUNBOOK.md)
 - [Replacement Operations Hardening](./QUARANTINE_REPLACEMENT_OPERATIONS_HARDENING.md)
-- [Replacement Crash-point Inventory](./quarantine-replacement-crash-points.v1.json)
+- [Cleanup Retention Policy](./QUARANTINE_REPLACEMENT_RETENTION_POLICY.md)
+- [Cleanup Operations Runbook](./QUARANTINE_REPLACEMENT_CLEANUP_RUNBOOK.md)
 
-Canonical sequence: backup v2 verification → replacement preview/proof verification → replacement apply/recovery → terminal completion evidence → retention evaluation → cleanup preview/proof → cleanup preparation → separate irreversible acknowledgement → terminal status. Pointer、journal、inventoryのmanual repairは禁止です。
+Canonical sequence:
+
+```text
+backup verification
+→ replacement preview / proof verification
+→ replacement apply / recovery
+→ terminal completion evidence
+→ retention evaluation
+→ cleanup preview / proof
+→ cleanup preparation
+→ irreversible acknowledgement
+→ terminal status
+```
+
+Pointer、journal、manifest、proof、inventory、completion evidence、cleanup evidenceのmanual repairは禁止です。
 
 ## General operations
 
@@ -150,13 +121,18 @@ Canonical sequence: backup v2 verification → replacement preview/proof verific
 - [Relay / Storage Separation](./RELAY_STORAGE_SEPARATION.md)
 - [Node Lifecycle Runbook](./NODE_LIFECYCLE_RUNBOOK.md)
 
-## Templates and Versions
+## Multi-node
 
-- [Container Execution Templates](./CONTAINER_EXECUTION_TEMPLATES.md)
-- [Systemd Unit Templates](./SYSTEMD_UNIT_TEMPLATES.md)
-- [Migration and Schema Versioning](./MIGRATION_AND_SCHEMA_VERSIONING.md)
-- [Storage Migration and Upgrade Contract](./STORAGE_MIGRATION_AND_UPGRADE.md)
-- [Legacy Admin Token Deprecation](../roadmap/RBAC_LEGACY_TOKEN_DEPRECATION.md)
+- [Multi-node Discovery and Topology](./MULTI_NODE_DISCOVERY_AND_TOPOLOGY.md)
+- [Multi-node Sync Contract](./MULTI_NODE_SYNC_CONTRACT.md)
+- [Multi-node Conflict Policy](./MULTI_NODE_CONFLICT_POLICY.md)
+- [Multi-node Capacity and Placement Policy](./MULTI_NODE_CAPACITY_AND_PLACEMENT_POLICY.md)
+
+Multi-node文書は将来構成の契約です。quarantine replacement／cleanup operation lockとstorage migration lockはsame-host coordinationであり、distributed lockではありません。
+
+## Release notes
+
+- [v0.8.0 Release Notes](../roadmap/RELEASE_0_8_0_RELEASE_NOTE.md)
 - [v0.7.0 Release Notes](../roadmap/RELEASE_0_7_0_RELEASE_NOTE.md)
 - [v0.6.0 Release Notes](../roadmap/RELEASE_0_6_0_RELEASE_NOTE.md)
 - [v0.5.0 Release Notes](../roadmap/RELEASE_0_5_0_RELEASE_NOTE.md)

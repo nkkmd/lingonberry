@@ -1,6 +1,6 @@
 [package]
 name = "lingonberry-storage"
-version = "0.7.0"
+version = "0.8.0"
 edition = "2021"
 license = "Apache-2.0"
 
@@ -10,4 +10,5 @@ path = "src/lib.rs"
 
 [dependencies]
 lingonberry-core = { path = "../core" }
+lingonberry-indexer = { path = "../indexer" }
 lingonberry-protocol = { path = "../protocol" }

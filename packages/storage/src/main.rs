@@ -4,7 +4,9 @@ use lingonberry_protocol::{
     validate_knowledge_object, validate_publish_request, JsonValue,
 };
 use lingonberry_storage::{
-    build_storage_backend_at, runtime_storage_config, runtime_storage_layout, StorageRuntimeConfig,
+    build_storage_backend_at, run_storage_doctor, runtime_storage_config_with_overrides,
+    runtime_storage_layout, DoctorCheck, DoctorReport, StorageRuntimeConfig,
+    StorageRuntimeConfigOverrides, STORAGE_CONFIG_PRECEDENCE,
 };
 use std::collections::BTreeMap;
 use std::env;
@@ -18,14 +20,11 @@ fn main() {
 }
 
 fn run(args: Vec<String>) -> Result<(), String> {
-    let Some(command) = args.first().map(String::as_str) else {
-        return Err("usage: lingonberry-storage <capabilities|config|ready|run|append|retrieve|replay|list> <json-file|canonical-id>".to_string());
-    };
-
-    let config = runtime_storage_config()?;
+    let invocation = parse_invocation(args)?;
+    let config = runtime_storage_config_with_overrides(&invocation.overrides)?;
     let backend = build_storage_backend_at(&config.data_dir);
 
-    match command {
+    match invocation.command.as_str() {
         "capabilities" => {
             println!(
                 "{}",
@@ -40,7 +39,16 @@ fn run(args: Vec<String>) -> Result<(), String> {
                             JsonValue::String("replay".to_string()),
                             JsonValue::String("list".to_string()),
                             JsonValue::String("config".to_string()),
+                            JsonValue::String("status".to_string()),
+                            JsonValue::String("doctor".to_string()),
+                            JsonValue::String("verify".to_string()),
+                            JsonValue::String("health".to_string()),
                             JsonValue::String("ready".to_string()),
+                            JsonValue::String("metrics".to_string()),
+                            JsonValue::String("backup".to_string()),
+                            JsonValue::String("restore".to_string()),
+                            JsonValue::String("index".to_string()),
+                            JsonValue::String("drill".to_string()),
                             JsonValue::String("run".to_string()),
                         ]),
                     ),
@@ -53,30 +61,209 @@ fn run(args: Vec<String>) -> Result<(), String> {
             print_config(&config);
             Ok(())
         }
-        "ready" => {
-            print_runtime_status(&config);
+        "status" => {
+            print_operator_status(&config);
             Ok(())
         }
+        "doctor" => handle_doctor(&config, false),
+        "verify" => handle_doctor(&config, true),
+        "health" => {
+            print_health();
+            Ok(())
+        }
+        "ready" => handle_readiness(&config),
+        "metrics" => {
+            print_metrics(&config);
+            Ok(())
+        }
+        "backup" => lingonberry_storage::recovery::handle_backup(
+            &config,
+            &backend,
+            &invocation.command_args,
+        ),
+        "restore" => {
+            lingonberry_storage::recovery::handle_restore(&config, &invocation.command_args)
+        }
+        "index" => lingonberry_storage::recovery::handle_index(&backend, &invocation.command_args),
+        "drill" => lingonberry_storage::recovery::handle_drill(&config, &invocation.command_args),
         "run" => {
             print_runtime_status(&config);
             Ok(())
         }
         "append" => {
-            let pathname = args
-                .get(1)
-                .ok_or_else(|| "usage: lingonberry-storage append <json-file>".to_string())?;
+            let pathname = invocation.command_args.first().ok_or_else(|| {
+                "usage: lingonberry-storage [options] append <json-file>".to_string()
+            })?;
             handle_append(pathname, &backend)
         }
         "retrieve" => {
-            let canonical_id = args
-                .get(1)
-                .ok_or_else(|| "usage: lingonberry-storage retrieve <canonical-id>".to_string())?;
+            let canonical_id = invocation.command_args.first().ok_or_else(|| {
+                "usage: lingonberry-storage [options] retrieve <canonical-id>".to_string()
+            })?;
             handle_retrieve(canonical_id, &backend)
         }
         "replay" => handle_replay(&backend),
         "list" => handle_list(&backend),
-        _ => Err(format!("unknown command: {}", command)),
+        command => Err(format!("unknown command: {command}")),
     }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+struct ParsedInvocation {
+    command: String,
+    command_args: Vec<String>,
+    overrides: StorageRuntimeConfigOverrides,
+}
+
+fn parse_invocation(args: Vec<String>) -> Result<ParsedInvocation, String> {
+    let mut overrides = StorageRuntimeConfigOverrides::default();
+    let mut index = 0;
+    while let Some(argument) = args.get(index) {
+        if argument == "--" {
+            index += 1;
+            break;
+        }
+        if !argument.starts_with("--") {
+            break;
+        }
+        let target = match argument.as_str() {
+            "--config" => &mut overrides.config_path,
+            "--state-dir" => &mut overrides.state_dir,
+            "--data-dir" => &mut overrides.data_dir,
+            "--backup-dir" => &mut overrides.backup_dir,
+            "--temp-dir" => &mut overrides.temp_dir,
+            _ => return Err(format!("usage: unknown global option: {argument}")),
+        };
+        let value = args
+            .get(index + 1)
+            .ok_or_else(|| format!("usage: global option {argument} requires a value"))?;
+        if value.is_empty() || value.starts_with("--") {
+            return Err(format!("usage: global option {argument} requires a value"));
+        }
+        *target = Some(value.into());
+        index += 2;
+    }
+    let command = args.get(index).cloned().ok_or_else(|| {
+        "usage: lingonberry-storage [--config PATH] [--state-dir PATH] [--data-dir PATH] [--backup-dir PATH] [--temp-dir PATH] <command>".to_string()
+    })?;
+    Ok(ParsedInvocation {
+        command,
+        command_args: args[index + 1..].to_vec(),
+        overrides,
+    })
+}
+
+fn print_health() {
+    println!(
+        "{}",
+        to_canonical_json(&json_object(vec![
+            ("service", JsonValue::String("storage".to_string())),
+            ("status", JsonValue::String("ok".to_string())),
+            ("scope", JsonValue::String("process".to_string())),
+        ]))
+    );
+}
+
+fn handle_readiness(config: &StorageRuntimeConfig) -> Result<(), String> {
+    let report = run_storage_doctor(config);
+    let ready = !report.has_failures();
+    let status = if ready { "ready" } else { "not_ready" };
+    println!(
+        "{}",
+        to_canonical_json(&json_object(vec![
+            ("service", JsonValue::String("storage".to_string())),
+            ("status", JsonValue::String(status.to_string())),
+            ("ready", JsonValue::Bool(ready)),
+            (
+                "diagnosticStatus",
+                JsonValue::String(report.severity.as_str().to_string()),
+            ),
+        ]))
+    );
+    if ready {
+        Ok(())
+    } else {
+        Err("readiness detected failed checks".to_string())
+    }
+}
+
+fn print_metrics(config: &StorageRuntimeConfig) {
+    let report = run_storage_doctor(config);
+    let ok = report
+        .checks
+        .iter()
+        .filter(|check| check.severity.as_str() == "ok")
+        .count();
+    let warning = report
+        .checks
+        .iter()
+        .filter(|check| check.severity.as_str() == "warning")
+        .count();
+    let failed = report
+        .checks
+        .iter()
+        .filter(|check| check.severity.as_str() == "failed")
+        .count();
+    println!(
+        "{}",
+        to_canonical_json(&json_object(vec![
+            ("service", JsonValue::String("storage".to_string())),
+            ("metricsVersion", JsonValue::String("1".to_string())),
+            ("boundedCardinality", JsonValue::Bool(true)),
+            (
+                "ready",
+                JsonValue::Number((!report.has_failures() as usize).to_string())
+            ),
+            ("doctorChecksOk", JsonValue::Number(ok.to_string())),
+            (
+                "doctorChecksWarning",
+                JsonValue::Number(warning.to_string())
+            ),
+            ("doctorChecksFailed", JsonValue::Number(failed.to_string())),
+        ]))
+    );
+}
+
+fn handle_doctor(config: &StorageRuntimeConfig, strict: bool) -> Result<(), String> {
+    let report = run_storage_doctor(config);
+    println!("{}", to_canonical_json(&doctor_report_json(&report)));
+    if report.has_failures() {
+        return Err("doctor detected failed checks".to_string());
+    }
+    if strict && report.severity.as_str() != "ok" {
+        return Err("verify detected warning checks".to_string());
+    }
+    Ok(())
+}
+
+fn doctor_report_json(report: &DoctorReport) -> JsonValue {
+    json_object(vec![
+        (
+            "status",
+            JsonValue::String(report.severity.as_str().to_string()),
+        ),
+        ("readOnly", JsonValue::Bool(true)),
+        (
+            "checkCount",
+            JsonValue::Number(report.checks.len().to_string()),
+        ),
+        (
+            "checks",
+            JsonValue::Array(report.checks.iter().map(doctor_check_json).collect()),
+        ),
+    ])
+}
+
+fn doctor_check_json(check: &DoctorCheck) -> JsonValue {
+    json_object(vec![
+        ("name", JsonValue::String(check.name.to_string())),
+        (
+            "status",
+            JsonValue::String(check.severity.as_str().to_string()),
+        ),
+        ("code", JsonValue::String(check.code.to_string())),
+        ("message", JsonValue::String(check.message.clone())),
+    ])
 }
 
 fn handle_append(pathname: &str, backend: &impl StorageBackend) -> Result<(), String> {
@@ -199,6 +386,16 @@ fn print_config(config: &StorageRuntimeConfig) {
     println!(
         "{}",
         to_canonical_json(&json_object(vec![
+            ("containsSecrets", JsonValue::Bool(false)),
+            (
+                "precedence",
+                JsonValue::Array(
+                    STORAGE_CONFIG_PRECEDENCE
+                        .iter()
+                        .map(|value| JsonValue::String((*value).to_string()))
+                        .collect(),
+                ),
+            ),
             ("configPath", path_value(config.config_path.as_ref())),
             (
                 "stateDir",
@@ -223,6 +420,25 @@ fn print_config(config: &StorageRuntimeConfig) {
             (
                 "catalogPath",
                 JsonValue::String(layout.catalog_path.to_string_lossy().to_string())
+            ),
+        ]))
+    );
+}
+
+fn print_operator_status(config: &StorageRuntimeConfig) {
+    let report = run_storage_doctor(config);
+    println!(
+        "{}",
+        to_canonical_json(&json_object(vec![
+            ("service", JsonValue::String("storage".to_string())),
+            (
+                "status",
+                JsonValue::String(report.severity.as_str().to_string())
+            ),
+            ("readOnly", JsonValue::Bool(true)),
+            (
+                "checkCount",
+                JsonValue::Number(report.checks.len().to_string())
             ),
         ]))
     );
@@ -276,6 +492,11 @@ fn exit_code_for_error(error: &str) -> i32 {
         64
     } else if error.contains("not found") {
         66
+    } else if error.contains("doctor detected")
+        || error.contains("verify detected")
+        || error.contains("readiness detected")
+    {
+        69
     } else if error.contains("config") || error.contains("failed to bind") {
         78
     } else if error.contains("validation failed") {
@@ -284,5 +505,36 @@ fn exit_code_for_error(error: &str) -> i32 {
         70
     } else {
         1
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn global_options_are_parsed_before_the_command() {
+        let parsed = parse_invocation(vec![
+            "--state-dir".to_string(),
+            "/state".to_string(),
+            "--data-dir".to_string(),
+            "/data".to_string(),
+            "doctor".to_string(),
+        ])
+        .expect("parse invocation");
+        assert_eq!(parsed.command, "doctor");
+        assert_eq!(parsed.overrides.state_dir, Some("/state".into()));
+        assert_eq!(parsed.overrides.data_dir, Some("/data".into()));
+    }
+
+    #[test]
+    fn unknown_global_option_is_rejected() {
+        let error = parse_invocation(vec![
+            "--repair".to_string(),
+            "now".to_string(),
+            "doctor".to_string(),
+        ])
+        .expect_err("unknown option must fail");
+        assert!(error.contains("unknown global option"));
     }
 }

@@ -1,6 +1,6 @@
 # 現在の実装状況
 
-**Status: v0.7.0 released** | **Last updated: 2026-07-21**
+**Status: v0.8.0 in development** | **Latest published release: v0.7.0** | **Last updated: 2026-07-22**
 
 この文書は、Lingonberryの実装作業を中断・再開するときの引き継ぎ用正本です。
 
@@ -9,87 +9,125 @@
 ```text
 released version: 0.7.0
 next release target: 0.8.0
-parent issue: #99 (closed as completed)
-release candidate PR: #100 (merged)
-post-release documentation PR: #101 (merged)
-release target commit: b364ac0c19e9dcec10c25db22a850c9d096b0f9b
-publication state: annotated tag v0.7.0 and GitHub Release published
+parent issue: #105 (open)
+release PR: #106 (draft, open)
+release branch: release/v0.8.0-operational-readiness
+formal reference platform: Ubuntu Server 24.04 LTS, x86_64, systemd
+latest implementation commit: ca0342a2b659c147ab6510180c3ed5e464c85373
+publication state: not released
 ```
 
-## v0.7.0で実装済み
+## v0.8.0で実装済み
 
-- versioned `storage-format.manifest`
-- storage format v1／`single-node-canonical-v1` layout contract
-- deterministic read-only storage inspection
-- explicit `empty`／`legacy_unversioned`／`supported`／`unknown_newer`／`corrupt` classification
-- deterministic durable inventory and source digest binding
-- migration plan and durable migration journal
-- verified migration snapshot bound to plan ID and source digest
-- explicit apply／verify／commit orchestration
-- deterministic resume／rollback
-- dedicated `lingonberry-storage-migrate` operator CLI
-- v0.4.0-equivalent persistent fixture
-- upgrade／downgrade／deprecated configuration policy
-- all Rust workspace packages and `Cargo.lock` set to `0.7.0`
-- release note and release checklist
+### Operator diagnostics and configuration
+
+- read-only storage doctor model
+- `status`、`doctor`、strict `verify`
+- `ok`／`warning`／`failed` severity
+- stable machine-readable diagnostic codes
+- configuration、state/data/backup/temp directory、storage format、migration journal、raw log、catalog checks
+- symlink、unknown-newer format、corrupt formatのfail-closed判定
+- configuration precedence: `defaults < config file < environment < CLI`
+- secretを含まないeffective configuration出力
+
+### Observability
+
+- process-level `health`
+- storage-aware `ready`
+- failed readinessの非zero exit
+- bounded-cardinality `metrics`
+
+### Backup, restore, index, and DR
+
+- `backup create`と自動isolated verification
+- `backup verify`
+- read-only `restore plan`
+- explicit empty isolated targetへの`restore apply`
+- active state/data directory、symlink、non-empty targetの拒否
+- restored index consistency verification
+- `index verify`／`index rebuild`
+- isolated restore DR drillとmandatory cleanup
+
+### Linux operations
+
+- formal reference platform: Ubuntu Server 24.04 LTS、x86_64、systemd
+- storage readiness gate用systemd oneshot unit
+- relay用long-running systemd unit
+- non-root service user、environment file、filesystem ownership contract
+- Ubuntu install／start／stop／restart／diagnosis runbook
+- `ubuntu-24.04`に固定したoperator acceptance workflow
 
 ## Fixed safety model
 
-- Ordinary startup never performs implicit migration.
-- Unknown newer formats are rejected before mutation.
-- Malformed manifests, unsupported layouts, symlinks, special files, and changed-after-plan state fail closed.
-- Non-empty legacy storage cannot enter migration without a verified backup.
-- Migration cannot reach `committed` before durable verification.
-- The v1 migration does not rewrite canonical durable files; it introduces a verified format manifest.
-- Interrupted migration is resumed from durable journal evidence or rolled back before commit.
-- A committed migration is not downgraded in place; downgrade requires restoration of a compatible verified backup.
-- Protocol and public object lifecycle contracts remain unchanged.
+- ordinary startup never performs implicit migration or destructive repair
+- `doctor` is read-only
+- unknown、corrupt、contradictory state is not treated as success
+- restore never overwrites the active state or data directory
+- restore target must be explicit, empty, isolated, and not a symbolic link
+- every created backup is verified through an isolated import before success is reported
+- canonical storage remains authoritative; index remains derived and rebuildable
+- protocol、storage format、proof、replacement、cleanup contracts are not weakened
+- the Ubuntu reference platform does not make durable data or public contracts Ubuntu-specific
 
-## Operator runtime
+## Formal operator path
 
-```bash
-cargo run -p lingonberry-storage --bin lingonberry-storage-migrate -- inspect
-cargo run -p lingonberry-storage --bin lingonberry-storage-migrate -- plan
-cargo run -p lingonberry-storage --bin lingonberry-storage-migrate -- backup
-cargo run -p lingonberry-storage --bin lingonberry-storage-migrate -- apply
-cargo run -p lingonberry-storage --bin lingonberry-storage-migrate -- verify
-cargo run -p lingonberry-storage --bin lingonberry-storage-migrate -- commit
+```text
+install on Ubuntu Server 24.04 LTS
+→ configure
+→ doctor / ready
+→ start relay with systemd
+→ publish / inspect
+→ backup create / verify
+→ isolated restore plan / apply
+→ index verify / rebuild
+→ isolated DR drill
+→ journalctl / status / doctor / metrics diagnosis
 ```
 
-Recovery commands:
+Canonical documents:
 
-```bash
-cargo run -p lingonberry-storage --bin lingonberry-storage-migrate -- status
-cargo run -p lingonberry-storage --bin lingonberry-storage-migrate -- resume
-cargo run -p lingonberry-storage --bin lingonberry-storage-migrate -- rollback
-```
+- [v0.8.0 Release Checklist](./RELEASE_0_8_0_CHECKLIST.md)
+- [Supported Platforms](../operations/SUPPORTED_PLATFORMS.md)
+- [v0.8.0 Operator Runbook](../operations/V0_8_OPERATOR_RUNBOOK.md)
 
 ## Validation state
 
-The released version passed:
+At commit `472643e55bd86a10babeeedd4bc1036b09c6f22b`:
 
-- `cargo fmt --all -- --check`
-- library Clippy with warnings denied
-- binary Clippy with warnings denied
-- test-target Clippy compilation
-- `cargo test --workspace`
-- JavaScript tests
-- external conformance suite
-- legacy migration／verified backup／commit／resume／rollback integration coverage
+- standard CI run `29844895503`: success
+- Ubuntu 24.04 operator acceptance run `29844895652`: success
+
+The validated path includes:
+
+- Rust formatting, Clippy, and workspace tests
+- JavaScript tests and external conformance suite
+- Ubuntu 24.04 / x86_64 / systemd assertions
+- systemd unit verification against built binaries
+- configuration、health、status、doctor、metrics
+- publish and list
+- backup create / verify
+- restore plan / apply
+- index verify / rebuild
+- isolated restore drill
+
+## Remaining v0.8.0 work
+
+- extend `doctor` to generation pointer、index、archive/evidence、workspace、real disk condition
+- connect deprecated configuration warnings to the v0.7.0 policy
+- complete operator-visible correlation and degraded-state contracts
+- add restored read/write and interrupted-restore coverage
+- document v0.7.0 → v0.8.0 systemd upgrade and rollback
+- integrate or explicitly route quarantine、replacement、cleanup operations
+- fix command、exit-code、machine-readable output、human-readable output contracts
+- add quarantine and fail-closed operational fixtures to acceptance
+- perform a fresh-machine acceptance using only README and runbook
+- prepare package version bump、release notes、tag、GitHub Release
 
 ## Known limitations
 
+- v0.8.0 is not released yet.
 - Automatic downgrade is not supported.
-- The storage format v1 migration is format-manifest introduction; future data-rewriting migrations require separate version-specific steps.
-- Complete external delegation／revocation registry evaluation remains outside v0.7.0.
-- Multi-node migration coordination and distributed locking remain outside v1.0 scope.
-- Durable cursor lease／read-guard storage remains deployment-specific.
-
-## Publication completion
-
-1. PR #100 was merged.
-2. Release validation completed successfully.
-3. Annotated tag `v0.7.0` was published at `b364ac0c19e9dcec10c25db22a850c9d096b0f9b`.
-4. GitHub Release `Lingonberry v0.7.0` was published.
-5. Issue #99 was closed as completed.
-6. Root and index documentation was synchronized by PR #101.
+- Other systemd Linux distributions are best-effort rather than formal release-validation targets.
+- Complete generation pointer、evidence/workspace、and disk-condition doctor coverage is not yet implemented.
+- Integrated quarantine、replacement、and cleanup routing remains incomplete.
+- Multi-node coordination and distributed locking remain outside v1.0 scope.

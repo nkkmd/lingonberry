@@ -64,8 +64,9 @@ Formal reference platform:
 - [x] `index rebuild`
 - [x] automated isolated restore drill
 - [x] mandatory cleanup of the drill target
-- [ ] restored storage read / write verification in the automated drill
-- [ ] interrupted restore / failure-injection coverage
+- [x] restored storage read verification in restore apply and automated drill
+- [x] duplicate-safe write-path verification in the automated drill
+- [x] interrupted restore / failure-injection cleanup coverage
 
 ## 4. Linux deployment
 
@@ -79,8 +80,8 @@ Formal reference platform:
 - [x] `systemd-analyze verify`
 - [x] operator acceptance pinned to `ubuntu-24.04`
 - [x] CI assertion for Ubuntu 24.04, x86_64, and systemd
-- [ ] upgrade from v0.7.0 under systemd
-- [ ] binary rollback and compatible-backup restore procedure
+- [x] upgrade from v0.7.0 under systemd documented
+- [x] binary rollback and compatible-backup restore procedure documented
 - [ ] production-like reboot / restart persistence scenario
 
 ## 5. Integrated operator surface
@@ -89,12 +90,12 @@ Formal reference platform:
 - [x] backup / restore commands
 - [x] index lifecycle commands
 - [x] migration remains explicit in `lingonberry-storage-migrate`
-- [ ] command / exit-code / JSON-output contract document
-- [ ] quarantine inspection integrated or explicitly routed from the operator entrypoint
-- [ ] replacement operations integrated or explicitly routed from the operator entrypoint
-- [ ] cleanup operations integrated or explicitly routed from the operator entrypoint
-- [ ] migration CLI responsibility and long-term routing policy documented
-- [ ] human-readable output policy
+- [x] command / exit-code / JSON-output contract document
+- [x] quarantine inspection explicitly routed to the existing admin HTTP/RBAC surface
+- [x] replacement operations explicitly routed to proof-bound runbooks
+- [x] cleanup operations explicitly routed to proof-bound runbooks
+- [x] migration CLI responsibility and routing policy documented
+- [x] human-readable output policy documented
 
 ## 6. Documentation
 
@@ -107,11 +108,11 @@ Formal reference platform:
 - [x] index verification / rebuild procedure
 - [x] disaster-recovery drill procedure
 - [x] failure diagnosis procedure
-- [ ] complete operator CLI reference
-- [ ] quarantine inspection procedure connected to the v0.8.0 runbook
-- [ ] replacement / cleanup procedure connected to the v0.8.0 runbook
-- [ ] v0.7.0 to v0.8.0 upgrade procedure
-- [ ] rollback procedure
+- [x] complete operator CLI reference
+- [ ] quarantine inspection procedure connected directly to the v0.8.0 runbook
+- [ ] replacement / cleanup procedure connected directly to the v0.8.0 runbook
+- [x] v0.7.0 to v0.8.0 upgrade procedure
+- [x] rollback procedure
 - [ ] release notes
 
 ## 7. Automated acceptance
@@ -122,9 +123,10 @@ Formal reference platform:
 - [x] configuration / health / status / doctor / metrics
 - [x] publish and list
 - [x] backup create / verify
-- [x] restore plan / apply
+- [x] restore plan / apply with read verification evidence
 - [x] index verify / rebuild
-- [x] isolated restore drill
+- [x] isolated restore drill with read, duplicate-safe write, and cleanup evidence
+- [x] interrupted isolated restore cleanup unit test
 - [x] standard CI passes on the release branch
 - [x] Ubuntu 24.04 operator acceptance passes on the release branch
 - [x] doctor read-only regression test covers a missing index catalog
@@ -146,15 +148,18 @@ The release can proceed only when:
 - [x] no temporary workflow or test-only deployment file remains
 - [ ] PR is reviewed and no release-blocking issue remains
 - [ ] package versions and `Cargo.lock` are set to `0.8.0`
-- [x] current implementation status and operations index are synchronized
+- [ ] operations index is synchronized with the new CLI and upgrade documents
 - [ ] annotated tag and GitHub Release are prepared
 
 ## Current evidence
 
-At commit `a3fe28996adb94bd2e612ab9b9cd12cd166b27f9`:
+At commit `7cd3f83119bb5fae2a733d9e4662939068a21384`:
 
-- standard CI run `29847865627`: success
-- Ubuntu 24.04 operator acceptance run `29847865442`: success
-- no temporary doctor workflow, trigger, or diagnostic log remains
+- standard CI run `29848502967`: success
+- Ubuntu 24.04 operator acceptance run `29848503067`: success
+- isolated restore reads every restored record
+- duplicate-safe re-import verifies the restored write path without changing logical storage
+- interruption after partial target creation is covered by mandatory-cleanup failure injection
+- no temporary recovery formatting workflow remains
 
-This evidence proves the currently implemented operator path and expanded read-only doctor checks. It does not mark the remaining unchecked release requirements complete.
+This evidence proves the currently implemented operator path, expanded read-only doctor checks, and strengthened recovery drill. It does not mark the remaining unchecked release requirements complete.

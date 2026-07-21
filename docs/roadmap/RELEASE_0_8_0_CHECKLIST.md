@@ -31,12 +31,12 @@ Formal reference platform:
 - [x] unknown-newer and corrupt storage fail-closed behavior
 - [x] configuration precedence: defaults < config file < environment < CLI
 - [x] effective configuration output without secrets
-- [ ] generation pointer inspection
-- [ ] index consistency inspection from `doctor`
-- [ ] archive / backup evidence inspection
-- [ ] replacement / cleanup evidence inspection
-- [ ] maintenance workspace inspection
-- [ ] real disk-capacity / disk-condition inspection
+- [x] generation pointer inspection through the existing core resolver
+- [x] index consistency inspection from `doctor` without creating a missing catalog
+- [x] archive / backup inventory structural inspection
+- [ ] replacement / cleanup evidence semantic inspection
+- [x] maintenance workspace structural inspection
+- [x] Linux disk-capacity / disk-condition inspection
 - [ ] deprecated configuration warnings connected to the v0.7.0 policy
 
 ## 2. Observability
@@ -127,6 +127,8 @@ Formal reference platform:
 - [x] isolated restore drill
 - [x] standard CI passes on the release branch
 - [x] Ubuntu 24.04 operator acceptance passes on the release branch
+- [x] doctor read-only regression test covers a missing index catalog
+- [x] invalid generation pointer fails closed in automated tests
 - [ ] quarantine inspection included in the acceptance scenario
 - [ ] fail-closed fixtures for corrupt / contradictory / partial operational state
 - [ ] fresh-machine run performed only from README and runbook
@@ -136,22 +138,23 @@ Formal reference platform:
 The release can proceed only when:
 
 - [ ] every required item above is complete or explicitly deferred with rationale
-- [ ] `cargo fmt --all -- --check` passes
-- [ ] all Clippy checks pass with warnings denied
-- [ ] `cargo test --workspace` passes
-- [ ] JavaScript tests and external conformance suite pass
-- [ ] Ubuntu 24.04 operator acceptance passes
-- [ ] no temporary workflow or test-only deployment file remains
+- [x] `cargo fmt --all -- --check` passes
+- [x] all Clippy checks pass with warnings denied
+- [x] `cargo test --workspace` passes
+- [x] JavaScript tests and external conformance suite pass
+- [x] Ubuntu 24.04 operator acceptance passes
+- [x] no temporary workflow or test-only deployment file remains
 - [ ] PR is reviewed and no release-blocking issue remains
 - [ ] package versions and `Cargo.lock` are set to `0.8.0`
-- [ ] current implementation status and operations index are synchronized
+- [x] current implementation status and operations index are synchronized
 - [ ] annotated tag and GitHub Release are prepared
 
 ## Current evidence
 
-At commit `472643e55bd86a10babeeedd4bc1036b09c6f22b`:
+At commit `a3fe28996adb94bd2e612ab9b9cd12cd166b27f9`:
 
-- standard CI run `29844895503`: success
-- Ubuntu 24.04 operator acceptance run `29844895652`: success
+- standard CI run `29847865627`: success
+- Ubuntu 24.04 operator acceptance run `29847865442`: success
+- no temporary doctor workflow, trigger, or diagnostic log remains
 
-This evidence proves the currently implemented operator path. It does not mark the remaining unchecked release requirements complete.
+This evidence proves the currently implemented operator path and expanded read-only doctor checks. It does not mark the remaining unchecked release requirements complete.

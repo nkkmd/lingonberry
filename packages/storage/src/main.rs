@@ -42,7 +42,9 @@ fn run(args: Vec<String>) -> Result<(), String> {
                             JsonValue::String("status".to_string()),
                             JsonValue::String("doctor".to_string()),
                             JsonValue::String("verify".to_string()),
+                            JsonValue::String("health".to_string()),
                             JsonValue::String("ready".to_string()),
+                            JsonValue::String("metrics".to_string()),
                             JsonValue::String("run".to_string()),
                         ]),
                     ),
@@ -61,7 +63,16 @@ fn run(args: Vec<String>) -> Result<(), String> {
         }
         "doctor" => handle_doctor(&config, false),
         "verify" => handle_doctor(&config, true),
-        "ready" | "run" => {
+        "health" => {
+            print_health();
+            Ok(())
+        }
+        "ready" => handle_readiness(&config),
+        "metrics" => {
+            print_metrics(&config);
+            Ok(())
+        }
+        "run" => {
             print_runtime_status(&config);
             Ok(())
         }
@@ -126,6 +137,77 @@ fn parse_invocation(args: Vec<String>) -> Result<ParsedInvocation, String> {
         command_args: args[index + 1..].to_vec(),
         overrides,
     })
+}
+
+fn print_health() {
+    println!(
+        "{}",
+        to_canonical_json(&json_object(vec![
+            ("service", JsonValue::String("storage".to_string())),
+            ("status", JsonValue::String("ok".to_string())),
+            ("scope", JsonValue::String("process".to_string())),
+        ]))
+    );
+}
+
+fn handle_readiness(config: &StorageRuntimeConfig) -> Result<(), String> {
+    let report = run_storage_doctor(config);
+    let ready = !report.has_failures();
+    let status = if ready { "ready" } else { "not_ready" };
+    println!(
+        "{}",
+        to_canonical_json(&json_object(vec![
+            ("service", JsonValue::String("storage".to_string())),
+            ("status", JsonValue::String(status.to_string())),
+            ("ready", JsonValue::Bool(ready)),
+            (
+                "diagnosticStatus",
+                JsonValue::String(report.severity.as_str().to_string()),
+            ),
+        ]))
+    );
+    if ready {
+        Ok(())
+    } else {
+        Err("readiness detected failed checks".to_string())
+    }
+}
+
+fn print_metrics(config: &StorageRuntimeConfig) {
+    let report = run_storage_doctor(config);
+    let ok = report
+        .checks
+        .iter()
+        .filter(|check| check.severity.as_str() == "ok")
+        .count();
+    let warning = report
+        .checks
+        .iter()
+        .filter(|check| check.severity.as_str() == "warning")
+        .count();
+    let failed = report
+        .checks
+        .iter()
+        .filter(|check| check.severity.as_str() == "failed")
+        .count();
+    println!(
+        "{}",
+        to_canonical_json(&json_object(vec![
+            ("service", JsonValue::String("storage".to_string())),
+            ("metricsVersion", JsonValue::String("1".to_string())),
+            ("boundedCardinality", JsonValue::Bool(true)),
+            (
+                "ready",
+                JsonValue::Number((!report.has_failures() as usize).to_string())
+            ),
+            ("doctorChecksOk", JsonValue::Number(ok.to_string())),
+            (
+                "doctorChecksWarning",
+                JsonValue::Number(warning.to_string())
+            ),
+            ("doctorChecksFailed", JsonValue::Number(failed.to_string())),
+        ]))
+    );
 }
 
 fn handle_doctor(config: &StorageRuntimeConfig, strict: bool) -> Result<(), String> {
@@ -396,7 +478,10 @@ fn exit_code_for_error(error: &str) -> i32 {
         64
     } else if error.contains("not found") {
         66
-    } else if error.contains("doctor detected") || error.contains("verify detected") {
+    } else if error.contains("doctor detected")
+        || error.contains("verify detected")
+        || error.contains("readiness detected")
+    {
         69
     } else if error.contains("config") || error.contains("failed to bind") {
         78

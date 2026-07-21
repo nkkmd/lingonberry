@@ -5,6 +5,7 @@ on:
       - 'packages/storage/**'
       - 'packages/relay/**'
       - 'deploy/systemd/**'
+      - 'docs/operations/SUPPORTED_PLATFORMS.md'
       - 'docs/operations/V0_8_OPERATOR_RUNBOOK.md'
       - 'scripts/v0_8_operator_acceptance.sh'
       - '.github/workflows/operator-acceptance.yml'
@@ -14,6 +15,7 @@ on:
       - 'packages/storage/**'
       - 'packages/relay/**'
       - 'deploy/systemd/**'
+      - 'docs/operations/SUPPORTED_PLATFORMS.md'
       - 'docs/operations/V0_8_OPERATOR_RUNBOOK.md'
       - 'scripts/v0_8_operator_acceptance.sh'
       - '.github/workflows/operator-acceptance.yml'
@@ -23,9 +25,18 @@ permissions:
 
 jobs:
   acceptance:
-    runs-on: ubuntu-latest
+    name: Ubuntu 24.04 x86_64 acceptance
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+      - name: Verify reference platform
+        run: |
+          test "$(uname -s)" = "Linux"
+          test "$(uname -m)" = "x86_64"
+          . /etc/os-release
+          test "$ID" = "ubuntu"
+          test "$VERSION_ID" = "24.04"
+          systemctl --version
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt,clippy

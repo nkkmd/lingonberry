@@ -5,7 +5,7 @@ on:
     branches: [main]
   workflow_dispatch:
 permissions:
-  contents: write
+  contents: read
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -29,27 +29,6 @@ jobs:
         run: cargo clippy --workspace --tests -- -A warnings
       - name: Run workspace tests
         run: cargo test --workspace
-  rustfmt-apply:
-    name: Apply workspace rustfmt
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref }}
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt
-      - run: cargo fmt --all
-      - name: Commit formatting
-        run: |
-          if git diff --quiet; then
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -u
-          git commit -m "style: apply workspace rustfmt"
-          git push origin HEAD:${{ github.head_ref }}
   javascript:
     name: JavaScript tests
     runs-on: ubuntu-latest

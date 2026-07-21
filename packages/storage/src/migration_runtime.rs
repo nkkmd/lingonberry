@@ -92,7 +92,10 @@ pub fn apply_migration(
     let data_dir = data_dir.as_ref();
     let mut journal = read_migration_journal(data_dir)?;
     let inspection = inspect_storage(data_dir)?;
-    let requires_backup = matches!(inspection.state, StorageFormatState::LegacyUnversioned { .. });
+    let requires_backup = matches!(
+        inspection.state,
+        StorageFormatState::LegacyUnversioned { .. }
+    );
     match journal.stage {
         MigrationStage::Planned if requires_backup => {
             return Err("migration requires a verified backup before apply".to_string());
@@ -107,10 +110,7 @@ pub fn apply_migration(
     verify_source_binding(data_dir, &journal)?;
     journal.advance(MigrationStage::Migrating, None)?;
     write_migration_journal(data_dir, &journal)?;
-    write_storage_manifest(
-        data_dir,
-        &StorageFormatManifest::current(created_by, None),
-    )?;
+    write_storage_manifest(data_dir, &StorageFormatManifest::current(created_by, None))?;
     verify_migrated_storage(data_dir, &journal)?;
     journal.advance(MigrationStage::Verified, None)?;
     write_migration_journal(data_dir, &journal)?;
@@ -304,7 +304,10 @@ mod tests {
         assert!(prepared.plan.requires_verified_backup);
         assert!(apply_migration(&data_dir, "test").is_err());
         let backup = create_verified_migration_backup(&data_dir, &backup_root).expect("backup");
-        assert_eq!(backup.evidence_digest, prepared.plan.source_inventory_digest);
+        assert_eq!(
+            backup.evidence_digest,
+            prepared.plan.source_inventory_digest
+        );
         let verified = apply_migration(&data_dir, "0.7.0").expect("apply");
         assert_eq!(verified.stage, MigrationStage::Verified);
         let committed = commit_migration(&data_dir).expect("commit");
@@ -333,7 +336,9 @@ mod tests {
         let rolled_back = rollback_migration(&data_dir).expect("rollback");
         assert_eq!(rolled_back.stage, MigrationStage::RolledBack);
         assert_eq!(
-            rollback_migration(&data_dir).expect("repeat rollback").stage,
+            rollback_migration(&data_dir)
+                .expect("repeat rollback")
+                .stage,
             MigrationStage::RolledBack
         );
         assert!(!data_dir.join(STORAGE_MANIFEST_FILE).exists());

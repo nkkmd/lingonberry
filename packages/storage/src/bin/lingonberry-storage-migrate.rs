@@ -35,8 +35,7 @@ fn run(args: Vec<String>) -> Result<(), String> {
             Ok(())
         }
         "backup" => {
-            let backup =
-                create_verified_migration_backup(&config.data_dir, &config.backup_dir)?;
+            let backup = create_verified_migration_backup(&config.data_dir, &config.backup_dir)?;
             println!(
                 "planId={} backupDir={} evidenceDigest={}",
                 backup.plan_id,
@@ -62,8 +61,9 @@ fn run(args: Vec<String>) -> Result<(), String> {
             }
             let inspection = inspect_storage(&config.data_dir)?;
             if inspection.inventory_digest != journal.source_inventory_digest {
-                return Err("verified migration inventory no longer matches its source binding"
-                    .to_string());
+                return Err(
+                    "verified migration inventory no longer matches its source binding".to_string(),
+                );
             }
             println!(
                 "planId={} stage={:?} inventoryDigest={}",

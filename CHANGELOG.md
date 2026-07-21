@@ -2,7 +2,7 @@
 
 All notable changes to Lingonberry are documented in this file. Detailed operational contracts and release notes are retained under `docs/`.
 
-## [0.8.0] - Unreleased
+## [0.8.0] - 2026-07-22
 
 ### Added
 
@@ -19,10 +19,10 @@ All notable changes to Lingonberry are documented in this file. Detailed operati
 
 ### Changed
 
-- All Rust workspace packages and `Cargo.lock` are versioned as `0.8.0` on the release branch.
-- Operator acceptance now validates release-built installed binaries instead of relying on `cargo run`.
-- Storage diagnosis now inspects the generation pointer, derived index consistency, backup inventory structure, maintenance workspaces, and Linux disk capacity without mutating storage.
-- Root documentation now points to the v0.8.0 release checklist, release notes, operator runbook, CLI contract, supported-platform contract, and upgrade/rollback guide.
+- All Rust workspace packages and `Cargo.lock` are versioned as `0.8.0`.
+- Operator acceptance validates release-built installed binaries instead of relying on `cargo run`.
+- Storage diagnosis inspects the generation pointer, derived index consistency, backup inventory structure, maintenance workspaces, and Linux disk capacity without mutating storage.
+- Root documentation points to the v0.8.0 release checklist, release notes, operator runbook, CLI contract, supported-platform contract, and upgrade/rollback guide.
 
 ### Compatibility and safety
 

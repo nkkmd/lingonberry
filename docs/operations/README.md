@@ -6,6 +6,7 @@
 
 ## v0.8.0 operational readiness
 
+- [v0.8.0 Release Checklist](../roadmap/RELEASE_0_8_0_CHECKLIST.md)
 - [Supported Platforms](./SUPPORTED_PLATFORMS.md)
 - [v0.8.0 Operator Runbook](./V0_8_OPERATOR_RUNBOOK.md)
 - [Systemd Unit Templates](./SYSTEMD_UNIT_TEMPLATES.md)
@@ -13,7 +14,7 @@
 
 v0.8.0の正式なLinux基準環境は、Ubuntu Server 24.04 LTS、x86_64、systemdです。リリース時にはこの環境で診断、systemd起動契約、backup、isolated restore、index再構築、DR drillまでを検証します。他のsystemdベースLinuxはbest-effort supportとし、実装とデータ契約はUbuntu固有にしません。
 
-作業再開時は、[現在の実装状況](../roadmap/CURRENT_IMPLEMENTATION_STATUS.md)、[v0.7.0 Release Checklist](../roadmap/RELEASE_0_7_0_CHECKLIST.md)、[v0.7.0 Release Notes](../roadmap/RELEASE_0_7_0_RELEASE_NOTE.md)、[Storage Migration and Upgrade Contract](./STORAGE_MIGRATION_AND_UPGRADE.md)を最初に確認してください。
+作業再開時は、[現在の実装状況](../roadmap/CURRENT_IMPLEMENTATION_STATUS.md)、[v0.8.0 Release Checklist](../roadmap/RELEASE_0_8_0_CHECKLIST.md)、[v0.8.0 Operator Runbook](./V0_8_OPERATOR_RUNBOOK.md)、[Supported Platforms](./SUPPORTED_PLATFORMS.md)、[Storage Migration and Upgrade Contract](./STORAGE_MIGRATION_AND_UPGRADE.md)を最初に確認してください。
 
 ## v0.7.0 storage migration and upgrade
 

@@ -1,93 +1,92 @@
 # 現在の実装状況
 
-**Status: v0.6.0 merge-ready release candidate** | **Last updated: 2026-07-20**
+**Status: v0.7.0 merge-ready release candidate** | **Last updated: 2026-07-21**
 
 この文書は、Lingonberryの実装作業を中断・再開するときの引き継ぎ用正本です。
 
 ## Release state
 
 ```text
-released version: 0.5.0
-candidate version: 0.6.0
-parent issue: #97
-release candidate PR: #98
-branch: agent/v0.6.0-protocol-contract-foundation
+released version: 0.6.0
+candidate version: 0.7.0
+parent issue: #99
+release candidate PR: #100
+branch: agent/v0.7.0-storage-migration-foundation
 publication state: ready for review; merge, tag, and GitHub Release not published
 ```
 
-## v0.6.0で実装済み
+## v0.7.0で実装済み
 
-- append-only Transition Object model
-- dedicated signed `POST /v1/transitions`
-- duplicate／immutable conflict classification
-- missing-target orphan retention
-- authority／supersession／multi-parent graph contract
-- durable target-scoped reevaluation intent
-- reevaluation／restart reconciliation CLI
-- deterministic evidence generation
-- classified `unsupported`／`corrupt`／`unreadable` markers
-- last-known-good effective view
-- `GET /v1/effective-objects/{targetId}` projection
-- stable public diagnostics
-- bounded summary and generation-fixed pagination contract
-- diagnostic retention／cursor lease／read guard／heartbeat conformance
-- all Rust workspace packages and `Cargo.lock` set to `0.6.0`
-- root README／CHANGELOG／release note／release checklist synchronized
-- existing `rebuild-index`／`catch-up-index`／`subscribe` CLI compatibility retained
+- versioned `storage-format.manifest`
+- storage format v1／`single-node-canonical-v1` layout contract
+- deterministic read-only storage inspection
+- explicit `empty`／`legacy_unversioned`／`supported`／`unknown_newer`／`corrupt` classification
+- deterministic durable inventory and source digest binding
+- migration plan and durable migration journal
+- verified migration snapshot bound to plan ID and source digest
+- explicit apply／verify／commit orchestration
+- deterministic resume／rollback
+- dedicated `lingonberry-storage-migrate` operator CLI
+- v0.4.0-equivalent persistent fixture
+- upgrade／downgrade／deprecated configuration policy
+- all Rust workspace packages and `Cargo.lock` set to `0.7.0`
+- release note and release checklist
 
 ## Fixed safety model
 
-- Original Knowledge Objects are never rewritten or deleted by transitions.
-- Only authorized transitions affect the effective view.
-- Ambiguous authorized heads are not resolved by timestamps or arbitrary ID order.
-- Valid signed missing-target transitions remain append-only orphan evidence.
-- Canonical target commit precedes asynchronous derived reevaluation.
-- Reevaluation is durable, target-scoped, at-least-once, idempotent, and generation-aware.
-- Stale workers cannot advance a newer checkpoint.
-- Incomplete evidence cannot overwrite the last-known-good semantic view.
-- Stale views are never labeled current.
-- Public diagnostics exclude storage paths, row IDs, stack traces, and unstable errors.
-- Diagnostic truncation and unavailable retained generations are explicit.
-- Derived snapshot cleanup never deletes canonical evidence.
+- Ordinary startup never performs implicit migration.
+- Unknown newer formats are rejected before mutation.
+- Malformed manifests, unsupported layouts, symlinks, special files, and changed-after-plan state fail closed.
+- Non-empty legacy storage cannot enter migration without a verified backup.
+- Migration cannot reach `committed` before durable verification.
+- The v1 migration does not rewrite canonical durable files; it introduces a verified format manifest.
+- Interrupted migration is resumed from durable journal evidence or rolled back before commit.
+- A committed migration is not downgraded in place; downgrade requires restoration of a compatible verified backup.
+- Protocol and public object lifecycle contracts remain unchanged.
 
-## Runtime
-
-```text
-POST /v1/objects
-POST /v1/transitions
-GET  /v1/effective-objects/{targetId}
-```
+## Operator runtime
 
 ```bash
-cargo run -p lingonberry-relay --bin lingonberry-relay -- serve-http 127.0.0.1:8787
-cargo run -p lingonberry-relay --bin lingonberry-reevaluate-transitions
-cargo run -p lingonberry-relay --bin lingonberry-reevaluate-transitions -- --reconcile
+cargo run -p lingonberry-storage --bin lingonberry-storage-migrate -- inspect
+cargo run -p lingonberry-storage --bin lingonberry-storage-migrate -- plan
+cargo run -p lingonberry-storage --bin lingonberry-storage-migrate -- backup
+cargo run -p lingonberry-storage --bin lingonberry-storage-migrate -- apply
+cargo run -p lingonberry-storage --bin lingonberry-storage-migrate -- verify
+cargo run -p lingonberry-storage --bin lingonberry-storage-migrate -- commit
+```
+
+Recovery commands:
+
+```bash
+cargo run -p lingonberry-storage --bin lingonberry-storage-migrate -- status
+cargo run -p lingonberry-storage --bin lingonberry-storage-migrate -- resume
+cargo run -p lingonberry-storage --bin lingonberry-storage-migrate -- rollback
 ```
 
 ## Validation state
 
 The release candidate has passed:
 
-- source formatting in CI
+- `cargo fmt --all -- --check`
 - library Clippy with warnings denied
 - binary Clippy with warnings denied
 - test-target Clippy compilation
 - `cargo test --workspace`
 - JavaScript tests
 - external conformance suite
-- existing publish／query／index recovery process compatibility tests
+- legacy migration／verified backup／commit／resume／rollback integration coverage
 
 ## Known limitations
 
-- Complete external delegation／revocation registry evaluation is not included.
-- Multi-node queue coordination and distributed snapshot locking are not included.
+- Automatic downgrade is not supported.
+- The storage format v1 migration is format-manifest introduction; future data-rewriting migrations require separate version-specific steps.
+- Complete external delegation／revocation registry evaluation remains outside v0.7.0.
+- Multi-node migration coordination and distributed locking remain outside v1.0 scope.
 - Durable cursor lease／read-guard storage remains deployment-specific.
-- CI formats the checkout with `cargo fmt --all` before Rust validation.
-- Test-target Clippy is compile verification and does not deny warnings.
 
 ## Remaining before publication
 
-1. Obtain merge authorization and merge PR #98.
+1. Merge PR #100.
 2. Confirm main-branch CI.
-3. Publish annotated tag `v0.6.0` and GitHub Release.
-4. Close Issue #97 as completed.
+3. Publish annotated tag `v0.7.0` and GitHub Release.
+4. Close Issue #99 as completed.

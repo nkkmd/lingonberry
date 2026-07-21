@@ -1,0 +1,34 @@
+name: v0.8 doctor clippy fix
+on:
+  pull_request:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  apply:
+    if: github.head_ref == 'release/v0.8.0-operational-readiness'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: release/v0.8.0-operational-readiness
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt,clippy
+      - name: Fix and validate
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('packages/storage/src/doctor.rs')
+          s=p.read_text().replace('text.lines().last()', 'text.lines().next_back()')
+          p.write_text(s)
+          PY
+          cargo fmt --all
+          cargo clippy --workspace --lib -- -D warnings -A dead-code
+      - name: Commit
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add packages/storage/src/doctor.rs
+          git commit -m "fix(storage): satisfy doctor clippy checks"
+          git push

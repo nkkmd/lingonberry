@@ -1,6 +1,6 @@
 # Lingonberry v0.7.0 release checklist
 
-**Status: release candidate** | **Last updated: 2026-07-21**
+**Status: published** | **Last updated: 2026-07-21** | **Release target: `b364ac0c19e9dcec10c25db22a850c9d096b0f9b`**
 
 ## Storage contract
 
@@ -50,8 +50,9 @@
 
 ## Publication
 
-- [ ] Merge release candidate PR.
-- [ ] Confirm main-branch CI.
-- [ ] Publish annotated tag `v0.7.0`.
-- [ ] Publish GitHub Release using `RELEASE_0_7_0_RELEASE_NOTE.md`.
-- [ ] Close parent Issue #99.
+- [x] Merge release candidate PR #100.
+- [x] Confirm release validation.
+- [x] Publish annotated tag `v0.7.0` at `b364ac0c19e9dcec10c25db22a850c9d096b0f9b`.
+- [x] Publish GitHub Release `Lingonberry v0.7.0`.
+- [x] Close parent Issue #99 as completed.
+- [x] Synchronize root and index documentation through PR #101.

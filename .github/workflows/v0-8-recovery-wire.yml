@@ -47,13 +47,14 @@ jobs:
         run: |
           set -eux
           root="$(mktemp -d)"
-          cargo run -q -p lingonberry-storage -- --state-dir "$root/state" --data-dir "$root/data" --backup-dir "$root/backups" --temp-dir "$root/tmp" backup create "$root/archive"
-          cargo run -q -p lingonberry-storage -- --state-dir "$root/state" --data-dir "$root/data" --backup-dir "$root/backups" --temp-dir "$root/tmp" backup verify "$root/archive"
-          cargo run -q -p lingonberry-storage -- --state-dir "$root/state" --data-dir "$root/data" --backup-dir "$root/backups" --temp-dir "$root/tmp" restore plan "$root/archive" "$root/restored"
-          cargo run -q -p lingonberry-storage -- --state-dir "$root/state" --data-dir "$root/data" --backup-dir "$root/backups" --temp-dir "$root/tmp" restore apply "$root/archive" "$root/restored"
-          cargo run -q -p lingonberry-storage -- --state-dir "$root/state" --data-dir "$root/data" --backup-dir "$root/backups" --temp-dir "$root/tmp" index verify
-          cargo run -q -p lingonberry-storage -- --state-dir "$root/state" --data-dir "$root/data" --backup-dir "$root/backups" --temp-dir "$root/tmp" index rebuild
-          cargo run -q -p lingonberry-storage -- --state-dir "$root/state" --data-dir "$root/data" --backup-dir "$root/backups" --temp-dir "$root/tmp" drill restore "$root/archive"
+          run_operator() { cargo run -q -p lingonberry-storage --bin lingonberry-storage -- "$@"; }
+          run_operator --state-dir "$root/state" --data-dir "$root/data" --backup-dir "$root/backups" --temp-dir "$root/tmp" backup create "$root/archive"
+          run_operator --state-dir "$root/state" --data-dir "$root/data" --backup-dir "$root/backups" --temp-dir "$root/tmp" backup verify "$root/archive"
+          run_operator --state-dir "$root/state" --data-dir "$root/data" --backup-dir "$root/backups" --temp-dir "$root/tmp" restore plan "$root/archive" "$root/restored"
+          run_operator --state-dir "$root/state" --data-dir "$root/data" --backup-dir "$root/backups" --temp-dir "$root/tmp" restore apply "$root/archive" "$root/restored"
+          run_operator --state-dir "$root/state" --data-dir "$root/data" --backup-dir "$root/backups" --temp-dir "$root/tmp" index verify
+          run_operator --state-dir "$root/state" --data-dir "$root/data" --backup-dir "$root/backups" --temp-dir "$root/tmp" index rebuild
+          run_operator --state-dir "$root/state" --data-dir "$root/data" --backup-dir "$root/backups" --temp-dir "$root/tmp" drill restore "$root/archive"
       - name: Commit recovery wiring
         run: |
           git config user.name github-actions[bot]

@@ -244,6 +244,35 @@ fn check_generation_pointer(config: &StorageRuntimeConfig) -> DoctorCheck {
 }
 
 fn check_index(config: &StorageRuntimeConfig) -> DoctorCheck {
+    let catalog_path = runtime_storage_layout(config).catalog_path;
+    match fs::symlink_metadata(&catalog_path) {
+        Ok(metadata) if metadata.file_type().is_symlink() => {
+            return failed(
+                "index",
+                "LB_DOCTOR_INDEX_SYMLINK_REJECTED",
+                format!("{} is a symbolic link", catalog_path.display()),
+            )
+        }
+        Ok(metadata) if !metadata.is_file() => {
+            return failed(
+                "index",
+                "LB_DOCTOR_INDEX_NOT_REGULAR_FILE",
+                format!("{} is not a regular index file", catalog_path.display()),
+            )
+        }
+        Ok(_) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            return warning(
+                "index",
+                "LB_DOCTOR_INDEX_MISSING",
+                format!("{} does not exist", catalog_path.display()),
+            )
+        }
+        Err(error) => {
+            return failed("index", "LB_DOCTOR_INDEX_METADATA", error.to_string())
+        }
+    }
+
     let backend = crate::build_storage_backend_at(&config.data_dir);
     let snapshot = match IndexSnapshot::from_backend(&backend) {
         Ok(snapshot) => snapshot,
@@ -282,6 +311,7 @@ fn check_backup_inventory(config: &StorageRuntimeConfig) -> DoctorCheck {
             )
         }
     };
+
     let mut archive_count = 0usize;
     for entry in entries {
         let entry = match entry {
@@ -321,7 +351,7 @@ fn check_backup_inventory(config: &StorageRuntimeConfig) -> DoctorCheck {
         let manifest = entry.path().join("manifest.json");
         match fs::symlink_metadata(&manifest) {
             Ok(metadata) if metadata.is_file() && !metadata.file_type().is_symlink() => {
-                archive_count += 1
+                archive_count += 1;
             }
             Ok(_) => {
                 return failed(
@@ -346,6 +376,7 @@ fn check_backup_inventory(config: &StorageRuntimeConfig) -> DoctorCheck {
             }
         }
     }
+
     if archive_count == 0 {
         warning(
             "backup_inventory",
@@ -379,8 +410,19 @@ fn check_operational_workspace(config: &StorageRuntimeConfig) -> DoctorCheck {
             )
         }
     };
+
     let mut workspace_count = 0usize;
-    for entry in entries.flatten() {
+    for entry in entries {
+        let entry = match entry {
+            Ok(entry) => entry,
+            Err(error) => {
+                return failed(
+                    "operational_workspace",
+                    "LB_DOCTOR_WORKSPACE_ENTRY_UNREADABLE",
+                    error.to_string(),
+                )
+            }
+        };
         let name = entry.file_name();
         let name = name.to_string_lossy();
         if !(name.contains("replacement")
@@ -416,6 +458,7 @@ fn check_operational_workspace(config: &StorageRuntimeConfig) -> DoctorCheck {
             }
         }
     }
+
     ok(
         "operational_workspace",
         "LB_DOCTOR_WORKSPACE_STRUCTURAL_OK",
@@ -473,11 +516,11 @@ fn check_disk_capacity(config: &StorageRuntimeConfig) -> DoctorCheck {
         }
     };
     let capacity_kib = fields[1].parse::<u64>().unwrap_or_default();
-    let available_percent = if capacity_kib == 0 {
-        0
-    } else {
-        available_kib.saturating_mul(100) / capacity_kib
-    };
+    let available_percent = available_kib
+        .saturating_mul(100)
+        .checked_div(capacity_kib)
+        .unwrap_or_default();
+
     if available_kib < 64 * 1024 || available_percent < 2 {
         failed(
             "disk_capacity",
@@ -576,6 +619,35 @@ mod tests {
         assert!(!report.has_failures());
         assert!(report.checks.iter().any(|check| {
             check.name == "storage_format" && check.code == "LB_DOCTOR_STORAGE_SUPPORTED"
+        }));
+        assert!(report
+            .checks
+            .iter()
+            .any(|check| check.name == "index" && check.code == "LB_DOCTOR_INDEX_MISSING"));
+        fs::remove_dir_all(root).expect("remove root");
+    }
+
+    #[test]
+    fn doctor_fails_closed_for_invalid_generation_pointer() {
+        let root = temporary_directory("generation");
+        fs::create_dir_all(&root).expect("create root");
+        fs::write(
+            root.join("quarantine-current-generation.json"),
+            r#"{"version":"invalid"}"#,
+        )
+        .expect("write pointer");
+        let config = StorageRuntimeConfig {
+            config_path: None,
+            state_dir: root.clone(),
+            data_dir: root.clone(),
+            backup_dir: root.join("backup"),
+            temp_dir: root.join("tmp"),
+        };
+        let report = run_storage_doctor(&config);
+        assert!(report.has_failures());
+        assert!(report.checks.iter().any(|check| {
+            check.name == "generation_pointer"
+                && check.code == "LB_DOCTOR_GENERATION_POINTER_INVALID"
         }));
         fs::remove_dir_all(root).expect("remove root");
     }

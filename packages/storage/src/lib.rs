@@ -3,9 +3,9 @@ mod migration;
 pub use migration::{
     inspect_storage, plan_migration, read_migration_journal, verify_source_binding,
     write_migration_journal, write_storage_manifest, MigrationJournal, MigrationPlan,
-    MigrationStage, MigrationStep, StorageFormatManifest, StorageFormatState,
-    StorageInspection, CURRENT_LAYOUT_ID, CURRENT_STORAGE_FORMAT_VERSION,
-    MIGRATION_JOURNAL_FILE, STORAGE_MANIFEST_FILE,
+    MigrationStage, MigrationStep, StorageFormatManifest, StorageFormatState, StorageInspection,
+    CURRENT_LAYOUT_ID, CURRENT_STORAGE_FORMAT_VERSION, MIGRATION_JOURNAL_FILE,
+    STORAGE_MANIFEST_FILE,
 };
 
 use lingonberry_core::{runtime_state_dir, SqliteStorageBackend};

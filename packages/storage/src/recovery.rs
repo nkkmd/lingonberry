@@ -111,13 +111,8 @@ pub fn handle_restore(config: &StorageRuntimeConfig, args: &[String]) -> Result<
             let target = build_storage_backend_at(&target_dir);
             let report =
                 import_archive(&target, &archive_dir).map_err(|error| error.to_string())?;
-            let verification = rebuild_index(&target);
-            if verification.status != IndexConsistencyStatus::Consistent {
-                return Err(format!(
-                    "restored index verification failed: {}",
-                    verification.message
-                ));
-            }
+            verify_restored_read_path(&target, report.record_count)?;
+            verify_index_consistency(&target, "restored")?;
             print_json(json_object(vec![
                 ("status", JsonValue::String("restored".to_string())),
                 (
@@ -136,6 +131,7 @@ pub fn handle_restore(config: &StorageRuntimeConfig, args: &[String]) -> Result<
                     "duplicateCount",
                     JsonValue::Number(report.duplicate_count.to_string()),
                 ),
+                ("readVerified", JsonValue::Bool(true)),
             ]));
             Ok(())
         }
@@ -179,6 +175,9 @@ pub fn handle_drill(config: &StorageRuntimeConfig, args: &[String]) -> Result<()
     print_json(json_object(vec![
         ("status", JsonValue::String("passed".to_string())),
         ("isolated", JsonValue::Bool(true)),
+        ("readVerified", JsonValue::Bool(true)),
+        ("writeVerified", JsonValue::Bool(true)),
+        ("cleanupVerified", JsonValue::Bool(true)),
         (
             "archiveDir",
             JsonValue::String(archive_dir.to_string_lossy().to_string()),
@@ -193,6 +192,34 @@ fn verify_archive_isolated(
     archive_dir: &Path,
 ) -> Result<usize, String> {
     refuse_symlink_path(archive_dir)?;
+    with_isolated_restore_target(config, |target_dir| {
+        let target = build_storage_backend_at(target_dir);
+        let report = import_archive(&target, archive_dir).map_err(|error| error.to_string())?;
+        verify_restored_read_path(&target, report.record_count)?;
+        verify_index_consistency(&target, "isolated restore")?;
+
+        let before_ids = target.list_ids().map_err(|error| error.to_string())?;
+        let second_import =
+            import_archive(&target, archive_dir).map_err(|error| error.to_string())?;
+        let after_ids = target.list_ids().map_err(|error| error.to_string())?;
+        if second_import.record_count != 0
+            || second_import.duplicate_count != before_ids.len()
+            || before_ids != after_ids
+        {
+            return Err(
+                "isolated restore write verification failed: duplicate-safe re-import changed logical storage"
+                    .to_string(),
+            );
+        }
+        verify_index_consistency(&target, "isolated restore re-import")?;
+        Ok(report.record_count + report.duplicate_count)
+    })
+}
+
+fn with_isolated_restore_target<T>(
+    config: &StorageRuntimeConfig,
+    operation: impl FnOnce(&Path) -> Result<T, String>,
+) -> Result<T, String> {
     let target_dir = config
         .temp_dir
         .join(format!("restore-drill-{}", unique_nonce()));
@@ -203,24 +230,54 @@ fn verify_archive_isolated(
         ));
     }
     fs::create_dir_all(&target_dir).map_err(|error| error.to_string())?;
-    let outcome = (|| {
-        let target = build_storage_backend_at(&target_dir);
-        let report = import_archive(&target, archive_dir).map_err(|error| error.to_string())?;
-        let verification = rebuild_index(&target);
-        if verification.status != IndexConsistencyStatus::Consistent {
-            return Err(format!(
-                "isolated restore index verification failed: {}",
-                verification.message
-            ));
-        }
-        Ok(report.record_count + report.duplicate_count)
-    })();
+    let outcome = operation(&target_dir);
     let cleanup = fs::remove_dir_all(&target_dir).map_err(|error| error.to_string());
     match (outcome, cleanup) {
-        (Ok(count), Ok(())) => Ok(count),
-        (Err(error), _) => Err(error),
+        (Ok(value), Ok(())) => Ok(value),
+        (Err(error), Ok(())) => Err(error),
+        (Err(error), Err(cleanup_error)) => Err(format!(
+            "{error}; isolated restore cleanup also failed: {cleanup_error}"
+        )),
         (Ok(_), Err(error)) => Err(format!("isolated restore cleanup failed: {error}")),
     }
+}
+
+fn verify_restored_read_path(
+    backend: &impl StorageBackend,
+    expected_record_count: usize,
+) -> Result<(), String> {
+    let ids = backend.list_ids().map_err(|error| error.to_string())?;
+    if ids.len() != expected_record_count {
+        return Err(format!(
+            "restored read verification failed: expected {expected_record_count} records, found {}",
+            ids.len()
+        ));
+    }
+    for canonical_id in ids {
+        let record = backend
+            .get(&canonical_id)
+            .map_err(|error| error.to_string())?;
+        if record.is_none() {
+            return Err(format!(
+                "restored read verification failed: record is not retrievable: {canonical_id}"
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn verify_index_consistency(
+    backend: &impl StorageBackend,
+    operation_name: &str,
+) -> Result<(), String> {
+    let verification = rebuild_index(backend);
+    if verification.status != IndexConsistencyStatus::Consistent {
+        return Err(format!(
+            "{operation_name} index verification failed: {}",
+            verification.message
+        ));
+    }
+    Ok(())
 }
 
 fn validate_restore_target(config: &StorageRuntimeConfig, target: &Path) -> Result<(), String> {
@@ -295,6 +352,16 @@ fn json_object(entries: Vec<(&str, JsonValue)>) -> JsonValue {
 mod tests {
     use super::*;
 
+    fn test_config(root: &Path) -> StorageRuntimeConfig {
+        StorageRuntimeConfig {
+            config_path: None,
+            state_dir: root.join("state"),
+            data_dir: root.join("data"),
+            backup_dir: root.join("backup"),
+            temp_dir: root.join("tmp"),
+        }
+    }
+
     #[test]
     fn active_data_directory_cannot_be_a_restore_target() {
         let config = StorageRuntimeConfig {
@@ -305,5 +372,21 @@ mod tests {
             temp_dir: PathBuf::from("tmp"),
         };
         assert!(validate_restore_target(&config, Path::new("data")).is_err());
+    }
+
+    #[test]
+    fn interrupted_isolated_restore_removes_partial_target() {
+        let root = std::env::temp_dir().join(format!("lingonberry-restore-failure-{}", unique_nonce()));
+        let config = test_config(&root);
+        let observed_target = std::cell::RefCell::new(None::<PathBuf>);
+        let result = with_isolated_restore_target(&config, |target| {
+            *observed_target.borrow_mut() = Some(target.to_path_buf());
+            fs::write(target.join("partial-state"), b"partial").map_err(|error| error.to_string())?;
+            Err::<(), _>("injected restore interruption".to_string())
+        });
+        assert!(result.is_err());
+        let target = observed_target.into_inner().expect("target recorded");
+        assert!(!target.exists());
+        let _ = fs::remove_dir_all(root);
     }
 }

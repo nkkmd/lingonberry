@@ -1,6 +1,6 @@
 # Lingonberry v0.8.0 Release Notes
 
-**Status: release candidate** | **Target: v0.8.0** | **Date: 2026-07-22**
+**Status: released** | **Version: v0.8.0** | **Released: 2026-07-22**
 
 ## Overview
 
@@ -72,7 +72,7 @@ Operators must not manually edit pointers, journals, manifests, proof files, inv
 
 ## Validation evidence
 
-Release-candidate validation includes:
+Release validation included:
 
 - Rust formatting, Clippy, and workspace tests;
 - JavaScript tests and the external conformance suite;
@@ -80,6 +80,8 @@ Release-candidate validation includes:
 - release binary installation and systemd unit verification;
 - installed-binary operator acceptance;
 - persistence, fail-closed restore fixtures, and disaster-recovery verification.
+
+The release was merged through PR #106, tagged as `v0.8.0`, and published as a GitHub Release on 2026-07-22.
 
 ## Known limitations
 

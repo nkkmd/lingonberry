@@ -5,7 +5,7 @@ on:
     branches: [main]
   workflow_dispatch:
 permissions:
-  contents: write
+  contents: read
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -15,52 +15,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: release/v0.8.0-operational-readiness
-      - name: Apply pending doctor correction
-        if: github.event_name == 'pull_request'
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          p=Path('packages/storage/src/doctor.rs')
-          s=p.read_text()
-          old='''fn check_index(config: &StorageRuntimeConfig) -> DoctorCheck {
-    let backend = crate::build_storage_backend_at(&config.data_dir);
-'''
-          if old in s:
-              s=s.replace(old,'''fn check_index(config: &StorageRuntimeConfig) -> DoctorCheck {
-    let catalog_path = crate::runtime_storage_layout(config).catalog_path;
-    match fs::symlink_metadata(&catalog_path) {
-        Ok(metadata) if metadata.file_type().is_symlink() => return failed("index", "LB_DOCTOR_INDEX_SYMLINK_REJECTED", format!("{} is a symbolic link", catalog_path.display())),
-        Ok(metadata) if !metadata.is_file() => return failed("index", "LB_DOCTOR_INDEX_NOT_REGULAR_FILE", format!("{} is not a regular index file", catalog_path.display())),
-        Ok(_) => {}
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return warning("index", "LB_DOCTOR_INDEX_MISSING", format!("{} does not exist", catalog_path.display())),
-        Err(error) => return failed("index", "LB_DOCTOR_INDEX_METADATA", error.to_string()),
-    }
-    let backend = crate::build_storage_backend_at(&config.data_dir);
-''',1)
-          old_div='''    let available_percent = if capacity_kib == 0 {
-        0
-    } else {
-        available_kib.saturating_mul(100) / capacity_kib
-    };
-'''
-          if old_div in s:
-              s=s.replace(old_div,'''    let available_percent = available_kib
-        .saturating_mul(100)
-        .checked_div(capacity_kib)
-        .unwrap_or_default();
-''',1)
-          p.write_text(s)
-          PY
-          cargo fmt --all
-          if ! git diff --quiet -- packages/storage/src/doctor.rs; then
-            git config user.name github-actions[bot]
-            git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-            git add packages/storage/src/doctor.rs
-            git commit -m "fix(storage): preserve doctor read-only index inspection"
-            git push
-          fi
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy

@@ -2,6 +2,34 @@
 
 All notable changes to Lingonberry are documented in this file. Detailed operational contracts and release notes are retained under `docs/`.
 
+## [0.7.0] - 2026-07-21
+
+### Added
+
+- Versioned storage-format manifest and deterministic storage inspection.
+- Source-bound migration plans, durable journals, and fail-closed state classification.
+- Verified migration snapshots bound to the plan ID and source inventory digest.
+- Explicit migration apply, verify, commit, resume, and rollback execution.
+- Dedicated `lingonberry-storage-migrate` operator CLI.
+- v0.4.0-equivalent persistent fixture and migration integration coverage.
+
+### Changed
+
+- All Rust workspace packages and `Cargo.lock` are versioned as `0.7.0`.
+- Existing unversioned single-node durable state is treated as legacy storage requiring verified backup before migration.
+
+### Compatibility and safety
+
+- Ordinary startup does not perform implicit migration.
+- Unknown newer formats, malformed manifests, unsupported layouts, symlinks, special files, missing backup evidence, and changed-after-plan state fail closed.
+- Storage format v1 migration does not rewrite canonical durable files; it introduces a verified format manifest.
+- Protocol and public object-lifecycle contracts remain unchanged.
+
+### Known limitations
+
+- Automatic downgrade is not supported; downgrade requires restoration of a compatible verified backup.
+- Multi-node migration coordination and distributed locking are not included.
+
 ## [0.6.0] - 2026-07-20
 
 ### Added

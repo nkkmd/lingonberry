@@ -10,4 +10,5 @@ path = "src/lib.rs"
 
 [dependencies]
 lingonberry-core = { path = "../core" }
+lingonberry-indexer = { path = "../indexer" }
 lingonberry-protocol = { path = "../protocol" }

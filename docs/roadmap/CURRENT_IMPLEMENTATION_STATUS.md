@@ -1,18 +1,19 @@
 # 現在の実装状況
 
-**Status: v0.7.0 merge-ready release candidate** | **Last updated: 2026-07-21**
+**Status: v0.7.0 released** | **Last updated: 2026-07-21**
 
 この文書は、Lingonberryの実装作業を中断・再開するときの引き継ぎ用正本です。
 
 ## Release state
 
 ```text
-released version: 0.6.0
-candidate version: 0.7.0
-parent issue: #99
-release candidate PR: #100
-branch: agent/v0.7.0-storage-migration-foundation
-publication state: ready for review; merge, tag, and GitHub Release not published
+released version: 0.7.0
+next release target: 0.8.0
+parent issue: #99 (closed as completed)
+release candidate PR: #100 (merged)
+post-release documentation PR: #101 (merged)
+release target commit: b364ac0c19e9dcec10c25db22a850c9d096b0f9b
+publication state: annotated tag v0.7.0 and GitHub Release published
 ```
 
 ## v0.7.0で実装済み
@@ -65,7 +66,7 @@ cargo run -p lingonberry-storage --bin lingonberry-storage-migrate -- rollback
 
 ## Validation state
 
-The release candidate has passed:
+The released version passed:
 
 - `cargo fmt --all -- --check`
 - library Clippy with warnings denied
@@ -84,9 +85,11 @@ The release candidate has passed:
 - Multi-node migration coordination and distributed locking remain outside v1.0 scope.
 - Durable cursor lease／read-guard storage remains deployment-specific.
 
-## Remaining before publication
+## Publication completion
 
-1. Merge PR #100.
-2. Confirm main-branch CI.
-3. Publish annotated tag `v0.7.0` and GitHub Release.
-4. Close Issue #99 as completed.
+1. PR #100 was merged.
+2. Release validation completed successfully.
+3. Annotated tag `v0.7.0` was published at `b364ac0c19e9dcec10c25db22a850c9d096b0f9b`.
+4. GitHub Release `Lingonberry v0.7.0` was published.
+5. Issue #99 was closed as completed.
+6. Root and index documentation was synchronized by PR #101.

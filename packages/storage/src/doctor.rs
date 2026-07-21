@@ -268,9 +268,7 @@ fn check_index(config: &StorageRuntimeConfig) -> DoctorCheck {
                 format!("{} does not exist", catalog_path.display()),
             )
         }
-        Err(error) => {
-            return failed("index", "LB_DOCTOR_INDEX_METADATA", error.to_string())
-        }
+        Err(error) => return failed("index", "LB_DOCTOR_INDEX_METADATA", error.to_string()),
     }
 
     let backend = crate::build_storage_backend_at(&config.data_dir);

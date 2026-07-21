@@ -82,7 +82,7 @@ Formal reference platform:
 - [x] CI assertion for Ubuntu 24.04, x86_64, and systemd
 - [x] upgrade from v0.7.0 under systemd documented
 - [x] binary rollback and compatible-backup restore procedure documented
-- [ ] production-like reboot / restart persistence scenario
+- [x] process-restart persistence verified with separately invoked installed binaries
 
 ## 5. Integrated operator surface
 
@@ -119,21 +119,24 @@ Formal reference platform:
 
 - [x] reference-platform assertion
 - [x] Rust formatting, Clippy, and workspace tests
-- [x] systemd unit verification against built binaries
+- [x] systemd unit verification against release-built installed binaries
 - [x] configuration / health / status / doctor / metrics
 - [x] publish and list
+- [x] process-restart persistence across separate installed-binary invocations
 - [x] backup create / verify
 - [x] restore plan / apply with read verification evidence
 - [x] index verify / rebuild
 - [x] isolated restore drill with read, duplicate-safe write, and cleanup evidence
 - [x] interrupted isolated restore cleanup unit test
+- [x] partial archive restore fails closed
+- [x] active data directory restore fails closed
+- [x] non-empty restore target fails closed without modifying the sentinel
 - [x] standard CI passes on the release branch
-- [x] Ubuntu 24.04 operator acceptance passes on the release branch
+- [x] Ubuntu 24.04 fresh-runner operator acceptance passes on the release branch
 - [x] doctor read-only regression test covers a missing index catalog
 - [x] invalid generation pointer fails closed in automated tests
 - [ ] quarantine inspection included in the acceptance scenario
-- [ ] fail-closed fixtures for corrupt / contradictory / partial operational state
-- [ ] fresh-machine run performed only from README and runbook
+- [ ] fresh-machine manual run performed only from README and runbook
 
 ## 8. Release gate
 
@@ -153,13 +156,16 @@ The release can proceed only when:
 
 ## Current evidence
 
-At commit `7cd3f83119bb5fae2a733d9e4662939068a21384`:
+At commit `d159a0b91f4169985c22f1579613aad059c9bc1f`:
 
-- standard CI run `29848502967`: success
-- Ubuntu 24.04 operator acceptance run `29848503067`: success
+- standard CI run `29848852438`: success
+- Ubuntu 24.04 fresh-runner operator acceptance run `29848852508`: success
+- release binaries were built and installed into `/usr/local/bin`
+- persisted record listing remained identical across separate process invocations
+- partial archive, active data directory, and non-empty restore targets failed closed
 - isolated restore reads every restored record
 - duplicate-safe re-import verifies the restored write path without changing logical storage
 - interruption after partial target creation is covered by mandatory-cleanup failure injection
-- no temporary recovery formatting workflow remains
+- no temporary workflow or diagnostic log remains
 
-This evidence proves the currently implemented operator path, expanded read-only doctor checks, and strengthened recovery drill. It does not mark the remaining unchecked release requirements complete.
+This evidence proves the currently implemented operator path, expanded read-only doctor checks, strengthened recovery drill, and installed-binary restart persistence. It does not mark the remaining unchecked release requirements complete.

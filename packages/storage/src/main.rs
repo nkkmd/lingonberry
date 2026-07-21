@@ -4,7 +4,8 @@ use lingonberry_protocol::{
     validate_knowledge_object, validate_publish_request, JsonValue,
 };
 use lingonberry_storage::{
-    build_storage_backend_at, runtime_storage_config, runtime_storage_layout, StorageRuntimeConfig,
+    build_storage_backend_at, run_storage_doctor, runtime_storage_config, runtime_storage_layout,
+    DoctorCheck, DoctorReport, StorageRuntimeConfig,
 };
 use std::collections::BTreeMap;
 use std::env;
@@ -19,7 +20,7 @@ fn main() {
 
 fn run(args: Vec<String>) -> Result<(), String> {
     let Some(command) = args.first().map(String::as_str) else {
-        return Err("usage: lingonberry-storage <capabilities|config|ready|run|append|retrieve|replay|list> <json-file|canonical-id>".to_string());
+        return Err("usage: lingonberry-storage <capabilities|config|status|doctor|verify|ready|run|append|retrieve|replay|list> <json-file|canonical-id>".to_string());
     };
 
     let config = runtime_storage_config()?;
@@ -40,6 +41,9 @@ fn run(args: Vec<String>) -> Result<(), String> {
                             JsonValue::String("replay".to_string()),
                             JsonValue::String("list".to_string()),
                             JsonValue::String("config".to_string()),
+                            JsonValue::String("status".to_string()),
+                            JsonValue::String("doctor".to_string()),
+                            JsonValue::String("verify".to_string()),
                             JsonValue::String("ready".to_string()),
                             JsonValue::String("run".to_string()),
                         ]),
@@ -53,6 +57,12 @@ fn run(args: Vec<String>) -> Result<(), String> {
             print_config(&config);
             Ok(())
         }
+        "status" => {
+            print_operator_status(&config);
+            Ok(())
+        }
+        "doctor" => handle_doctor(&config, false),
+        "verify" => handle_doctor(&config, true),
         "ready" => {
             print_runtime_status(&config);
             Ok(())
@@ -77,6 +87,45 @@ fn run(args: Vec<String>) -> Result<(), String> {
         "list" => handle_list(&backend),
         _ => Err(format!("unknown command: {}", command)),
     }
+}
+
+fn handle_doctor(config: &StorageRuntimeConfig, strict: bool) -> Result<(), String> {
+    let report = run_storage_doctor(config);
+    println!("{}", to_canonical_json(&doctor_report_json(&report)));
+    if report.has_failures() {
+        return Err("doctor detected failed checks".to_string());
+    }
+    if strict && report.severity.as_str() != "ok" {
+        return Err("verify detected warning checks".to_string());
+    }
+    Ok(())
+}
+
+fn doctor_report_json(report: &DoctorReport) -> JsonValue {
+    json_object(vec![
+        ("status", JsonValue::String(report.severity.as_str().to_string())),
+        ("readOnly", JsonValue::Bool(true)),
+        (
+            "checkCount",
+            JsonValue::Number(report.checks.len().to_string()),
+        ),
+        (
+            "checks",
+            JsonValue::Array(report.checks.iter().map(doctor_check_json).collect()),
+        ),
+    ])
+}
+
+fn doctor_check_json(check: &DoctorCheck) -> JsonValue {
+    json_object(vec![
+        ("name", JsonValue::String(check.name.to_string())),
+        (
+            "status",
+            JsonValue::String(check.severity.as_str().to_string()),
+        ),
+        ("code", JsonValue::String(check.code.to_string())),
+        ("message", JsonValue::String(check.message.clone())),
+    ])
 }
 
 fn handle_append(pathname: &str, backend: &impl StorageBackend) -> Result<(), String> {
@@ -228,6 +277,25 @@ fn print_config(config: &StorageRuntimeConfig) {
     );
 }
 
+fn print_operator_status(config: &StorageRuntimeConfig) {
+    let report = run_storage_doctor(config);
+    println!(
+        "{}",
+        to_canonical_json(&json_object(vec![
+            ("service", JsonValue::String("storage".to_string())),
+            (
+                "status",
+                JsonValue::String(report.severity.as_str().to_string())
+            ),
+            ("readOnly", JsonValue::Bool(true)),
+            (
+                "checkCount",
+                JsonValue::Number(report.checks.len().to_string())
+            ),
+        ]))
+    );
+}
+
 fn print_runtime_status(config: &StorageRuntimeConfig) {
     let layout = runtime_storage_layout(config);
     println!(
@@ -276,6 +344,8 @@ fn exit_code_for_error(error: &str) -> i32 {
         64
     } else if error.contains("not found") {
         66
+    } else if error.contains("doctor detected") || error.contains("verify detected") {
+        69
     } else if error.contains("config") || error.contains("failed to bind") {
         78
     } else if error.contains("validation failed") {

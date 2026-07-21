@@ -1,0 +1,136 @@
+[1m[91merror[E0428][0m[1m: the name `check_generation_pointer` is defined multiple times[0m
+   [1m[94m--> [0mpackages/storage/src/doctor.rs:505:1
+    [1m[94m|[0m
+[1m[94m225[0m [1m[94m|[0m fn check_generation_pointer(config: &StorageRuntimeConfig) -> DoctorCheck {
+    [1m[94m|[0m [1m[94m-------------------------------------------------------------------------[0m [1m[94mprevious definition of the value `check_generation_pointer` here[0m
+[1m[94m...[0m
+[1m[94m505[0m [1m[94m|[0m fn check_generation_pointer(config: &StorageRuntimeConfig) -> DoctorCheck {
+    [1m[94m|[0m [1m[91m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m [1m[91m`check_generation_pointer` redefined here[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mnote[0m: `check_generation_pointer` must be defined only once in the value namespace of this module
+
+[1m[91merror[E0428][0m[1m: the name `check_index` is defined multiple times[0m
+   [1m[94m--> [0mpackages/storage/src/doctor.rs:529:1
+    [1m[94m|[0m
+[1m[94m249[0m [1m[94m|[0m fn check_index(config: &StorageRuntimeConfig) -> DoctorCheck {
+    [1m[94m|[0m [1m[94m------------------------------------------------------------[0m [1m[94mprevious definition of the value `check_index` here[0m
+[1m[94m...[0m
+[1m[94m529[0m [1m[94m|[0m fn check_index(config: &StorageRuntimeConfig) -> DoctorCheck {
+    [1m[94m|[0m [1m[91m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m [1m[91m`check_index` redefined here[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mnote[0m: `check_index` must be defined only once in the value namespace of this module
+
+[1m[91merror[E0428][0m[1m: the name `check_backup_inventory` is defined multiple times[0m
+   [1m[94m--> [0mpackages/storage/src/doctor.rs:550:1
+    [1m[94m|[0m
+[1m[94m270[0m [1m[94m|[0m fn check_backup_inventory(config: &StorageRuntimeConfig) -> DoctorCheck {
+    [1m[94m|[0m [1m[94m-----------------------------------------------------------------------[0m [1m[94mprevious definition of the value `check_backup_inventory` here[0m
+[1m[94m...[0m
+[1m[94m550[0m [1m[94m|[0m fn check_backup_inventory(config: &StorageRuntimeConfig) -> DoctorCheck {
+    [1m[94m|[0m [1m[91m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m [1m[91m`check_backup_inventory` redefined here[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mnote[0m: `check_backup_inventory` must be defined only once in the value namespace of this module
+
+[1m[91merror[E0428][0m[1m: the name `check_operational_workspace` is defined multiple times[0m
+   [1m[94m--> [0mpackages/storage/src/doctor.rs:647:1
+    [1m[94m|[0m
+[1m[94m367[0m [1m[94m|[0m fn check_operational_workspace(config: &StorageRuntimeConfig) -> DoctorCheck {
+    [1m[94m|[0m [1m[94m----------------------------------------------------------------------------[0m [1m[94mprevious definition of the value `check_operational_workspace` here[0m
+[1m[94m...[0m
+[1m[94m647[0m [1m[94m|[0m fn check_operational_workspace(config: &StorageRuntimeConfig) -> DoctorCheck {
+    [1m[94m|[0m [1m[91m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m [1m[91m`check_operational_workspace` redefined here[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mnote[0m: `check_operational_workspace` must be defined only once in the value namespace of this module
+
+[1m[91merror[E0428][0m[1m: the name `check_disk_capacity` is defined multiple times[0m
+   [1m[94m--> [0mpackages/storage/src/doctor.rs:709:1
+    [1m[94m|[0m
+[1m[94m429[0m [1m[94m|[0m fn check_disk_capacity(config: &StorageRuntimeConfig) -> DoctorCheck {
+    [1m[94m|[0m [1m[94m--------------------------------------------------------------------[0m [1m[94mprevious definition of the value `check_disk_capacity` here[0m
+[1m[94m...[0m
+[1m[94m709[0m [1m[94m|[0m fn check_disk_capacity(config: &StorageRuntimeConfig) -> DoctorCheck {
+    [1m[94m|[0m [1m[91m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m [1m[91m`check_disk_capacity` redefined here[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mnote[0m: `check_disk_capacity` must be defined only once in the value namespace of this module
+
+[1m[91merror[E0252][0m[1m: the name `resolve_quarantine_active_generation` is defined multiple times[0m
+ [1m[94m--> [0mpackages/storage/src/doctor.rs:6:5
+  [1m[94m|[0m
+[1m[94m5[0m [1m[94m|[0m use lingonberry_core::resolve_quarantine_active_generation;
+  [1m[94m|[0m     [1m[94m------------------------------------------------------[0m [1m[94mprevious import of the value `resolve_quarantine_active_generation` here[0m
+[1m[94m6[0m [1m[94m|[0m use lingonberry_core::resolve_quarantine_active_generation;
+  [1m[94m|[0m     [1m[91m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m [1m[91m`resolve_quarantine_active_generation` reimported here[0m
+  [1m[94m|[0m
+  [1m[94m= [0m[1mnote[0m: `resolve_quarantine_active_generation` must be defined only once in the value namespace of this module
+
+[1m[91merror[E0252][0m[1m: the name `verify_index` is defined multiple times[0m
+ [1m[94m--> [0mpackages/storage/src/doctor.rs:8:27
+  [1m[94m|[0m
+[1m[94m7[0m [1m[94m|[0m use lingonberry_indexer::{verify_index, IndexConsistencyStatus, IndexSnapshot};
+  [1m[94m|[0m                           [1m[94m------------[0m [1m[94mprevious import of the value `verify_index` here[0m
+[1m[94m8[0m [1m[94m|[0m use lingonberry_indexer::{verify_index, IndexConsistencyStatus, IndexSnapshot};
+  [1m[94m|[0m                           [1m[91m^^^^^^^^^^^^[0m[1m[94m--[0m
+  [1m[94m|[0m                           [1m[94m|[0m
+  [1m[94m|[0m                           [1m[91m`verify_index` reimported here[0m
+  [1m[94m|[0m                           [1m[94mhelp: remove unnecessary import[0m
+  [1m[94m|[0m
+  [1m[94m= [0m[1mnote[0m: `verify_index` must be defined only once in the value namespace of this module
+
+[1m[91merror[E0252][0m[1m: the name `IndexConsistencyStatus` is defined multiple times[0m
+ [1m[94m--> [0mpackages/storage/src/doctor.rs:8:41
+  [1m[94m|[0m
+[1m[94m7[0m [1m[94m|[0m use lingonberry_indexer::{verify_index, IndexConsistencyStatus, IndexSnapshot};
+  [1m[94m|[0m                                         [1m[94m----------------------[0m [1m[94mprevious import of the type `IndexConsistencyStatus` here[0m
+[1m[94m8[0m [1m[94m|[0m use lingonberry_indexer::{verify_index, IndexConsistencyStatus, IndexSnapshot};
+  [1m[94m|[0m                                         [1m[91m^^^^^^^^^^^^^^^^^^^^^^[0m[1m[94m--[0m
+  [1m[94m|[0m                                         [1m[94m|[0m
+  [1m[94m|[0m                                         [1m[91m`IndexConsistencyStatus` reimported here[0m
+  [1m[94m|[0m                                         [1m[94mhelp: remove unnecessary import[0m
+  [1m[94m|[0m
+  [1m[94m= [0m[1mnote[0m: `IndexConsistencyStatus` must be defined only once in the type namespace of this module
+
+[1m[91merror[E0252][0m[1m: the name `IndexSnapshot` is defined multiple times[0m
+ [1m[94m--> [0mpackages/storage/src/doctor.rs:8:65
+  [1m[94m|[0m
+[1m[94m7[0m [1m[94m|[0m use lingonberry_indexer::{verify_index, IndexConsistencyStatus, IndexSnapshot};
+  [1m[94m|[0m                                                                 [1m[94m-------------[0m [1m[94mprevious import of the type `IndexSnapshot` here[0m
+[1m[94m8[0m [1m[94m|[0m use lingonberry_indexer::{verify_index, IndexConsistencyStatus, IndexSnapshot};
+  [1m[94m|[0m                                                                 [1m[91m^^^^^^^^^^^^^[0m [1m[91m`IndexSnapshot` reimported here[0m
+  [1m[94m|[0m
+  [1m[94m= [0m[1mnote[0m: `IndexSnapshot` must be defined only once in the type namespace of this module
+
+[1m[91merror[E0252][0m[1m: the name `Command` is defined multiple times[0m
+  [1m[94m--> [0mpackages/storage/src/doctor.rs:12:5
+   [1m[94m|[0m
+[1m[94m11[0m [1m[94m|[0m use std::process::Command;
+   [1m[94m|[0m     [1m[94m---------------------[0m [1m[94mprevious import of the type `Command` here[0m
+[1m[94m12[0m [1m[94m|[0m use std::process::Command;
+   [1m[94m|[0m     [1m[91m^^^^^^^^^^^^^^^^^^^^^[0m [1m[91m`Command` reimported here[0m
+   [1m[94m|[0m
+   [1m[94m= [0m[1mnote[0m: `Command` must be defined only once in the type namespace of this module
+
+[1m[91merror[0m[1m: unused import: `lingonberry_core::resolve_quarantine_active_generation`[0m
+ [1m[94m--> [0mpackages/storage/src/doctor.rs:6:5
+  [1m[94m|[0m
+[1m[94m6[0m [1m[94m|[0m use lingonberry_core::resolve_quarantine_active_generation;
+  [1m[94m|[0m     [1m[91m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [1m[94m|[0m
+  [1m[94m= [0m[1mnote[0m: `-D unused-imports` implied by `-D warnings`
+  [1m[94m= [0m[1mhelp[0m: to override `-D warnings` add `#[allow(unused_imports)]`
+
+[1m[91merror[0m[1m: unused imports: `IndexConsistencyStatus`, `IndexSnapshot`, and `verify_index`[0m
+ [1m[94m--> [0mpackages/storage/src/doctor.rs:8:27
+  [1m[94m|[0m
+[1m[94m8[0m [1m[94m|[0m use lingonberry_indexer::{verify_index, IndexConsistencyStatus, IndexSnapshot};
+  [1m[94m|[0m                           [1m[91m^^^^^^^^^^^^[0m  [1m[91m^^^^^^^^^^^^^^^^^^^^^^[0m  [1m[91m^^^^^^^^^^^^^[0m
+
+[1m[91merror[0m[1m: unused import: `std::process::Command`[0m
+  [1m[94m--> [0mpackages/storage/src/doctor.rs:12:5
+   [1m[94m|[0m
+[1m[94m12[0m [1m[94m|[0m use std::process::Command;
+   [1m[94m|[0m     [1m[91m^^^^^^^^^^^^^^^^^^^^^[0m
+
+[1mSome errors have detailed explanations: E0252, E0428.[0m
+[1mFor more information about an error, try `rustc --explain E0252`.[0m
+[1m[91merror[0m: could not compile `lingonberry-storage` (lib) due to 13 previous errors
+exit_status=101

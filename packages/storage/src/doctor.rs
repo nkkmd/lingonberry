@@ -450,7 +450,7 @@ fn check_disk_capacity(config: &StorageRuntimeConfig) -> DoctorCheck {
         }
     };
     let text = String::from_utf8_lossy(&output.stdout);
-    let Some(line) = text.lines().last() else {
+    let Some(line) = text.lines().next_back() else {
         return warning(
             "disk_capacity",
             "LB_DOCTOR_DISK_CAPACITY_UNAVAILABLE",
@@ -730,7 +730,7 @@ fn check_disk_capacity(config: &StorageRuntimeConfig) -> DoctorCheck {
         }
     };
     let text = String::from_utf8_lossy(&output.stdout);
-    let Some(line) = text.lines().last() else {
+    let Some(line) = text.lines().next_back() else {
         return warning(
             "disk_capacity",
             "LB_DOCTOR_DISK_CAPACITY_UNAVAILABLE",

@@ -1,0 +1,25 @@
+[Unit]
+Description=Lingonberry Relay
+After=network-online.target lingonberry-storage-ready.service
+Wants=network-online.target
+Requires=lingonberry-storage-ready.service
+ConditionPathExists=/usr/local/bin/lingonberry-relay
+
+[Service]
+Type=simple
+User=lingonberry
+Group=lingonberry
+EnvironmentFile=-/etc/lingonberry/relay.env
+ExecStart=/usr/local/bin/lingonberry-relay serve-http ${LINGONBERRY_RELAY_LISTEN}
+Restart=on-failure
+RestartSec=5s
+KillSignal=SIGTERM
+TimeoutStopSec=30s
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/lib/lingonberry
+
+[Install]
+WantedBy=multi-user.target

@@ -25,7 +25,7 @@ permissions:
 
 jobs:
   acceptance:
-    name: Ubuntu 24.04 x86_64 acceptance
+    name: Ubuntu 24.04 x86_64 fresh-runner acceptance
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -45,15 +45,20 @@ jobs:
           cargo fmt --all -- --check
           cargo clippy --workspace --lib --bins -- -D warnings -A dead-code
           cargo test --workspace
-      - name: Build installed service binaries
+      - name: Build and install release binaries
         run: |
-          cargo build -p lingonberry-storage --bin lingonberry-storage
-          cargo build -p lingonberry-relay --bin lingonberry-relay
-          sudo install -m 0755 target/debug/lingonberry-storage /usr/local/bin/lingonberry-storage
-          sudo install -m 0755 target/debug/lingonberry-relay /usr/local/bin/lingonberry-relay
+          cargo build --release -p lingonberry-storage --bin lingonberry-storage
+          cargo build --release -p lingonberry-relay --bin lingonberry-relay
+          sudo install -m 0755 target/release/lingonberry-storage /usr/local/bin/lingonberry-storage
+          sudo install -m 0755 target/release/lingonberry-relay /usr/local/bin/lingonberry-relay
+          command -v lingonberry-storage
+          command -v lingonberry-relay
       - name: Validate systemd units
         run: |
           systemd-analyze verify deploy/systemd/lingonberry-storage-ready.service
           systemd-analyze verify deploy/systemd/lingonberry-relay.service
-      - name: Run operator acceptance
+      - name: Run installed-binary operator acceptance
+        env:
+          LINGONBERRY_STORAGE_BIN: /usr/local/bin/lingonberry-storage
+          LINGONBERRY_RELAY_BIN: /usr/local/bin/lingonberry-relay
         run: bash scripts/v0_8_operator_acceptance.sh

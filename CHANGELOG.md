@@ -2,6 +2,43 @@
 
 All notable changes to Lingonberry are documented in this file. Detailed operational contracts and release notes are retained under `docs/`.
 
+## [0.8.0] - Unreleased
+
+### Added
+
+- Formal Linux reference platform: Ubuntu Server 24.04 LTS, x86_64, and systemd.
+- Hardened systemd units, environment-file examples, non-root ownership, and filesystem layout guidance.
+- Integrated storage operator commands for configuration, health, readiness, status, read-only diagnosis, strict verification, metrics, backup, restore, index lifecycle, and disaster-recovery drills.
+- Stable machine-readable diagnostic codes, canonical JSON output, documented exit codes, and explicit configuration precedence.
+- Verified backup creation with isolated archive import and index verification.
+- Non-mutating restore planning and isolated restore application with restored-record read-back verification.
+- Isolated DR drill with read verification, duplicate-safe write verification, index verification, and mandatory cleanup.
+- Failure-injection coverage proving interrupted isolated restore does not leave partial state.
+- v0.7.0 to v0.8.0 systemd upgrade and compatible rollback procedures.
+- Ubuntu fresh-runner acceptance using release-built binaries installed into `/usr/local/bin`.
+
+### Changed
+
+- All Rust workspace packages and `Cargo.lock` are versioned as `0.8.0` on the release branch.
+- Operator acceptance now validates release-built installed binaries instead of relying on `cargo run`.
+- Storage diagnosis now inspects the generation pointer, derived index consistency, backup inventory structure, maintenance workspaces, and Linux disk capacity without mutating storage.
+- Root documentation now points to the v0.8.0 release checklist, release notes, operator runbook, CLI contract, supported-platform contract, and upgrade/rollback guide.
+
+### Compatibility and safety
+
+- No new storage format, public object model, service boundary, or implicit migration is introduced.
+- Restore refuses symbolic links, active state/data directories, non-empty targets, and structurally incomplete archives.
+- Unknown-newer, corrupt, contradictory, or unsupported durable state continues to fail closed.
+- Canonical storage remains authoritative; indexes remain derived, verifiable, and rebuildable.
+- Quarantine inspection remains on the existing admin HTTP/RBAC surface.
+- Replacement and cleanup remain explicit proof-bound operations governed by existing verifiers and runbooks.
+
+### Known limitations
+
+- Cross-service trace correlation is not introduced in v0.8.0.
+- Automatic discovery and semantic verification of every historical replacement/cleanup transaction workspace is deferred until a formal workspace-root discovery contract exists.
+- Multi-node operational coordination and distributed locking are not included.
+
 ## [0.7.0] - 2026-07-21
 
 ### Added

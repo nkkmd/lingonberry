@@ -34,7 +34,10 @@ impl StorageFormatManifest {
         output.push('\n');
         output.push_str(&format!("format_version={}\n", self.format_version));
         output.push_str(&format!("layout_id={}\n", encode_value(&self.layout_id)));
-        output.push_str(&format!("created_by={}\n", encode_value(&self.created_by)));
+        output.push_str(&format!(
+            "created_by={}\n",
+            encode_value(&self.created_by)
+        ));
         if let Some(version) = self.source_format_version {
             output.push_str(&format!("source_format_version={version}\n"));
         }
@@ -45,24 +48,26 @@ impl StorageFormatManifest {
         let fields = parse_document(input, MANIFEST_MAGIC)?;
         reject_unknown_fields(
             &fields,
-            &["format_version", "layout_id", "created_by", "source_format_version"],
+            &[
+                "format_version",
+                "layout_id",
+                "created_by",
+                "source_format_version",
+            ],
         )?;
-        let format_version = required_u32(&fields, "format_version")?;
-        let layout_id = required_string(&fields, "layout_id")?;
-        let created_by = required_string(&fields, "created_by")?;
-        let source_format_version = optional_u32(&fields, "source_format_version")?;
-        if layout_id.is_empty() {
+        let manifest = Self {
+            format_version: required_u32(&fields, "format_version")?,
+            layout_id: required_string(&fields, "layout_id")?,
+            created_by: required_string(&fields, "created_by")?,
+            source_format_version: optional_u32(&fields, "source_format_version")?,
+        };
+        if manifest.layout_id.is_empty() {
             return Err("storage manifest layout_id must not be empty".to_string());
         }
-        if created_by.is_empty() {
+        if manifest.created_by.is_empty() {
             return Err("storage manifest created_by must not be empty".to_string());
         }
-        Ok(Self {
-            format_version,
-            layout_id,
-            created_by,
-            source_format_version,
-        })
+        Ok(manifest)
     }
 }
 
@@ -89,26 +94,7 @@ pub fn inspect_storage(data_dir: impl AsRef<Path>) -> Result<StorageInspection, 
     let inventory_digest = digest_lines(&inventory);
     let manifest_path = data_dir.join(STORAGE_MANIFEST_FILE);
     let state = if manifest_path.exists() {
-        match read_utf8(&manifest_path).and_then(|text| StorageFormatManifest::decode(&text)) {
-            Ok(manifest) if manifest.format_version > CURRENT_STORAGE_FORMAT_VERSION => {
-                StorageFormatState::UnknownNewer {
-                    format_version: manifest.format_version,
-                }
-            }
-            Ok(manifest)
-                if manifest.format_version == CURRENT_STORAGE_FORMAT_VERSION
-                    && manifest.layout_id == CURRENT_LAYOUT_ID =>
-            {
-                StorageFormatState::Supported(manifest)
-            }
-            Ok(manifest) => StorageFormatState::Corrupt {
-                reason: format!(
-                    "unsupported storage manifest: version={}, layout_id={}",
-                    manifest.format_version, manifest.layout_id
-                ),
-            },
-            Err(reason) => StorageFormatState::Corrupt { reason },
-        }
+        classify_manifest(&manifest_path)?
     } else if inventory.is_empty() {
         StorageFormatState::Empty
     } else {
@@ -122,6 +108,30 @@ pub fn inspect_storage(data_dir: impl AsRef<Path>) -> Result<StorageInspection, 
         inventory_digest,
         inventory,
     })
+}
+
+fn classify_manifest(path: &Path) -> Result<StorageFormatState, String> {
+    let state = match read_utf8(path).and_then(|text| StorageFormatManifest::decode(&text)) {
+        Ok(manifest) if manifest.format_version > CURRENT_STORAGE_FORMAT_VERSION => {
+            StorageFormatState::UnknownNewer {
+                format_version: manifest.format_version,
+            }
+        }
+        Ok(manifest)
+            if manifest.format_version == CURRENT_STORAGE_FORMAT_VERSION
+                && manifest.layout_id == CURRENT_LAYOUT_ID =>
+        {
+            StorageFormatState::Supported(manifest)
+        }
+        Ok(manifest) => StorageFormatState::Corrupt {
+            reason: format!(
+                "unsupported storage manifest: version={}, layout_id={}",
+                manifest.format_version, manifest.layout_id
+            ),
+        },
+        Err(reason) => StorageFormatState::Corrupt { reason },
+    };
+    Ok(state)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -148,18 +158,17 @@ pub fn plan_migration(inspection: &StorageInspection) -> Result<MigrationPlan, S
         StorageFormatState::Empty => (
             None,
             false,
-            vec![MigrationStep::Inspect, MigrationStep::WriteManifest, MigrationStep::Verify, MigrationStep::Commit],
-        ),
-        StorageFormatState::LegacyUnversioned { .. } => (
-            None,
-            true,
             vec![
                 MigrationStep::Inspect,
-                MigrationStep::VerifiedBackup,
                 MigrationStep::WriteManifest,
                 MigrationStep::Verify,
                 MigrationStep::Commit,
             ],
+        ),
+        StorageFormatState::LegacyUnversioned { .. } => (
+            None,
+            true,
+            standard_migration_steps(),
         ),
         StorageFormatState::Supported(manifest) => {
             if manifest.format_version == CURRENT_STORAGE_FORMAT_VERSION {
@@ -168,13 +177,7 @@ pub fn plan_migration(inspection: &StorageInspection) -> Result<MigrationPlan, S
             (
                 Some(manifest.format_version),
                 true,
-                vec![
-                    MigrationStep::Inspect,
-                    MigrationStep::VerifiedBackup,
-                    MigrationStep::WriteManifest,
-                    MigrationStep::Verify,
-                    MigrationStep::Commit,
-                ],
+                standard_migration_steps(),
             )
         }
         StorageFormatState::UnknownNewer { format_version } => {
@@ -183,16 +186,17 @@ pub fn plan_migration(inspection: &StorageInspection) -> Result<MigrationPlan, S
             ));
         }
         StorageFormatState::Corrupt { reason } => {
-            return Err(format!("refusing migration from corrupt storage state: {reason}"));
+            return Err(format!(
+                "refusing migration from corrupt storage state: {reason}"
+            ));
         }
     };
+    let source_version = source_format_version
+        .map(|value| value.to_string())
+        .unwrap_or_else(|| "legacy".to_string());
     let seed = format!(
         "{}:{}:{}",
-        inspection.inventory_digest,
-        source_format_version
-            .map(|value| value.to_string())
-            .unwrap_or_else(|| "legacy".to_string()),
-        CURRENT_STORAGE_FORMAT_VERSION
+        inspection.inventory_digest, source_version, CURRENT_STORAGE_FORMAT_VERSION
     );
     Ok(MigrationPlan {
         plan_id: format!("migration-{}", digest_bytes(seed.as_bytes())),
@@ -202,6 +206,16 @@ pub fn plan_migration(inspection: &StorageInspection) -> Result<MigrationPlan, S
         requires_verified_backup,
         steps,
     })
+}
+
+fn standard_migration_steps() -> Vec<MigrationStep> {
+    vec![
+        MigrationStep::Inspect,
+        MigrationStep::VerifiedBackup,
+        MigrationStep::WriteManifest,
+        MigrationStep::Verify,
+        MigrationStep::Commit,
+    ]
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -267,20 +281,7 @@ impl MigrationJournal {
         next: MigrationStage,
         backup_evidence_digest: Option<String>,
     ) -> Result<(), String> {
-        let allowed = matches!(
-            (self.stage, next),
-            (MigrationStage::Planned, MigrationStage::BackupVerified)
-                | (MigrationStage::Planned, MigrationStage::Migrating)
-                | (MigrationStage::BackupVerified, MigrationStage::Migrating)
-                | (MigrationStage::Migrating, MigrationStage::Verified)
-                | (MigrationStage::Verified, MigrationStage::Committed)
-                | (MigrationStage::Planned, MigrationStage::RollingBack)
-                | (MigrationStage::BackupVerified, MigrationStage::RollingBack)
-                | (MigrationStage::Migrating, MigrationStage::RollingBack)
-                | (MigrationStage::Verified, MigrationStage::RollingBack)
-                | (MigrationStage::RollingBack, MigrationStage::RolledBack)
-        );
-        if !allowed {
+        if !valid_transition(self.stage, next) {
             return Err(format!(
                 "invalid migration stage transition: {} -> {}",
                 self.stage.as_str(),
@@ -339,7 +340,7 @@ impl MigrationJournal {
             source_inventory_digest: required_string(&fields, "source_inventory_digest")?,
             target_format_version: required_u32(&fields, "target_format_version")?,
             stage: MigrationStage::parse(&required_string(&fields, "stage")?)?,
-            backup_evidence_digest: optional_string(&fields, "backup_evidence_digest")?,
+            backup_evidence_digest: fields.get("backup_evidence_digest").cloned(),
         };
         if journal.plan_id.is_empty() || journal.source_inventory_digest.is_empty() {
             return Err("migration journal identifiers must not be empty".to_string());
@@ -351,6 +352,22 @@ impl MigrationJournal {
         }
         Ok(journal)
     }
+}
+
+fn valid_transition(current: MigrationStage, next: MigrationStage) -> bool {
+    matches!(
+        (current, next),
+        (MigrationStage::Planned, MigrationStage::BackupVerified)
+            | (MigrationStage::Planned, MigrationStage::Migrating)
+            | (MigrationStage::BackupVerified, MigrationStage::Migrating)
+            | (MigrationStage::Migrating, MigrationStage::Verified)
+            | (MigrationStage::Verified, MigrationStage::Committed)
+            | (MigrationStage::Planned, MigrationStage::RollingBack)
+            | (MigrationStage::BackupVerified, MigrationStage::RollingBack)
+            | (MigrationStage::Migrating, MigrationStage::RollingBack)
+            | (MigrationStage::Verified, MigrationStage::RollingBack)
+            | (MigrationStage::RollingBack, MigrationStage::RolledBack)
+    )
 }
 
 pub fn write_storage_manifest(
@@ -399,7 +416,10 @@ fn durable_inventory(data_dir: &Path) -> Result<Vec<String>, String> {
         return Ok(Vec::new());
     }
     if !data_dir.is_dir() {
-        return Err(format!("data directory is not a directory: {}", data_dir.display()));
+        return Err(format!(
+            "data directory is not a directory: {}",
+            data_dir.display()
+        ));
     }
     let mut entries = Vec::new();
     collect_inventory(data_dir, data_dir, &mut entries)?;
@@ -425,7 +445,9 @@ fn collect_inventory(root: &Path, current: &Path, entries: &mut Vec<String>) -> 
         }
         let metadata = fs::symlink_metadata(&path).map_err(|error| error.to_string())?;
         if metadata.file_type().is_symlink() {
-            return Err(format!("symlink is not allowed in durable inventory: {relative}"));
+            return Err(format!(
+                "symlink is not allowed in durable inventory: {relative}"
+            ));
         }
         if metadata.is_dir() {
             entries.push(format!("dir:{relative}"));
@@ -505,13 +527,20 @@ fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), String> {
 }
 
 fn read_utf8(path: &Path) -> Result<String, String> {
-    fs::read_to_string(path).map_err(|error| format!("failed to read {}: {error}", path.display()))
+    fs::read_to_string(path).map_err(|error| {
+        format!(
+            "failed to read {}: {error}",
+            path.display()
+        )
+    })
 }
 
 fn parse_document(input: &str, expected_magic: &str) -> Result<BTreeMap<String, String>, String> {
     let mut lines = input.lines();
     if lines.next() != Some(expected_magic) {
-        return Err(format!("invalid document magic; expected {expected_magic}"));
+        return Err(format!(
+            "invalid document magic; expected {expected_magic}"
+        ));
     }
     let mut fields = BTreeMap::new();
     for (index, line) in lines.enumerate() {
@@ -521,7 +550,10 @@ fn parse_document(input: &str, expected_magic: &str) -> Result<BTreeMap<String, 
         let (key, encoded) = line
             .split_once('=')
             .ok_or_else(|| format!("invalid field at line {}", index + 2))?;
-        if fields.insert(key.to_string(), decode_value(encoded)?).is_some() {
+        if fields
+            .insert(key.to_string(), decode_value(encoded)?)
+            .is_some()
+        {
             return Err(format!("duplicate field: {key}"));
         }
     }
@@ -543,13 +575,6 @@ fn required_string(fields: &BTreeMap<String, String>, key: &str) -> Result<Strin
         .get(key)
         .cloned()
         .ok_or_else(|| format!("missing required field: {key}"))
-}
-
-fn optional_string(
-    fields: &BTreeMap<String, String>,
-    key: &str,
-) -> Result<Option<String>, String> {
-    Ok(fields.get(key).cloned())
 }
 
 fn required_u32(fields: &BTreeMap<String, String>, key: &str) -> Result<u32, String> {
@@ -690,7 +715,8 @@ mod tests {
     #[test]
     fn journal_rejects_skipping_verification() {
         let dir = temp_dir("journal");
-        fs::write(dir.join("canonical-catalog.sqlite3"), b"fixture").expect("write fixture");
+        fs::write(dir.join("canonical-catalog.sqlite3"), b"fixture")
+            .expect("write fixture");
         let inspection = inspect_storage(&dir).expect("inspect");
         let plan = plan_migration(&inspection).expect("plan");
         let mut journal = MigrationJournal::from_plan(&plan);

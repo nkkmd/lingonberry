@@ -376,12 +376,14 @@ mod tests {
 
     #[test]
     fn interrupted_isolated_restore_removes_partial_target() {
-        let root = std::env::temp_dir().join(format!("lingonberry-restore-failure-{}", unique_nonce()));
+        let root =
+            std::env::temp_dir().join(format!("lingonberry-restore-failure-{}", unique_nonce()));
         let config = test_config(&root);
         let observed_target = std::cell::RefCell::new(None::<PathBuf>);
         let result = with_isolated_restore_target(&config, |target| {
             *observed_target.borrow_mut() = Some(target.to_path_buf());
-            fs::write(target.join("partial-state"), b"partial").map_err(|error| error.to_string())?;
+            fs::write(target.join("partial-state"), b"partial")
+                .map_err(|error| error.to_string())?;
             Err::<(), _>("injected restore interruption".to_string())
         });
         assert!(result.is_err());

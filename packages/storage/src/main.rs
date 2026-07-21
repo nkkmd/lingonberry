@@ -103,7 +103,10 @@ fn handle_doctor(config: &StorageRuntimeConfig, strict: bool) -> Result<(), Stri
 
 fn doctor_report_json(report: &DoctorReport) -> JsonValue {
     json_object(vec![
-        ("status", JsonValue::String(report.severity.as_str().to_string())),
+        (
+            "status",
+            JsonValue::String(report.severity.as_str().to_string()),
+        ),
         ("readOnly", JsonValue::Bool(true)),
         (
             "checkCount",

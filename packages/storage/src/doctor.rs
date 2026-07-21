@@ -148,17 +148,11 @@ fn check_storage_format(config: &StorageRuntimeConfig) -> DoctorCheck {
                 "LB_DOCTOR_STORAGE_UNKNOWN_NEWER",
                 format!("storage format {format_version} is newer than this binary supports"),
             ),
-            StorageFormatState::Corrupt { reason } => failed(
-                "storage_format",
-                "LB_DOCTOR_STORAGE_CORRUPT",
-                reason,
-            ),
+            StorageFormatState::Corrupt { reason } => {
+                failed("storage_format", "LB_DOCTOR_STORAGE_CORRUPT", reason)
+            }
         },
-        Err(error) => failed(
-            "storage_format",
-            "LB_DOCTOR_STORAGE_INSPECTION",
-            error,
-        ),
+        Err(error) => failed("storage_format", "LB_DOCTOR_STORAGE_INSPECTION", error),
     }
 }
 
@@ -284,11 +278,8 @@ mod tests {
     fn doctor_is_read_only_and_reports_current_storage() {
         let root = temporary_directory("supported");
         fs::create_dir_all(&root).expect("create root");
-        write_storage_manifest(
-            &root,
-            &StorageFormatManifest::current("doctor-test", None),
-        )
-        .expect("write manifest");
+        write_storage_manifest(&root, &StorageFormatManifest::current("doctor-test", None))
+            .expect("write manifest");
         let config = StorageRuntimeConfig {
             config_path: None,
             state_dir: root.clone(),
@@ -327,8 +318,7 @@ mod tests {
             let report = run_storage_doctor(&config);
             assert!(report.has_failures());
             assert!(report.checks.iter().any(|check| {
-                check.name == "data_directory"
-                    && check.code == "LB_DOCTOR_SYMLINK_REJECTED"
+                check.name == "data_directory" && check.code == "LB_DOCTOR_SYMLINK_REJECTED"
             }));
             fs::remove_dir_all(root).expect("remove root");
         }

@@ -15,32 +15,77 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt,clippy
-      - name: Clean duplicate block and capture validation
+      - name: Fix read-only index and disk checks
         run: |
           python3 - <<'PY'
           from pathlib import Path
           p=Path('packages/storage/src/doctor.rs')
           s=p.read_text()
-          for line in ['use lingonberry_core::resolve_quarantine_active_generation;\n','use lingonberry_indexer::{verify_index, IndexConsistencyStatus, IndexSnapshot};\n','use std::process::Command;\n']:
-              while s.count(line)>1:
-                  first=s.find(line); second=s.find(line,first+len(line)); s=s[:second]+s[second+len(line):]
-          marker='fn check_generation_pointer(config: &StorageRuntimeConfig) -> DoctorCheck {'
-          first=s.find(marker); second=s.find(marker,first+len(marker)); aggregate=s.find('fn aggregate_severity(checks: &[DoctorCheck]) -> DoctorSeverity {')
-          if second>=0: s=s[:second]+s[aggregate:]
-          s=s.replace('text.lines().last()','text.lines().next_back()')
+          old='''fn check_index(config: &StorageRuntimeConfig) -> DoctorCheck {
+    let backend = crate::build_storage_backend_at(&config.data_dir);
+'''
+          new='''fn check_index(config: &StorageRuntimeConfig) -> DoctorCheck {
+    let catalog_path = crate::runtime_storage_layout(config).catalog_path;
+    match fs::symlink_metadata(&catalog_path) {
+        Ok(metadata) if metadata.file_type().is_symlink() => {
+            return failed(
+                "index",
+                "LB_DOCTOR_INDEX_SYMLINK_REJECTED",
+                format!("{} is a symbolic link", catalog_path.display()),
+            )
+        }
+        Ok(metadata) if !metadata.is_file() => {
+            return failed(
+                "index",
+                "LB_DOCTOR_INDEX_NOT_REGULAR_FILE",
+                format!("{} is not a regular index file", catalog_path.display()),
+            )
+        }
+        Ok(_) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            return warning(
+                "index",
+                "LB_DOCTOR_INDEX_MISSING",
+                format!("{} does not exist", catalog_path.display()),
+            )
+        }
+        Err(error) => {
+            return failed(
+                "index",
+                "LB_DOCTOR_INDEX_METADATA",
+                error.to_string(),
+            )
+        }
+    }
+    let backend = crate::build_storage_backend_at(&config.data_dir);
+'''
+          if old not in s:
+              raise SystemExit('check_index marker missing')
+          s=s.replace(old,new,1)
+          old_div='''    let available_percent = if capacity_kib == 0 {
+        0
+    } else {
+        available_kib.saturating_mul(100) / capacity_kib
+    };
+'''
+          new_div='''    let available_percent = available_kib
+        .saturating_mul(100)
+        .checked_div(capacity_kib)
+        .unwrap_or_default();
+'''
+          if old_div not in s:
+              raise SystemExit('disk division marker missing')
+          s=s.replace(old_div,new_div,1)
           p.write_text(s)
           PY
           cargo fmt --all
-          set +e
-          cargo clippy -q --workspace --lib --bins -- -D warnings -A dead-code > doctor-clippy.log 2>&1
-          echo "clippy_status=$?" >> doctor-clippy.log
-          cargo test -q --workspace > doctor-test.log 2>&1
-          echo "test_status=$?" >> doctor-test.log
-          set -e
-      - name: Commit diagnostics
+          cargo clippy --workspace --lib --bins -- -D warnings -A dead-code
+          cargo test --workspace
+      - name: Commit
         run: |
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add packages/storage/src/doctor.rs doctor-clippy.log doctor-test.log
-          git commit -m "test(storage): isolate expanded doctor validation"
+          git rm -f doctor-clippy.log doctor-test.log
+          git add packages/storage/src/doctor.rs
+          git commit -m "fix(storage): preserve doctor read-only index inspection"
           git push

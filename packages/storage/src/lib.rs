@@ -1,6 +1,8 @@
+mod doctor;
 mod migration;
 mod migration_runtime;
 
+pub use doctor::{run_storage_doctor, DoctorCheck, DoctorReport, DoctorSeverity};
 pub use migration::{
     inspect_storage, plan_migration, read_migration_journal, verify_source_binding,
     write_migration_journal, write_storage_manifest, MigrationJournal, MigrationPlan,

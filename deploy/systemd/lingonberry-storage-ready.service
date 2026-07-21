@@ -1,0 +1,20 @@
+[Unit]
+Description=Lingonberry Storage Readiness Gate
+After=local-fs.target
+ConditionPathExists=/usr/local/bin/lingonberry-storage
+
+[Service]
+Type=oneshot
+User=lingonberry
+Group=lingonberry
+EnvironmentFile=-/etc/lingonberry/storage.env
+ExecStart=/usr/local/bin/lingonberry-storage ready
+RemainAfterExit=yes
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/lib/lingonberry /var/backups/lingonberry
+
+[Install]
+WantedBy=multi-user.target

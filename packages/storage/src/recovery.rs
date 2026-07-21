@@ -19,10 +19,11 @@ pub fn handle_backup(
     };
     match action {
         "create" => {
-            let archive_dir = args
-                .get(1)
-                .map(PathBuf::from)
-                .unwrap_or_else(|| config.backup_dir.join(format!("archive-{}", unique_nonce())));
+            let archive_dir = args.get(1).map(PathBuf::from).unwrap_or_else(|| {
+                config
+                    .backup_dir
+                    .join(format!("archive-{}", unique_nonce()))
+            });
             refuse_symlink_path(&archive_dir)?;
             if archive_dir.exists()
                 && fs::read_dir(&archive_dir)
@@ -226,7 +227,8 @@ fn validate_restore_target(config: &StorageRuntimeConfig, target: &Path) -> Resu
     refuse_symlink_path(target)?;
     if target == config.data_dir || target == config.state_dir {
         return Err(
-            "restore target must be isolated from the active state and data directories".to_string(),
+            "restore target must be isolated from the active state and data directories"
+                .to_string(),
         );
     }
     Ok(())
@@ -246,10 +248,7 @@ fn ensure_empty_target(target: &Path) -> Result<(), String> {
             .next()
             .is_some()
         {
-            return Err(format!(
-                "restore target is not empty: {}",
-                target.display()
-            ));
+            return Err(format!("restore target is not empty: {}", target.display()));
         }
     } else {
         fs::create_dir_all(target).map_err(|error| error.to_string())?;

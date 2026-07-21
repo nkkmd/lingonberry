@@ -40,14 +40,20 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt,clippy
-      - name: Validate systemd units
-        run: |
-          systemd-analyze verify deploy/systemd/lingonberry-storage-ready.service
-          systemd-analyze verify deploy/systemd/lingonberry-relay.service
       - name: Validate Rust workspace
         run: |
           cargo fmt --all -- --check
           cargo clippy --workspace --lib --bins -- -D warnings -A dead-code
           cargo test --workspace
+      - name: Build installed service binaries
+        run: |
+          cargo build -p lingonberry-storage --bin lingonberry-storage
+          cargo build -p lingonberry-relay --bin lingonberry-relay
+          sudo install -m 0755 target/debug/lingonberry-storage /usr/local/bin/lingonberry-storage
+          sudo install -m 0755 target/debug/lingonberry-relay /usr/local/bin/lingonberry-relay
+      - name: Validate systemd units
+        run: |
+          systemd-analyze verify deploy/systemd/lingonberry-storage-ready.service
+          systemd-analyze verify deploy/systemd/lingonberry-relay.service
       - name: Run operator acceptance
         run: bash scripts/v0_8_operator_acceptance.sh

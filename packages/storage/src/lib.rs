@@ -296,8 +296,7 @@ mod tests {
         let root = temporary_directory("unknown-field");
         fs::create_dir_all(&root).expect("create root");
         let config_path = root.join("storage-config.json");
-        fs::write(&config_path, r#"{"stateDir":"state","secret":"no"}"#)
-            .expect("write config");
+        fs::write(&config_path, r#"{"stateDir":"state","secret":"no"}"#).expect("write config");
         let error = runtime_storage_config_with_overrides(&StorageRuntimeConfigOverrides {
             config_path: Some(config_path),
             ..StorageRuntimeConfigOverrides::default()

@@ -4,8 +4,9 @@ use lingonberry_protocol::{
     validate_knowledge_object, validate_publish_request, JsonValue,
 };
 use lingonberry_storage::{
-    build_storage_backend_at, run_storage_doctor, runtime_storage_config, runtime_storage_layout,
-    DoctorCheck, DoctorReport, StorageRuntimeConfig,
+    build_storage_backend_at, run_storage_doctor, runtime_storage_config_with_overrides,
+    runtime_storage_layout, DoctorCheck, DoctorReport, StorageRuntimeConfig,
+    StorageRuntimeConfigOverrides, STORAGE_CONFIG_PRECEDENCE,
 };
 use std::collections::BTreeMap;
 use std::env;
@@ -19,14 +20,11 @@ fn main() {
 }
 
 fn run(args: Vec<String>) -> Result<(), String> {
-    let Some(command) = args.first().map(String::as_str) else {
-        return Err("usage: lingonberry-storage <capabilities|config|status|doctor|verify|ready|run|append|retrieve|replay|list> <json-file|canonical-id>".to_string());
-    };
-
-    let config = runtime_storage_config()?;
+    let invocation = parse_invocation(args)?;
+    let config = runtime_storage_config_with_overrides(&invocation.overrides)?;
     let backend = build_storage_backend_at(&config.data_dir);
 
-    match command {
+    match invocation.command.as_str() {
         "capabilities" => {
             println!(
                 "{}",
@@ -63,30 +61,71 @@ fn run(args: Vec<String>) -> Result<(), String> {
         }
         "doctor" => handle_doctor(&config, false),
         "verify" => handle_doctor(&config, true),
-        "ready" => {
-            print_runtime_status(&config);
-            Ok(())
-        }
-        "run" => {
+        "ready" | "run" => {
             print_runtime_status(&config);
             Ok(())
         }
         "append" => {
-            let pathname = args
-                .get(1)
-                .ok_or_else(|| "usage: lingonberry-storage append <json-file>".to_string())?;
+            let pathname = invocation.command_args.first().ok_or_else(|| {
+                "usage: lingonberry-storage [options] append <json-file>".to_string()
+            })?;
             handle_append(pathname, &backend)
         }
         "retrieve" => {
-            let canonical_id = args
-                .get(1)
-                .ok_or_else(|| "usage: lingonberry-storage retrieve <canonical-id>".to_string())?;
+            let canonical_id = invocation.command_args.first().ok_or_else(|| {
+                "usage: lingonberry-storage [options] retrieve <canonical-id>".to_string()
+            })?;
             handle_retrieve(canonical_id, &backend)
         }
         "replay" => handle_replay(&backend),
         "list" => handle_list(&backend),
-        _ => Err(format!("unknown command: {}", command)),
+        command => Err(format!("unknown command: {command}")),
     }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+struct ParsedInvocation {
+    command: String,
+    command_args: Vec<String>,
+    overrides: StorageRuntimeConfigOverrides,
+}
+
+fn parse_invocation(args: Vec<String>) -> Result<ParsedInvocation, String> {
+    let mut overrides = StorageRuntimeConfigOverrides::default();
+    let mut index = 0;
+    while let Some(argument) = args.get(index) {
+        if argument == "--" {
+            index += 1;
+            break;
+        }
+        if !argument.starts_with("--") {
+            break;
+        }
+        let target = match argument.as_str() {
+            "--config" => &mut overrides.config_path,
+            "--state-dir" => &mut overrides.state_dir,
+            "--data-dir" => &mut overrides.data_dir,
+            "--backup-dir" => &mut overrides.backup_dir,
+            "--temp-dir" => &mut overrides.temp_dir,
+            _ => return Err(format!("usage: unknown global option: {argument}")),
+        };
+        let value = args
+            .get(index + 1)
+            .ok_or_else(|| format!("usage: global option {argument} requires a value"))?;
+        if value.is_empty() || value.starts_with("--") {
+            return Err(format!("usage: global option {argument} requires a value"));
+        }
+        *target = Some(value.into());
+        index += 2;
+    }
+    let command = args.get(index).cloned().ok_or_else(|| {
+        "usage: lingonberry-storage [--config PATH] [--state-dir PATH] [--data-dir PATH] [--backup-dir PATH] [--temp-dir PATH] <command>".to_string()
+    })?;
+    Ok(ParsedInvocation {
+        command,
+        command_args: args[index + 1..].to_vec(),
+        overrides,
+    })
 }
 
 fn handle_doctor(config: &StorageRuntimeConfig, strict: bool) -> Result<(), String> {
@@ -251,6 +290,16 @@ fn print_config(config: &StorageRuntimeConfig) {
     println!(
         "{}",
         to_canonical_json(&json_object(vec![
+            ("containsSecrets", JsonValue::Bool(false)),
+            (
+                "precedence",
+                JsonValue::Array(
+                    STORAGE_CONFIG_PRECEDENCE
+                        .iter()
+                        .map(|value| JsonValue::String((*value).to_string()))
+                        .collect(),
+                ),
+            ),
             ("configPath", path_value(config.config_path.as_ref())),
             (
                 "stateDir",
@@ -357,5 +406,36 @@ fn exit_code_for_error(error: &str) -> i32 {
         70
     } else {
         1
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn global_options_are_parsed_before_the_command() {
+        let parsed = parse_invocation(vec![
+            "--state-dir".to_string(),
+            "/state".to_string(),
+            "--data-dir".to_string(),
+            "/data".to_string(),
+            "doctor".to_string(),
+        ])
+        .expect("parse invocation");
+        assert_eq!(parsed.command, "doctor");
+        assert_eq!(parsed.overrides.state_dir, Some("/state".into()));
+        assert_eq!(parsed.overrides.data_dir, Some("/data".into()));
+    }
+
+    #[test]
+    fn unknown_global_option_is_rejected() {
+        let error = parse_invocation(vec![
+            "--repair".to_string(),
+            "now".to_string(),
+            "doctor".to_string(),
+        ])
+        .expect_err("unknown option must fail");
+        assert!(error.contains("unknown global option"));
     }
 }

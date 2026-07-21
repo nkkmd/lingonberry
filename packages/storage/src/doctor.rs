@@ -44,23 +44,23 @@ impl DoctorReport {
 
 pub fn run_storage_doctor(config: &StorageRuntimeConfig) -> DoctorReport {
     let layout = runtime_storage_layout(config);
-    let mut checks = Vec::new();
-
-    checks.push(check_config(config));
-    checks.push(check_directory("state_directory", &config.state_dir));
-    checks.push(check_directory("data_directory", &config.data_dir));
-    checks.push(check_directory("backup_directory", &config.backup_dir));
-    checks.push(check_directory("temporary_directory", &config.temp_dir));
-    checks.push(check_storage_format(config));
-    checks.push(check_migration_journal(config));
-    checks.push(check_regular_file("raw_log", &layout.raw_log_path));
-    checks.push(check_regular_file("catalog", &layout.catalog_path));
-    checks.push(DoctorCheck {
-        name: "disk_capacity",
-        severity: DoctorSeverity::Warning,
-        code: "LB_DOCTOR_DISK_CAPACITY_UNAVAILABLE",
-        message: "portable disk-capacity inspection is not available in this build".to_string(),
-    });
+    let checks = vec![
+        check_config(config),
+        check_directory("state_directory", &config.state_dir),
+        check_directory("data_directory", &config.data_dir),
+        check_directory("backup_directory", &config.backup_dir),
+        check_directory("temporary_directory", &config.temp_dir),
+        check_storage_format(config),
+        check_migration_journal(config),
+        check_regular_file("raw_log", &layout.raw_log_path),
+        check_regular_file("catalog", &layout.catalog_path),
+        DoctorCheck {
+            name: "disk_capacity",
+            severity: DoctorSeverity::Warning,
+            code: "LB_DOCTOR_DISK_CAPACITY_UNAVAILABLE",
+            message: "portable disk-capacity inspection is not available in this build".to_string(),
+        },
+    ];
 
     DoctorReport {
         severity: aggregate_severity(&checks),

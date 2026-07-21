@@ -1,0 +1,42 @@
+name: Operator acceptance
+on:
+  pull_request:
+    paths:
+      - 'packages/storage/**'
+      - 'packages/relay/**'
+      - 'deploy/systemd/**'
+      - 'docs/operations/V0_8_OPERATOR_RUNBOOK.md'
+      - 'scripts/v0_8_operator_acceptance.sh'
+      - '.github/workflows/operator-acceptance.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'packages/storage/**'
+      - 'packages/relay/**'
+      - 'deploy/systemd/**'
+      - 'docs/operations/V0_8_OPERATOR_RUNBOOK.md'
+      - 'scripts/v0_8_operator_acceptance.sh'
+      - '.github/workflows/operator-acceptance.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  acceptance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt,clippy
+      - name: Validate systemd units
+        run: |
+          systemd-analyze verify deploy/systemd/lingonberry-storage-ready.service
+          systemd-analyze verify deploy/systemd/lingonberry-relay.service
+      - name: Validate Rust workspace
+        run: |
+          cargo fmt --all -- --check
+          cargo clippy --workspace --lib --bins -- -D warnings -A dead-code
+          cargo test --workspace
+      - name: Run operator acceptance
+        run: bash scripts/v0_8_operator_acceptance.sh

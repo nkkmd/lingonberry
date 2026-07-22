@@ -1,0 +1,67 @@
+name: v1 candidate qualification
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'packages/**'
+      - 'conformance/**'
+      - 'tests/**'
+      - 'scripts/v0_8_operator_acceptance.sh'
+      - 'scripts/v1_0_candidate_qualification.sh'
+      - '.github/workflows/v1-candidate-qualification.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v1-qualification-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  qualify:
+    name: Candidate-bound qualification dry run
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt,clippy
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify reference runner
+        run: |
+          test "$(uname -s)" = Linux
+          test "$(uname -m)" = x86_64
+          . /etc/os-release
+          test "$ID" = ubuntu
+          test "$VERSION_ID" = 24.04
+          systemctl --version
+      - name: Run candidate qualification
+        run: bash scripts/v1_0_candidate_qualification.sh target/v1-qualification
+      - name: Verify machine-readable result
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          summary = json.loads(Path('target/v1-qualification/summary.json').read_text())
+          assert summary['candidateCommit'] == '${{ github.sha }}'
+          assert summary['status'] == 'passed'
+          assert summary['gates']
+          assert all(g['status'] == 'passed' for g in summary['gates'])
+          PY
+          test -s target/v1-qualification/SHA256SUMS
+          sha256sum -c target/v1-qualification/SHA256SUMS
+      - name: Upload qualification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v1-qualification-${{ github.sha }}-${{ github.run_attempt }}
+          path: target/v1-qualification/
+          if-no-files-found: error
+          retention-days: 90

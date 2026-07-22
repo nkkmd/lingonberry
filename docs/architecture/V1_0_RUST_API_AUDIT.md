@@ -1,19 +1,12 @@
 # v1.0 Rust Public API Audit
 
-**Status: active audit** | **Target: v1.0.0** | **Parent issue: #112**
+**Status: complete** | **Target: v1.0.0** | **Parent issue: #112**
 
 ## 1. Purpose
 
-This document records the evidence and review process used to classify Lingonberry's Rust exported surface for the v1.x compatibility commitment.
+This document records the evidence and classification used to qualify Lingonberry's Rust exported surface for the v1.x compatibility commitment.
 
-A Rust item being `pub` does not automatically make it a supported third-party API. The audit distinguishes:
-
-- stable v1 entry points
-- behavior-stable contracts
-- operator contracts
-- workspace-internal boundaries
-- implementation details
-- deprecated candidates
+A Rust item being `pub` does not automatically make it a supported third-party API. The audit distinguishes stable entry points, behavior-stable contracts, operator contracts, workspace-internal boundaries, implementation details, and deprecated candidates.
 
 ## 2. Mechanical inventory
 
@@ -23,9 +16,7 @@ The canonical mechanical inventory is generated with:
 scripts/generate-rust-public-api.sh
 ```
 
-The generator records the candidate commit, Rust compiler version, and `cargo-public-api` version alongside one exported-surface file for each workspace crate.
-
-Generated output is evidence, not the normative compatibility policy. Every exported item is covered either by an explicit item classification or by a reviewed namespace/classification rule in this document.
+The generator records the candidate commit, Rust compiler version, and `cargo-public-api` version alongside one exported-surface file for each workspace crate. Generated output is evidence, not the normative compatibility policy. Every exported item is covered either by an explicit item classification or by a reviewed namespace/classification rule in this document.
 
 ## 3. Workspace coverage
 
@@ -39,100 +30,9 @@ The audit covers all library crates in the workspace:
 - `lingonberry-relay`
 - `lingonberry-storage`
 
-## 4. Initial discrepancy review
+## 4. Mechanical evidence record
 
-A source-level review confirms that the v0.9 inventory is not a complete mechanical export list.
-
-Examples in `lingonberry-protocol` that require explicit disposition include:
-
-- `ReadJsonFile`
-- `read_json_file`
-- `detect_shape`
-- `MAX_JSON_INPUT_BYTES`
-- `MAX_JSON_NESTING_DEPTH`
-
-These items are publicly exported in source but were not all enumerated as v1 frozen candidates in `V0_9_RUST_API_INVENTORY.md`.
-
-Initial disposition:
-
-| Item | Proposed class | Rationale |
-|---|---|---|
-| `MAX_JSON_INPUT_BYTES` | behavior-stable resource boundary | Public rejection boundary; value changes require compatibility and security review. |
-| `MAX_JSON_NESTING_DEPTH` | behavior-stable resource boundary | Public parser acceptance boundary; value changes require compatibility and security review. |
-| `ReadJsonFile` | workspace-internal / unstable helper | File-loading representation is not a protocol contract. |
-| `read_json_file` | workspace-internal / unstable helper | Convenience I/O helper used by workspace CLIs; public protocol consumers should use parser and validator entry points. |
-| `detect_shape` | workspace-internal / unstable helper | Heuristic convenience function used by workspace code, not a normative wire discriminator. |
-
-No item is removed or renamed during this audit merely because it appears accidental. Any source change requires consumer search, fixture review, and compatibility disposition.
-
-## 5. Required classification record
-
-For every exported item, the final audit records directly or through a namespace rule:
-
-1. crate and fully qualified item
-2. item kind and signature
-3. current documentation references
-4. known internal and external consumers
-5. test or fixture coverage
-6. stability class
-7. compatibility semantics
-8. deprecation status
-9. earliest permitted removal version
-10. notes for the normative v1 compatibility policy
-
-Compiler-generated trait implementations and blanket implementations inherit the classification of the owning public type. They are not promoted to independent Lingonberry compatibility promises unless explicitly documented.
-
-## 6. Public documentation review
-
-The audit searches the root README, protocol specifications, operator documentation, examples, fixtures, and conformance clients for direct Rust API references.
-
-A workspace-internal or unstable item must not be presented as a recommended third-party entry point.
-
-Current consumer findings:
-
-- `read_json_file` is used by workspace command implementations; no external conformance dependency has been identified.
-- `detect_shape` is used by workspace protocol/relay command paths; no normative protocol specification depends on it as a discriminator.
-- parser resource limits are referenced by security documentation and boundary tests and therefore are compatibility- and security-relevant behavior.
-
-## 7. Error compatibility review
-
-The audit treats versioned machine-readable error codes as compatibility mechanisms.
-
-The following are not stable by default:
-
-- prose wording
-- debug formatting
-- internal error type layout
-- helper-module paths
-
-Ordering becomes compatibility-relevant only where a documented API, fixture, or external conformance consumer depends on it. Such dependencies must be recorded explicitly rather than inferred from current implementation order.
-
-Current disposition:
-
-- protocol acceptance/rejection categories and versioned codes are behavior-stable
-- vector order of free-form validation prose is not stable unless a fixture explicitly asserts it
-- operator exit status and machine-readable diagnostic ordering are operator contracts where documented
-- blanket `Display`, `Debug`, conversion, marker-trait, and auto-trait implementations are not independently frozen
-
-## 8. Deprecation policy inputs
-
-Before v1.0.0 publication:
-
-- every deprecated candidate must be identified
-- replacement guidance must be documented
-- the earliest removal release must be named
-- no stable v1 item may be removed during v1.x
-- security corrections that alter behavior require explicit release-blocker review and compatibility notes
-
-Current policy proposal:
-
-- no existing exported item is removed for v1.0.0 solely to reduce surface area
-- unstable/workspace-internal exports may be deprecated during v1.x but are not removed before v2.0 unless a security emergency requires explicit disposition
-- stable v1 entry points and behavior-stable contracts are not removed or incompatibly changed during v1.x
-
-## 9. Mechanical evidence record
-
-The first successful complete inventory was generated by GitHub Actions workflow `Rust public API audit`, run `29926699269`, against the PR head commit recorded by the artifact as:
+The first successful complete inventory was generated by GitHub Actions workflow `Rust public API audit`, run `29926699269`, against commit:
 
 ```text
 ff3ca598c983276664ee34b871ac184eb6536e7e
@@ -168,11 +68,11 @@ Inventory size, measured as rustdoc-public output lines:
 | relay | 210 |
 | storage | 700 |
 
-Large counts include public fields, enum variants, inherent methods, derived trait implementations, blanket implementations, and auto traits. The counts must not be interpreted as the number of independently supported Lingonberry APIs.
+Large counts include public fields, enum variants, inherent methods, derived trait implementations, blanket implementations, and auto traits. They are not the number of independently supported Lingonberry APIs.
 
-## 10. Crate-level classification rules
+## 5. Classification rules
 
-These rules classify every mechanically exported item unless an explicit item-level exception appears in this document or the normative v1 compatibility policy.
+Compiler-generated trait implementations and blanket implementations inherit the classification of the owning public type. They are not independent Lingonberry compatibility promises unless explicitly documented.
 
 ### `lingonberry-protocol`
 
@@ -185,18 +85,19 @@ Stable entry points and behavior-stable contracts:
 
 Workspace-internal or unstable helpers:
 
-- file-loading convenience representation and helper
-- heuristic shape detection
+- `ReadJsonFile` and `read_json_file`
+- heuristic `detect_shape`
 - temporary signature-workspace implementation details
 - error prose beyond documented machine-readable semantics
+
+`MAX_JSON_INPUT_BYTES` and `MAX_JSON_NESTING_DEPTH` are behavior-stable security boundaries. Their values may be hardened only after compatibility, fixture, and security review.
 
 ### `lingonberry-identity`
 
 Behavior-stable:
 
 - identity/canonicalization rule version constants
-- versioned identity-key derivation
-- identity-key basis semantics
+- versioned identity-key derivation and basis semantics
 - identity-claim version validation
 
 Implementation-specific cryptographic invocation and test helpers remain internal.
@@ -226,7 +127,6 @@ Workspace-internal:
 
 - public modules exposing transaction composition, staging, publication, ledger, compaction, lock, preview-builder, or other implementation decomposition unless a specification explicitly names the path
 - concrete backend internals and helper structures not encoded into a public durable format
-- compiler-generated implementations inherited from an owning type
 
 ### `lingonberry-indexer`
 
@@ -248,7 +148,6 @@ Workspace-internal:
 
 - HTTP adapter structs and helper functions not documented as third-party Rust entry points
 - runtime wiring and handler decomposition
-- compiler-generated implementations inherited from response/report types
 
 ### `lingonberry-storage`
 
@@ -266,42 +165,68 @@ Workspace-internal:
 - intermediate workspace layout not documented as a durable format
 - helper types and algorithms not serialized into a public artifact
 
-## 11. Coverage mapping requirements
+## 6. Consumer and documentation review
 
-The normative compatibility policy must map stable categories to the following evidence families:
+- `read_json_file` is used by workspace command implementations; no external conformance dependency was identified.
+- `detect_shape` is used by workspace protocol/relay command paths; no normative protocol specification uses it as a wire discriminator.
+- parser resource limits are referenced by security documentation and boundary tests and are compatibility- and security-relevant behavior.
+- public operator documentation recommends CLI/HTTP contracts, not internal Rust helper paths.
+- no public documentation was found that promises blanket implementations, debug formatting, helper-module layout, or unversioned error prose.
 
-| Contract family | Required evidence |
+No source-level removal, rename, or visibility reduction is required for v1.0.0. Accidental or workspace-oriented exports remain available but are explicitly outside the stable third-party Rust API commitment.
+
+## 7. Error compatibility disposition
+
+Versioned machine-readable codes, acceptance categories, HTTP status semantics, operator exit status, and documented diagnostic severity are compatibility mechanisms.
+
+The following are not stable by default:
+
+- free-form prose wording
+- `Debug` formatting
+- internal error type layout
+- helper-module paths
+- vector ordering of validation prose
+
+Repository fixtures and external conformance consumers validate acceptance/rejection results, canonical output, codes, and protocol behavior. The audit found no justified external contract requiring the current order of free-form validation prose. Tests that compare a complete ordered vector are implementation regression tests unless the related specification explicitly declares ordering.
+
+## 8. Exact evidence-family mapping
+
+| Contract family | Primary evidence |
 |---|---|
-| Protocol and canonicalization | protocol unit tests, parser boundary tests, canonical fixtures, external conformance |
-| Identity and signatures | identity tests, signature fixtures, workspace security regression |
-| Validation | validation unit/integration tests and acceptance-policy fixtures |
-| Core storage behavior | lifecycle, duplicate/conflict, quarantine, archive, replacement/cleanup tests |
-| Indexer | catch-up, checkpoint, verify, rebuild, restart consistency tests |
-| Relay/operator behavior | HTTP contract tests and reference-platform operator acceptance |
-| Storage/recovery | migration, backup, isolated restore, doctor, journal/proof, and rollback tests |
+| Protocol parser and resource bounds | `packages/protocol/tests/parser_baseline.rs`, `packages/protocol/tests/parser_limits.rs` |
+| Canonicalization and protocol conformance | protocol unit tests, `fixtures/conformance/`, external conformance job in `.github/workflows/ci.yml` |
+| Identity and signatures | identity crate tests, protocol signature tests, signature-workspace security regression recorded in `docs/security/V0_9_SECURITY_FINDINGS.md` |
+| Validation and acceptance policy | validation crate tests and acceptance-policy fixtures exercised by workspace CI |
+| Core lifecycle and duplicate/conflict behavior | core crate lifecycle, ingestion, duplicate/conflict, retrieval, archive, and quarantine tests |
+| Replacement and cleanup durability | quarantine replacement/cleanup tests and JavaScript crash-point matrix recorded in `docs/roadmap/V0_9_RELEASE_EVIDENCE.md` |
+| Index consistency | indexer checkpoint, catch-up, verification, rebuild, and restart tests |
+| Relay and operator contracts | relay HTTP tests plus the reference-platform operator acceptance workflow |
+| Storage format and migration | storage format, migration plan/apply/resume/verify/commit/rollback tests |
+| Backup and recovery | backup verification, isolated restore, doctor, drill, journal/proof, and rollback tests |
 
-## 12. Completion checklist
+The final v1.0 candidate must rerun these families. This audit establishes classification and traceability; it does not substitute historical v0.9 results for final-candidate qualification.
 
-- [x] Generate the exported-surface inventory for all crates
-- [x] Record toolchain provenance
-- [x] Compare the generated output with the v0.9 inventory and identify omissions
-- [x] Establish crate-level rules covering all mechanical exports
-- [x] Search initial public/documentation consumers for identified protocol helpers
-- [x] Establish error and compiler-generated implementation classification rules
-- [x] Establish deprecation/removal policy proposal
-- [ ] Complete targeted search for every explicitly stable entry point
-- [ ] Complete fixture and conformance search for error-order dependencies
-- [ ] Attach exact test/fixture references to each stable contract family
-- [ ] Resolve any item-level exception to the crate-level rules
-- [ ] Incorporate approved results into the normative v1 compatibility policy
+## 9. Deprecation and removal policy input
 
-## 13. Release-blocker rules
+- no existing exported item is removed solely to reduce surface area for v1.0.0
+- no item is currently declared deprecated for v1.0.0
+- workspace-internal or unstable exports may be deprecated during v1.x with replacement guidance
+- such exports are not removed before v2.0 unless a security emergency receives explicit compatibility disposition
+- stable v1 entry points and behavior-stable contracts are not removed or incompatibly changed during v1.x
+
+## 10. Audit result
+
+The mechanical inventory and namespace rules cover every exported item. No public documentation recommends an item classified as workspace-internal or unstable. No external dependency on free-form error ordering was identified. Stable contract families have corresponding test, fixture, conformance, or operator-acceptance evidence families.
+
+This audit is complete and ready to serve as an input to `V1_COMPATIBILITY_POLICY.md`. Any compatibility-relevant source change after the recorded inventory requires regeneration and review before v1.0.0 publication.
+
+## 11. Release-blocker rules
 
 The v1.0 release is blocked when:
 
 - an exported item is not covered by an explicit classification or reviewed namespace rule
 - public documentation recommends an item classified as internal or unstable
-- a frozen behavior lacks test, fixture, or acceptance coverage
+- a frozen behavior lacks test, fixture, conformance, or acceptance coverage
 - error ordering is relied upon but undocumented
 - a deprecated item lacks replacement and removal policy
 - generated inventory and normative classification contradict each other

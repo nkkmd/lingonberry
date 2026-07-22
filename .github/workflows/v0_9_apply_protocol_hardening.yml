@@ -20,164 +20,12 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
-      - name: Correct generated raw string
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          path = Path('scripts/apply_v0_9_protocol_hardening.py')
-          text = path.read_text()
-          old = '            input.push_str("{\\"x\\":");'
-          new = '            input.push_str(r#"{"x":"#);'
-          if text.count(old) != 1:
-              raise SystemExit('generated raw string target was not unique')
-          path.write_text(text.replace(old, new))
-          PY
+      - name: Prepare generator
+        run: python3 scripts/prepare_v0_9_protocol_hardening.py
       - name: Apply exact-match hardening patch
         run: python3 scripts/apply_v0_9_protocol_hardening.py
-      - name: Replace immediate parser closures with inner methods
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          path = Path('packages/protocol/src/lib.rs')
-          text = path.read_text()
-          old_object = '''    fn parse_object(&mut self) -> Result<JsonValue, JsonError> {
-        self.enter_nesting()?;
-        let result = (|| {
-            self.consume(b'{')?;
-            self.skip_whitespace();
-            let mut map = BTreeMap::new();
-            if self.peek() == Some(b'}') {
-                self.position += 1;
-                return Ok(JsonValue::Object(map));
-            }
-            loop {
-                self.skip_whitespace();
-                let key = self.parse_string()?;
-                self.skip_whitespace();
-                self.consume(b':')?;
-                let value = self.parse_value()?;
-                map.insert(key, value);
-                self.skip_whitespace();
-                match self.peek() {
-                    Some(b',') => {
-                        self.position += 1;
-                    }
-                    Some(b'}') => {
-                        self.position += 1;
-                        break;
-                    }
-                    _ => return Err(self.error("expected , or } in object")),
-                }
-            }
-            Ok(JsonValue::Object(map))
-        })();
-        self.depth -= 1;
-        result
-    }'''
-          new_object = '''    fn parse_object(&mut self) -> Result<JsonValue, JsonError> {
-        self.enter_nesting()?;
-        let result = self.parse_object_inner();
-        self.depth -= 1;
-        result
-    }
-
-    fn parse_object_inner(&mut self) -> Result<JsonValue, JsonError> {
-        self.consume(b'{')?;
-        self.skip_whitespace();
-        let mut map = BTreeMap::new();
-        if self.peek() == Some(b'}') {
-            self.position += 1;
-            return Ok(JsonValue::Object(map));
-        }
-        loop {
-            self.skip_whitespace();
-            let key = self.parse_string()?;
-            self.skip_whitespace();
-            self.consume(b':')?;
-            let value = self.parse_value()?;
-            map.insert(key, value);
-            self.skip_whitespace();
-            match self.peek() {
-                Some(b',') => {
-                    self.position += 1;
-                }
-                Some(b'}') => {
-                    self.position += 1;
-                    break;
-                }
-                _ => return Err(self.error("expected , or } in object")),
-            }
-        }
-        Ok(JsonValue::Object(map))
-    }'''
-          old_array = '''    fn parse_array(&mut self) -> Result<JsonValue, JsonError> {
-        self.enter_nesting()?;
-        let result = (|| {
-            self.consume(b'[')?;
-            self.skip_whitespace();
-            let mut items = Vec::new();
-            if self.peek() == Some(b']') {
-                self.position += 1;
-                return Ok(JsonValue::Array(items));
-            }
-            loop {
-                let value = self.parse_value()?;
-                items.push(value);
-                self.skip_whitespace();
-                match self.peek() {
-                    Some(b',') => {
-                        self.position += 1;
-                    }
-                    Some(b']') => {
-                        self.position += 1;
-                        break;
-                    }
-                    _ => return Err(self.error("expected , or ] in array")),
-                }
-            }
-            Ok(JsonValue::Array(items))
-        })();
-        self.depth -= 1;
-        result
-    }'''
-          new_array = '''    fn parse_array(&mut self) -> Result<JsonValue, JsonError> {
-        self.enter_nesting()?;
-        let result = self.parse_array_inner();
-        self.depth -= 1;
-        result
-    }
-
-    fn parse_array_inner(&mut self) -> Result<JsonValue, JsonError> {
-        self.consume(b'[')?;
-        self.skip_whitespace();
-        let mut items = Vec::new();
-        if self.peek() == Some(b']') {
-            self.position += 1;
-            return Ok(JsonValue::Array(items));
-        }
-        loop {
-            let value = self.parse_value()?;
-            items.push(value);
-            self.skip_whitespace();
-            match self.peek() {
-                Some(b',') => {
-                    self.position += 1;
-                }
-                Some(b']') => {
-                    self.position += 1;
-                    break;
-                }
-                _ => return Err(self.error("expected , or ] in array")),
-            }
-        }
-        Ok(JsonValue::Array(items))
-    }'''
-          for old, new in ((old_object, new_object), (old_array, new_array)):
-              if text.count(old) != 1:
-                  raise SystemExit('parser closure target was not unique')
-              text = text.replace(old, new)
-          path.write_text(text)
-          PY
+      - name: Finalize parser implementation
+        run: python3 scripts/finalize_v0_9_protocol_hardening.py
       - name: Format
         run: cargo fmt --all
       - name: Clippy
@@ -189,8 +37,11 @@ jobs:
         run: |
           rm .github/workflows/v0_9_apply_protocol_hardening.yml
           rm scripts/apply_v0_9_protocol_hardening.py
+          rm scripts/prepare_v0_9_protocol_hardening.py
+          rm scripts/finalize_v0_9_protocol_hardening.py
+          rm scripts/v0_9_hardening_trigger.txt
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add packages/protocol/src/lib.rs packages/protocol/tests/parser_limits.rs .github/workflows/v0_9_apply_protocol_hardening.yml scripts/apply_v0_9_protocol_hardening.py
+          git add packages/protocol/src/lib.rs packages/protocol/tests/parser_limits.rs .github/workflows/v0_9_apply_protocol_hardening.yml scripts/apply_v0_9_protocol_hardening.py scripts/prepare_v0_9_protocol_hardening.py scripts/finalize_v0_9_protocol_hardening.py scripts/v0_9_hardening_trigger.txt
           git commit -m "fix: harden protocol parsing and signature workspaces"
           git push origin HEAD:release/v0.9.0-release-candidate-hardening

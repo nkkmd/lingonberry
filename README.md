@@ -2,7 +2,7 @@
 
 Lingonberry is a Rust workspace for publishing, validating, storing, retrieving, querying, indexing, and operating canonical knowledge objects. Canonical storage is the source of truth; indexes and effective views are derived, verifiable, and rebuildable. The workspace also includes persistent quarantine, verified backup and replacement workflows, proof-bound retention cleanup, explicit storage-format migration, and a production-oriented single-node operator surface.
 
-## v0.9.0 release candidate
+## v0.9.0
 
 v0.9.0 is the final hardening release before the v1.0 stable single-node contract. It freezes the candidate public protocol and Rust API surfaces while strengthening bounded parsing and signature-verification workspace handling.
 
@@ -18,7 +18,7 @@ Key changes:
 - all Rust workspace packages and `Cargo.lock` are versioned as `0.9.0`;
 - Rust gates, JavaScript tests, external conformance, replacement crash regression, and a five-iteration bounded hardening soak are green.
 
-The release branch is release-ready. The `v0.9.0` tag and GitHub Release remain pending until PR #108 is merged.
+The `v0.9.0` tag and GitHub Release were published on 2026-07-22 from merge commit `971155340603afdc0c9c5bd37e596f49c260d15e` through PR #108.
 
 ## v0.8.0 operational baseline
 
@@ -155,7 +155,7 @@ JavaScript contract tests and the external conformance suite are also run by `.g
 
 ## Release history
 
-- v0.9.0: release-candidate hardening, bounded protocol parsing, secure signature workspaces, public-contract freeze evidence, and bounded soak validation; publication pending
+- v0.9.0: release-candidate hardening, bounded protocol parsing, secure signature workspaces, public-contract freeze evidence, and bounded soak validation
 - v0.8.0: single-node operational readiness, Ubuntu 24.04 reference platform, diagnostics, verified recovery, systemd deployment, and fresh-runner acceptance
 - v0.7.0: storage-format manifest, deterministic migration planning, verified backup binding, resume and rollback guarantees
 - v0.6.0: append-only transitions, durable reevaluation, deterministic effective views, and bounded diagnostics

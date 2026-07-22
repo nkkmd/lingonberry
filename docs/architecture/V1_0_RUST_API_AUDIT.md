@@ -4,9 +4,9 @@
 
 ## Final validation
 
-- standard CI run `1171`: success
-- Rust public API audit run `8`: success
-- validated commit: `fc0ac86e668fc9eacad7551aca1c176226ab6be5`
+- standard CI run `1172`: success
+- Rust public API audit run `9`: success
+- validated commit: `4d6549e67420bfd641b201afc4fffef7e0666625`
 
 ## Audit conclusions
 

@@ -2,9 +2,27 @@
 
 Lingonberry is a Rust workspace for publishing, validating, storing, retrieving, querying, indexing, and operating canonical knowledge objects. Canonical storage is the source of truth; indexes and effective views are derived, verifiable, and rebuildable. The workspace also includes persistent quarantine, verified backup and replacement workflows, proof-bound retention cleanup, explicit storage-format migration, and a production-oriented single-node operator surface.
 
-## v0.8.0
+## v0.9.0 release candidate
 
-v0.8.0 completes the single-node operational-readiness milestone for the formal Linux reference platform:
+v0.9.0 is the final hardening release before the v1.0 stable single-node contract. It freezes the candidate public protocol and Rust API surfaces while strengthening bounded parsing and signature-verification workspace handling.
+
+Key changes:
+
+- protocol JSON input is bounded to 1 MiB;
+- JSON object and array nesting is bounded to depth 128;
+- oversized and excessively nested input fails closed with deterministic `JsonError` results;
+- signature verification uses exclusively created temporary workspaces and create-new artifacts;
+- Unix signature workspaces use owner-only permissions;
+- verification artifacts are removed through RAII cleanup on normal success and failure paths;
+- parser boundary, workspace cleanup, permission, collision, and concurrency regression tests are included;
+- all Rust workspace packages and `Cargo.lock` are versioned as `0.9.0`;
+- Rust gates, JavaScript tests, external conformance, replacement crash regression, and a five-iteration bounded hardening soak are green.
+
+The release branch is release-ready. The `v0.9.0` tag and GitHub Release remain pending until PR #108 is merged.
+
+## v0.8.0 operational baseline
+
+v0.8.0 completed the single-node operational-readiness milestone for the formal Linux reference platform:
 
 ```text
 Ubuntu Server 24.04 LTS / x86_64 / systemd
@@ -18,21 +36,7 @@ Ubuntu Server 24.04 LTS / x86_64 / systemd
 → run a read / write / cleanup disaster-recovery drill
 ```
 
-Key additions:
-
-- formal reference platform: Ubuntu Server 24.04 LTS, x86_64, and systemd;
-- hardened systemd units, environment-file examples, non-root ownership, and filesystem layout guidance;
-- integrated `config`, `health`, `ready`, `status`, read-only `doctor`, strict `verify`, and bounded-cardinality `metrics` commands;
-- stable canonical JSON diagnostics and documented exit-code contract;
-- verified backup creation and isolated verification;
-- non-mutating restore planning and explicit isolated restore application;
-- fail-closed rejection of symbolic links, active data directories, non-empty targets, partial archives, corrupt state, and unknown-newer formats;
-- deterministic index verification and rebuilding;
-- isolated disaster-recovery drill with read verification, duplicate-safe write verification, index verification, and mandatory cleanup;
-- v0.7.0 to v0.8.0 systemd upgrade and compatible rollback procedures;
-- fresh-runner acceptance using release-built binaries installed into `/usr/local/bin`.
-
-All Rust workspace packages and `Cargo.lock` are versioned as `0.8.0`. The `v0.8.0` tag and GitHub Release are published.
+The v0.9.0 hardening release preserves this operator contract and does not introduce an implicit storage migration.
 
 ## Safety boundaries
 
@@ -56,13 +60,15 @@ Lingonberry treats ambiguous, incomplete, unsupported, or contradictory state as
 - backup and restore paths reject symbolic links and unsafe target reuse;
 - restore never overwrites active state or active data directories;
 - cleanup never rewrites archive segments or immutable evidence ledgers;
+- untrusted JSON is bounded before recursive parsing;
+- signature verification artifacts are created exclusively and cleaned after normal execution;
 - same-host locking is not a distributed lock;
 - secure erase semantics are not promised.
 
 ## Workspace
 
 ```text
-packages/protocol     canonical protocol model
+packages/protocol     canonical protocol model and bounded JSON parser
 packages/identity     identity primitives
 packages/validation   validation rules
 packages/core         ingestion contracts and quarantine / replacement / cleanup logic
@@ -81,7 +87,7 @@ cargo run -p lingonberry-relay --bin lingonberry-reevaluate-transitions
 cargo run -p lingonberry-relay --bin lingonberry-reevaluate-transitions -- --reconcile
 ```
 
-Production-oriented reference installation uses release-built binaries and systemd. See the [v0.8.0 Operator Runbook](docs/operations/V0_8_OPERATOR_RUNBOOK.md).
+Production-oriented reference installation uses release-built binaries and systemd. See the [v0.8.0 Operator Runbook](docs/operations/V0_8_OPERATOR_RUNBOOK.md). The v0.9.0 release does not change the formal Ubuntu Server 24.04 LTS, x86_64, systemd reference platform.
 
 Storage operator examples:
 
@@ -123,16 +129,21 @@ cargo clippy --workspace --tests -- -A warnings
 cargo test --workspace
 ```
 
-JavaScript contract tests and the external conformance suite are also run by `.github/workflows/ci.yml`. The dedicated operator acceptance workflow validates Ubuntu Server 24.04 LTS, x86_64, systemd units, release-built installed binaries, restart persistence, backup, isolated restore, index lifecycle, fail-closed fixtures, and the DR drill.
+JavaScript contract tests and the external conformance suite are also run by `.github/workflows/ci.yml`. v0.9.0 release preparation additionally repeated parser limits, signature workspace tests, and the quarantine replacement crash matrix through a bounded five-iteration soak.
 
 ## Documentation
 
 - [Current implementation status](docs/roadmap/CURRENT_IMPLEMENTATION_STATUS.md)
 - [Roadmap to v1.0](docs/roadmap/ROADMAP_TO_V1_0.md)
-- [v0.8.0 release checklist](docs/roadmap/RELEASE_0_8_0_CHECKLIST.md)
-- [v0.8.0 release notes](docs/roadmap/RELEASE_0_8_0_RELEASE_NOTE.md)
+- [v0.9.0 release checklist](docs/roadmap/RELEASE_0_9_0_CHECKLIST.md)
+- [v0.9.0 release notes](docs/roadmap/RELEASE_0_9_0_RELEASE_NOTE.md)
+- [v0.9.0 release evidence](docs/roadmap/V0_9_RELEASE_EVIDENCE.md)
+- [v0.9.0 hardening plan](docs/roadmap/V0_9_HARDENING_PLAN.md)
+- [v0.9.0 security review](docs/security/V0_9_SECURITY_REVIEW.md)
+- [v0.9.0 security findings](docs/security/V0_9_SECURITY_FINDINGS.md)
+- [v0.9.0 public API freeze candidate](docs/architecture/V0_9_PUBLIC_API_FREEZE_CANDIDATE.md)
 - [v0.8.0 Operator Runbook](docs/operations/V0_8_OPERATOR_RUNBOOK.md)
-- [v0.8.0 Operator CLI Contract](docs/operations/OPERATOR_CLI_CONTRACT.md)
+- [Operator CLI Contract](docs/operations/OPERATOR_CLI_CONTRACT.md)
 - [v0.8.0 Upgrade and Rollback](docs/operations/V0_8_UPGRADE_AND_ROLLBACK.md)
 - [Supported Platforms](docs/operations/SUPPORTED_PLATFORMS.md)
 - [Storage migration and upgrade contract](docs/operations/STORAGE_MIGRATION_AND_UPGRADE.md)
@@ -144,6 +155,7 @@ JavaScript contract tests and the external conformance suite are also run by `.g
 
 ## Release history
 
+- v0.9.0: release-candidate hardening, bounded protocol parsing, secure signature workspaces, public-contract freeze evidence, and bounded soak validation; publication pending
 - v0.8.0: single-node operational readiness, Ubuntu 24.04 reference platform, diagnostics, verified recovery, systemd deployment, and fresh-runner acceptance
 - v0.7.0: storage-format manifest, deterministic migration planning, verified backup binding, resume and rollback guarantees
 - v0.6.0: append-only transitions, durable reevaluation, deterministic effective views, and bounded diagnostics

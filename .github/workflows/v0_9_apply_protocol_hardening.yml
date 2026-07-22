@@ -20,12 +20,24 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
+      - name: Correct generated raw string
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/apply_v0_9_protocol_hardening.py')
+          text = path.read_text()
+          old = '            input.push_str("{\\"x\\":");'
+          new = '            input.push_str(r#"{"x":"#);'
+          if text.count(old) != 1:
+              raise SystemExit('generated raw string target was not unique')
+          path.write_text(text.replace(old, new))
+          PY
       - name: Apply exact-match hardening patch
         run: python3 scripts/apply_v0_9_protocol_hardening.py
       - name: Format
         id: format
         continue-on-error: true
-        run: cargo fmt --all -- --check > /tmp/format.log 2>&1
+        run: cargo fmt --all > /tmp/format.log 2>&1
       - name: Clippy
         id: clippy
         continue-on-error: true

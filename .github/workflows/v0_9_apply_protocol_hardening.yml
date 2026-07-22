@@ -1,0 +1,96 @@
+name: Apply v0.9 protocol hardening
+
+on:
+  pull_request:
+    types: [synchronize]
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.head_ref == 'release/v0.9.0-release-candidate-hardening'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: release/v0.9.0-release-candidate-hardening
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - name: Apply exact-match hardening patch
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('packages/protocol/src/lib.rs')
+          text = path.read_text()
+          replacements = []
+
+          replacements.append((
+          '''use std::fs;\nuse std::path::Path;\nuse std::process::Command;''',
+          '''use std::fs::{self, OpenOptions};\nuse std::io::Write;\nuse std::path::{Path, PathBuf};\nuse std::process::Command;\nuse std::sync::atomic::{AtomicU64, Ordering};'''
+          ))
+
+          replacements.append((
+          '''pub const CARRIER_KIND_RELAY: &str = "relay";''',
+          '''pub const CARRIER_KIND_RELAY: &str = "relay";\npub const MAX_JSON_INPUT_BYTES: usize = 1024 * 1024;\npub const MAX_JSON_NESTING_DEPTH: usize = 128;'''
+          ))
+
+          replacements.append((
+          '''pub fn parse_json(input: &str) -> Result<JsonValue, JsonError> {\n    let mut parser = Parser {\n        input: input.as_bytes(),\n        position: 0,\n    };''',
+          '''pub fn parse_json(input: &str) -> Result<JsonValue, JsonError> {\n    if input.len() > MAX_JSON_INPUT_BYTES {\n        return Err(JsonError {\n            message: format!("JSON input exceeds {MAX_JSON_INPUT_BYTES} bytes"),\n            position: MAX_JSON_INPUT_BYTES,\n        });\n    }\n    let mut parser = Parser {\n        input: input.as_bytes(),\n        position: 0,\n        depth: 0,\n    };'''
+          ))
+
+          replacements.append((
+          '''struct Parser<'a> {\n    input: &'a [u8],\n    position: usize,\n}''',
+          '''struct Parser<'a> {\n    input: &'a [u8],\n    position: usize,\n    depth: usize,\n}'''
+          ))
+
+          replacements.append((
+          '''    fn parse_object(&mut self) -> Result<JsonValue, JsonError> {\n        self.consume(b'{')?;\n        self.skip_whitespace();\n        let mut map = BTreeMap::new();\n        if self.peek() == Some(b'}') {\n            self.position += 1;\n            return Ok(JsonValue::Object(map));\n        }\n        loop {\n            self.skip_whitespace();\n            let key = self.parse_string()?;\n            self.skip_whitespace();\n            self.consume(b':')?;\n            let value = self.parse_value()?;\n            map.insert(key, value);\n            self.skip_whitespace();\n            match self.peek() {\n                Some(b',') => {\n                    self.position += 1;\n                }\n                Some(b'}') => {\n                    self.position += 1;\n                    break;\n                }\n                _ => return Err(self.error("expected , or } in object")),\n            }\n        }\n        Ok(JsonValue::Object(map))\n    }''',
+          '''    fn parse_object(&mut self) -> Result<JsonValue, JsonError> {\n        self.enter_nesting()?;\n        let result = (|| {\n            self.consume(b'{')?;\n            self.skip_whitespace();\n            let mut map = BTreeMap::new();\n            if self.peek() == Some(b'}') {\n                self.position += 1;\n                return Ok(JsonValue::Object(map));\n            }\n            loop {\n                self.skip_whitespace();\n                let key = self.parse_string()?;\n                self.skip_whitespace();\n                self.consume(b':')?;\n                let value = self.parse_value()?;\n                map.insert(key, value);\n                self.skip_whitespace();\n                match self.peek() {\n                    Some(b',') => {\n                        self.position += 1;\n                    }\n                    Some(b'}') => {\n                        self.position += 1;\n                        break;\n                    }\n                    _ => return Err(self.error("expected , or } in object")),\n                }\n            }\n            Ok(JsonValue::Object(map))\n        })();\n        self.depth -= 1;\n        result\n    }'''
+          ))
+
+          replacements.append((
+          '''    fn parse_array(&mut self) -> Result<JsonValue, JsonError> {\n        self.consume(b'[')?;\n        self.skip_whitespace();\n        let mut items = Vec::new();\n        if self.peek() == Some(b']') {\n            self.position += 1;\n            return Ok(JsonValue::Array(items));\n        }\n        loop {\n            let value = self.parse_value()?;\n            items.push(value);\n            self.skip_whitespace();\n            match self.peek() {\n                Some(b',') => {\n                    self.position += 1;\n                }\n                Some(b']') => {\n                    self.position += 1;\n                    break;\n                }\n                _ => return Err(self.error("expected , or ] in array")),\n            }\n        }\n        Ok(JsonValue::Array(items))\n    }''',
+          '''    fn parse_array(&mut self) -> Result<JsonValue, JsonError> {\n        self.enter_nesting()?;\n        let result = (|| {\n            self.consume(b'[')?;\n            self.skip_whitespace();\n            let mut items = Vec::new();\n            if self.peek() == Some(b']') {\n                self.position += 1;\n                return Ok(JsonValue::Array(items));\n            }\n            loop {\n                let value = self.parse_value()?;\n                items.push(value);\n                self.skip_whitespace();\n                match self.peek() {\n                    Some(b',') => {\n                        self.position += 1;\n                    }\n                    Some(b']') => {\n                        self.position += 1;\n                        break;\n                    }\n                    _ => return Err(self.error("expected , or ] in array")),\n                }\n            }\n            Ok(JsonValue::Array(items))\n        })();\n        self.depth -= 1;\n        result\n    }'''
+          ))
+
+          replacements.append((
+          '''    fn skip_whitespace(&mut self) {''',
+          '''    fn enter_nesting(&mut self) -> Result<(), JsonError> {\n        if self.depth >= MAX_JSON_NESTING_DEPTH {\n            return Err(self.error(format!(\n                "JSON nesting exceeds {MAX_JSON_NESTING_DEPTH}"\n            )));\n        }\n        self.depth += 1;\n        Ok(())\n    }\n\n    fn skip_whitespace(&mut self) {'''
+          ))
+
+          old_signature = '''fn verify_publish_request_signature_with_openssl(\n    message: &[u8],\n    public_key: &[u8],\n    signature: &[u8],\n) -> Result<(), String> {\n    let temp_root = std::env::temp_dir().join(format!(\n        "lingonberry-signature-{}",\n        std::time::SystemTime::now()\n            .duration_since(std::time::UNIX_EPOCH)\n            .unwrap_or_default()\n            .as_nanos()\n    ));\n    fs::create_dir_all(&temp_root)\n        .map_err(|error| format!("failed to create temp dir: {}", error))?;\n\n    let key_path = temp_root.join("public-key.der");\n    let sig_path = temp_root.join("signature.bin");\n    let msg_path = temp_root.join("message.bin");\n\n    let mut der = vec![\n        0x30, 0x2a, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x03, 0x21, 0x00,\n    ];\n    der.extend_from_slice(public_key);\n    fs::write(&key_path, der).map_err(|error| format!("failed to write public key: {}", error))?;\n    fs::write(&sig_path, signature)\n        .map_err(|error| format!("failed to write signature: {}", error))?;\n    fs::write(&msg_path, message).map_err(|error| format!("failed to write message: {}", error))?;\n\n    let output = Command::new("openssl")\n        .args([\n            "pkeyutl",\n            "-verify",\n            "-pubin",\n            "-inkey",\n            key_path\n                .to_str()\n                .ok_or_else(|| "temp key path is not valid UTF-8".to_string())?,\n            "-keyform",\n            "DER",\n            "-rawin",\n            "-in",\n            msg_path\n                .to_str()\n                .ok_or_else(|| "temp message path is not valid UTF-8".to_string())?,\n            "-sigfile",\n            sig_path\n                .to_str()\n                .ok_or_else(|| "temp signature path is not valid UTF-8".to_string())?,\n        ])\n        .output()\n        .map_err(|error| format!("failed to run openssl: {}", error))?;\n\n    if output.status.success() {\n        return Ok(());\n    }\n\n    Err("publisher.signature does not verify the canonical request payload".to_string())\n}'''
+
+          new_signature = '''static SIGNATURE_WORKSPACE_COUNTER: AtomicU64 = AtomicU64::new(0);\n\nstruct SignatureWorkspace {\n    path: PathBuf,\n}\n\nimpl SignatureWorkspace {\n    fn create() -> Result<Self, String> {\n        for _ in 0..32 {\n            let counter = SIGNATURE_WORKSPACE_COUNTER.fetch_add(1, Ordering::Relaxed);\n            let timestamp = std::time::SystemTime::now()\n                .duration_since(std::time::UNIX_EPOCH)\n                .unwrap_or_default()\n                .as_nanos();\n            let path = std::env::temp_dir().join(format!(\n                "lingonberry-signature-{}-{timestamp}-{counter}",\n                std::process::id()\n            ));\n            let mut builder = fs::DirBuilder::new();\n            #[cfg(unix)]\n            {\n                use std::os::unix::fs::DirBuilderExt;\n                builder.mode(0o700);\n            }\n            match builder.create(&path) {\n                Ok(()) => return Ok(Self { path }),\n                Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,\n                Err(_) => return Err("failed to create signature verification workspace".to_string()),\n            }\n        }\n        Err("failed to create unique signature verification workspace".to_string())\n    }\n\n    fn path(&self) -> &Path {\n        &self.path\n    }\n}\n\nimpl Drop for SignatureWorkspace {\n    fn drop(&mut self) {\n        let _ = fs::remove_dir_all(&self.path);\n    }\n}\n\nfn write_new_file(path: &Path, bytes: &[u8]) -> Result<(), String> {\n    let mut file = OpenOptions::new()\n        .write(true)\n        .create_new(true)\n        .open(path)\n        .map_err(|_| "failed to create signature verification artifact".to_string())?;\n    file.write_all(bytes)\n        .map_err(|_| "failed to write signature verification artifact".to_string())\n}\n\nfn verify_publish_request_signature_with_openssl(\n    message: &[u8],\n    public_key: &[u8],\n    signature: &[u8],\n) -> Result<(), String> {\n    let workspace = SignatureWorkspace::create()?;\n    let key_path = workspace.path().join("public-key.der");\n    let sig_path = workspace.path().join("signature.bin");\n    let msg_path = workspace.path().join("message.bin");\n\n    let mut der = vec![\n        0x30, 0x2a, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x03, 0x21, 0x00,\n    ];\n    der.extend_from_slice(public_key);\n    write_new_file(&key_path, &der)?;\n    write_new_file(&sig_path, signature)?;\n    write_new_file(&msg_path, message)?;\n\n    let output = Command::new("openssl")\n        .arg("pkeyutl")\n        .arg("-verify")\n        .arg("-pubin")\n        .arg("-inkey")\n        .arg(&key_path)\n        .arg("-keyform")\n        .arg("DER")\n        .arg("-rawin")\n        .arg("-in")\n        .arg(&msg_path)\n        .arg("-sigfile")\n        .arg(&sig_path)\n        .output()\n        .map_err(|_| "failed to run signature verification command".to_string())?;\n\n    if output.status.success() {\n        Ok(())\n    } else {\n        Err("publisher.signature does not verify the canonical request payload".to_string())\n    }\n}'''
+          replacements.append((old_signature, new_signature))
+
+          for old, new in replacements:
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'exact-match replacement count was {count}, expected 1')
+              text = text.replace(old, new)
+
+          path.write_text(text)
+
+          Path('packages/protocol/tests/parser_limits.rs').write_text('''use lingonberry_protocol::{parse_json, MAX_JSON_INPUT_BYTES, MAX_JSON_NESTING_DEPTH};\n\n#[test]\nfn rejects_input_larger_than_limit() {\n    let input = " ".repeat(MAX_JSON_INPUT_BYTES + 1);\n    let error = parse_json(&input).unwrap_err();\n    assert!(error.message.contains("exceeds"));\n}\n\n#[test]\nfn accepts_input_at_limit_when_valid() {\n    let padding = " ".repeat(MAX_JSON_INPUT_BYTES - 4);\n    let input = format!("null{padding}");\n    assert_eq!(input.len(), MAX_JSON_INPUT_BYTES);\n    assert!(parse_json(&input).is_ok());\n}\n\n#[test]\nfn accepts_maximum_nesting_depth() {\n    let input = format!(\n        "{}null{}",\n        "[".repeat(MAX_JSON_NESTING_DEPTH),\n        "]".repeat(MAX_JSON_NESTING_DEPTH)\n    );\n    assert!(parse_json(&input).is_ok());\n}\n\n#[test]\nfn rejects_nesting_above_limit_without_panicking() {\n    let input = format!(\n        "{}null{}",\n        "[".repeat(MAX_JSON_NESTING_DEPTH + 1),\n        "]".repeat(MAX_JSON_NESTING_DEPTH + 1)\n    );\n    let error = parse_json(&input).unwrap_err();\n    assert!(error.message.contains("nesting exceeds"));\n}\n\n#[test]\nfn rejects_mixed_nesting_above_limit() {\n    let mut input = String::new();\n    for index in 0..=MAX_JSON_NESTING_DEPTH {\n        if index % 2 == 0 {\n            input.push_str("{\\\"x\\\":");\n        } else {\n            input.push('[');\n        }\n    }\n    input.push_str("null");\n    for index in (0..=MAX_JSON_NESTING_DEPTH).rev() {\n        if index % 2 == 0 {\n            input.push('}');\n        } else {\n            input.push(']');\n        }\n    }\n    assert!(parse_json(&input).is_err());\n}\n''')
+          PY
+      - name: Format and validate
+        run: |
+          cargo fmt --all
+          cargo clippy --workspace --all-targets --all-features -- -D warnings
+          cargo test --workspace
+      - name: Commit validated hardening
+        shell: bash
+        run: |
+          rm .github/workflows/v0_9_apply_protocol_hardening.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add packages/protocol/src/lib.rs packages/protocol/tests/parser_limits.rs .github/workflows/v0_9_apply_protocol_hardening.yml
+          git commit -m "fix: harden protocol parsing and signature workspaces"
+          git push origin HEAD:release/v0.9.0-release-candidate-hardening

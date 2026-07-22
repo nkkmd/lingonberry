@@ -91,12 +91,14 @@ fn canonical_round_trip_preserves_normalized_value() {
     ];
 
     for input in corpus {
-        let parsed = parse_json(input)
-            .unwrap_or_else(|error| panic!("corpus entry {input:?} must parse: {error}"));
+        let parsed = parse_json(input).unwrap_or_else(|error| {
+            panic!("corpus entry {input:?} must parse: {error}")
+        });
         let normalized = normalize_json(parsed);
         let canonical = to_canonical_json(&normalized);
-        let reparsed = parse_json(&canonical)
-            .unwrap_or_else(|error| panic!("canonical output {canonical:?} must parse: {error}"));
+        let reparsed = parse_json(&canonical).unwrap_or_else(|error| {
+            panic!("canonical output {canonical:?} must parse: {error}")
+        });
 
         assert_eq!(
             reparsed, normalized,
@@ -116,6 +118,6 @@ fn duplicate_object_keys_have_deterministic_last_value_semantics() {
         JsonValue::Object(std::collections::BTreeMap::from([(
             "key".to_string(),
             JsonValue::Number("2".to_string()),
-        )]))
+        )])),
     );
 }

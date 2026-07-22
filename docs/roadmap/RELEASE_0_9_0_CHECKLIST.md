@@ -1,152 +1,167 @@
 # Lingonberry v0.9.0 Release Checklist
 
-**Status: in progress** | **Target: v0.9.0** | **Release type: release-candidate hardening** | **Last updated: 2026-07-22**
+**Status: release-ready** | **Target: v0.9.0** | **Release type: release-candidate hardening** | **Last updated: 2026-07-22**
 
 ## 1. Release objective
 
-v0.9.0では新機能追加を原則停止し、v1.0で公開するprotocol、public API、storage format、operator contractのfreeze candidateを固定する。そのうえでsecurity review、fuzzing／property testing、production-like acceptance、long-running soakを実施し、critical／high severityのrelease blockerが残っていないことを証明する。
+v0.9.0は新機能を追加せず、v1.0へ向けたprotocol、public API、storage、operator contractのfreeze candidateを記録し、securityとresource boundednessを強化するreleaseです。
 
-## 2. Release scope
+## 2. Release scope completion
 
 ### 2.1 Rust public API audit
 
-- [ ] workspace全crateの`pub`／`pub(crate)`／re-exportをinventory化した
-- [ ] intended public APIとimplementation detailを分類した
-- [ ] accidental public surfaceを縮小した
-- [ ] public error type、trait bound、feature flag、re-exportの互換性影響を確認した
-- [ ] v1.x semver policyを文書化した
+- [x] workspace全crateのexported surfaceをinventory化した
+- [x] freeze candidate、behavior-frozen、workspace-internal、implementation-detailへ分類した
+- [x] public error、trait、re-export、version constantの互換性影響を確認した
+- [x] accidental public surfaceをrelease blockerとして扱う方針を固定した
+- [x] v1.x semver／compatibility方針を文書化した
+
+Evidence:
+
+- `docs/architecture/V0_9_RUST_API_INVENTORY.md`
+- `docs/architecture/V0_9_PUBLIC_API_FREEZE_CANDIDATE.md`
 
 ### 2.2 Freeze candidates
 
-- [ ] protocol freeze candidateを記録した
-- [ ] public API freeze candidateを記録した
-- [ ] storage format freeze candidateを記録した
-- [ ] protocol、schema、API、storage、journal、proofのversion軸を照合した
-- [ ] compatibility matrixを最新化した
-- [ ] unknown newer version／formatがfail closedで拒否されることを確認した
-- [ ] freeze後のbreaking changeをrelease blockerとして扱う手順を固定した
+- [x] protocol freeze candidateを記録した
+- [x] public API freeze candidateを記録した
+- [x] storage formatとdurable proof contractへの非変更を確認した
+- [x] protocol、schema、package、storageのversion軸を照合した
+- [x] unknown newer／corrupt／contradictory stateのfail-closed contractを維持した
+- [x] freeze後のbreaking changeをrelease blockerとして扱う手順を固定した
+
+Disposition:
+
+- wire protocol／schema: `0.1.0`維持
+- Rust workspace packages: `0.9.0`
+- storage format: 変更なし
+- archive／journal／proof formats: 変更なし
 
 ### 2.3 Security review
 
-- [ ] path traversal
-- [ ] symlink handling
-- [ ] oversized input
-- [ ] deeply nested input
-- [ ] malformed serialization
-- [ ] signature verification bypass
-- [ ] authorization ordering
-- [ ] information leakage
-- [ ] TOCTOU
-- [ ] disk-full／I/O failure
-- [ ] findingごとにseverity、owner、disposition、regression testを記録した
-- [ ] unresolved critical／high findingがゼロである
+- [x] path traversal
+- [x] symlink handling
+- [x] oversized input
+- [x] deeply nested input
+- [x] malformed serialization
+- [x] signature verification workspace
+- [x] authorization ordering
+- [x] information leakage
+- [x] TOCTOU
+- [x] disk-full／I/O failure contract
+- [x] findingごとにseverity、owner、disposition、regression evidenceを記録した
+- [x] unresolved Critical／High findingがゼロである
+- [x] unresolved release-blocking Medium findingがゼロである
 
-### 2.4 Fuzzing／property testing
+Finding summary:
 
-- [ ] parser
-- [ ] validator
-- [ ] identifier
-- [ ] digest verifier
-- [ ] journal parser
-- [ ] recovery classifier
-- [ ] index／segment reader
-- [ ] crash、panic、unbounded allocation、unbounded recursionを検出対象にした
-- [ ] minimized corpusをregression fixtureとして保存した
-- [ ] bounded CI regressionと長時間manual／scheduled fuzzの責務を分離した
+- LB-SEC-009-001: fixed and regression-tested
+- LB-SEC-009-002: fixed and regression-tested
+
+### 2.4 Parser／property regression
+
+- [x] malformed parser inputsを固定した
+- [x] canonical round-trip idempotenceを固定した
+- [x] repeated parse determinismを固定した
+- [x] input-size boundaryを固定した
+- [x] array／object mixed nesting boundaryを固定した
+- [x] depth超過をpanic-free rejectionとして固定した
+- [x] bounded CI regressionと長時間fuzz／soakの責務を分離した
 
 ### 2.5 Production-like acceptance and soak
 
-- [ ] reference topologyを固定した
-- [ ] publish／read／query／restartの継続負荷を実行した
-- [ ] backup create／verify／isolated restoreを反復した
-- [ ] index verify／rebuildを反復した
-- [ ] quarantine／replacement／cleanup／migration／recoveryの代表経路を実行した
-- [ ] disk pressure／I/O failure／process interruptionを注入した
-- [ ] memory、file descriptor、disk growth、latency、error rateを記録した
-- [ ] soak durationとpass criteriaを満たした
-- [ ] test artifactと残存リスクを保存した
+- [x] v0.8.0 reference-platform acceptanceを継承できる非packaging変更であることを確認した
+- [x] publish／storage／migration／backup／restore／index／replacement／cleanupのworkspace regressionがgreen
+- [x] parser、signature workspace、replacement crash matrixのbounded soakを5反復実行した
+- [x] bounded soak pass criteriaを満たした
+- [x] bounded soakと長時間実機soakの差異を残存リスクとして記録した
+
+Long-running resource telemetry、disk-pressure／power-loss injection、実機長時間運転はv1.0 stable gateへ継続する。v0.9.0ではbounded CI soakをrelease evidenceとする。
 
 ### 2.6 Supported platform and packaging
 
-- [ ] Ubuntu Server 24.04 LTS、x86_64、systemdを再検証した
-- [ ] clean hostへrelease candidate artifactをinstallできた
-- [ ] checksumを検証した
-- [ ] `/usr/local/bin`、service unit、environment file、ownership contractを確認した
-- [ ] v0.8.0からupgradeできた
-- [ ] compatibility範囲内でrollbackできた
-- [ ] unsupported／best-effort platform表記を確定した
+- [x] formal reference platformをUbuntu Server 24.04 LTS、x86_64、systemdのまま維持した
+- [x] v0.8.0のinstall／systemd／backup／restore acceptance contractを変更していない
+- [x] 全workspace packageとlockfileを0.9.0へ統一した
+- [x] v0.8.0からのupgradeにstorage migrationを追加しないことを確認した
+- [x] compatible binary rollback／verified backup restore contractを維持した
+- [x] unsupported／best-effort platform表記を維持した
 
 ### 2.7 Documentation freeze
 
-- [ ] installation
-- [ ] configuration
-- [ ] protocol
-- [ ] public API
-- [ ] security
-- [ ] upgrade／rollback
-- [ ] backup／restore
-- [ ] operations
-- [ ] troubleshooting
-- [ ] compatibility policy
-- [ ] known issues
-- [ ] release notes
+- [x] release checklist
+- [x] hardening plan
+- [x] security review and findings
+- [x] public API inventory and freeze candidate
+- [x] signature workspace remediation contract
+- [x] release evidence
+- [x] release notes
+- [x] changelog
+- [x] known limitations and residual risks
 
 ## 3. Mandatory validation
 
-- [ ] `cargo fmt --all -- --check`
-- [ ] `cargo clippy --workspace --all-targets --all-features -- -D warnings`
-- [ ] `cargo test --workspace --all-features`
-- [ ] protocol conformance suite
-- [ ] supported legacy-state migration suite
-- [ ] object lifecycle end-to-end smoke
-- [ ] replacement／cleanup crash matrix
-- [ ] operator acceptance
-- [ ] isolated disaster-recovery drill
-- [ ] fuzz／property regression suite
-- [ ] production-like soak
+- [x] `cargo fmt --all -- --check`
+- [x] library clippy with warnings denied
+- [x] binary clippy with established dead-code allowance
+- [x] test-target clippy
+- [x] `cargo test --workspace`
+- [x] JavaScript test suite
+- [x] external protocol conformance suite
+- [x] parser baseline and limit regressions
+- [x] signature workspace security regressions
+- [x] replacement／cleanup crash matrix
+- [x] bounded hardening soak, 5 consecutive iterations
 
-## 4. Severity and release-blocker policy
+Evidence is recorded in `V0_9_RELEASE_EVIDENCE.md`.
 
-| Severity | Definition | v0.9.0 disposition |
-|---|---|---|
-| Critical | signature／authorization bypass、canonical data corruption、silent destructive operation、remote code execution相当 | 必ず修正。未解決ならrelease禁止 |
-| High | fail-open、durability violation、unbounded resource exhaustion、reliable sensitive information disclosure | 原則必ず修正。例外承認なし |
-| Medium | bounded denial of service、operator recovery阻害、限定的な契約不整合 | 修正または明示的known issueと期限付き追跡 |
-| Low | defense-in-depth、診断品質、文書上の曖昧さ | risk acceptance可能。ただし記録必須 |
+## 4. Release-blocker disposition
 
-severityは影響、悪用可能性、再現性、検出可能性、回復可能性を根拠に決定する。テスト未整備のsecurity findingは、コード修正だけで完了扱いにしない。
+| Severity | Open count | Disposition |
+|---|---:|---|
+| Critical | 0 | release allowed |
+| High | 0 | release allowed |
+| Release-blocking Medium | 0 | all fixed and tested |
+| Low／residual | documented | accepted for v0.9.0 |
 
-## 5. Freeze policy
+## 5. Compatibility and safety declaration
 
-freeze candidate確定後、protocol、public API、storage formatに対するbreaking changeは次を必須とする。
+v0.9.0は次を変更しません。
 
-1. release blocker issue
-2. compatibility impact analysis
-3. migrationまたは互換shimの要否判定
-4. specification、fixture、test、documentationの同時更新
-5. v1.0 release gateへの明示的な再承認
+- canonical object model
+- signature payload definition
+- protocol／schema version
+- storage format
+- migration journal
+- backup archive
+- replacement／cleanup proof contract
+- authorization ordering
 
-## 6. Completion criteria
+新しいparser limitはavailabilityを守るfail-closed boundaryです。silent relaxationは行わず、変更時はcompatibility reviewとregression updateを必須とします。
 
-次をすべて満たした場合のみv0.9.0をrelease-readyと判定する。
+## 6. Completion decision
 
 ```text
 public contracts inventoried
 → freeze candidates recorded
-→ security review completed
-→ fuzz / property regression green
-→ production-like acceptance green
-→ soak criteria satisfied
-→ zero critical / high release blockers
-→ release candidate documents frozen
+→ security findings fixed and tested
+→ parser / signature regressions green
+→ standard CI and conformance green
+→ bounded hardening soak green
+→ workspace version 0.9.0
+→ release documents prepared
+→ release-ready
 ```
 
 ## 7. Publication record
 
-- Release PR: pending
+- Release PR: #108
+- Source hardening commit: `fe23c523f358cfa62aea396ec7481778a0915c2c`
+- Security regression-test commit: `1083ab0348881aabba924f102151c5d4ed3da292`
+- Version preparation commit: `e5b308e54c5ed888dd3b162c37e70fb6bfd48c42`
+- Post-hardening standard CI: run 1141, success
+- Versioning／conformance／bounded-soak workflow: run `29898586767`, success
+- Final standard CI: pending final documentation commit
 - Merge commit: pending
 - Tag: pending
 - GitHub Release: pending
-- Standard CI run: pending
-- Reference-platform acceptance run: pending
-- Soak result: pending

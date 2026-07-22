@@ -1,0 +1,67 @@
+name: Prepare v0.9.0 release
+
+on:
+  pull_request:
+    types: [synchronize]
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    if: github.head_ref == 'release/v0.9.0-release-candidate-hardening'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: release/v0.9.0-release-candidate-hardening
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Apply v0.9.0 versioning
+        run: python3 scripts/prepare_v0_9_release.py
+      - name: Verify package metadata
+        run: |
+          cargo metadata --no-deps --format-version 1 > /tmp/metadata.json
+          python3 - <<'PY'
+          import json
+          data = json.load(open('/tmp/metadata.json'))
+          versions = {package['name']: package['version'] for package in data['packages']}
+          bad = {name: version for name, version in versions.items() if version != '0.9.0'}
+          if bad:
+              raise SystemExit(f'non-0.9.0 workspace packages: {bad}')
+          print(versions)
+          PY
+      - name: Standard Rust gates
+        run: |
+          cargo fmt --all -- --check
+          cargo clippy --workspace --lib -- -D warnings
+          cargo clippy --workspace --bins -- -D warnings -A dead-code
+          cargo clippy --workspace --tests -- -A warnings
+          cargo test --workspace
+      - name: JavaScript and external conformance
+        run: |
+          node --test conformance/manifest-integrity.test.mjs conformance/minimal-producer.test.mjs conformance/transition-evidence-generation.test.mjs conformance/diagnostic-retention-hybrid.test.mjs conformance/diagnostic-cursor-lease.test.mjs conformance/diagnostic-read-guard.test.mjs conformance/diagnostic-read-guard-heartbeat.test.mjs packages/codecs/test/canonicalization.test.mjs packages/identity/test/identity-claim-validator.test.mjs packages/validation/test/validation.test.mjs tests/quarantine-replacement-crash-points.test.mjs
+          node conformance/run.mjs
+      - name: Bounded hardening soak
+        run: |
+          for iteration in 1 2 3 4 5; do
+            echo "bounded soak iteration ${iteration}/5"
+            cargo test -p lingonberry-protocol --test parser_baseline --test parser_limits
+            cargo test -p lingonberry-protocol signature_workspace
+            node --test tests/quarantine-replacement-crash-points.test.mjs
+          done
+      - name: Commit validated release version
+        run: |
+          rm .github/workflows/v0_9_prepare_release.yml
+          rm scripts/prepare_v0_9_release.py
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add packages/*/Cargo.toml Cargo.lock .github/workflows/v0_9_prepare_release.yml scripts/prepare_v0_9_release.py
+          git commit -m "release: set workspace version to 0.9.0"
+          git push origin HEAD:release/v0.9.0-release-candidate-hardening

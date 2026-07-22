@@ -1,0 +1,34 @@
+name: v1 documentation freeze check
+
+on:
+  pull_request:
+    paths:
+      - 'README.md'
+      - 'docs/**'
+      - 'deploy/systemd/**'
+      - 'scripts/check-v1-documentation-freeze.py'
+      - '.github/workflows/v1-documentation-freeze-check.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'README.md'
+      - 'docs/**'
+      - 'deploy/systemd/**'
+      - 'scripts/check-v1-documentation-freeze.py'
+      - '.github/workflows/v1-documentation-freeze-check.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  documentation-freeze:
+    name: Required documents and local links
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check v1 documentation freeze set
+        run: python3 scripts/check-v1-documentation-freeze.py

@@ -1,4 +1,4 @@
-use std::panic::{catch_unwind, AssertUnwindSafe};
+use std::panic::catch_unwind;
 
 use lingonberry_protocol::{normalize_json, parse_json, to_canonical_json};
 
@@ -56,7 +56,7 @@ fn representative_inputs_never_panic() {
     ];
 
     for input in inputs {
-        let result = catch_unwind(AssertUnwindSafe(|| parse_json(input)));
+        let result = catch_unwind(|| parse_json(input));
         assert!(result.is_ok(), "parser panicked for {input:?}");
     }
 }

@@ -1,10 +1,10 @@
 # Operations
 
-**Status: active** | **Latest published release: v0.8.0** | **Release-ready candidate: v0.9.0** | **Last updated: 2026-07-22**
+**Status: active** | **Latest published release: v0.9.0** | **Next release target: v1.0.0** | **Last updated: 2026-07-22**
 
 このディレクトリには、Lingonberryの技術決定、運用契約、operator runbook、機械可読なfailure／crash inventoryを置きます。
 
-## v0.9.0 release-candidate hardening
+## v0.9.0 hardening release
 
 - [v0.9.0 Release Checklist](../roadmap/RELEASE_0_9_0_CHECKLIST.md)
 - [v0.9.0 Release Notes](../roadmap/RELEASE_0_9_0_RELEASE_NOTE.md)
@@ -16,7 +16,7 @@
 - [v0.9.0 Public API Freeze Candidate](../architecture/V0_9_PUBLIC_API_FREEZE_CANDIDATE.md)
 - [v0.9.0 Rust API Inventory](../architecture/V0_9_RUST_API_INVENTORY.md)
 
-v0.9.0はv0.8.0のsingle-node operator contractを維持したまま、protocol JSON parserへ1 MiB input limitとdepth 128 limitを導入し、signature verification temporary workspaceをexclusive creation、owner-only permission、create-new artifact、normal-path cleanupでhardeningします。
+v0.9.0はv0.8.0のsingle-node operator contractを維持したまま、protocol JSON parserへ1 MiB input limitとdepth 128 limitを導入し、signature verification temporary workspaceをexclusive creation、owner-only permission、create-new artifact、normal-path cleanupでhardeningしました。
 
 Operationally relevant boundaries:
 
@@ -27,6 +27,13 @@ Operationally relevant boundaries:
 - process crash後のstale temporary entryはsecure eraseを保証せず、host temporary-directory policyの対象とする
 - v0.9.0は新しいstorage formatやimplicit migrationを導入しない
 
+Publication record:
+
+- PR #108 merged
+- merge commit `971155340603afdc0c9c5bd37e596f49c260d15e`
+- tag `v0.9.0`
+- GitHub Release `v0.9.0` published
+
 ## v0.8.0 operational baseline
 
 - [v0.8.0 Release Checklist](../roadmap/RELEASE_0_8_0_CHECKLIST.md)
@@ -36,8 +43,6 @@ Operationally relevant boundaries:
 - [Operator CLI Contract](./OPERATOR_CLI_CONTRACT.md)
 - [v0.8.0 Upgrade and Rollback](./V0_8_UPGRADE_AND_ROLLBACK.md)
 - [Systemd Unit Templates](./SYSTEMD_UNIT_TEMPLATES.md)
-
-v0.8.0の正式なLinux基準環境は、Ubuntu Server 24.04 LTS、x86_64、systemdです。この環境でread-only diagnosis、systemd起動契約、verified backup、isolated restore、index再構築、DR drill、restart persistenceを検証しました。他のsystemdベースLinuxはbest-effort supportとし、実装とデータ契約はUbuntu固有にしません。
 
 Canonical operator path:
 
@@ -52,24 +57,6 @@ install release-built binaries
 → index verify / rebuild
 → isolated DR drill
 → journalctl / status / doctor / metrics diagnosis
-```
-
-## v0.7.0 storage migration and upgrade
-
-- [Storage Migration and Upgrade Contract](./STORAGE_MIGRATION_AND_UPGRADE.md)
-- [v0.7.0 Release Checklist](../roadmap/RELEASE_0_7_0_CHECKLIST.md)
-- [v0.7.0 Release Notes](../roadmap/RELEASE_0_7_0_RELEASE_NOTE.md)
-
-v0.7.0では、既存のsingle-node data directoryを明示的なoperator workflowで現在のstorage formatへ移行できます。通常起動時のimplicit migrationはありません。
-
-```text
-inspect
-→ plan
-→ verified backup
-→ apply
-→ verify
-→ commit
-→ resume or rollback when interrupted
 ```
 
 ## Quickstart
@@ -117,22 +104,6 @@ inspect
 - [Cleanup Retention Policy](./QUARANTINE_REPLACEMENT_RETENTION_POLICY.md)
 - [Cleanup Operations Runbook](./QUARANTINE_REPLACEMENT_CLEANUP_RUNBOOK.md)
 
-Canonical sequence:
-
-```text
-backup verification
-→ replacement preview / proof verification
-→ replacement apply / recovery
-→ terminal completion evidence
-→ retention evaluation
-→ cleanup preview / proof
-→ cleanup preparation
-→ irreversible acknowledgement
-→ terminal status
-```
-
-Pointer、journal、manifest、proof、inventory、completion evidence、cleanup evidenceのmanual repairは禁止です。
-
 ## General operations
 
 - [Access and Retention Policy](./ACCESS_RETENTION_POLICY.md)
@@ -151,7 +122,7 @@ Pointer、journal、manifest、proof、inventory、completion evidence、cleanup
 - [Multi-node Conflict Policy](./MULTI_NODE_CONFLICT_POLICY.md)
 - [Multi-node Capacity and Placement Policy](./MULTI_NODE_CAPACITY_AND_PLACEMENT_POLICY.md)
 
-Multi-node文書は将来構成の契約です。quarantine replacement／cleanup operation lockとstorage migration lockはsame-host coordinationであり、distributed lockではありません。
+Multi-node文書は将来構成の契約です。same-host coordinationをdistributed lockとして扱いません。
 
 ## Release notes
 

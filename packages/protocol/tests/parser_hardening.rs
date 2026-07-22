@@ -65,8 +65,8 @@ fn accepts_valid_json_number_boundaries_and_rejects_invalid_forms() {
 fn canonical_serialization_is_stable_across_object_key_order() {
     let left = parse_json(r#"{"z":0,"a":{"y":2,"x":1},"items":[3,2,1]}"#)
         .expect("left input must parse");
-    let right = parse_json(r#"{"items":[3,2,1],"a":{"x":1,"y":2},"z":0}"#)
-        .expect("right input must parse");
+    let right =
+        parse_json(r#"{"items":[3,2,1],"a":{"x":1,"y":2},"z":0}"#).expect("right input must parse");
 
     let left = to_canonical_json(&normalize_json(left));
     let right = to_canonical_json(&normalize_json(right));
@@ -91,14 +91,12 @@ fn canonical_round_trip_preserves_normalized_value() {
     ];
 
     for input in corpus {
-        let parsed = parse_json(input).unwrap_or_else(|error| {
-            panic!("corpus entry {input:?} must parse: {error}")
-        });
+        let parsed = parse_json(input)
+            .unwrap_or_else(|error| panic!("corpus entry {input:?} must parse: {error}"));
         let normalized = normalize_json(parsed);
         let canonical = to_canonical_json(&normalized);
-        let reparsed = parse_json(&canonical).unwrap_or_else(|error| {
-            panic!("canonical output {canonical:?} must parse: {error}")
-        });
+        let reparsed = parse_json(&canonical)
+            .unwrap_or_else(|error| panic!("canonical output {canonical:?} must parse: {error}"));
 
         assert_eq!(
             reparsed, normalized,

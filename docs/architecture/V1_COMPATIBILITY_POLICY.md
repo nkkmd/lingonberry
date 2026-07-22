@@ -1,6 +1,6 @@
 # Lingonberry v1 Compatibility Policy
 
-**Status: normative candidate** | **Applies to: v1.0.0 through v1.x** | **Tracking issue: #113**
+**Status: approved normative policy** | **Effective from: v1.0.0** | **Applies through: v1.x** | **Tracking issue: #113**
 
 ## 1. Purpose
 
@@ -338,7 +338,7 @@ A supported migration must be:
 - explicit about point-of-no-return boundaries
 - verifiable after application
 - accompanied by durable evidence
-- reject unsafe source and target conditions
+- able to reject unsafe source and target conditions
 
 Migration success is not established solely by process exit. Post-migration verification and supported object lifecycle checks are required.
 

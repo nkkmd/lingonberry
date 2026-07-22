@@ -35,28 +35,11 @@ jobs:
       - name: Apply exact-match hardening patch
         run: python3 scripts/apply_v0_9_protocol_hardening.py
       - name: Format
-        id: format
-        continue-on-error: true
-        run: cargo fmt --all > /tmp/format.log 2>&1
+        run: cargo fmt --all
       - name: Clippy
-        id: clippy
-        continue-on-error: true
-        run: cargo clippy --workspace --all-targets --all-features -- -D warnings > /tmp/clippy.log 2>&1
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
       - name: Tests
-        id: tests
-        continue-on-error: true
-        run: cargo test --workspace > /tmp/tests.log 2>&1
-      - name: Upload validation logs
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: protocol-hardening-validation
-          path: /tmp/*.log
-      - name: Require validation success
-        run: |
-          test '${{ steps.format.outcome }}' = success
-          test '${{ steps.clippy.outcome }}' = success
-          test '${{ steps.tests.outcome }}' = success
+        run: cargo test --workspace
       - name: Commit validated hardening
         shell: bash
         run: |

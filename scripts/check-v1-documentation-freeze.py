@@ -24,6 +24,7 @@ REQUIRED_PATHS = (
     "docs/roadmap/V1_0_QUALIFICATION_STATUS.md",
     "docs/roadmap/V1_0_SOAK_PLAN.md",
     "docs/roadmap/V1_0_DOCUMENTATION_FREEZE_PLAN.md",
+    "docs/roadmap/V1_0_DOCUMENTATION_WALKTHROUGH.md",
     "docs/roadmap/V1_0_RELEASE_EVIDENCE.md",
     "deploy/systemd/lingonberry-storage-ready.service",
     "deploy/systemd/lingonberry-relay.service",

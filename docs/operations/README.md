@@ -1,8 +1,43 @@
 # Operations
 
-**Status: active** | **Latest published release: v0.9.0** | **Next release target: v1.0.0** | **Last updated: 2026-07-22**
+**Status: v1.0.0 qualification active** | **Latest published release: v0.9.0** | **Next release target: v1.0.0** | **Last updated: 2026-07-23**
 
 このディレクトリには、Lingonberryの技術決定、運用契約、operator runbook、機械可読なfailure／crash inventoryを置きます。
+
+## Active v1.0.0 qualification
+
+v1.0.0は新機能追加ではなく、v0.9.0までに確立したsingle-node operator contractを正式なv1.x互換性契約として資格確認するreleaseです。
+
+現在の正本:
+
+- [v1 Compatibility Policy](../architecture/V1_COMPATIBILITY_POLICY.md)
+- [v1 Rust Public API Audit](../architecture/V1_0_RUST_API_AUDIT.md)
+- [v1.0.0 Qualification Plan](../roadmap/V1_0_QUALIFICATION_PLAN.md)
+- [v1.0.0 Qualification Status](../roadmap/V1_0_QUALIFICATION_STATUS.md)
+- [v1.0.0 Security Diff Review](../security/V1_0_SECURITY_DIFF_REVIEW.md)
+- [v1.0.0 Documentation Freeze Plan](../roadmap/V1_0_DOCUMENTATION_FREEZE_PLAN.md)
+- [v1.0.0 Documentation Walkthrough](../roadmap/V1_0_DOCUMENTATION_WALKTHROUGH.md)
+- [v1.0.0 Soak Plan](../roadmap/V1_0_SOAK_PLAN.md)
+- [v1.0.0 Release Evidence](../roadmap/V1_0_RELEASE_EVIDENCE.md)
+
+The candidate-qualification dry run is infrastructure evidence only. Final operator acceptance and documentation walkthrough must use release-built binaries from the designated candidate commit on Ubuntu Server 24.04 LTS, x86_64, systemd.
+
+## Canonical operator path
+
+```text
+install release-built binaries
+→ configure
+→ doctor / ready
+→ validate and start through systemd
+→ publish / inspect persisted state
+→ backup create / verify
+→ isolated restore plan / apply
+→ index verify / rebuild
+→ isolated DR drill
+→ journalctl / status / doctor / metrics diagnosis
+```
+
+The final walkthrough classification and observed command results are recorded in `V1_0_DOCUMENTATION_WALKTHROUGH.md`; final commit-bound proof belongs in `V1_0_RELEASE_EVIDENCE.md`.
 
 ## v0.9.0 hardening release
 
@@ -43,21 +78,6 @@ Publication record:
 - [Operator CLI Contract](./OPERATOR_CLI_CONTRACT.md)
 - [v0.8.0 Upgrade and Rollback](./V0_8_UPGRADE_AND_ROLLBACK.md)
 - [Systemd Unit Templates](./SYSTEMD_UNIT_TEMPLATES.md)
-
-Canonical operator path:
-
-```text
-install release-built binaries
-→ configure
-→ doctor / ready
-→ start relay with systemd
-→ publish / inspect
-→ backup create / verify
-→ isolated restore plan / apply
-→ index verify / rebuild
-→ isolated DR drill
-→ journalctl / status / doctor / metrics diagnosis
-```
 
 ## Quickstart
 

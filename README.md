@@ -2,6 +2,24 @@
 
 Lingonberry is a Rust workspace for publishing, validating, storing, retrieving, querying, indexing, and operating canonical knowledge objects. Canonical storage is the source of truth; indexes and effective views are derived, verifiable, and rebuildable. The workspace also includes persistent quarantine, verified backup and replacement workflows, proof-bound retention cleanup, explicit storage-format migration, and a production-oriented single-node operator surface.
 
+## Active v1.0.0 qualification
+
+The latest published release is `v0.9.0`. Work toward the stable single-node `v1.0.0` release is qualification and contract finalization, not feature expansion.
+
+Read these sources first when reviewing or resuming v1.0.0 work:
+
+- [v1.0.0 qualification status](docs/roadmap/V1_0_QUALIFICATION_STATUS.md)
+- [v1.0.0 qualification plan](docs/roadmap/V1_0_QUALIFICATION_PLAN.md)
+- [v1 compatibility policy](docs/architecture/V1_COMPATIBILITY_POLICY.md)
+- [v1 Rust public API audit](docs/architecture/V1_0_RUST_API_AUDIT.md)
+- [v1.0.0 security diff review](docs/security/V1_0_SECURITY_DIFF_REVIEW.md)
+- [v1.0.0 documentation freeze plan](docs/roadmap/V1_0_DOCUMENTATION_FREEZE_PLAN.md)
+- [v1.0.0 documentation walkthrough record](docs/roadmap/V1_0_DOCUMENTATION_WALKTHROUGH.md)
+- [v1.0.0 soak plan](docs/roadmap/V1_0_SOAK_PLAN.md)
+- [v1.0.0 release evidence](docs/roadmap/V1_0_RELEASE_EVIDENCE.md)
+
+The successful candidate-qualification workflow dry run validates the orchestrator and evidence format only. It is not final release evidence. Final qualification, operator acceptance, documentation walkthrough, security disposition, and the 72-hour soak must identify the designated candidate commit and candidate-built binary digests.
+
 ## v0.9.0
 
 v0.9.0 is the final hardening release before the v1.0 stable single-node contract. It freezes the candidate public protocol and Rust API surfaces while strengthening bounded parsing and signature-verification workspace handling.
@@ -129,19 +147,29 @@ cargo clippy --workspace --tests -- -A warnings
 cargo test --workspace
 ```
 
-JavaScript contract tests and the external conformance suite are also run by `.github/workflows/ci.yml`. v0.9.0 release preparation additionally repeated parser limits, signature workspace tests, and the quarantine replacement crash matrix through a bounded five-iteration soak.
+JavaScript contract tests and the external conformance suite are also run by `.github/workflows/ci.yml`. Candidate-bound qualification and documentation-integrity checks are defined by `.github/workflows/v1-candidate-qualification.yml` and `.github/workflows/v1-documentation-freeze-check.yml`.
 
 ## Documentation
+
+### Active v1.0.0 sources
+
+- [Qualification status](docs/roadmap/V1_0_QUALIFICATION_STATUS.md)
+- [Qualification plan](docs/roadmap/V1_0_QUALIFICATION_PLAN.md)
+- [Compatibility policy](docs/architecture/V1_COMPATIBILITY_POLICY.md)
+- [Rust API audit](docs/architecture/V1_0_RUST_API_AUDIT.md)
+- [Security diff review](docs/security/V1_0_SECURITY_DIFF_REVIEW.md)
+- [Documentation freeze plan](docs/roadmap/V1_0_DOCUMENTATION_FREEZE_PLAN.md)
+- [Documentation walkthrough](docs/roadmap/V1_0_DOCUMENTATION_WALKTHROUGH.md)
+- [Soak plan](docs/roadmap/V1_0_SOAK_PLAN.md)
+- [Release evidence](docs/roadmap/V1_0_RELEASE_EVIDENCE.md)
+
+### Operational and historical sources
 
 - [Current implementation status](docs/roadmap/CURRENT_IMPLEMENTATION_STATUS.md)
 - [Roadmap to v1.0](docs/roadmap/ROADMAP_TO_V1_0.md)
 - [v0.9.0 release checklist](docs/roadmap/RELEASE_0_9_0_CHECKLIST.md)
 - [v0.9.0 release notes](docs/roadmap/RELEASE_0_9_0_RELEASE_NOTE.md)
 - [v0.9.0 release evidence](docs/roadmap/V0_9_RELEASE_EVIDENCE.md)
-- [v0.9.0 hardening plan](docs/roadmap/V0_9_HARDENING_PLAN.md)
-- [v0.9.0 security review](docs/security/V0_9_SECURITY_REVIEW.md)
-- [v0.9.0 security findings](docs/security/V0_9_SECURITY_FINDINGS.md)
-- [v0.9.0 public API freeze candidate](docs/architecture/V0_9_PUBLIC_API_FREEZE_CANDIDATE.md)
 - [v0.8.0 Operator Runbook](docs/operations/V0_8_OPERATOR_RUNBOOK.md)
 - [Operator CLI Contract](docs/operations/OPERATOR_CLI_CONTRACT.md)
 - [v0.8.0 Upgrade and Rollback](docs/operations/V0_8_UPGRADE_AND_ROLLBACK.md)
@@ -151,6 +179,7 @@ JavaScript contract tests and the external conformance suite are also run by `.g
 - [Effective View Read API](docs/protocols/EFFECTIVE_VIEW_READ_API.md)
 - [Index lifecycle contract](packages/indexer/INDEX_LIFECYCLE.md)
 - [Operations index](docs/operations/README.md)
+- [Roadmap index](docs/roadmap/README.md)
 - [Changelog](CHANGELOG.md)
 
 ## Release history

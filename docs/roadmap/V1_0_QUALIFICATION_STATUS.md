@@ -19,6 +19,7 @@ The following pre-candidate work is complete and merged to `main`:
 | Normative v1 compatibility policy | Complete | Issue #113, PR #116, `V1_COMPATIBILITY_POLICY.md` |
 | Qualification soak and telemetry contract | Plan complete; execution pending | Issue #114, PR #117, `V1_0_SOAK_PLAN.md` |
 | Candidate-bound qualification workflow | Complete and dry-run verified | Issue #118, PR #119, `v1-candidate-qualification.yml` |
+| Pre-candidate security diff review | Complete; final candidate verification pending | PR #121, `V1_0_SECURITY_DIFF_REVIEW.md` |
 
 ## 3. Dry-run evidence boundary
 
@@ -42,7 +43,7 @@ This proves that the orchestrator and evidence format work. It is not final v1.0
 | Standard Rust, JavaScript, and external conformance | Infrastructure ready | Rerun against the designated final candidate. |
 | Lifecycle, migration, recovery, backup/restore, and index | Infrastructure ready | Rerun against the designated final candidate and retain the bundle. |
 | Replacement and cleanup crash matrix | Infrastructure ready | Rerun against the designated final candidate. |
-| Security regressions and release-blocker review | Partially automated | Rerun regressions and complete a candidate-diff findings disposition. |
+| Security regressions and release-blocker review | Pre-candidate diff reviewed; final disposition pending | Recompare the designated candidate, rerun regressions, review retained logs, and record final finding counts. |
 | Reference-platform operator acceptance | Infrastructure ready | Run against final candidate-built binaries and frozen documentation. |
 | Documentation review | Pending final candidate | Walk installation, configuration, operation, upgrade, rollback, recovery, and troubleshooting instructions. |
 | 72-hour qualification soak | Plan ready; not executed | Execute under `V1_0_SOAK_PLAN.md` and retain telemetry and logs. |

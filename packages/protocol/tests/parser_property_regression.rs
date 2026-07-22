@@ -31,7 +31,10 @@ fn single_byte_mutations_never_panic_and_are_deterministic() {
                 let second = catch_unwind(AssertUnwindSafe(|| parse_json(&candidate)));
 
                 assert!(first.is_ok(), "parser panicked for mutation {candidate:?}");
-                assert!(second.is_ok(), "parser panicked for repeated mutation {candidate:?}");
+                assert!(
+                    second.is_ok(),
+                    "parser panicked for repeated mutation {candidate:?}"
+                );
 
                 let first = first.expect("panic checked above");
                 let second = second.expect("panic checked above");

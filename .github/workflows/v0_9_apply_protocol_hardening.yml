@@ -29,9 +29,21 @@ jobs:
       - name: Format
         run: cargo fmt --all
       - name: Clippy
-        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+        continue-on-error: true
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings > /tmp/clippy.log 2>&1 && touch /tmp/clippy.ok
       - name: Tests
-        run: cargo test --workspace
+        continue-on-error: true
+        run: cargo test --workspace > /tmp/tests.log 2>&1 && touch /tmp/tests.ok
+      - name: Upload diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: protocol-hardening-diagnostics
+          path: /tmp/*.log
+      - name: Require validation success
+        run: |
+          test -f /tmp/clippy.ok
+          test -f /tmp/tests.ok
       - name: Commit validated hardening
         shell: bash
         run: |

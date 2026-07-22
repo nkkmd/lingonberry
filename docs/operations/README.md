@@ -1,10 +1,33 @@
 # Operations
 
-**Status: active** | **Latest published release: v0.8.0** | **Next release target: v0.9.0** | **Last updated: 2026-07-22**
+**Status: active** | **Latest published release: v0.8.0** | **Release-ready candidate: v0.9.0** | **Last updated: 2026-07-22**
 
 このディレクトリには、Lingonberryの技術決定、運用契約、operator runbook、機械可読なfailure／crash inventoryを置きます。
 
-## v0.8.0 operational readiness
+## v0.9.0 release-candidate hardening
+
+- [v0.9.0 Release Checklist](../roadmap/RELEASE_0_9_0_CHECKLIST.md)
+- [v0.9.0 Release Notes](../roadmap/RELEASE_0_9_0_RELEASE_NOTE.md)
+- [v0.9.0 Release Evidence](../roadmap/V0_9_RELEASE_EVIDENCE.md)
+- [v0.9.0 Hardening Plan](../roadmap/V0_9_HARDENING_PLAN.md)
+- [v0.9.0 Security Review](../security/V0_9_SECURITY_REVIEW.md)
+- [v0.9.0 Security Findings](../security/V0_9_SECURITY_FINDINGS.md)
+- [Signature Workspace Remediation](../security/V0_9_SIGNATURE_WORKSPACE_REMEDIATION.md)
+- [v0.9.0 Public API Freeze Candidate](../architecture/V0_9_PUBLIC_API_FREEZE_CANDIDATE.md)
+- [v0.9.0 Rust API Inventory](../architecture/V0_9_RUST_API_INVENTORY.md)
+
+v0.9.0はv0.8.0のsingle-node operator contractを維持したまま、protocol JSON parserへ1 MiB input limitとdepth 128 limitを導入し、signature verification temporary workspaceをexclusive creation、owner-only permission、create-new artifact、normal-path cleanupでhardeningします。
+
+Operationally relevant boundaries:
+
+- oversized／deeply nested JSONはcanonical processingへ進む前にfail closedで拒否する
+- signature verification artifactは既存pathへ上書きしない
+- request payload、signature、temporary pathをpublic errorへ含めない
+- normal success／failure pathでtemporary verification workspaceを残さない
+- process crash後のstale temporary entryはsecure eraseを保証せず、host temporary-directory policyの対象とする
+- v0.9.0は新しいstorage formatやimplicit migrationを導入しない
+
+## v0.8.0 operational baseline
 
 - [v0.8.0 Release Checklist](../roadmap/RELEASE_0_8_0_CHECKLIST.md)
 - [v0.8.0 Release Notes](../roadmap/RELEASE_0_8_0_RELEASE_NOTE.md)
@@ -132,6 +155,7 @@ Multi-node文書は将来構成の契約です。quarantine replacement／cleanu
 
 ## Release notes
 
+- [v0.9.0 Release Notes](../roadmap/RELEASE_0_9_0_RELEASE_NOTE.md)
 - [v0.8.0 Release Notes](../roadmap/RELEASE_0_8_0_RELEASE_NOTE.md)
 - [v0.7.0 Release Notes](../roadmap/RELEASE_0_7_0_RELEASE_NOTE.md)
 - [v0.6.0 Release Notes](../roadmap/RELEASE_0_6_0_RELEASE_NOTE.md)

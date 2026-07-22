@@ -2,6 +2,39 @@
 
 All notable changes to Lingonberry are documented in this file. Detailed operational contracts and release notes are retained under `docs/`.
 
+## [0.9.0] - 2026-07-22
+
+### Added
+
+- Public Rust API inventory and v1.0 freeze-candidate classification across all workspace crates.
+- Protocol JSON parser limits: 1 MiB maximum input and maximum array/object nesting depth 128.
+- Parser boundary regression tests for exact-size, oversized, maximum-depth, excessive-depth, and mixed-nesting inputs.
+- Signature-verification workspace security tests covering cleanup, Unix owner-only permissions, create-new collision rejection, and concurrent isolation.
+- v0.9.0 security review, finding ledger, remediation contract, release checklist, and release-evidence ledger.
+- Five-iteration bounded hardening soak for parser, signature workspace, and replacement crash-matrix regressions.
+
+### Changed
+
+- All Rust workspace packages and `Cargo.lock` are versioned as `0.9.0`.
+- Signature verification uses exclusive temporary-directory creation with PID, timestamp, and an atomic counter.
+- Signature verification artifacts use create-new semantics and ordinary success/error paths are cleaned by an RAII guard.
+- Signature workspace and artifact failures return generic non-sensitive errors rather than host-path or verification-material details.
+- Protocol and public API surfaces are treated as v1.0 freeze candidates; breaking changes require explicit compatibility review.
+
+### Compatibility and safety
+
+- Protocol and schema versions remain `0.1.0`; no wire-format breaking change is introduced.
+- Storage format, migration journals, backup archives, replacement proofs, cleanup proofs, and authorization ordering are unchanged.
+- Oversized or excessively nested JSON input now fails closed at the protocol-library boundary.
+- Unknown-newer, corrupt, contradictory, or unsupported durable state continues to fail closed.
+- Open Critical, High, and release-blocking Medium security findings are zero.
+
+### Known limitations
+
+- Process crash, `SIGKILL`, kernel termination, or host power loss can prevent RAII cleanup of a signature verification workspace.
+- The bounded CI soak does not replace long-running production telemetry, disk-pressure injection, or power-loss testing required before v1.0 stable.
+- Multi-node coordination, distributed locking, and replication are not included.
+
 ## [0.8.0] - 2026-07-22
 
 ### Added
@@ -118,9 +151,3 @@ All notable changes to Lingonberry are documented in this file. Detailed operati
 ## [0.2.0] - 2026-07-12
 
 - Added persistent quarantine lifecycle, revalidation, promotion, dismissal, and permanent rejection.
-- Added verified indexing, archive-aware reads, backup/restore v2, maintenance, and RBAC admin surfaces.
-- Added authentication and authorization audit events with bounded secret-free diagnostics.
-
-## [0.1.0]
-
-- Initial protocol model, schemas, fixtures, carrier contracts, and bootstrap implementations.

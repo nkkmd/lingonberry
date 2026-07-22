@@ -23,9 +23,12 @@ jobs:
     name: Candidate-bound qualification dry run
     runs-on: ubuntu-24.04
     timeout-minutes: 90
+    env:
+      CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ env.CANDIDATE_SHA }}
           fetch-depth: 0
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -48,20 +51,21 @@ jobs:
         run: |
           python3 - <<'PY'
           import json
+          import os
           from pathlib import Path
           summary = json.loads(Path('target/v1-qualification/summary.json').read_text())
-          assert summary['candidateCommit'] == '${{ github.sha }}'
+          assert summary['candidateCommit'] == os.environ['CANDIDATE_SHA']
           assert summary['status'] == 'passed'
           assert summary['gates']
           assert all(g['status'] == 'passed' for g in summary['gates'])
           PY
           test -s target/v1-qualification/SHA256SUMS
-          sha256sum -c target/v1-qualification/SHA256SUMS
+          (cd target/v1-qualification && sha256sum -c SHA256SUMS)
       - name: Upload qualification evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: v1-qualification-${{ github.sha }}-${{ github.run_attempt }}
+          name: v1-qualification-${{ env.CANDIDATE_SHA }}-${{ github.run_attempt }}
           path: target/v1-qualification/
           if-no-files-found: error
           retention-days: 90

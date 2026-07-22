@@ -1,8 +1,10 @@
 use std::collections::BTreeMap;
 use std::fmt;
-use std::fs;
-use std::path::Path;
+use std::fs::{self, OpenOptions};
+use std::io::Write;
+use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 pub const IDENTITY_KEY_RULE_VERSION_V1: &str = "lb.identity.key.v1";
 pub const PROTOCOL_VERSION: &str = "0.1.0";
@@ -15,6 +17,8 @@ pub const DEFAULT_RETENTION_HINT: &str = "long-lived";
 pub const CARRIER_KIND_HTTP: &str = "http";
 pub const CARRIER_KIND_ARCHIVE: &str = "archive";
 pub const CARRIER_KIND_RELAY: &str = "relay";
+pub const MAX_JSON_INPUT_BYTES: usize = 1024 * 1024;
+pub const MAX_JSON_NESTING_DEPTH: usize = 128;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum JsonValue {
@@ -67,9 +71,16 @@ pub fn read_json_file(path: impl AsRef<Path>) -> Result<ReadJsonFile, String> {
 }
 
 pub fn parse_json(input: &str) -> Result<JsonValue, JsonError> {
+    if input.len() > MAX_JSON_INPUT_BYTES {
+        return Err(JsonError {
+            message: format!("JSON input exceeds {MAX_JSON_INPUT_BYTES} bytes"),
+            position: MAX_JSON_INPUT_BYTES,
+        });
+    }
     let mut parser = Parser {
         input: input.as_bytes(),
         position: 0,
+        depth: 0,
     };
     let value = parser.parse_value()?;
     parser.skip_whitespace();
@@ -1121,63 +1132,101 @@ fn canonical_publish_request_payload(value: &JsonValue) -> Result<String, String
     Ok(to_canonical_json(&JsonValue::Object(request)))
 }
 
+static SIGNATURE_WORKSPACE_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+struct SignatureWorkspace {
+    path: PathBuf,
+}
+
+impl SignatureWorkspace {
+    fn create() -> Result<Self, String> {
+        for _ in 0..32 {
+            let counter = SIGNATURE_WORKSPACE_COUNTER.fetch_add(1, Ordering::Relaxed);
+            let timestamp = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_nanos();
+            let path = std::env::temp_dir().join(format!(
+                "lingonberry-signature-{}-{timestamp}-{counter}",
+                std::process::id()
+            ));
+            let mut builder = fs::DirBuilder::new();
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::DirBuilderExt;
+                builder.mode(0o700);
+            }
+            match builder.create(&path) {
+                Ok(()) => return Ok(Self { path }),
+                Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
+                Err(_) => {
+                    return Err("failed to create signature verification workspace".to_string())
+                }
+            }
+        }
+        Err("failed to create unique signature verification workspace".to_string())
+    }
+
+    fn path(&self) -> &Path {
+        &self.path
+    }
+}
+
+impl Drop for SignatureWorkspace {
+    fn drop(&mut self) {
+        let _ = fs::remove_dir_all(&self.path);
+    }
+}
+
+fn write_new_file(path: &Path, bytes: &[u8]) -> Result<(), String> {
+    let mut file = OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(path)
+        .map_err(|_| "failed to create signature verification artifact".to_string())?;
+    file.write_all(bytes)
+        .map_err(|_| "failed to write signature verification artifact".to_string())
+}
+
 fn verify_publish_request_signature_with_openssl(
     message: &[u8],
     public_key: &[u8],
     signature: &[u8],
 ) -> Result<(), String> {
-    let temp_root = std::env::temp_dir().join(format!(
-        "lingonberry-signature-{}",
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_nanos()
-    ));
-    fs::create_dir_all(&temp_root)
-        .map_err(|error| format!("failed to create temp dir: {}", error))?;
-
-    let key_path = temp_root.join("public-key.der");
-    let sig_path = temp_root.join("signature.bin");
-    let msg_path = temp_root.join("message.bin");
+    let workspace = SignatureWorkspace::create()?;
+    let key_path = workspace.path().join("public-key.der");
+    let sig_path = workspace.path().join("signature.bin");
+    let msg_path = workspace.path().join("message.bin");
 
     let mut der = vec![
         0x30, 0x2a, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x03, 0x21, 0x00,
     ];
     der.extend_from_slice(public_key);
-    fs::write(&key_path, der).map_err(|error| format!("failed to write public key: {}", error))?;
-    fs::write(&sig_path, signature)
-        .map_err(|error| format!("failed to write signature: {}", error))?;
-    fs::write(&msg_path, message).map_err(|error| format!("failed to write message: {}", error))?;
+    write_new_file(&key_path, &der)?;
+    write_new_file(&sig_path, signature)?;
+    write_new_file(&msg_path, message)?;
 
     let output = Command::new("openssl")
-        .args([
-            "pkeyutl",
-            "-verify",
-            "-pubin",
-            "-inkey",
-            key_path
-                .to_str()
-                .ok_or_else(|| "temp key path is not valid UTF-8".to_string())?,
-            "-keyform",
-            "DER",
-            "-rawin",
-            "-in",
-            msg_path
-                .to_str()
-                .ok_or_else(|| "temp message path is not valid UTF-8".to_string())?,
-            "-sigfile",
-            sig_path
-                .to_str()
-                .ok_or_else(|| "temp signature path is not valid UTF-8".to_string())?,
-        ])
+        .arg("pkeyutl")
+        .arg("-verify")
+        .arg("-pubin")
+        .arg("-inkey")
+        .arg(&key_path)
+        .arg("-keyform")
+        .arg("DER")
+        .arg("-rawin")
+        .arg("-in")
+        .arg(&msg_path)
+        .arg("-sigfile")
+        .arg(&sig_path)
         .output()
-        .map_err(|error| format!("failed to run openssl: {}", error))?;
+        .map_err(|_| "failed to run signature verification command".to_string())?;
 
     if output.status.success() {
-        return Ok(());
+        Ok(())
+    } else {
+        Err("publisher.signature does not verify the canonical request payload".to_string())
     }
-
-    Err("publisher.signature does not verify the canonical request payload".to_string())
 }
 
 fn identity_key_basis(value: &JsonValue) -> JsonValue {
@@ -1413,6 +1462,7 @@ fn write_string(value: &str, out: &mut String) {
 struct Parser<'a> {
     input: &'a [u8],
     position: usize,
+    depth: usize,
 }
 
 impl<'a> Parser<'a> {
@@ -1443,6 +1493,13 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_object(&mut self) -> Result<JsonValue, JsonError> {
+        self.enter_nesting()?;
+        let result = self.parse_object_inner();
+        self.depth -= 1;
+        result
+    }
+
+    fn parse_object_inner(&mut self) -> Result<JsonValue, JsonError> {
         self.consume(b'{')?;
         self.skip_whitespace();
         let mut map = BTreeMap::new();
@@ -1473,6 +1530,13 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_array(&mut self) -> Result<JsonValue, JsonError> {
+        self.enter_nesting()?;
+        let result = self.parse_array_inner();
+        self.depth -= 1;
+        result
+    }
+
+    fn parse_array_inner(&mut self) -> Result<JsonValue, JsonError> {
         self.consume(b'[')?;
         self.skip_whitespace();
         let mut items = Vec::new();
@@ -1612,6 +1676,14 @@ impl<'a> Parser<'a> {
                 _ => return Err(self.error("unexpected literal")),
             }
         }
+        Ok(())
+    }
+
+    fn enter_nesting(&mut self) -> Result<(), JsonError> {
+        if self.depth >= MAX_JSON_NESTING_DEPTH {
+            return Err(self.error(format!("JSON nesting exceeds {MAX_JSON_NESTING_DEPTH}")));
+        }
+        self.depth += 1;
         Ok(())
     }
 

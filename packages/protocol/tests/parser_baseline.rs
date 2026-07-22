@@ -41,10 +41,12 @@ fn repeated_parse_results_are_deterministic() {
     let inputs = ["null", "[]", "{}", "[1,2,3]", "[", "{", "01"];
 
     for input in inputs {
-        let first = parse_json(input);
-        let second = parse_json(input);
-        let first = first.map(|value| to_canonical_json(&normalize_json(value)));
-        let second = second.map(|value| to_canonical_json(&normalize_json(value)));
+        let first = parse_json(input)
+            .map(|value| to_canonical_json(&normalize_json(value)))
+            .map_err(|error| error.to_string());
+        let second = parse_json(input)
+            .map(|value| to_canonical_json(&normalize_json(value)))
+            .map_err(|error| error.to_string());
         assert_eq!(first, second);
     }
 }

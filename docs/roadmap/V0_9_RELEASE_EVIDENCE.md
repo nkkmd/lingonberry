@@ -11,6 +11,7 @@
 - CI run 1112: Rust formatting、clippy、workspace tests、JavaScript tests、external conformance suiteが成功。
 - CI run 1114: security remediation仕様とRust API inventory追加後も全job成功。
 - CI run 1115: parser baseline regression test追加後も全job成功。
+- CI run 1121: parser canonical round-trip、determinism、depth 64 regression追加後も全job成功。
 
 ### Contract and review artifacts
 
@@ -31,9 +32,10 @@
 - invalid number rejection
 - canonical object-key sorting
 - canonical round-trip idempotence
-- representative malformed-input panic freedom
 - repeated parse determinism
 - depth 64 compatibility
+
+Malformed-input panic freedomは、LB-SEC-009-002のdepth limit実装時に境界テストとして追加する。
 
 ## Open release blockers
 
@@ -56,6 +58,18 @@ Protocol JSON parserの1 MiB input limitとdepth 128 limit、およびboundary r
 5. external conformance result
 6. security finding state transition
 7. residual riskまたはoperational note
+
+## Implementation application constraint
+
+現在利用可能なGitHub connectorは、既存UTF-8 fileの部分patchを提供せず、更新時にcomplete replacement contentを要求する。`packages/protocol/src/lib.rs`は約1,800行の単一fileであり、truncated connector responseから再構築した内容で全置換するとsilent truncationまたは欠落の危険がある。
+
+このため、次のいずれかの安全な経路が利用可能になるまで、同fileへの書き込みは行わない。
+
+1. authenticated local checkoutで通常のpatch、rustfmt、clippy、testsを実行する。
+2. connectorが完全なblob contentを再利用可能なfile referenceとして返す。
+3. connectorが既存fileへのvalidated partial patchを提供する。
+
+この制約は実装上のrelease blockerを解除するものではない。安全でない全置換を避けるための変更管理上の制約である。
 
 ## RC completion rule
 

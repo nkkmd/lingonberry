@@ -56,6 +56,14 @@ sha256: baecd8243eecb55ed89d5f5b0c28561113eb721359ed454ddfe2eeb4b2956548
 retention: through 2026-08-21
 ```
 
+The final audit commit was independently revalidated by:
+
+```text
+standard CI run: 29930344673 (run 1168), success
+Rust public API audit run: 29930345047 (run 5), success
+validated commit: 0f3ca87fbd35be3b30db49cf4d9af846553e30a5
+```
+
 Inventory size, measured as rustdoc-public output lines:
 
 | Crate | Lines |

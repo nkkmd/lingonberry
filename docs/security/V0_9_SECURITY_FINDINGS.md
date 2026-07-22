@@ -1,6 +1,6 @@
 # v0.9.0 Security Findings
 
-**Status: active** | **Release target: v0.9.0** | **Last updated: 2026-07-22**
+**Status: closed for release** | **Release target: v0.9.0** | **Last updated: 2026-07-22**
 
 この文書は、v0.9.0 security reviewで確認したfinding、severity、根拠、修正状態、release dispositionを追跡する正本です。
 
@@ -11,7 +11,7 @@
 - **Medium**: 防御層の不足、限定的なresource exhaustion、残留情報、運用上の安全性低下。原則としてv0.9.0で修正する。
 - **Low**: defense-in-depthまたはhardening improvement。未修正の場合は明示的なdispositionを必要とする。
 
-Critical／High findingは未解決のままv0.9.0 release candidateを完了扱いにしない。
+v0.9.0 release candidateに未解決のCritical／High findingはなく、確認されたrelease-blocking Medium findingは修正・回帰テスト済みです。
 
 ## Finding LB-SEC-009-001
 
@@ -22,48 +22,46 @@ Signature verification temporary artifacts are not removed after verification.
 ### Status
 
 - Severity: **Medium**
-- State: **open**
+- State: **closed**
 - Owner: v0.9.0 hardening workstream
-- Release blocker: **yes until fixed or explicitly downgraded with evidence**
+- Release blocker: **resolved**
 - Affected component: `packages/protocol/src/lib.rs`
 - Affected function: `verify_publish_request_signature_with_openssl`
+- Source commit: `fe23c523f358cfa62aea396ec7481778a0915c2c`
+- Regression-test commit: `1083ab0348881aabba924f102151c5d4ed3da292`
 
 ### Observation
 
-署名検証はOS temporary directory配下に、次の3ファイルを作成します。
+旧実装はOS temporary directory配下に公開鍵、署名、canonical payloadを書き出し、成功・失敗のどちらでもworkspaceを削除していませんでした。
 
-- `public-key.der`
-- `signature.bin`
-- `message.bin`
+### Remediation
 
-workspace名は現在時刻のnanosecond値から生成されます。検証成功時と失敗時のどちらにもworkspaceを削除するcleanup pathがありません。
+- process ID、timestamp、process-local atomic counterから候補pathを生成する。
+- `DirBuilder::create`でworkspaceをexclusiveに作成し、既存pathを再利用しない。
+- Unixではworkspaceを`0o700`で作成する。
+- artifactは`OpenOptions::create_new(true)`で作成し、既存fileを追従・上書きしない。
+- RAII guardの`Drop`でsuccess、verification failure、command failure、intermediate write failureの通常return pathをbest-effort cleanupする。
+- payload、signature、host pathをerror messageへ含めない。
 
-### Security impact
+### Regression evidence
 
-1. canonical publish request payload、公開鍵、署名がtemporary directoryに残留する。
-2. 長時間運用または大量の署名検証によりtemporary storageが単調増加する。
-3. temporary directoryのpermissionとhost policyによっては、同一host上の別principalに検証材料が観測される可能性がある。
-4. timestamp-only workspace nameは通常は衝突しにくいが、exclusive creation contractではなく、衝突をfail-closedに扱う保証が明示されていない。
+`packages/protocol/src/lib.rs`のunit testで次を固定しました。
 
-現時点でsignature verification bypassの証拠はない。ただしinformation leakage、disk pressure、temporary-file handlingのreview itemに該当する。
+- workspace drop後の削除
+- Unix owner-only permission
+- existing artifact pathのfail-closed rejection
+- concurrent workspaceのpath isolation
+- concurrent workspace drop後のcleanup
 
-### Required remediation
+formatting、library／binary／test-target clippy、workspace testsはtest適用workflowで成功しました。
 
-- workspaceをexclusiveに作成する。
-- file creation時に既存pathを追従または上書きしない。
-- Unix reference platformではowner-only permissionを保証する。
-- success、verification failure、OpenSSL execution failure、intermediate write failureの全経路でbest-effort cleanupを実行する。
-- cleanup failureを署名成功として黙殺する場合の契約を明示し、diagnostic evidenceを残す。
-- regression testでsuccess／failure後のworkspace cleanupを確認する。
-- process crash後に残り得るworkspaceの運用上のcleanup policyを文書化する。
+### Residual risk
 
-### Acceptance criteria
+process crash、host power loss、kernel terminationではRust `Drop`が実行されないため、workspaceが残る可能性があります。これは通常return pathのcleanupとは別のoperational residual riskであり、OS temporary-directory lifecycleまたは起動時のstale-workspace cleanupで扱います。v0.9.0ではsignature bypassや通常経路の残留を示す証拠はありません。
 
-- 通常の成功・失敗経路でtemporary verification workspaceが残らない。
-- pre-existing workspace、symlink、non-directory collisionをfail closedで拒否する。
-- concurrent verificationが同一workspaceを共有しない。
-- request payloadやsignature materialをerror messageへ出力しない。
-- standard CIとsecurity regression testが成功する。
+### Release disposition
+
+**Fixed and regression-tested. Closed for v0.9.0.**
 
 ## Finding LB-SEC-009-002
 
@@ -74,59 +72,46 @@ The protocol JSON parser has no explicit input-size or nesting-depth limit.
 ### Status
 
 - Severity: **Medium**
-- State: **open**
+- State: **closed**
 - Owner: v0.9.0 hardening workstream
-- Release blocker: **yes until boundedness is implemented and tested**
+- Release blocker: **resolved**
 - Affected component: `packages/protocol/src/lib.rs`
 - Affected function: `parse_json`
+- Source and test commit: `fe23c523f358cfa62aea396ec7481778a0915c2c`
 
 ### Observation
 
-`parse_json`は入力全体を受け取り、recursive-descent parserでobjectとarrayを再帰処理します。現在の`Parser` stateには入力byte数上限、現在のnesting depth、最大nesting depthがありません。
+旧実装のrecursive-descent parserには入力byte数上限とarray／object共通のnesting-depth上限がありませんでした。
 
-### Security impact
+### Remediation
 
-1. 非常に大きな入力によりCPU時間とmemory allocationが過度に消費される可能性がある。
-2. 深くネストしたarray／objectによりcall stack exhaustionまたはprocess abortへ至る可能性がある。
-3. parserを共有するCLI、relay、storage import、quarantine replayなど複数経路に同じavailability riskが伝播する。
-4. upstream body limitだけに依存すると、library APIを直接使うcallerでは保護されない。
+- `MAX_JSON_INPUT_BYTES = 1 MiB`をpublic constantとして固定した。
+- `MAX_JSON_NESTING_DEPTH = 128`をpublic constantとして固定した。
+- oversized inputをparser state構築前に`JsonError`で拒否する。
+- object／arrayの共通depth counterを導入し、depth超過をpanicせず拒否する。
+- parse error後にもdepth counterを確実に復元するinner-method contractを導入した。
 
-### Required remediation
+### Regression evidence
 
-- protocol crate内で入力byte数上限を強制する。
-- arrayとobjectの共通nesting-depth上限を強制する。
-- 上限超過はpanicせず、安定した`JsonError`としてfail closedに返す。
-- limit値をpublic contractまたは明示的なinternal constantとして文書化する。
-- relay／CLIなど上位層のbody limitはprotocol limit以下に揃える。
-- boundary、limit超過、深いmixed nesting、repeated failureの回帰テストを追加する。
+`packages/protocol/tests/parser_limits.rs`で次を固定しました。
 
-### Proposed bounds
+- 1 MiB超過のearly rejection
+- 1 MiBちょうどのvalid input受理
+- depth 128の受理
+- depth 129のpanic-free rejection
+- mixed object／array nestingの同一上限
 
-- Maximum input size: **1 MiB**
-- Maximum JSON nesting depth: **128**
+既存の`parser_baseline.rs`ではtrailing content、truncated structure、invalid number、canonical round-trip、determinism、depth 64互換性を継続検証します。
 
-これらはv0.9.0 RCの初期値です。変更する場合は互換性・運用証拠を記録し、silent relaxationを行わない。
+### Release disposition
 
-### Acceptance criteria
+**Fixed and regression-tested. Closed for v0.9.0.**
 
-- 1 MiB以下の代表的なvalid inputが既存挙動を維持する。
-- 1 MiBを超える入力がallocation-heavy parseへ進む前に拒否される。
-- depth 128以下が受理され、depth 129以上がpanicせず拒否される。
-- array／objectのmixed nestingにも同一上限が適用される。
-- deterministic error positionと非機密なerror messageを返す。
-- formatting、clippy、workspace tests、external conformanceが成功する。
+## Release summary
 
-## Finding template
+- Open Critical findings: **0**
+- Open High findings: **0**
+- Open release-blocking Medium findings: **0**
+- Closed findings: **2**
 
-新しいfindingは次を必ず記録する。
-
-- identifier
-- summary
-- severity
-- state
-- affected component
-- evidence
-- security impact
-- remediation
-- acceptance criteria
-- release disposition
+新しいfindingを追加する場合はidentifier、summary、severity、state、affected component、evidence、security impact、remediation、acceptance criteria、release dispositionを必ず記録します。

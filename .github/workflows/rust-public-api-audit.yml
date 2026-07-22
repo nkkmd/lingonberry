@@ -1,0 +1,53 @@
+name: Rust public API audit
+
+on:
+  pull_request:
+    paths:
+      - "packages/**/*.rs"
+      - "packages/**/Cargo.toml"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "scripts/generate-rust-public-api.sh"
+      - ".github/workflows/rust-public-api-audit.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  generate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install stable Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install nightly Rust toolchain for rustdoc JSON
+        uses: dtolnay/rust-toolchain@nightly
+
+      - name: Install cargo-public-api
+        run: cargo +stable install cargo-public-api --locked
+
+      - name: Generate exported-surface inventory
+        run: bash scripts/generate-rust-public-api.sh target/public-api
+
+      - name: Verify required evidence files
+        run: |
+          test -s target/public-api/commit-sha.txt
+          test -s target/public-api/rust-toolchain.txt
+          test -s target/public-api/cargo-public-api-version.txt
+          for crate in protocol identity validation core indexer relay storage; do
+            test -s "target/public-api/${crate}.txt"
+          done
+
+      - name: Upload audit evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: rust-public-api-${{ github.sha }}
+          path: target/public-api/
+          if-no-files-found: error
+          retention-days: 30

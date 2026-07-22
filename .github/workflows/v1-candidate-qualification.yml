@@ -10,6 +10,17 @@ on:
       - 'scripts/v0_8_operator_acceptance.sh'
       - 'scripts/v1_0_candidate_qualification.sh'
       - '.github/workflows/v1-candidate-qualification.yml'
+      - 'docs/roadmap/V1_0_CANDIDATE.md'
+  push:
+    branches: [main]
+    paths:
+      - 'packages/**'
+      - 'conformance/**'
+      - 'tests/**'
+      - 'scripts/v0_8_operator_acceptance.sh'
+      - 'scripts/v1_0_candidate_qualification.sh'
+      - '.github/workflows/v1-candidate-qualification.yml'
+      - 'docs/roadmap/V1_0_CANDIDATE.md'
 
 permissions:
   contents: read
@@ -20,7 +31,7 @@ concurrency:
 
 jobs:
   qualify:
-    name: Candidate-bound qualification dry run
+    name: Candidate-bound qualification
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     env:

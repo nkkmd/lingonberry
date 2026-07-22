@@ -22,6 +22,7 @@ REQUIRED_PATHS = (
     "docs/security/V1_0_SECURITY_DIFF_REVIEW.md",
     "docs/roadmap/V1_0_QUALIFICATION_PLAN.md",
     "docs/roadmap/V1_0_QUALIFICATION_STATUS.md",
+    "docs/roadmap/V1_0_CANDIDATE.md",
     "docs/roadmap/V1_0_SOAK_PLAN.md",
     "docs/roadmap/V1_0_DOCUMENTATION_FREEZE_PLAN.md",
     "docs/roadmap/V1_0_DOCUMENTATION_WALKTHROUGH.md",

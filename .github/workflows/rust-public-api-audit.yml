@@ -26,14 +26,18 @@ jobs:
       - name: Install stable Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Install nightly Rust toolchain for rustdoc JSON
+        uses: dtolnay/rust-toolchain@nightly
+
       - name: Install cargo-public-api
-        run: cargo install cargo-public-api --locked
+        run: cargo +stable install cargo-public-api --locked
 
       - name: Generate exported-surface inventory
-        run: bash scripts/generate-rust-public-api.sh
+        run: bash scripts/generate-rust-public-api.sh target/public-api
 
       - name: Verify required evidence files
         run: |
+          test -s target/public-api/commit-sha.txt
           test -s target/public-api/rust-toolchain.txt
           test -s target/public-api/cargo-public-api-version.txt
           for crate in protocol identity validation core indexer relay storage; do

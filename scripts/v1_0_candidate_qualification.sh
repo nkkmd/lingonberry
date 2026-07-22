@@ -43,6 +43,9 @@ run_gate rust-format cargo fmt --all -- --check
 run_gate rust-clippy-libs cargo clippy --workspace --lib -- -D warnings
 run_gate rust-clippy-bins cargo clippy --workspace --bins -- -D warnings -A dead-code
 run_gate rust-tests cargo test --workspace
+run_gate storage-migration-recovery cargo test -p lingonberry-storage
+run_gate index-consistency cargo test -p lingonberry-indexer
+run_gate core-lifecycle cargo test -p lingonberry-core
 run_gate javascript-tests node --test \
   conformance/manifest-integrity.test.mjs conformance/minimal-producer.test.mjs \
   conformance/transition-evidence-generation.test.mjs conformance/diagnostic-retention-hybrid.test.mjs \
@@ -55,7 +58,10 @@ run_gate replacement-cleanup-crash-matrix cargo test -p lingonberry-core --test 
 run_gate release-build cargo build --release -p lingonberry-storage --bin lingonberry-storage -p lingonberry-relay --bin lingonberry-relay
 install -m 0755 target/release/lingonberry-storage "$out/binaries/lingonberry-storage"
 install -m 0755 target/release/lingonberry-relay "$out/binaries/lingonberry-relay"
-sha256sum "$out"/binaries/* >"$out/manifests/binary-sha256.txt"
+(
+  cd "$out"
+  sha256sum binaries/* >manifests/binary-sha256.txt
+)
 run_gate operator-acceptance env \
   LINGONBERRY_STORAGE_BIN="$repo_root/$out/binaries/lingonberry-storage" \
   LINGONBERRY_RELAY_BIN="$repo_root/$out/binaries/lingonberry-relay" \

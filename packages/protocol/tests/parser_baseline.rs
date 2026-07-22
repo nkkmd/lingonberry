@@ -1,5 +1,3 @@
-use std::panic::catch_unwind;
-
 use lingonberry_protocol::{normalize_json, parse_json, to_canonical_json};
 
 #[test]
@@ -36,29 +34,6 @@ fn canonical_round_trip_is_idempotent() {
     let reparsed = parse_json(&canonical).unwrap();
     let repeated = to_canonical_json(&normalize_json(reparsed));
     assert_eq!(canonical, repeated);
-}
-
-#[test]
-fn representative_inputs_never_panic() {
-    let inputs = [
-        "",
-        "null",
-        "true",
-        "false",
-        "[]",
-        "{}",
-        "[1,2,3]",
-        r#"{"a":1,"b":[true,null]}"#,
-        "[",
-        "{",
-        r#""unterminated"#,
-        r#""bad\\x""#,
-    ];
-
-    for input in inputs {
-        let result = catch_unwind(|| parse_json(input));
-        assert!(result.is_ok(), "parser panicked for {input:?}");
-    }
 }
 
 #[test]

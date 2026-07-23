@@ -357,7 +357,7 @@ For corrupt, unknown-newer, symlink, active migration journal, incomplete replac
 - [Supported Platforms](./SUPPORTED_PLATFORMS.md)
 - [Operator CLI Contract](./OPERATOR_CLI_CONTRACT.md)
 - [Storage Migration and Upgrade Contract](./STORAGE_MIGRATION_AND_UPGRADE.md)
-- [v0.8 Upgrade and Rollback](./V0_8_UPGRADE_AND_ROLLBACK.md) — historical version-specific procedure pending v1 replacement
+- [v1.0 Upgrade and Rollback](./V1_0_UPGRADE_AND_ROLLBACK.md)
 - [Quarantine Admin HTTP and RBAC](./QUARANTINE_ADMIN_HTTP.md)
 - [Quarantine Backup / Verify / Restore](./QUARANTINE_BACKUP_RESTORE.md)
 - [Replacement Recovery Runbook](./QUARANTINE_REPLACEMENT_RECOVERY_RUNBOOK.md)
@@ -713,7 +713,7 @@ corrupt、unknown-newer、symlink、active migration journal、incomplete replac
 - [Supported Platforms](./SUPPORTED_PLATFORMS.md)
 - [Operator CLI Contract](./OPERATOR_CLI_CONTRACT.md)
 - [Storage Migration and Upgrade Contract](./STORAGE_MIGRATION_AND_UPGRADE.md)
-- [v0.8 Upgrade and Rollback](./V0_8_UPGRADE_AND_ROLLBACK.md) — v1文書への置き換え待ちのversion-specific historical procedure
+- [v1.0 Upgrade and Rollback](./V1_0_UPGRADE_AND_ROLLBACK.md)
 - [Quarantine Admin HTTP and RBAC](./QUARANTINE_ADMIN_HTTP.md)
 - [Quarantine Backup / Verify / Restore](./QUARANTINE_BACKUP_RESTORE.md)
 - [Replacement Recovery Runbook](./QUARANTINE_REPLACEMENT_RECOVERY_RUNBOOK.md)

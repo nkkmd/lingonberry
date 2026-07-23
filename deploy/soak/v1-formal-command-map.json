@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "candidateCommit": "f9543019f2c219aea3b085ff90f2da201b268a48",
+  "service": {
+    "unit": "lingonberry-relay.service",
+    "healthUrl": "http://127.0.0.1:18787/v1/health",
+    "readyUrl": "http://127.0.0.1:18787/v1/ready"
+  },
+  "variables": {
+    "storageBinary": "/usr/local/bin/lingonberry-storage",
+    "relayBinary": "/usr/local/bin/lingonberry-relay",
+    "migrationBinary": "/usr/local/bin/lingonberry-storage-migrate",
+    "fixture": "/opt/lingonberry-soak/fixtures/http-publish-request/minimal-request.json",
+    "stateDir": "/var/lib/lingonberry/state",
+    "dataDir": "/var/lib/lingonberry/data",
+    "backupDir": "/var/lib/lingonberry/backups",
+    "tempDir": "/var/lib/lingonberry/tmp",
+    "evidenceDir": "/var/lib/lingonberry/soak-evidence"
+  },
+  "operations": {
+    "publish": {"adapter":"exec","enabled":true,"argv":["{relayBinary}","publish","{fixture}"]},
+    "retrieve": {"adapter":"exec","enabled":true,"argv":["{storageBinary}","--state-dir","{stateDir}","--data-dir","{dataDir}","--backup-dir","{backupDir}","--temp-dir","{tempDir}","list"]},
+    "query": {"adapter":"exec","enabled":true,"argv":["{storageBinary}","--state-dir","{stateDir}","--data-dir","{dataDir}","--backup-dir","{backupDir}","--temp-dir","{tempDir}","status"]},
+    "graceful_restart": {"adapter":"systemd","enabled":true,"argv":["systemctl","restart","lingonberry-relay.service"]},
+    "abrupt_termination": {"adapter":"systemd","enabled":true,"argv":["systemctl","kill","--signal=SIGKILL","--kill-who=main","lingonberry-relay.service"]},
+    "verify": {"adapter":"exec","enabled":true,"argv":["{storageBinary}","--state-dir","{stateDir}","--data-dir","{dataDir}","--backup-dir","{backupDir}","--temp-dir","{tempDir}","verify"]},
+    "index_rebuild": {"adapter":"exec","enabled":true,"argv":["{storageBinary}","--state-dir","{stateDir}","--data-dir","{dataDir}","--backup-dir","{backupDir}","--temp-dir","{tempDir}","index","rebuild"]},
+    "backup": {"adapter":"generated-path","enabled":true,"argv":["{storageBinary}","--state-dir","{stateDir}","--data-dir","{dataDir}","--backup-dir","{backupDir}","--temp-dir","{tempDir}","backup","create","{generatedArchiveDir}"]},
+    "isolated_restore": {"adapter":"generated-path","enabled":true,"argv":["{storageBinary}","--state-dir","{stateDir}","--data-dir","{dataDir}","--backup-dir","{backupDir}","--temp-dir","{tempDir}","drill","restore","{latestVerifiedArchiveDir}"]},
+    "crash_matrix": {"adapter":"test-suite","enabled":false,"reason":"No installed operator command exposes the complete proof-bound replacement/cleanup crash matrix."},
+    "malformed": {"adapter":"stdin-fixture","enabled":true,"argv":["{relayBinary}","publish","/dev/stdin"],"expectExitCodes":[1]},
+    "oversized": {"adapter":"stdin-fixture","enabled":true,"argv":["{relayBinary}","publish","/dev/stdin"],"expectExitCodes":[1]},
+    "nested": {"adapter":"stdin-fixture","enabled":true,"argv":["{relayBinary}","publish","/dev/stdin"],"expectExitCodes":[1]},
+    "disk_pressure": {"adapter":"host-scenario","enabled":false,"reason":"Requires an isolated quota-controlled volume and host-specific recovery command map."},
+    "migration": {"adapter":"exec-sequence","enabled":false,"reason":"Migration is a separate proof-bound surface and requires a frozen source/target generation fixture before rehearsal.","argvSequence":[["{migrationBinary}","inspect"],["{migrationBinary}","plan"],["{migrationBinary}","apply"],["{migrationBinary}","status"]]},
+    "quarantine_replacement_cleanup": {"adapter":"http-rbac","enabled":false,"reason":"Requires a frozen authenticated admin HTTP command map and proof artifacts."}
+  }
+}

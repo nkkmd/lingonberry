@@ -26,10 +26,11 @@ jobs:
         with:
           ref: f9543019f2c219aea3b085ff90f2da201b268a48
           path: candidate
-      - name: Install rehearsal harness
+      - name: Prepare external rehearsal harness
         run: |
-          cp harness/scripts/run-v1-soak.sh candidate/scripts/run-v1-soak.sh
-          chmod +x candidate/scripts/run-v1-soak.sh
+          cp harness/scripts/run-v1-soak.sh /tmp/run-v1-soak.sh
+          sed -i 's|repo_root="$(cd "$(dirname "${BASH_SOURCE\[0\]}")/.." && pwd)"|repo_root="${SOAK_REPO_ROOT:?SOAK_REPO_ROOT required}"|' /tmp/run-v1-soak.sh
+          chmod +x /tmp/run-v1-soak.sh
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
@@ -40,9 +41,10 @@ jobs:
       - name: Run passing rehearsal
         working-directory: candidate
         env:
+          SOAK_REPO_ROOT: ${{ github.workspace }}/candidate
           SOAK_PROFILE: rehearsal
           SOAK_OUT: target/v1-soak-rehearsal-pass
-        run: bash scripts/run-v1-soak.sh
+        run: bash /tmp/run-v1-soak.sh
       - name: Verify passing bundle
         working-directory: candidate
         run: |
@@ -52,11 +54,12 @@ jobs:
       - name: Run forced-failure rehearsal
         working-directory: candidate
         env:
+          SOAK_REPO_ROOT: ${{ github.workspace }}/candidate
           SOAK_PROFILE: rehearsal
           SOAK_FORCE_FAILURE: '1'
           SOAK_OUT: target/v1-soak-rehearsal-failure
         run: |
-          if bash scripts/run-v1-soak.sh; then
+          if bash /tmp/run-v1-soak.sh; then
             echo 'forced-failure rehearsal unexpectedly passed' >&2
             exit 1
           fi

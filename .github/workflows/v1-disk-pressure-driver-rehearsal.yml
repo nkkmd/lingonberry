@@ -1,0 +1,104 @@
+name: v1 disk pressure driver rehearsal
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/run-v1-disk-pressure-driver.py'
+      - 'scripts/check-v1-disk-pressure-contract.py'
+      - 'deploy/soak/v1-disk-pressure-contract.example.json'
+      - '.github/workflows/v1-disk-pressure-driver-rehearsal.yml'
+      - 'docs/roadmap/V1_0_DISK_PRESSURE_DRIVER.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rehearse:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile driver
+        run: python3 -m py_compile scripts/run-v1-disk-pressure-driver.py
+      - name: Run complete dry-run rehearsal
+        run: |
+          python3 scripts/run-v1-disk-pressure-driver.py \
+            --contract deploy/soak/v1-disk-pressure-contract.example.json \
+            --out target/disk-pressure-driver-pass \
+            --mode dry-run
+          jq -e '
+            .status == "passed" and
+            .qualification == false and
+            .qualifyingPass == false and
+            .referenceHostRehearsalComplete == false and
+            .cleanupRestrictedToRunOwnedFiles == true and
+            .pressureFilePresentAfterCleanup == false and
+            .probePresentAfterCleanup == false and
+            (.phasesCompleted | length) == 12
+          ' target/disk-pressure-driver-pass/summary.json
+          test "$(wc -l < target/disk-pressure-driver-pass/timeline.jsonl)" -eq 12
+          (cd target/disk-pressure-driver-pass && sha256sum -c SHA256SUMS)
+      - name: Verify forced failure retains partial evidence
+        run: |
+          set +e
+          python3 scripts/run-v1-disk-pressure-driver.py \
+            --contract deploy/soak/v1-disk-pressure-contract.example.json \
+            --out target/disk-pressure-driver-failure \
+            --mode dry-run \
+            --inject-failure-at release_pressure
+          code=$?
+          set -e
+          test "$code" -ne 0
+          jq -e '
+            .status == "failed" and
+            .qualification == false and
+            .qualifyingPass == false and
+            .cleanupAttempted == true and
+            .cleanupRestrictedToRunOwnedFiles == true and
+            .pressureFilePresentAfterCleanup == false and
+            .probePresentAfterCleanup == false and
+            (.stopReason | contains("forced failure at release_pressure")) and
+            (.phasesCompleted | length) == 5
+          ' target/disk-pressure-driver-failure/summary.json
+          test -s target/disk-pressure-driver-failure/timeline.jsonl
+          (cd target/disk-pressure-driver-failure && sha256sum -c SHA256SUMS)
+      - name: Verify output reuse is refused
+        run: |
+          set +e
+          python3 scripts/run-v1-disk-pressure-driver.py \
+            --contract deploy/soak/v1-disk-pressure-contract.example.json \
+            --out target/disk-pressure-driver-pass \
+            --mode dry-run
+          code=$?
+          set -e
+          test "$code" -ne 0
+      - name: Verify live mode remains fail closed
+        run: |
+          set +e
+          sudo -E python3 scripts/run-v1-disk-pressure-driver.py \
+            --contract deploy/soak/v1-disk-pressure-contract.example.json \
+            --out target/disk-pressure-driver-live-refusal \
+            --mode live
+          code=$?
+          set -e
+          test "$code" -ne 0
+          jq -e '
+            .status == "failed" and
+            .qualification == false and
+            .qualifyingPass == false and
+            .cleanupRestrictedToRunOwnedFiles == true and
+            .pressureFilePresentAfterCleanup == false and
+            .probePresentAfterCleanup == false and
+            .referenceHostRehearsalComplete == false
+          ' target/disk-pressure-driver-live-refusal/summary.json
+      - name: Upload driver rehearsal evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v1-disk-pressure-driver-rehearsal-${{ github.run_number }}
+          path: |
+            target/disk-pressure-driver-pass
+            target/disk-pressure-driver-failure
+            target/disk-pressure-driver-live-refusal
+          retention-days: 90

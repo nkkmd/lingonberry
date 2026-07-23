@@ -1,6 +1,6 @@
 # Lingonberry v1.0.0 Release Evidence
 
-**Status: candidate qualification recorded; remaining gates pending** | **Target release: v1.0.0** | **Parent issue: #109** | **Last updated: 2026-07-23**
+**Status: candidate qualification, security, and compatibility recorded; remaining gates pending** | **Target release: v1.0.0** | **Parent issue: #109** | **Last updated: 2026-07-23**
 
 ## 1. Evidence policy
 
@@ -32,6 +32,7 @@ Do not mark a gate passed unless its evidence identifies:
 | Qualification plan | `docs/roadmap/V1_0_QUALIFICATION_PLAN.md` |
 | Qualification status | `docs/roadmap/V1_0_QUALIFICATION_STATUS.md` |
 | Candidate record | `docs/roadmap/V1_0_CANDIDATE.md` |
+| Security and compatibility review | `docs/security/V1_0_SECURITY_DIFF_REVIEW.md` |
 | Soak plan | `docs/roadmap/V1_0_SOAK_PLAN.md` |
 
 ## 3. Candidate build provenance
@@ -69,8 +70,8 @@ The exact candidate was qualified through PR #128, whose head was the designated
 | Replacement and cleanup crash matrix | Candidate-bound crash-point matrix | Passed | run `29971797941`, `logs/replacement-cleanup-crash-matrix.log` | None |
 | Standard Rust validation | Formatting, clippy, and workspace tests | Passed | run `29971797941`; CI run 1198 | None |
 | JavaScript validation | Node test suite result | Passed | run `29971797941`; CI run 1198 | None |
-| Security regressions | Parser, signature workspace, path, authorization, and fail-closed regressions | Passed for automated coverage | run `29971797941`, workspace tests and crash matrix | Final findings disposition remains pending |
-| Security release-blocker review | Candidate diff and findings ledger disposition | Pending | `docs/security/V1_0_SECURITY_DIFF_REVIEW.md` | Requires final candidate review |
+| Security regressions | Parser, signature workspace, path, authorization, and fail-closed regressions | Passed | run `29971797941`, workspace tests and crash matrix | No panic, abort, OOM, or credential leakage detected in retained logs |
+| Security release-blocker review | Candidate diff and findings ledger disposition | Passed | `docs/security/V1_0_SECURITY_DIFF_REVIEW.md`, issue #130 | Critical 0; High 0; release-blocking Medium 0 |
 | Reference-platform operator acceptance | Ubuntu Server 24.04 LTS x86_64 systemd acceptance | Passed for automated installed-binary scenario | run `29971797941`, `logs/operator-acceptance.log` | Final published-document walkthrough remains pending |
 | Installation/configuration/operations review | Frozen documentation walkthrough | Pending | `V1_0_DOCUMENTATION_WALKTHROUGH.md` | Candidate execution rows remain pending |
 | Upgrade/rollback/recovery review | Supported upgrade and rollback boundary validation | Pending final walkthrough | Automated migration/recovery tests passed | Documentation execution evidence required |
@@ -78,19 +79,21 @@ The exact candidate was qualified through PR #128, whose head was the designated
 
 ## 5. Compatibility confirmation
 
-Record the final candidate review against the approved v1 compatibility policy.
+The candidate was reviewed against the approved v1 compatibility policy. The v0.9.0-to-candidate comparison contains no production implementation, protocol fixture, storage-format, migration-runtime, HTTP-handler, or operator-CLI change.
 
 | Contract family | Candidate change since policy approval | Compatibility disposition | Evidence |
 |---|---|---|---|
-| Protocol and schema | Pending final review | Pending | Pending |
-| Canonical serialization and identifiers | Pending final review | Pending | Pending |
-| Digest and signature payload | Pending final review | Pending | Pending |
-| Public Rust API | Pending final review | Pending | Pending |
-| HTTP and operator CLI | Pending final review | Pending | Pending |
-| Diagnostics and machine-readable errors | Pending final review | Pending | Pending |
-| Configuration | Pending final review | Pending | Pending |
-| Storage and durable artifacts | Pending final review | Pending | Pending |
-| Migration and rollback | Pending final review | Pending | Pending |
+| Protocol and schema | No implementation or fixture change | Compatible | v0.9.0 comparison; external conformance passed |
+| Canonical serialization and identifiers | No implementation change | Compatible | core lifecycle and workspace tests passed |
+| Digest and signature payload | No implementation change | Compatible | automated security regressions passed |
+| Public Rust API | No runtime API source change after audit | Compatible | `V1_0_RUST_API_AUDIT.md`; Rust gates passed |
+| HTTP and operator CLI | No handler or CLI implementation change | Compatible | installed-binary operator acceptance passed |
+| Diagnostics and machine-readable errors | No implementation change | Compatible | operator acceptance and workspace tests passed |
+| Configuration | No implementation or default change | Compatible | operator acceptance passed |
+| Storage and durable artifacts | No storage-format implementation change | Compatible | migration/recovery, backup/restore, and index gates passed |
+| Migration and rollback | No migration implementation change | Compatible | storage migration/recovery gate passed |
+
+No compatibility exception, waiver, or deprecation is required for the candidate.
 
 ## 6. Soak result
 
@@ -120,12 +123,12 @@ Record the final candidate review against the approved v1 compatibility policy.
 
 | Severity | Open count | Release-blocking count | Evidence |
 |---|---:|---:|---|
-| Critical | Pending final confirmation | Pending | `V1_0_SECURITY_DIFF_REVIEW.md` |
-| High | Pending final confirmation | Pending | `V1_0_SECURITY_DIFF_REVIEW.md` |
-| Medium | Pending final confirmation | Pending | `V1_0_SECURITY_DIFF_REVIEW.md` |
-| Low | Pending | N/A | Pending |
+| Critical | 0 | 0 | `V1_0_SECURITY_DIFF_REVIEW.md` |
+| High | 0 | 0 | `V1_0_SECURITY_DIFF_REVIEW.md` |
+| Medium | 0 | 0 | `V1_0_SECURITY_DIFF_REVIEW.md` |
+| Low | 2 accepted process residual risks | N/A | version-tagged Actions and finite artifact retention |
 
-The release is blocked unless Critical = 0, High = 0, and release-blocking Medium = 0.
+The accepted Low risks are controlled by retained toolchain provenance, candidate and binary digests, bundle checksums, repository-recorded artifact identity, and mandatory final merged-commit revalidation.
 
 ## 8. Documentation freeze
 
@@ -136,7 +139,7 @@ The release is blocked unless Critical = 0, High = 0, and release-blocking Mediu
 | Operations | Pending execution | `f9543019f2c219aea3b085ff90f2da201b268a48` | Walkthrough row pending |
 | Upgrade and rollback | Pending execution | `f9543019f2c219aea3b085ff90f2da201b268a48` | Automated tests passed; walkthrough pending |
 | Recovery and troubleshooting | Pending execution | `f9543019f2c219aea3b085ff90f2da201b268a48` | Automated tests passed; walkthrough pending |
-| Compatibility policy | Pending final confirmation | `f9543019f2c219aea3b085ff90f2da201b268a48` | |
+| Compatibility policy | Candidate review complete | `f9543019f2c219aea3b085ff90f2da201b268a48` | Issue #130 |
 | README and documentation indexes | Static review complete | `f9543019f2c219aea3b085ff90f2da201b268a48` | PR #125; documentation check run 8 passed |
 | Current implementation status | Pending | Pending | |
 | Release checklist | Not created | Pending | |
@@ -151,6 +154,7 @@ The release is blocked unless Critical = 0, High = 0, and release-blocking Mediu
 | Merged-commit standard CI | Pending | Pending |
 | Merged-commit candidate qualification | Pending | Pending |
 | Pre-version candidate exact-SHA qualification | Passed | run `29971797941`, artifact `8549953270` |
+| Candidate security and compatibility review | Passed | issue #130; `V1_0_SECURITY_DIFF_REVIEW.md` |
 | Version consistency | Pending | Pending |
 | Tag points to merged release commit | Pending | Pending |
 | GitHub Release points to annotated tag | Pending | Pending |
@@ -158,12 +162,16 @@ The release is blocked unless Critical = 0, High = 0, and release-blocking Mediu
 
 ## 10. Deviations and residual risks
 
-No release-blocking deviation was observed in candidate qualification.
+No release-blocking deviation was observed in candidate qualification or final candidate security and compatibility review.
+
+Accepted process residual risks:
+
+- third-party GitHub Actions use reviewed version tags rather than immutable commit SHAs;
+- GitHub Actions artifact retention is finite, while permanent artifact identity and binary digests are retained in this repository.
 
 Remaining planned work is not classified as a deviation:
 
 - candidate-bound documentation walkthrough;
-- final compatibility and security disposition;
 - 72-hour qualification soak;
 - version preparation and publication validation.
 
@@ -181,4 +189,4 @@ Every future deviation entry must include:
 
 **Decision: Pending**
 
-The exact pre-version candidate qualification is green. A final `PASS` decision may be recorded only when the documentation walkthrough, final security and compatibility confirmation, 72-hour soak, release preparation, merged-commit validation, and publication evidence are complete.
+Candidate qualification, security review, and compatibility review are green. A final `PASS` decision may be recorded only when the documentation walkthrough, 72-hour soak, release preparation, merged-commit validation, and publication evidence are complete.

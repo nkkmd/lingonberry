@@ -1,0 +1,65 @@
+name: v1 crash matrix driver rehearsal
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/run-v1-crash-matrix-driver.sh'
+      - '.github/workflows/v1-crash-matrix-driver-rehearsal.yml'
+      - 'deploy/soak/v1-formal-command-map.json'
+      - 'docs/roadmap/V1_0_CRASH_MATRIX_DRIVER.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rehearse:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout harness
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          path: harness
+      - name: Checkout exact candidate
+        uses: actions/checkout@v4
+        with:
+          ref: f9543019f2c219aea3b085ff90f2da201b268a48
+          path: candidate
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: candidate
+      - name: Run two-cycle rehearsal
+        working-directory: candidate
+        env:
+          CRASH_MATRIX_REPO_ROOT: ${{ github.workspace }}/candidate
+          CRASH_MATRIX_OUT: ${{ runner.temp }}/v1-crash-matrix-rehearsal
+          CRASH_MATRIX_CYCLES: '2'
+        run: bash ../harness/scripts/run-v1-crash-matrix-driver.sh
+      - name: Verify evidence
+        env:
+          EVIDENCE_DIR: ${{ runner.temp }}/v1-crash-matrix-rehearsal
+        run: |
+          jq -e '.status == "passed" and .qualification == false and .qualifyingPass == false and .cyclesRequired == 2 and .cyclesCompleted == 2 and .testsPerCycle == 4' "$EVIDENCE_DIR/summary.json"
+          test "$(find "$EVIDENCE_DIR/cycles" -name 'cycle-*.json' | wc -l)" -eq 2
+          (cd "$EVIDENCE_DIR" && sha256sum -c SHA256SUMS)
+      - name: Verify candidate mismatch fails closed
+        working-directory: candidate
+        env:
+          CANDIDATE_SHA: 0000000000000000000000000000000000000000
+          CRASH_MATRIX_REPO_ROOT: ${{ github.workspace }}/candidate
+          CRASH_MATRIX_OUT: ${{ runner.temp }}/v1-crash-matrix-mismatch
+        run: |
+          if bash ../harness/scripts/run-v1-crash-matrix-driver.sh; then
+            echo 'candidate mismatch unexpectedly passed' >&2
+            exit 1
+          fi
+      - name: Upload rehearsal evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v1-crash-matrix-driver-rehearsal-${{ github.run_number }}
+          path: ${{ runner.temp }}/v1-crash-matrix-rehearsal
+          retention-days: 90

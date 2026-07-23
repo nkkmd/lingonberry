@@ -5,7 +5,6 @@ import argparse
 import hashlib
 import json
 import os
-import shutil
 import subprocess
 import sys
 import time
@@ -95,6 +94,9 @@ def main() -> int:
     snapshots = args.out / "snapshots"
     pressure_file = Path(contract["pressureFile"])
     workspace = Path(contract["workspace"])
+    probe = workspace / f".lingonberry-pressure-probe-{run_id}"
+    pressure_created = False
+    probe_created = False
     completed: list[str] = []
     status = "failed"
     stop_reason = None
@@ -108,24 +110,33 @@ def main() -> int:
             event = {"runId": run_id, "phase": phase, "timestamp": int(time.time())}
             with timeline.open("a") as f:
                 f.write(json.dumps(event, sort_keys=True) + "\n")
-            write_json(snapshots / f"{len(completed)+1:02d}-{phase}.json", snapshot(contract, phase, args.mode))
 
             if args.mode == "live":
                 if phase == "allocate_pressure":
                     workspace.mkdir(parents=True, exist_ok=True)
                     if pressure_file.exists():
-                        raise RuntimeError("pressure file already exists")
+                        raise RuntimeError("pressure file already exists; ownership is not established")
                     free = os.statvfs(contract["mountPoint"]).f_bavail * os.statvfs(contract["mountPoint"]).f_frsize
-                    allocate = max(0, free - int(contract["pressureTargetFreeBytes"]))
+                    allocate = free - int(contract["pressureTargetFreeBytes"])
+                    if allocate <= 0:
+                        raise RuntimeError("mount is already below the pressure target")
                     run(["fallocate", "-l", str(allocate), str(pressure_file)])
+                    pressure_created = True
                 elif phase == "expected_failure":
-                    probe = workspace / "pressure-probe"
+                    if probe.exists():
+                        raise RuntimeError("run-owned probe path unexpectedly exists")
                     cp = run(["dd", "if=/dev/zero", f"of={probe}", "bs=1M", "count=64", "conv=fsync"], check=False)
+                    probe_created = probe.exists()
                     if cp.returncode == 0:
                         raise RuntimeError("pressure probe unexpectedly succeeded")
+                    if probe_created:
+                        probe.unlink()
+                        probe_created = False
                 elif phase == "release_pressure":
-                    if pressure_file.exists():
-                        pressure_file.unlink()
+                    if not pressure_created or not pressure_file.exists():
+                        raise RuntimeError("run-owned pressure file is missing before release")
+                    pressure_file.unlink()
+                    pressure_created = False
                     run(["sync"])
                 elif phase == "restart":
                     run(["systemctl", "restart", contract["serviceUnit"]])
@@ -139,13 +150,19 @@ def main() -> int:
                     unexpected = [p.name for p in workspace.iterdir()] if workspace.exists() else []
                     if unexpected:
                         raise RuntimeError(f"workspace not clean: {unexpected}")
+            write_json(snapshots / f"{len(completed)+1:02d}-{phase}.json", snapshot(contract, phase, args.mode))
             completed.append(phase)
         status = "passed"
     except Exception as exc:  # evidence must survive failures
         stop_reason = str(exc)
     finally:
-        if args.mode == "live" and pressure_file.exists():
-            pressure_file.unlink()
+        if args.mode == "live":
+            if probe_created and probe.exists():
+                probe.unlink()
+                probe_created = False
+            if pressure_created and pressure_file.exists():
+                pressure_file.unlink()
+                pressure_created = False
             run(["sync"], check=False)
         summary = {
             "schemaVersion": 1,
@@ -162,7 +179,10 @@ def main() -> int:
             "endedAtEpoch": int(time.time()),
             "contractSha256": sha256(args.contract),
             "cleanupAttempted": True,
+            "cleanupRestrictedToRunOwnedFiles": True,
+            "pressureFileCreatedByRun": pressure_created,
             "pressureFilePresentAfterCleanup": pressure_file.exists(),
+            "probePresentAfterCleanup": probe.exists(),
             "referenceHostRehearsalComplete": False,
         }
         write_json(args.out / "summary.json", summary)

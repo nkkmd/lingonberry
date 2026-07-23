@@ -6,7 +6,7 @@
 ## Status
 
 - Tracked Markdown files: **169**
-- Release-blocking review entries: **110**
+- Release-blocking review entries: **109**
 - Classification totals: BILINGUAL_REQUIRED: 5, BILINGUAL_SCOPED: 3, ENGLISH_ONLY: 161
 - Governing policy: [`DOCUMENTATION_POLICY.md`](./DOCUMENTATION_POLICY.md)
 - Tracking issue: [#144](https://github.com/nkkmd/lingonberry/issues/144)
@@ -23,32 +23,30 @@ Every tracked Markdown file must appear below. `yes` in the final column means t
 
 | Current path | Classification | Required action | v1.0 blocker |
 |---|---|---|---|
+| `.github/ISSUE_TEMPLATE/bug_report.md` | `ENGLISH_ONLY` | `REVIEW` | no |
+| `.github/ISSUE_TEMPLATE/feature_request.md` | `ENGLISH_ONLY` | `REVIEW` | no |
+| `.github/PULL_REQUEST_TEMPLATE.md` | `ENGLISH_ONLY` | `REVIEW` | no |
 | `AGENTS.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
 | `CHANGELOG.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH_ADD_BILINGUAL_V1_SUMMARY` | yes |
+| `CONTRIBUTING.md` | `BILINGUAL_REQUIRED` | `NORMALIZE_BEFORE_V1` | yes |
 | `README.md` | `BILINGUAL_REQUIRED` | `NORMALIZE_BEFORE_V1` | yes |
-| `conformance/README.md` | `ENGLISH_ONLY` | `REVIEW` | no |
+| `SECURITY.md` | `BILINGUAL_REQUIRED` | `NORMALIZE_BEFORE_V1` | yes |
 | `docs/DOCUMENTATION_INVENTORY.md` | `ENGLISH_ONLY` | `REVIEW` | no |
 | `docs/DOCUMENTATION_POLICY.md` | `BILINGUAL_REQUIRED` | `NORMALIZE_BEFORE_V1` | yes |
-| `docs/architecture/DISTRIBUTED_KNOWLEDGE_COMMONS_ARCHITECTURE.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
-| `docs/architecture/DUPLICATE_AND_CONFLICT_CONTRACT.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
-| `docs/architecture/LINGONBERRY_PROTOCOL_EVOLUTION_PROPOSAL.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
-| `docs/architecture/README.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
-| `docs/architecture/TOITOI_REFERENCE_CHECKLIST.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
-| `docs/architecture/V0_9_PUBLIC_API_FREEZE_CANDIDATE.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
-| `docs/architecture/V0_9_RUST_API_INVENTORY.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
+| `docs/architecture/BOUNDARY_OBJECT.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
+| `docs/architecture/COMPATIBILITY_POLICY.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
+| `docs/architecture/EVENT_MODEL.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
+| `docs/architecture/FAILURE_MODEL.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
+| `docs/architecture/PROTOCOL_ABSTRACTION.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
+| `docs/architecture/PROVENANCE.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
+| `docs/architecture/QUESTION_MODEL.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
 | `docs/architecture/V1_0_RUST_API_AUDIT.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
 | `docs/architecture/V1_COMPATIBILITY_POLICY.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
 | `docs/concepts/CARRIER.md` | `BILINGUAL_SCOPED` | `REVIEW_SCOPE_BEFORE_V1` | yes |
-| `docs/concepts/CONCEPT_MODEL.md` | `ENGLISH_ONLY` | `REVIEW` | no |
 | `docs/concepts/GLOSSARY.md` | `BILINGUAL_SCOPED` | `REVIEW_SCOPE_BEFORE_V1` | yes |
-| `docs/concepts/README.md` | `ENGLISH_ONLY` | `REVIEW` | no |
-| `docs/operations/ACCEPTANCE_POLICY.md` | `ENGLISH_ONLY` | `MERGE_OR_ENGLISH_NORMALIZATION` | yes |
-| `docs/operations/ACCESS_RETENTION_AUDIT_CHECKLIST.md` | `ENGLISH_ONLY` | `MERGE_OR_ENGLISH_NORMALIZATION` | yes |
-| `docs/operations/ACCESS_RETENTION_POLICY.md` | `ENGLISH_ONLY` | `MERGE_OR_ENGLISH_NORMALIZATION` | yes |
 | `docs/operations/CADDY_RELAY_PUBLICATION.md` | `ENGLISH_ONLY` | `MERGE_OR_ENGLISH_NORMALIZATION` | yes |
 | `docs/operations/CARRIER_CAPABILITY_NEGOTIATION.md` | `ENGLISH_ONLY` | `MERGE_OR_ENGLISH_NORMALIZATION` | yes |
 | `docs/operations/CARRIER_DECISION_MEMO.md` | `ENGLISH_ONLY` | `MERGE_OR_ENGLISH_NORMALIZATION` | yes |
-| `docs/operations/CONTAINER_EXECUTION_TEMPLATES.md` | `ENGLISH_ONLY` | `MERGE_OR_ENGLISH_NORMALIZATION` | yes |
 | `docs/operations/FILE_ARCHIVE_CARRIER_CONTRACT.md` | `ENGLISH_ONLY` | `MERGE_OR_ENGLISH_NORMALIZATION` | yes |
 | `docs/operations/HTTP_CARRIER_CONTRACT.md` | `ENGLISH_ONLY` | `MERGE_OR_ENGLISH_NORMALIZATION` | yes |
 | `docs/operations/KNOWLEDGE_OBJECT_PUBLISH_QUICKSTART.md` | `ENGLISH_ONLY` | `MERGE_OR_ENGLISH_NORMALIZATION` | yes |
@@ -89,7 +87,7 @@ Every tracked Markdown file must appear below. `yes` in the final column means t
 | `docs/operations/STORAGE_MIGRATION_AND_UPGRADE.md` | `ENGLISH_ONLY` | `MERGE_OR_ENGLISH_NORMALIZATION` | yes |
 | `docs/operations/STORAGE_NODE_QUICKSTART.md` | `ENGLISH_ONLY` | `MERGE_OR_ENGLISH_NORMALIZATION` | yes |
 | `docs/operations/STORAGE_NODE_RUNTIME.md` | `ENGLISH_ONLY` | `MERGE_OR_ENGLISH_NORMALIZATION` | yes |
-| `docs/operations/SUPPORTED_PLATFORMS.md` | `ENGLISH_ONLY` | `MERGE_OR_ENGLISH_NORMALIZATION` | yes |
+| `docs/operations/SUPPORTED_PLATFORMS.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
 | `docs/operations/SYSTEMD_UNIT_TEMPLATES.md` | `ENGLISH_ONLY` | `MERGE_OR_ENGLISH_NORMALIZATION` | yes |
 | `docs/operations/TECH_DECISION_ADR.md` | `ENGLISH_ONLY` | `MERGE_OR_ENGLISH_NORMALIZATION` | yes |
 | `docs/operations/V0_8_OPERATOR_RUNBOOK.md` | `ENGLISH_ONLY` | `KEEP_HISTORICAL` | no |
@@ -98,25 +96,38 @@ Every tracked Markdown file must appear below. `yes` in the final column means t
 | `docs/profiles/README.md` | `ENGLISH_ONLY` | `REVIEW` | no |
 | `docs/profiles/TOITOI_APPLICATION_PROFILE.md` | `ENGLISH_ONLY` | `REVIEW` | no |
 | `docs/protocols/CANONICALIZATION.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
-| `docs/protocols/EFFECTIVE_VIEW_DIAGNOSTICS.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
-| `docs/protocols/EFFECTIVE_VIEW_DIAGNOSTIC_CURSOR_LEASE.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
-| `docs/protocols/EFFECTIVE_VIEW_DIAGNOSTIC_PAGINATION.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
-| `docs/protocols/EFFECTIVE_VIEW_DIAGNOSTIC_READ_GUARD.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
-| `docs/protocols/EFFECTIVE_VIEW_DIAGNOSTIC_READ_GUARD_HEARTBEAT.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
-| `docs/protocols/EFFECTIVE_VIEW_DIAGNOSTIC_RETENTION.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
-| `docs/protocols/EFFECTIVE_VIEW_READ_API.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
-| `docs/protocols/HTTP_PUBLISH_SIGNATURE.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
-| `docs/protocols/HTTP_TRANSITION_API.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
-| `docs/protocols/IDENTITY_AND_PROVENANCE.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
-| `docs/protocols/INDEX_GENERATION_DIGEST.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
-| `docs/protocols/LAST_KNOWN_GOOD_EFFECTIVE_VIEW.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
-| `docs/protocols/ORPHAN_TRANSITIONS.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
-| `docs/protocols/PROTOCOL_CONTRACT.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
-| `docs/protocols/PROTOCOL_IDENTIFIERS.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
-| `docs/protocols/PROTOCOL_NATIVE_WIRE_FORMAT.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
-| `docs/protocols/README.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
-| `docs/protocols/TIMESTAMP_SEMANTICS.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
-| `docs/protocols/TRANSITION_AUTHORITY.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
+| `docs/protocols/CANONICAL_JSONL.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
+| `docs/protocols/CARRIER.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
+| `docs/protocols/CONTRACT.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
+| `docs/protocols/EFFECTIVE_VIEW_QUERY.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
+| `docs/protocols/EFFECTIVE_VIEW_RESPONSE.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
+| `docs/protocols/EFFECTIVE_VIEW.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
+| `docs/protocols/EVENT_HASH_AND_SIGNATURE.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
+| `docs/protocols/HTTP_RELAY.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
+| `docs/protocols/IDENTITY_DELEGATION.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
+| `docs/protocols/IDENTITY.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
+| `docs/protocols/INDEX_INCREMENTAL.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
+| `docs/protocols/INDEX_REBUILD.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
+| `docs/protocols/KNOWLEDGE_OBJECT.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
+| `docs/protocols/NOSTR.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
+| `docs/protocols/PROTOCOL.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
+| `docs/protocols/PROTOCOL_VALIDATION.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
+| `docs/protocols/QUERY_API.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
+| `docs/protocols/QUARANTINE_ADMIN.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
+| `docs/protocols/QUARANTINE_REPLACEMENT.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
+| `docs/protocols/QUARANTINE.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
+| `docs/protocols/RELAY_CAPABILITY_HTTP.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
+| `docs/protocols/RELAY_CAPABILITY.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
+| `docs/protocols/RELAY_HTTP_API.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
+| `docs/protocols/RELAY_STORAGE_BOUNDARY.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
+| `docs/protocols/RELAY_STORAGE_PERSISTENCE.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
+| `docs/protocols/RELAY_STORAGE_REPLAY.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
+| `docs/protocols/SEMANTIC_INDEX_QUERY.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
+| `docs/protocols/SEMANTIC_INDEX.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
+| `docs/protocols/SERIALIZATION.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
+| `docs/protocols/TRANSITION_AUTHORIZATION.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
+| `docs/protocols/TRANSITION_CONCURRENT_HEADS.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
+| `docs/protocols/TRANSITION_EFFECTIVE_VIEW.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
 | `docs/protocols/TRANSITION_EVIDENCE_GENERATION.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
 | `docs/protocols/TRANSITION_OBJECT.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
 | `docs/protocols/TRANSITION_REEVALUATION_COALESCING.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
@@ -178,17 +189,11 @@ Every tracked Markdown file must appear below. `yes` in the final column means t
 | `docs/roadmap/V1_0_SOAK_REHEARSAL.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
 | `docs/security/V0_9_SECURITY_FINDINGS.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
 | `docs/security/V0_9_SECURITY_REVIEW.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
-| `docs/security/V0_9_SIGNATURE_WORKSPACE_REMEDIATION.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
 | `docs/security/V1_0_SECURITY_DIFF_REVIEW.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
-| `fixtures/README.md` | `ENGLISH_ONLY` | `REVIEW` | no |
-| `packages/README.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
-| `packages/api/README.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
 | `packages/core/README.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
-| `packages/indexer/INDEX_AMBIGUITY_GUARD.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
-| `packages/indexer/INDEX_CATCH_UP.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
-| `packages/indexer/INDEX_LIFECYCLE.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
+| `packages/identity/README.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
 | `packages/indexer/README.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
 | `packages/protocol/README.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
 | `packages/relay/README.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
 | `packages/storage/README.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
-| `schemas/README.md` | `ENGLISH_ONLY` | `REVIEW` | no |
+| `packages/validation/README.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |

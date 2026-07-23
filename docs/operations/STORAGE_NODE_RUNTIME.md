@@ -1,117 +1,302 @@
-# storage node runtime
+# Storage node runtime contract
 
-**Status: draft** | **Last updated: 2026-06-19**
+**Status: v1.0.0 pre-release implementation contract** | **Last updated: 2026-07-23**
 
-## 目的
+English is normative for this document.
 
-この文書は、`storage node` の起動時設定、保存先レイアウト、診断出力をまとめる正本メモです。  
-Phase 2 の `storage node` 独立バイナリ化に向けて、設定面の入口を先に固定します。
+## 1. Purpose and scope
 
-## 1. 起動面
+This document defines the implemented runtime configuration, directory layout, diagnostic commands, and systemd readiness boundary of the `lingonberry-storage` binary.
 
-- binary 名は `lingonberry-storage`
-- 既定の実行形は `capabilities`、`config`、`run`、`append`、`retrieve`、`replay`、`list`
-- `config` は解決済み設定を表示する
-- `run` はサービス状態と解決済み設定を表示する
+It does not define a long-running storage daemon. In the current v1.0.0 pre-release design:
 
-## 2. 環境変数の責務
+- `lingonberry-storage` is an operator and storage command binary;
+- `lingonberry-storage run` prints a read-only runtime snapshot and exits;
+- `lingonberry-storage ready` is used by the checked-in oneshot systemd readiness gate;
+- `lingonberry-relay` is the long-running HTTP relay process.
 
-- `LINGONBERRY_STATE_DIR` は、`relay` と `storage node` で共通して使う実行ルートの指定です
-- `LINGONBERRY_STORAGE_CONFIG` は、`storage node` の設定ファイル位置を上書きするための storage 固有変数です
-- 設定値そのものは、できるだけ config file に寄せます
-- secret はこの段階では設定ファイルに載せず、[Secret Management](./SECRET_MANAGEMENT.md) に分離します
+For the complete single-node procedure, use [`V1_0_OPERATOR_RUNBOOK.md`](./V1_0_OPERATOR_RUNBOOK.md). For CLI output and exit-code rules, use [`OPERATOR_CLI_CONTRACT.md`](./OPERATOR_CLI_CONTRACT.md).
 
-## 3. 設定の優先順
+## 2. Binary and command surface
 
-設定は次の順で解決します。
+The binary name is:
 
-1. 明示した `LINGONBERRY_STORAGE_CONFIG`
-2. 既定の設定ファイル `"$LINGONBERRY_STATE_DIR/storage-config.json"`
-3. 環境変数 `LINGONBERRY_STATE_DIR`
-4. 既定値 `".lingonberry"`
+```text
+lingonberry-storage
+```
 
-この文書でいう「優先順」は、まず設定ファイルの場所を決め、その後でファイル中の項目を既定値へ重ねる、という 2 段構えの解決を指します。  
-`stateDir` を設定ファイルで上書きした場合、`dataDir`、`backupDir`、`tempDir` が未指定なら、その新しい `stateDir` を基準に既定値を再計算します。
+The implemented top-level commands are:
 
-## 4. 設定ファイル形式
+```text
+capabilities
+config
+status
+doctor
+verify
+health
+ready
+metrics
+backup
+restore
+index
+drill
+run
+append
+retrieve
+replay
+list
+```
 
-設定ファイルは JSON object とします。  
-現時点で認識するキーは次の通りです。
+Command classes:
 
-- `stateDir`
-- `dataDir`
-- `backupDir`
-- `tempDir`
+- configuration and diagnostics: `capabilities`, `config`, `status`, `doctor`, `verify`, `health`, `ready`, `metrics`, `run`;
+- recovery and maintenance: `backup`, `restore`, `index`, `drill`;
+- storage data operations: `append`, `retrieve`, `replay`, `list`.
 
-未指定のキーは、解決済みの `stateDir` を基準に既定値へ戻します。
+`run` does not remain resident and does not provide an HTTP listener. It prints the resolved runtime state and exits.
 
-### 4.0 例
+## 3. Configuration precedence
+
+Storage configuration is resolved in this order, from lowest to highest precedence:
+
+```text
+defaults
+→ config file
+→ environment variables
+→ CLI options
+```
+
+The available global CLI overrides are:
+
+```text
+--config PATH
+--state-dir PATH
+--data-dir PATH
+--backup-dir PATH
+--temp-dir PATH
+```
+
+An empty CLI or environment path is rejected.
+
+## 4. Configuration file selection
+
+The configuration path is selected in this order:
+
+1. CLI `--config PATH`;
+2. `LINGONBERRY_STORAGE_CONFIG`;
+3. `<default-state-dir>/storage-config.json`.
+
+The default state directory is resolved by the shared core runtime helper. For a normal installed node, set the storage-specific directory variables explicitly in `/etc/lingonberry/storage.env` rather than depending on a working-directory-relative default.
+
+If an explicit CLI or environment configuration path does not exist, configuration resolution fails. If only the implicit default path is absent, the built-in defaults remain valid.
+
+## 5. Configuration file format
+
+The configuration file must be a JSON object. The only accepted fields are:
+
+```text
+stateDir
+dataDir
+backupDir
+tempDir
+```
+
+Unknown fields, non-string values, and empty strings fail closed.
+
+Example:
 
 ```json
 {
   "stateDir": "/var/lib/lingonberry/storage",
-  "backupDir": "/var/backups/lingonberry/storage"
+  "dataDir": "/var/lib/lingonberry/storage/data",
+  "backupDir": "/var/backups/lingonberry/storage",
+  "tempDir": "/var/lib/lingonberry/storage/tmp"
 }
 ```
 
-### 4.1 `stateDir`
+## 6. Environment variables
 
-`storage node` の論理ルートです。  
-設定ファイルや運用メモを置く基準点として扱います。
+The implemented storage variables are:
 
-### 4.2 `dataDir`
+```text
+LINGONBERRY_STORAGE_CONFIG
+LINGONBERRY_STORAGE_STATE_DIR
+LINGONBERRY_STORAGE_DATA_DIR
+LINGONBERRY_STORAGE_BACKUP_DIR
+LINGONBERRY_STORAGE_TEMP_DIR
+```
 
-保存実体を置くディレクトリです。  
-既定値は解決済みの `stateDir` と同じにして後方互換を保ちます。  
-`relay-wire-log.jsonl` と `canonical-catalog.sqlite3` はこの配下に置きます。
+`LINGONBERRY_STATE_DIR` may still affect the shared default state root through the core runtime helper, but it is not a substitute for the storage-specific directory variables in the reference installed-node configuration.
 
-### 4.3 `backupDir`
+Recommended reference-node values:
 
-バックアップや退役時の退避先です。  
-既定値は `"$stateDir/backup"` です。
+```bash
+LINGONBERRY_STORAGE_STATE_DIR=/var/lib/lingonberry/storage
+LINGONBERRY_STORAGE_DATA_DIR=/var/lib/lingonberry/storage/data
+LINGONBERRY_STORAGE_BACKUP_DIR=/var/backups/lingonberry/storage
+LINGONBERRY_STORAGE_TEMP_DIR=/var/lib/lingonberry/storage/tmp
+```
 
-### 4.4 `tempDir`
+Keep `/etc/lingonberry/storage.env` readable only by the operator or service account as required by the secret-management policy. Directory paths themselves are not secrets, but the protected environment file is the stable deployment interface.
 
-一時ファイルや再構成途中の作業領域です。  
-既定値は `"$stateDir/tmp"` です。
+## 7. Derived defaults
 
-## 5. 実際の出力
+After all configuration layers are applied:
 
-`lingonberry-storage config` と `lingonberry-storage run` は、次を返します。
+- an unassigned `dataDir` defaults to the resolved `stateDir`;
+- an unassigned `backupDir` defaults to `<stateDir>/backup`;
+- an unassigned `tempDir` defaults to `<stateDir>/tmp`.
 
-- `configPath`
-- `stateDir`
-- `dataDir`
-- `backupDir`
-- `tempDir`
-- `rawLogPath`
-- `catalogPath`
+A higher-precedence assignment is preserved. For example, changing `stateDir` does not replace an explicitly assigned `dataDir`.
 
-## 6. 運用上の含意
+## 8. Runtime layout
 
-- `storage node` は `relay` と独立したプロセスとして起動する
-- 保存実体は `dataDir` 側に寄せる
-- `backupDir` と `tempDir` は `dataDir` とは役割を分ける
-- `rawLogPath` は `dataDir/relay-wire-log.jsonl`
-- `catalogPath` は `dataDir/canonical-catalog.sqlite3`
-- `relay` 側の transport 詳細を `storage node` に持ち込まない
+The implemented durable paths are derived from `dataDir`:
 
-## 7. backup / restore の前提
+```text
+rawLogPath = <dataDir>/relay-wire-log.jsonl
+catalogPath = <dataDir>/canonical-catalog.sqlite3
+```
 
-- backup は `dataDir` を起点に作る
-- backup には少なくとも `rawLogPath`、`catalogPath`、replay metadata、manifest を含める
-- backup bundle では、`manifest.json`、`wire-log.jsonl`、`canonical-catalog.sqlite3`、`replay-metadata.json` を基本要素として扱う
-- `resolved-config.json` は restore 時の補助情報として残すことができる
-- `backupDir` は、作成中の退避先または退役時の退避先として使う
-- `tempDir` は、restore 途中の作業領域として使う
-- restore 後は `config`、`run`、`replay`、`list` の順で整合性を確認する
-- archive を使う場合は、[File / Archive Carrier Contract](./FILE_ARCHIVE_CARRIER_CONTRACT.md) の `manifest.json` と `wire-log.jsonl` に合わせる
-- backup と archive は別概念だが、運用上は archive を backup の持ち運び形式として扱える
-- retire する場合は、`backupDir` を archive staging として、`tempDir` を作業用の scratch space として区別する
+Additional format and migration files may also exist in `dataDir`:
 
-## 参照
+```text
+storage-format.manifest
+storage-migration.journal
+```
 
-- [運用準備ロードマップ](../roadmap/OPERATIONAL_READINESS_ROADMAP.md)
-- [運用準備バックログ](../roadmap/OPERATIONAL_READINESS_BACKLOG.md)
-- [運用前提メモ](./OPERATIONAL_PREMISES_MEMO.md)
-- [storage node README](../../packages/storage/README.md)
+Responsibilities:
+
+- `stateDir`: storage runtime state and quarantine-generation root;
+- `dataDir`: canonical durable storage, wire log, catalog, format manifest, and migration journal;
+- `backupDir`: backup inventory and verified recovery artifacts;
+- `tempDir`: bounded operational workspace for restore, rebuild, and maintenance work.
+
+Do not place the active canonical storage on a network filesystem for the reference platform. See [`SUPPORTED_PLATFORMS.md`](./SUPPORTED_PLATFORMS.md).
+
+## 9. Configuration and runtime output
+
+`config`, `status`, and `run` emit canonical JSON describing the effective runtime configuration and derived layout. Fields include the resolved equivalents of:
+
+```text
+configPath
+stateDir
+dataDir
+backupDir
+tempDir
+rawLogPath
+catalogPath
+```
+
+`status` and `run` are snapshots. They do not prove that all filesystem, index, backup, or disk-capacity checks pass.
+
+## 10. Diagnostic semantics
+
+### 10.1 `health`
+
+`health` reports process-level command health. It does not inspect storage readiness and does not replace `ready`.
+
+### 10.2 `doctor`
+
+`doctor` is read-only and evaluates the effective configuration and operational storage state. Implemented checks include:
+
+- required paths are non-empty;
+- state, data, backup, and temporary directories;
+- symlink and file-type rejection;
+- storage format classification;
+- migration-journal presence and validity boundary;
+- raw log and catalog file types;
+- quarantine generation pointer;
+- index consistency;
+- backup inventory;
+- operational workspace;
+- disk capacity.
+
+Warnings do not fail `doctor`; failed checks do.
+
+### 10.3 `verify`
+
+`verify` runs the same diagnostic report in strict mode. Both warnings and failed checks cause a non-zero result. Use it before an upgrade, after restore, and before declaring an operator procedure complete.
+
+### 10.4 `ready`
+
+`ready` runs the doctor checks and reports:
+
+```text
+status: ready | not_ready
+ready: true | false
+diagnosticStatus: ok | warning | failed
+```
+
+Readiness fails only when the diagnostic report contains a failed check. A warning-only report can be ready, while `verify` remains non-zero. This distinction is deliberate.
+
+### 10.5 `metrics`
+
+`metrics` emits bounded-cardinality diagnostic counts, including readiness and doctor-check totals. It is a command snapshot, not a continuously exposed metrics endpoint.
+
+## 11. systemd readiness gate
+
+The checked-in unit is:
+
+```text
+deploy/systemd/lingonberry-storage-ready.service
+```
+
+Its implemented model is:
+
+- `Type=oneshot`;
+- service account `lingonberry:lingonberry`;
+- optional environment file `/etc/lingonberry/storage.env`;
+- `ExecStart=/usr/local/bin/lingonberry-storage ready`;
+- `RemainAfterExit=yes`;
+- hardened filesystem and privilege settings;
+- write access limited to `/var/lib/lingonberry` and `/var/backups/lingonberry`.
+
+This unit is a startup gate, not a storage daemon. The relay unit requires and starts after this gate. A failed readiness check prevents the reference relay service from starting normally.
+
+The checked-in files under `deploy/systemd/` are the service-template source of truth. See [`SYSTEMD_UNIT_TEMPLATES.md`](./SYSTEMD_UNIT_TEMPLATES.md).
+
+## 12. Backup, restore, and migration boundaries
+
+- ordinary backups use the storage recovery command surface documented in the operator runbook;
+- storage-format migration uses `lingonberry-storage-migrate` and [`STORAGE_MIGRATION_AND_UPGRADE.md`](./STORAGE_MIGRATION_AND_UPGRADE.md);
+- pre-commit migration rollback is not equivalent to restoring a release backup;
+- release rollback after committed or incompatible storage change follows [`V1_0_UPGRADE_AND_ROLLBACK.md`](./V1_0_UPGRADE_AND_ROLLBACK.md);
+- restore completion requires application-level read, index, readiness, and persistence checks; a successful file copy alone is insufficient.
+
+## 13. Fail-closed rules
+
+Normal operation must stop for operator review when:
+
+- an explicit configuration file is missing;
+- configuration contains an unknown field, wrong type, or empty path;
+- a required path is an unsupported file type or symlink;
+- storage format is corrupt or newer than supported;
+- the index is inconsistent;
+- readiness reports a failed diagnostic check;
+- a migration journal is present and its state has not been inspected;
+- disk or workspace checks report a failure.
+
+Do not bypass these conditions by deleting manifests or journals, weakening systemd hardening, or silently changing directory roots.
+
+## 14. Release boundary
+
+This document describes the current v1.0.0 pre-release implementation. It does not indicate that v1.0.0 has been published or that formal qualification is complete.
+
+The designated pre-version candidate remains:
+
+```text
+f9543019f2c219aea3b085ff90f2da201b268a48
+```
+
+Formal reference-host qualification, the 72-hour soak, version update, tag, and GitHub Release remain separate release gates.
+
+## 15. Related documents
+
+- [`V1_0_OPERATOR_RUNBOOK.md`](./V1_0_OPERATOR_RUNBOOK.md)
+- [`OPERATOR_CLI_CONTRACT.md`](./OPERATOR_CLI_CONTRACT.md)
+- [`STORAGE_MIGRATION_AND_UPGRADE.md`](./STORAGE_MIGRATION_AND_UPGRADE.md)
+- [`V1_0_UPGRADE_AND_ROLLBACK.md`](./V1_0_UPGRADE_AND_ROLLBACK.md)
+- [`SYSTEMD_UNIT_TEMPLATES.md`](./SYSTEMD_UNIT_TEMPLATES.md)
+- [`SUPPORTED_PLATFORMS.md`](./SUPPORTED_PLATFORMS.md)
+- [`SECRET_MANAGEMENT.md`](./SECRET_MANAGEMENT.md)

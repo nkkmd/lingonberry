@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - 'scripts/v1_formal_soak_scheduler.py'
+      - 'scripts/check-v1-formal-command-map.py'
       - 'deploy/soak/**'
       - '.github/workflows/v1-formal-soak-scheduler-rehearsal.yml'
       - 'docs/roadmap/V1_0_SOAK_PLAN.md'
@@ -19,8 +20,18 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Compile scheduler
-        run: python3 -m py_compile scripts/v1_formal_soak_scheduler.py
+      - name: Compile scheduler and command-map validator
+        run: |
+          python3 -m py_compile scripts/v1_formal_soak_scheduler.py
+          python3 -m py_compile scripts/check-v1-formal-command-map.py
+      - name: Validate command map and retained blockers
+        run: |
+          python3 scripts/check-v1-formal-command-map.py > target-command-map-report.json
+          jq -e '
+            .qualificationReady == false and
+            .qualificationBlockers == ["crash_matrix", "disk_pressure"] and
+            .enabledRequiredOperations == 12
+          ' target-command-map-report.json
       - name: Run 72-hour virtual-time schedule rehearsal
         run: |
           python3 scripts/v1_formal_soak_scheduler.py \
@@ -107,4 +118,5 @@ jobs:
           path: |
             target/formal-scheduler-pass
             target/formal-scheduler-threshold-failure
+            target-command-map-report.json
           retention-days: 90

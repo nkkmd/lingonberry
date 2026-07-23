@@ -6,7 +6,7 @@ on:
       - 'packages/relay/**'
       - 'deploy/systemd/**'
       - 'docs/operations/SUPPORTED_PLATFORMS.md'
-      - 'docs/operations/V0_8_OPERATOR_RUNBOOK.md'
+      - 'docs/operations/V1_0_OPERATOR_RUNBOOK.md'
       - 'scripts/v0_8_operator_acceptance.sh'
       - '.github/workflows/operator-acceptance.yml'
   push:
@@ -16,7 +16,7 @@ on:
       - 'packages/relay/**'
       - 'deploy/systemd/**'
       - 'docs/operations/SUPPORTED_PLATFORMS.md'
-      - 'docs/operations/V0_8_OPERATOR_RUNBOOK.md'
+      - 'docs/operations/V1_0_OPERATOR_RUNBOOK.md'
       - 'scripts/v0_8_operator_acceptance.sh'
       - '.github/workflows/operator-acceptance.yml'
 

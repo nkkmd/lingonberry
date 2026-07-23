@@ -5,9 +5,9 @@
 
 ## Status
 
-- Tracked Markdown files: **169**
+- Tracked Markdown files: **170**
 - Release-blocking review entries: **108**
-- Classification totals: BILINGUAL_REQUIRED: 5, BILINGUAL_SCOPED: 3, ENGLISH_ONLY: 161
+- Classification totals: BILINGUAL_REQUIRED: 6, BILINGUAL_SCOPED: 3, ENGLISH_ONLY: 161
 - Governing policy: [`DOCUMENTATION_POLICY.md`](./DOCUMENTATION_POLICY.md)
 - Tracking issue: [#144](https://github.com/nkkmd/lingonberry/issues/144)
 
@@ -93,8 +93,9 @@ Every tracked Markdown file must appear below. `yes` in the final column means t
 | `docs/operations/SYSTEMD_UNIT_TEMPLATES.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
 | `docs/operations/TECH_DECISION_ADR.md` | `ENGLISH_ONLY` | `MERGE_OR_ENGLISH_NORMALIZATION` | yes |
 | `docs/operations/V0_8_OPERATOR_RUNBOOK.md` | `ENGLISH_ONLY` | `KEEP_HISTORICAL` | no |
-| `docs/operations/V0_8_UPGRADE_AND_ROLLBACK.md` | `ENGLISH_ONLY` | `MERGE_OR_ENGLISH_NORMALIZATION` | yes |
+| `docs/operations/V0_8_UPGRADE_AND_ROLLBACK.md` | `ENGLISH_ONLY` | `KEEP_HISTORICAL` | no |
 | `docs/operations/V1_0_OPERATOR_RUNBOOK.md` | `BILINGUAL_REQUIRED` | `NORMALIZE_BEFORE_V1` | yes |
+| `docs/operations/V1_0_UPGRADE_AND_ROLLBACK.md` | `BILINGUAL_REQUIRED` | `NORMALIZE_BEFORE_V1` | yes |
 | `docs/profiles/README.md` | `ENGLISH_ONLY` | `REVIEW` | no |
 | `docs/profiles/TOITOI_APPLICATION_PROFILE.md` | `ENGLISH_ONLY` | `REVIEW` | no |
 | `docs/protocols/CANONICALIZATION.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |

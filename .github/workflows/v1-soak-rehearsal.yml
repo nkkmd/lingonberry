@@ -1,0 +1,63 @@
+name: v1 soak rehearsal
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/run-v1-soak.sh'
+      - '.github/workflows/v1-soak-rehearsal.yml'
+      - 'docs/roadmap/V1_0_SOAK_PLAN.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rehearsal:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: f9543019f2c219aea3b085ff90f2da201b268a48
+      - name: Overlay rehearsal harness
+        run: |
+          git show "${{ github.event.pull_request.head.sha || github.sha }}:scripts/run-v1-soak.sh" > scripts/run-v1-soak.sh
+          chmod +x scripts/run-v1-soak.sh
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Run passing rehearsal
+        env:
+          SOAK_PROFILE: rehearsal
+          SOAK_OUT: target/v1-soak-rehearsal-pass
+        run: bash scripts/run-v1-soak.sh
+      - name: Verify passing bundle
+        run: |
+          jq -e '.profile == "rehearsal" and .qualification == false and .status == "passed"' target/v1-soak-rehearsal-pass/summary.json
+          test "$(jq '.scenarios | length' target/v1-soak-rehearsal-pass/summary.json)" -ge 9
+          (cd target/v1-soak-rehearsal-pass && sha256sum -c SHA256SUMS)
+      - name: Run forced-failure rehearsal
+        env:
+          SOAK_PROFILE: rehearsal
+          SOAK_FORCE_FAILURE: '1'
+          SOAK_OUT: target/v1-soak-rehearsal-failure
+        run: |
+          if bash scripts/run-v1-soak.sh; then
+            echo 'forced-failure rehearsal unexpectedly passed' >&2
+            exit 1
+          fi
+      - name: Verify failed partial bundle
+        run: |
+          jq -e '.qualification == false and .status == "failed" and .stopReason == "forced rehearsal failure"' target/v1-soak-rehearsal-failure/summary.json
+          (cd target/v1-soak-rehearsal-failure && sha256sum -c SHA256SUMS)
+      - name: Upload rehearsal evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v1-soak-rehearsal-${{ github.run_number }}
+          path: |
+            target/v1-soak-rehearsal-pass
+            target/v1-soak-rehearsal-failure
+          retention-days: 90

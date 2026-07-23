@@ -19,10 +19,9 @@ case "$profile" in
     qualification=false
     ;;
   formal)
-    min_seconds=259200; publishes=10000; retrieves=10000; queries=5000; graceful=48; abrupt=12
-    verifies=12; rebuilds=4; backups=6; restores=3; crash_cycles=6
-    malformed=1000; oversized=200; nested=200; disk_pressure=2; telemetry_interval=60
-    qualification=true
+    echo 'formal soak execution is intentionally disabled in this rehearsal harness' >&2
+    echo 'enable only after the dedicated-host systemd scheduler, distributed cadence, and live threshold enforcement are implemented and reviewed' >&2
+    exit 2
     ;;
   *) echo "unknown SOAK_PROFILE: $profile" >&2; exit 2 ;;
 esac
@@ -156,7 +155,6 @@ sleep 1
 run_scenario baseline bash -c '"$1" --state-dir "$2/state" --data-dir "$2/data" --backup-dir "$2/backups" --temp-dir "$2/tmp" health; "$1" --state-dir "$2/state" --data-dir "$2/data" --backup-dir "$2/backups" --temp-dir "$2/tmp" ready; curl -fsS http://127.0.0.1:18787/v1/ready' _ "$storage_bin" "$root"
 run_scenario publish-retrieve-query bash -c 'for ((i=0;i<$1;i++)); do LINGONBERRY_STATE_DIR="$2/data" "$3" publish fixtures/http-publish-request/minimal-request.json >/dev/null; done; for ((i=0;i<$4;i++)); do "$5" --state-dir "$2/state" --data-dir "$2/data" --backup-dir "$2/backups" --temp-dir "$2/tmp" list >/dev/null; done; for ((i=0;i<$6;i++)); do "$5" --state-dir "$2/state" --data-dir "$2/data" --backup-dir "$2/backups" --temp-dir "$2/tmp" status >/dev/null; done' _ "$publishes" "$root" "$relay_bin" "$retrieves" "$storage_bin" "$queries"
 run_scenario graceful-restarts bash -c 'for ((i=0;i<$1;i++)); do kill -TERM "$2"; wait "$2" || true; LINGONBERRY_STATE_DIR="$3/data" "$4" serve-http 127.0.0.1:18787 >/dev/null 2>&1 & p=$!; sleep 1; curl -fsS http://127.0.0.1:18787/v1/ready >/dev/null; kill -TERM "$p"; wait "$p" || true; done' _ "$graceful" "$relay_pid" "$root" "$relay_bin"
-# Restore the primary relay after the bounded restart driver.
 LINGONBERRY_STATE_DIR="$root/data" "$relay_bin" serve-http 127.0.0.1:18787 >>"$out/logs/relay.log" 2>&1 & relay_pid=$!; sleep 1
 run_scenario abrupt-termination bash -c 'for ((i=0;i<$1;i++)); do LINGONBERRY_STATE_DIR="$2/data" "$3" serve-http 127.0.0.1:18788 >/dev/null 2>&1 & p=$!; sleep 1; kill -KILL "$p"; wait "$p" || true; "$4" --state-dir "$2/state" --data-dir "$2/data" --backup-dir "$2/backups" --temp-dir "$2/tmp" doctor >/dev/null; done' _ "$abrupt" "$root" "$relay_bin" "$storage_bin"
 run_scenario verify-rebuild bash -c 'for ((i=0;i<$1;i++)); do "$2" --state-dir "$3/state" --data-dir "$3/data" --backup-dir "$3/backups" --temp-dir "$3/tmp" verify; "$2" --state-dir "$3/state" --data-dir "$3/data" --backup-dir "$3/backups" --temp-dir "$3/tmp" index verify; done; for ((i=0;i<$4;i++)); do "$2" --state-dir "$3/state" --data-dir "$3/data" --backup-dir "$3/backups" --temp-dir "$3/tmp" index rebuild; done' _ "$verifies" "$storage_bin" "$root" "$rebuilds"

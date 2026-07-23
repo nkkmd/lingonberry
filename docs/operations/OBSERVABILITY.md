@@ -1,490 +1,330 @@
-# Observability
+# Observability Contract
 
-**Status: active** | **Last updated: 2026-06-19**
+**Status: v1.0.0 pre-release**  
+**Normative language: English**
 
-## 目的
+This document defines the observability surfaces that operators may rely on for the v1.0.0 pre-release line. It describes implemented command output, HTTP readiness, systemd state, journal output, and release evidence. It does not promise a general telemetry platform or a stable structured-log schema that the binaries do not currently implement.
 
-この文書は、Lingonberry の運用時に必要な監視・ログ・メトリクスの正本メモです。  
-Phase 5 では、障害検知と原因追跡に必要な最小セットを先に固定します。
+Lingonberry v1.0.0 has not been published. The designated pre-version candidate remains:
 
-## 1. 基本方針
+```text
+f9543019f2c219aea3b085ff90f2da201b268a48
+```
 
-- 観測は `relay` と `storage node` の運用成立に直結するものに絞る
-- 構造化ログは機械的に追える形を優先する
-- メトリクスは低カーディナリティで、行動に結びつくものだけにする
-- alert は「見るべき場所が分かる」ことを重視し、過剰に増やさない
-- domain truth や profile 固有の判断は observability に持ち込まない
-- `relay` と `storage node` で同じ語彙を使い、違いは `service` と `component` で表す
+Evidence and documentation commits after that candidate do not redefine it.
 
-## 2. 構造化ログ
+## 1. Observability principles
 
-### 2.1 共通 field
+Operators must:
 
-`relay` と `storage node` で共有する共通 field は次を基本にします。
+- use command exit status together with command output;
+- distinguish a point-in-time diagnostic snapshot from a cumulative metric;
+- treat `stdout` as the primary machine-readable result channel for CLI commands that emit canonical JSON;
+- treat `stderr` and the systemd journal as diagnostic text unless a narrower document defines a structured record;
+- preserve evidence before restarting, restoring, migrating, or deleting state;
+- avoid high-cardinality labels or alert dimensions such as canonical object IDs;
+- never infer application correctness from process health alone.
 
-- `timestamp`
-- `level`
-- `service`
-- `component`
-- `event`
-- `status`
-- `message`
-- `requestId`
-- `objectId`
-- `carrier`
-- `durationMs`
-- `errorType`
-- `errorCode`
+The v1 contract does not require an external Prometheus, OpenTelemetry, log aggregation, or alert-management stack.
 
-### 2.1.1 field の意味
+## 2. Runtime model
 
-- `service`: `relay` か `storage node` を表す
-- `component`: `http`、`cli`、`storage`、`runtime` などの内部区分を表す
-- `event`: 観測した事象の種類を表す
-- `status`: `ok` / `error` / `warn` などの結果を表す
-- `requestId`: 1 回の要求や処理の追跡子を表す
-- `objectId`: 対象 object が分かる場合に入れる
-- `carrier`: HTTP など carrier を経由した場合に入れる
-- `durationMs`: 処理時間を表す
-- `errorType`: 失敗の分類を表す
-- `errorCode`: 実装や運用で参照する短い分類コードを表す
+The reference-node runtime has two different lifecycle surfaces:
 
-### 2.2 イベント種別
+- `lingonberry-relay serve-http` is the resident network-facing process;
+- `lingonberry-storage ready` is a systemd `Type=oneshot` readiness gate with `RemainAfterExit=yes`.
 
-最低限、次の event を追えるようにします。
+There is no resident `lingonberry-storage` daemon in the checked-in reference-node units. Consequently, storage does not emit a continuous daemon startup/shutdown event stream. Storage observability is obtained by rerunning its CLI diagnostics against the configured directories.
 
-- startup
-- config_resolved
-- readiness_checked
-- publish_received
-- append_completed
-- replay_completed
-- retrieve_completed
-- validation_failed
-- rate_limited
-- runtime_error
-- shutdown_requested
-- shutdown_completed
+See:
 
-### 2.2.1 service ごとの主イベント
+- [Relay / Storage Separation](./RELAY_STORAGE_SEPARATION.md)
+- [Storage Node Runtime](./STORAGE_NODE_RUNTIME.md)
+- [systemd Unit Templates](./SYSTEMD_UNIT_TEMPLATES.md)
 
-#### `relay`
+## 3. Storage CLI observability
 
-- `startup`
-- `config_resolved`
-- `readiness_checked`
-- `publish_received`
-- `validation_failed`
-- `rate_limited`
-- `shutdown_requested`
-- `shutdown_completed`
+All commands below resolve storage configuration using the normal precedence rules. Operators must ensure that the intended config file and directory overrides are active before interpreting output.
 
-#### `storage node`
+### 3.1 Process health
 
-- `startup`
-- `config_resolved`
-- `readiness_checked`
-- `append_completed`
-- `replay_completed`
-- `retrieve_completed`
-- `validation_failed`
-- `runtime_error`
-- `shutdown_requested`
-- `shutdown_completed`
+```bash
+lingonberry-storage health
+```
 
-### 2.2.2 event ごとの必須 field
+The command emits canonical JSON describing process-level health. A successful result does not prove that configured storage directories, indexes, backups, or migration state are ready.
 
-#### `startup`
-
-- `service`
-- `component`
-- `event`
-- `status`
-- `message`
-- `requestId`
-
-#### `config_resolved`
-
-- `service`
-- `component`
-- `event`
-- `status`
-- `message`
-- `requestId`
-- `durationMs`
-
-#### `readiness_checked`
-
-- `service`
-- `component`
-- `event`
-- `status`
-- `message`
-- `requestId`
-- `durationMs`
-
-#### `publish_received`
-
-- `service`
-- `component`
-- `event`
-- `status`
-- `message`
-- `requestId`
-- `carrier`
-- `durationMs`
-
-#### `append_completed`
-
-- `service`
-- `component`
-- `event`
-- `status`
-- `message`
-- `requestId`
-- `objectId`
-- `durationMs`
-
-#### `replay_completed`
-
-- `service`
-- `component`
-- `event`
-- `status`
-- `message`
-- `requestId`
-- `durationMs`
-
-#### `retrieve_completed`
-
-- `service`
-- `component`
-- `event`
-- `status`
-- `message`
-- `requestId`
-- `objectId`
-- `durationMs`
-
-#### `validation_failed`
-
-- `service`
-- `component`
-- `event`
-- `status`
-- `message`
-- `requestId`
-- `errorType`
-- `errorCode`
-
-#### `rate_limited`
-
-- `service`
-- `component`
-- `event`
-- `status`
-- `message`
-- `requestId`
-- `carrier`
-- `errorType`
-- `errorCode`
-- `durationMs`
-
-#### `runtime_error`
-
-- `service`
-- `component`
-- `event`
-- `status`
-- `message`
-- `requestId`
-- `errorType`
-- `errorCode`
-
-#### `shutdown_requested`
-
-- `service`
-- `component`
-- `event`
-- `status`
-- `message`
-- `requestId`
-
-#### `shutdown_completed`
-
-- `service`
-- `component`
-- `event`
-- `status`
-- `message`
-- `requestId`
-
-### 2.3 ログの扱い
-
-- 1 行 1 event を基本にする
-- 人間向けの説明文は `message` に寄せる
-- 追跡に必要な識別子は毎回同じ field 名で出す
-- 例外メッセージだけに依存せず、分類用の `errorType` と `errorCode` を残す
-- `requestId` は、HTTP request だけでなく CLI でも 1 回の操作を追えるように付ける
-
-### 2.4 ログ例
+Expected fields include:
 
 ```json
 {
-  "timestamp": "2026-06-19T12:34:56Z",
-  "level": "info",
-  "service": "storage node",
-  "component": "runtime",
-  "event": "config_resolved",
+  "service": "storage",
   "status": "ok",
-  "message": "resolved storage node config",
-  "requestId": "req_01HZX...",
-  "durationMs": 4
+  "scope": "process"
 }
 ```
+
+Use this only to confirm that the binary can start and execute its health path.
+
+### 3.2 Readiness
+
+```bash
+lingonberry-storage ready
+```
+
+The command runs the storage doctor and emits a bounded canonical JSON summary containing:
+
+- `service`;
+- `status`;
+- `ready`;
+- `diagnosticStatus`.
+
+Readiness is true when no doctor check has severity `failed`. Warning-only reports remain ready. The command exits nonzero when failed checks are present.
+
+The checked-in `lingonberry-storage-ready.service` executes this command as its `ExecStart` gate.
+
+### 3.3 Doctor and strict verification
+
+```bash
+lingonberry-storage doctor
+lingonberry-storage verify
+```
+
+Both commands emit a read-only canonical JSON report containing the overall status, check count, and individual checks.
+
+- `doctor` fails on failed checks but permits warning-only reports;
+- `verify` fails on failed checks and also fails on warning-only reports.
+
+Use `doctor` for initial diagnosis and `verify` when an operation or evidence step requires a clean result.
+
+Individual checks may cover directory safety, storage format, migration journal state, raw log and catalog state, generation pointers, index consistency, backup inventory, workspace safety, and disk capacity. The exact check list is implementation-controlled; automation should consume documented severity and name fields rather than array position.
+
+### 3.4 Metrics snapshot
+
+```bash
+lingonberry-storage metrics
+```
+
+This command emits a point-in-time canonical JSON snapshot. It is not a cumulative Prometheus registry and it does not expose counters for every storage operation.
+
+The current stable fields are:
 
 ```json
 {
-  "timestamp": "2026-06-19T12:35:02Z",
-  "level": "error",
-  "service": "relay",
-  "component": "http",
-  "event": "publish_received",
-  "status": "error",
-  "message": "publish validation failed",
-  "requestId": "req_01HZY...",
-  "objectId": "lb:obj:...",
-  "carrier": "http",
-  "errorType": "validation_error",
-  "errorCode": "HTTP_PUBLISH_INVALID",
-  "durationMs": 12
+  "service": "storage",
+  "metricsVersion": "1",
+  "boundedCardinality": true,
+  "ready": 1,
+  "doctorChecksOk": 0,
+  "doctorChecksWarning": 0,
+  "doctorChecksFailed": 0
 }
 ```
 
-### 2.5 サービス別のログ要件
+Interpretation:
 
-#### `relay`
+- `ready` is `1` when the underlying doctor has no failed checks, otherwise `0`;
+- the three `doctorChecks*` values are counts from the current diagnostic run;
+- values do not represent historical totals;
+- polling frequency and retention are operator policy, not part of the binary contract.
 
-- `startup` で起動対象 binary と mode が分かる
-- `config_resolved` で bind 先と受け口の前提が分かる
-- `readiness_checked` で listener の状態が分かる
-- `publish_received` で carrier と対象 object の追跡ができる
-- `validation_failed` で request 側の問題か runtime 側の問題かを区別できる
-- `rate_limited` で過負荷や abuse による拒否を追える
-- `shutdown_requested` と `shutdown_completed` で停止経路が追える
+### 3.5 Configuration and layout snapshots
 
-#### `storage node`
+The following commands are useful supporting evidence:
 
-- `startup` で起動対象 binary と mode が分かる
-- `config_resolved` で `stateDir` と保存先が分かる
-- `readiness_checked` で保存先の状態が分かる
-- `append_completed` で append の成功と対象 object が追える
-- `replay_completed` で再構成の成功と所要時間が追える
-- `retrieve_completed` で取得対象 object が追える
-- `validation_failed` で保存前の不備が追える
-- `runtime_error` で保存層の障害が追える
-- `shutdown_requested` と `shutdown_completed` で停止経路が追える
+```bash
+lingonberry-storage config
+lingonberry-storage status
+lingonberry-storage run
+```
 
-## 3. メトリクス
+`run` prints a runtime snapshot and exits. It does not start a resident process. Capture these outputs when directory resolution, config precedence, or storage layout is under investigation.
 
-### 3.1 最低限の種類
+## 4. Relay observability
 
-次の 3 種類を基本にします。
+### 4.1 CLI readiness
 
-- counter
-- gauge
-- histogram
+```bash
+lingonberry-relay ready
+```
 
-### 3.1.1 使い分け
+The command emits canonical JSON with relay service status. It confirms the command path and configured storage backend can be constructed; it does not prove that a particular TCP listener is already bound.
 
-- `counter`: 起動回数、成功回数、失敗回数のように増えるだけの値に使う
-- `gauge`: 現在値を表すものに使う
-- `histogram`: 処理時間や待ち時間の分布に使う
+### 4.2 HTTP readiness
 
-### 3.2 まず見る指標
+For a running public relay:
 
-- 起動成功数 / 失敗数
-- publish 受付数 / 成功数 / 失敗数
-- append 成功数 / 失敗数
-- replay 実行回数 / 失敗回数
-- retrieve 成功数 / 失敗数
-- readiness 失敗回数
-- 直近エラーの件数
-- 処理時間の分布
+```bash
+curl --fail --silent --show-error http://127.0.0.1:8787/v1/ready
+```
 
-### 3.2.1 共通 metric family
+A successful response is HTTP `200` with canonical JSON equivalent to:
 
-次の metric family を共通に使います。  
-個別の実装では、`service` と `component` をラベルにして、`relay` と `storage node` を分けます。
+```json
+{
+  "status": "ok",
+  "service": "relay"
+}
+```
 
-- `lingonberry_startup_total` `counter`
-- `lingonberry_config_resolved_total` `counter`
-- `lingonberry_readiness_checked_total` `counter`
-- `lingonberry_readiness_failure_total` `counter`
-- `lingonberry_publish_total` `counter`
-- `lingonberry_publish_failure_total` `counter`
-- `lingonberry_rate_limited_total` `counter`
-- `lingonberry_append_total` `counter`
-- `lingonberry_append_failure_total` `counter`
-- `lingonberry_replay_total` `counter`
-- `lingonberry_replay_failure_total` `counter`
-- `lingonberry_retrieve_total` `counter`
-- `lingonberry_retrieve_failure_total` `counter`
-- `lingonberry_validation_failure_total` `counter`
-- `lingonberry_runtime_error_total` `counter`
-- `lingonberry_shutdown_total` `counter`
-- `lingonberry_operation_duration_ms` `histogram`
-- `lingonberry_inflight_requests` `gauge`
+This endpoint confirms that the resident listener accepted and routed the request. It is not a deep storage verification endpoint. Use storage `ready`, `doctor`, or `verify` for storage-state diagnosis.
 
-### 3.2.2 service 別の重点指標
+### 4.3 Process and systemd state
 
-#### `relay`
+Reference-node operators should inspect:
 
-- `lingonberry_startup_total`
-- `lingonberry_readiness_checked_total`
-- `lingonberry_publish_total`
-- `lingonberry_publish_failure_total`
-- `lingonberry_rate_limited_total`
-- `lingonberry_validation_failure_total`
-- `lingonberry_runtime_error_total`
-- `lingonberry_operation_duration_ms`
+```bash
+systemctl status lingonberry-relay.service
+systemctl status lingonberry-storage-ready.service
+systemctl show lingonberry-relay.service \
+  --property=ActiveState,SubState,Result,ExecMainStatus,NRestarts
+systemctl show lingonberry-storage-ready.service \
+  --property=ActiveState,SubState,Result,ExecMainStatus
+```
 
-#### `storage node`
+Important distinctions:
 
-- `lingonberry_startup_total`
-- `lingonberry_config_resolved_total`
-- `lingonberry_readiness_checked_total`
-- `lingonberry_append_total`
-- `lingonberry_replay_total`
-- `lingonberry_retrieve_total`
-- `lingonberry_validation_failure_total`
-- `lingonberry_runtime_error_total`
-- `lingonberry_operation_duration_ms`
+- an active storage readiness unit records the last successful oneshot execution;
+- it does not continuously re-evaluate storage after later filesystem or configuration changes;
+- restore, migration, binary replacement, or material config changes require the readiness gate to be rerun explicitly;
+- relay restart success does not replace storage verification.
 
-### 3.2.3 最小ラベル
+### 4.4 Journal output
 
-- `service`
-- `component`
-- `event`
-- `result`
-- `carrier`
+The relay currently writes listener and connection diagnostics as text to `stderr`, which systemd captures in the journal.
 
-ラベルは、障害の切り分けに必要な最小限だけに留めます。
+Use bounded queries such as:
 
-`objectId` は label にせず、必要な場合だけログと response body に残します。
+```bash
+journalctl -u lingonberry-relay.service --since '-30 minutes' --no-pager
+journalctl -u lingonberry-storage-ready.service -n 200 --no-pager
+```
 
-### 3.3 メトリクスの扱い
+The current general journal output is not a stable JSON log schema. Operators and automation must not assume fields such as `requestId`, `durationMs`, `event`, or `errorCode` exist for every relay request.
 
-- ラベルは増やしすぎない
-- object ごとの高カーディナリティな分割は避ける
-- 運用判断に使わない指標は増やさない
+Useful text includes listener startup, bind failure, connection handling errors, accept errors, and explicit warnings. Preserve the surrounding timestamp, unit name, boot ID, and relevant config snapshot when collecting evidence.
 
-## 4. Alert
+## 5. Admin and quarantine observability
 
-### 4.1 初期に置く alert
+Lingonberry contains narrower quarantine-specific observability surfaces. These are governed by their dedicated documents and must not be generalized into a repository-wide metric schema.
 
-- 起動失敗が連続する
-- readiness が継続して失敗する
-- publish 失敗率が高い
-- rate limit の拒否が急増する
-- replay 失敗が続く
-- storage 由来の runtime error が継続する
+The authenticated admin HTTP surface can return quarantine metrics text on its defined route. Access is subject to admin authentication and role authorization. Authentication and authorization failures are written to the dedicated admin audit path.
 
-### 4.1.1 目安の起点
+See:
 
-- 起動失敗: 直近 3 回連続で失敗
-- readiness 失敗: 5 分以上継続
-- publish 失敗率: 15 分窓で 5% 超
-- rate limit 拒否: 15 分窓で通常時の 2 倍超、または継続増加
-- replay 失敗: 連続失敗が 2 回以上
-- runtime error: 10 分窓で継続増加
+- [Quarantine Observability Metrics](./QUARANTINE_OBSERVABILITY_METRICS.md)
+- [Quarantine Admin HTTP](./QUARANTINE_ADMIN_HTTP.md)
+- [Access Retention Policy](./ACCESS_RETENTION_POLICY.md)
 
-### 4.2 閾値の考え方
+Do not expose the admin listener publicly merely to obtain metrics.
 
-- 閾値は固定値よりも、まずは運用判断に十分な期間の継続失敗で置く
-- 一時的な揺れで鳴る alert は避ける
-- 調査の起点になる alert と、根本原因を示すログ / メトリクスを分ける
+## 6. Evidence surfaces
 
-### 4.3 alert を受けたときの確認順
+Release qualification and formal-soak tooling produce evidence that is separate from live runtime telemetry. Evidence may include:
 
-1. `service` を確認して、`relay` か `storage node` かを分ける
-2. `event` を確認して、startup / readiness / publish / replay / runtime_error のどれかを特定する
-3. 直近のログで `requestId` と `errorType` を見る
-4. 関連するメトリクスで件数と失敗率を見る
-5. `stateDir` と保存先を確認する
-6. 必要なら [Node Lifecycle Runbook](./NODE_LIFECYCLE_RUNBOOK.md) に戻る
+- exact candidate identity;
+- command transcripts and exit statuses;
+- doctor, verify, readiness, replay, index, backup, and restore results;
+- crash-matrix and disk-pressure results;
+- scheduler state and bounded runner output;
+- timestamps, host facts, checksums, and manifests;
+- documentation walkthrough bundles.
 
-### 4.4 alert の切り分け先
+Evidence bundles are immutable records of a particular execution. They are not proof that the current host remains healthy after subsequent changes.
 
-- `startup` と `readiness_checked` の問題は起動や設定解決を疑う
-- `publish` と `validation_failed` の問題は request 側か carrier 側を疑う
-- `rate_limited` の問題は公開面の閾値、対象 carrier、アクセス集中を疑う
-- `append_completed`、`replay_completed`、`retrieve_completed` の問題は保存層を疑う
-- `runtime_error` の問題は保存層か周辺処理を疑う
-- `shutdown` 関連は停止経路や運用手順の問題として扱う
+The formal 72-hour soak has not been executed or started merely because the rehearsal tooling and command map exist.
 
-## 5. 最低限の観測項目
+## 7. Minimum operator checks
 
-- `relay` と `storage node` の起動可否
-- `ready` / `run` の結果
-- config 解決結果
-- publish / append / replay / retrieve の成否
-- raw log と canonical catalog の保存先
-- shutdown の開始と完了
-- 直近の runtime error
+### 7.1 Before starting or restarting relay
 
-### 5.1 観測の最小セット
+```bash
+lingonberry-storage ready
+systemctl start lingonberry-relay.service
+curl --fail --silent --show-error http://127.0.0.1:8787/v1/ready
+```
 
-#### `relay`
+For strict maintenance completion, replace or supplement `ready` with:
 
-- `startup`
-- `config_resolved`
-- `readiness_checked`
-- `publish_received`
-- `validation_failed`
-- `rate_limited`
-- `shutdown_requested`
-- `shutdown_completed`
-- `runtime_error`
+```bash
+lingonberry-storage verify
+```
 
-#### `storage node`
+### 7.2 Routine inspection
 
-- `startup`
-- `config_resolved`
-- `readiness_checked`
-- `append_completed`
-- `replay_completed`
-- `retrieve_completed`
-- `runtime_error`
-- `shutdown_requested`
-- `shutdown_completed`
-- `validation_failed`
+```bash
+systemctl is-active lingonberry-relay.service
+lingonberry-storage metrics
+lingonberry-storage doctor
+journalctl -u lingonberry-relay.service --since '-30 minutes' --no-pager
+```
 
-## 6. 運用時の見る順番
+### 7.3 After migration or restore
 
-1. readiness の結果を見る
-2. 構造化ログで失敗 event を見る
-3. 直近のメトリクス変化を見る
-4. config と保存先を確認する
-5. 必要なら runbook に従って replay / retrieve を確認する
+Follow the relevant runbook. At minimum, preserve evidence and rerun:
 
-### 6.1 切り分けの補助
+```bash
+lingonberry-storage verify
+lingonberry-storage index verify
+lingonberry-storage ready
+systemctl restart lingonberry-relay.service
+curl --fail --silent --show-error http://127.0.0.1:8787/v1/ready
+```
 
-- `relay` 側の failure なら、publish の受け口と HTTP listener を優先して見る
-- `storage node` 側の failure なら、config 解決、保存先、replay を優先して見る
-- 両方で failure が出るなら、共有環境変数と `stateDir` を優先して見る
+A pre-commit migration verification has a narrower meaning than full operator verification. See [Storage Migration and Upgrade](./STORAGE_MIGRATION_AND_UPGRADE.md).
 
-## 7. 境界
+## 8. Alerting recommendations
 
-- content の真偽は観測対象にしない
-- profile 固有の trust rule は observability に含めない
-- UI の都合や表示順序は observability に含めない
-- carrier 変換の細部は contract で扱い、観測は結果と失敗点に絞る
+The repository does not ship a complete alerting stack. When integrating with one, alert on implemented signals rather than names from an aspirational metric catalog.
 
-## 参照
+Recommended conditions:
 
-- [運用準備ロードマップ](../roadmap/OPERATIONAL_READINESS_ROADMAP.md)
-- [運用準備バックログ](../roadmap/OPERATIONAL_READINESS_BACKLOG.md)
-- [運用前提メモ](./OPERATIONAL_PREMISES_MEMO.md)
-- [storage node runtime](./STORAGE_NODE_RUNTIME.md)
-- [Node Lifecycle Runbook](./NODE_LIFECYCLE_RUNBOOK.md)
+- `lingonberry-relay.service` is inactive or repeatedly restarting;
+- public `GET /v1/ready` fails for a sustained interval;
+- `lingonberry-storage ready` exits nonzero;
+- `doctorChecksFailed` is greater than zero;
+- warning counts remain elevated and the warning is relevant to the intended operation;
+- disk-capacity doctor checks approach or cross the operational threshold;
+- the journal shows recurring bind, accept, storage, validation, or admin-auth failures;
+- scheduled evidence generation fails or produces an incomplete bundle.
+
+Alert dimensions should remain low-cardinality. Suitable dimensions include host, unit, command, diagnostic check name, and coarse result. Do not use object IDs, request bodies, signatures, tokens, filesystem paths containing secrets, or unbounded error text as metric labels.
+
+Thresholds must be calibrated from the reference host and workload. This document intentionally does not define unsupported universal percentages for publish failure, latency histograms, or rate-limit volume.
+
+## 9. Incident triage order
+
+1. Record the time, host, deployed binary checksums, and current candidate or release identity.
+2. Inspect systemd unit state and recent journal output.
+3. Query relay HTTP readiness if the listener is expected to be running.
+4. Run storage `health`, then `ready` or `doctor`.
+5. Capture `config`, `status`, and `metrics` snapshots.
+6. Run strict `verify` when safe and required.
+7. Inspect migration journal, backup inventory, index state, and disk capacity as indicated by doctor checks.
+8. Follow the operator, upgrade/rollback, or specialized quarantine runbook.
+9. Preserve evidence before any mutating recovery action.
+
+## 10. Non-contractual and future surfaces
+
+The following are not guaranteed by the current v1 pre-release contract:
+
+- a universal JSON log event schema for relay and storage;
+- per-request request IDs in all journal messages;
+- cumulative publish, append, replay, retrieve, latency, or in-flight metrics;
+- a public general-purpose `/metrics` endpoint;
+- distributed tracing;
+- automatic external alert configuration;
+- continuously refreshed storage readiness;
+- a resident storage process lifecycle.
+
+Future implementations may add these surfaces only with explicit compatibility, privacy, cardinality, and security review.
+
+## 11. Related procedures
+
+- [v1.0 Operator Runbook](./V1_0_OPERATOR_RUNBOOK.md)
+- [v1.0 Upgrade and Rollback](./V1_0_UPGRADE_AND_ROLLBACK.md)
+- [Operator CLI Contract](./OPERATOR_CLI_CONTRACT.md)
+- [Storage Node Runtime](./STORAGE_NODE_RUNTIME.md)
+- [Relay / Storage Separation](./RELAY_STORAGE_SEPARATION.md)
+- [Storage Migration and Upgrade](./STORAGE_MIGRATION_AND_UPGRADE.md)
+- [Quarantine Observability Metrics](./QUARANTINE_OBSERVABILITY_METRICS.md)

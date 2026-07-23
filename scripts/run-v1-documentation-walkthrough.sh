@@ -106,29 +106,32 @@ record DOC-06 EXECUTED bash -c '
 
 record DOC-07 EXECUTED bash -c '
   cd "$1"
-  LINGONBERRY_STATE_DIR=/var/lib/lingonberry/storage/data /usr/local/bin/lingonberry-relay publish fixtures/http-publish-request/minimal-request.json
-  sudo -u lingonberry env $(cat /etc/lingonberry/storage.env | xargs) /usr/local/bin/lingonberry-storage list > /tmp/lingonberry-list-before.json
+  sudo -u lingonberry env LINGONBERRY_STATE_DIR=/var/lib/lingonberry/storage/data /usr/local/bin/lingonberry-relay publish fixtures/http-publish-request/minimal-request.json
+  storage=(sudo -u lingonberry env LINGONBERRY_STORAGE_STATE_DIR=/var/lib/lingonberry/storage LINGONBERRY_STORAGE_DATA_DIR=/var/lib/lingonberry/storage/data LINGONBERRY_STORAGE_BACKUP_DIR=/var/backups/lingonberry LINGONBERRY_STORAGE_TEMP_DIR=/var/lib/lingonberry/storage/tmp /usr/local/bin/lingonberry-storage)
+  "${storage[@]}" list > /tmp/lingonberry-list-before.json
   sudo systemctl restart lingonberry-relay.service
   curl --retry 10 --retry-delay 1 --fail --silent http://127.0.0.1:8787/v1/ready
-  sudo -u lingonberry env $(cat /etc/lingonberry/storage.env | xargs) /usr/local/bin/lingonberry-storage list > /tmp/lingonberry-list-after.json
+  "${storage[@]}" list > /tmp/lingonberry-list-after.json
   cmp /tmp/lingonberry-list-before.json /tmp/lingonberry-list-after.json
 ' _ "$candidate_root"
 
 record DOC-08 CROSS_REFERENCED bash -c 'cd "$1"; cargo test -p lingonberry-protocol; cargo test -p lingonberry-validation; node conformance/run.mjs' _ "$candidate_root"
 
 record DOC-09 EXECUTED bash -c '
+  storage=(sudo -u lingonberry env LINGONBERRY_STORAGE_STATE_DIR=/var/lib/lingonberry/storage LINGONBERRY_STORAGE_DATA_DIR=/var/lib/lingonberry/storage/data LINGONBERRY_STORAGE_BACKUP_DIR=/var/backups/lingonberry LINGONBERRY_STORAGE_TEMP_DIR=/var/lib/lingonberry/storage/tmp /usr/local/bin/lingonberry-storage)
   sudo rm -rf /var/backups/lingonberry/manual-backup
-  sudo -u lingonberry env $(cat /etc/lingonberry/storage.env | xargs) /usr/local/bin/lingonberry-storage backup create /var/backups/lingonberry/manual-backup
-  sudo -u lingonberry env $(cat /etc/lingonberry/storage.env | xargs) /usr/local/bin/lingonberry-storage backup verify /var/backups/lingonberry/manual-backup
+  "${storage[@]}" backup create /var/backups/lingonberry/manual-backup
+  "${storage[@]}" backup verify /var/backups/lingonberry/manual-backup
   find /var/backups/lingonberry/manual-backup -type f -print0 | sort -z | xargs -0 sha256sum
 '
 
 record DOC-10 EXECUTED bash -c '
+  storage=(sudo -u lingonberry env LINGONBERRY_STORAGE_STATE_DIR=/var/lib/lingonberry/storage LINGONBERRY_STORAGE_DATA_DIR=/var/lib/lingonberry/storage/data LINGONBERRY_STORAGE_BACKUP_DIR=/var/backups/lingonberry LINGONBERRY_STORAGE_TEMP_DIR=/var/lib/lingonberry/storage/tmp /usr/local/bin/lingonberry-storage)
   sudo rm -rf /var/lib/lingonberry/restore-candidate
   sudo install -d -o lingonberry -g lingonberry /var/lib/lingonberry/restore-candidate
-  sudo -u lingonberry env $(cat /etc/lingonberry/storage.env | xargs) /usr/local/bin/lingonberry-storage restore plan /var/backups/lingonberry/manual-backup /var/lib/lingonberry/restore-candidate
-  sudo -u lingonberry env $(cat /etc/lingonberry/storage.env | xargs) /usr/local/bin/lingonberry-storage restore apply /var/backups/lingonberry/manual-backup /var/lib/lingonberry/restore-candidate
-  sudo -u lingonberry env $(cat /etc/lingonberry/storage.env | xargs) /usr/local/bin/lingonberry-storage drill restore /var/backups/lingonberry/manual-backup
+  "${storage[@]}" restore plan /var/backups/lingonberry/manual-backup /var/lib/lingonberry/restore-candidate
+  "${storage[@]}" restore apply /var/backups/lingonberry/manual-backup /var/lib/lingonberry/restore-candidate
+  "${storage[@]}" drill restore /var/backups/lingonberry/manual-backup
 '
 
 record DOC-11 EXECUTED bash -c '
@@ -145,9 +148,10 @@ record DOC-11 EXECUTED bash -c '
 '
 
 record DOC-12 EXECUTED bash -c '
-  sudo -u lingonberry env $(cat /etc/lingonberry/storage.env | xargs) /usr/local/bin/lingonberry-storage index verify
-  sudo -u lingonberry env $(cat /etc/lingonberry/storage.env | xargs) /usr/local/bin/lingonberry-storage index rebuild
-  sudo -u lingonberry env $(cat /etc/lingonberry/storage.env | xargs) /usr/local/bin/lingonberry-storage index verify
+  storage=(sudo -u lingonberry env LINGONBERRY_STORAGE_STATE_DIR=/var/lib/lingonberry/storage LINGONBERRY_STORAGE_DATA_DIR=/var/lib/lingonberry/storage/data LINGONBERRY_STORAGE_BACKUP_DIR=/var/backups/lingonberry LINGONBERRY_STORAGE_TEMP_DIR=/var/lib/lingonberry/storage/tmp /usr/local/bin/lingonberry-storage)
+  "${storage[@]}" index verify
+  "${storage[@]}" index rebuild
+  "${storage[@]}" index verify
 '
 
 record DOC-13 CROSS_REFERENCED bash -c 'cd "$1"; cargo test -p lingonberry-storage' _ "$candidate_root"

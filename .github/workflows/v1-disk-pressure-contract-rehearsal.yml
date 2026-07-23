@@ -1,0 +1,68 @@
+name: v1 disk pressure contract rehearsal
+
+on:
+  pull_request:
+    paths:
+      - 'deploy/soak/v1-disk-pressure-contract.example.json'
+      - 'scripts/check-v1-disk-pressure-contract.py'
+      - '.github/workflows/v1-disk-pressure-contract-rehearsal.yml'
+      - 'docs/roadmap/V1_0_DISK_PRESSURE_DRIVER.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contract-rehearsal:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile validator
+        run: python3 -m py_compile scripts/check-v1-disk-pressure-contract.py
+      - name: Validate static contract remains non-qualifying
+        run: |
+          python3 scripts/check-v1-disk-pressure-contract.py \
+            deploy/soak/v1-disk-pressure-contract.example.json > contract-report.json
+          jq -e '
+            .staticContractValid == true and
+            .liveValidationRequested == false and
+            .qualificationReady == false and
+            .liveChecks.qualificationEnabled == false
+          ' contract-report.json
+      - name: Verify live mode fails closed
+        run: |
+          set +e
+          sudo python3 scripts/check-v1-disk-pressure-contract.py \
+            deploy/soak/v1-disk-pressure-contract.example.json --live
+          code=$?
+          set -e
+          test "$code" -ne 0
+      - name: Verify dangerous contracts are rejected
+        run: |
+          python3 - <<'PY'
+          import json, subprocess, tempfile
+          from pathlib import Path
+          source = json.loads(Path('deploy/soak/v1-disk-pressure-contract.example.json').read_text())
+          cases = {
+            'root-mount': {'mountPoint':'/','workspace':'/workspace','pressureFile':'/.lingonberry-pressure-owned'},
+            'active-overlap': {'mountPoint':'/var/lib/lingonberry/data','workspace':'/var/lib/lingonberry/data/workspace','pressureFile':'/var/lib/lingonberry/data/.lingonberry-pressure-owned'},
+            'evidence-overlap': {'evidenceDir':'/mnt/lingonberry-disk-pressure/evidence'},
+            'candidate-mismatch': {'candidateCommit':'0000000000000000000000000000000000000000'},
+            'bad-marker': {'cleanupMarker':'.not-owned'},
+          }
+          for name, patch in cases.items():
+            data = dict(source)
+            data.update(patch)
+            path = Path(tempfile.gettempdir()) / f'{name}.json'
+            path.write_text(json.dumps(data))
+            result = subprocess.run(['python3','scripts/check-v1-disk-pressure-contract.py',str(path)])
+            assert result.returncode != 0, name
+          PY
+      - name: Upload contract evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v1-disk-pressure-contract-rehearsal-${{ github.run_number }}
+          path: contract-report.json
+          retention-days: 90

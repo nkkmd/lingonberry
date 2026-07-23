@@ -107,12 +107,12 @@ Ubuntu Server 24.04 LTS / x86_64 / systemd
 Production-oriented installation uses release-built binaries and hardened systemd units. Start with:
 
 - [Operations index](docs/operations/README.md)
-- [v0.8.0 Operator Runbook](docs/operations/V0_8_OPERATOR_RUNBOOK.md)
+- [v1.0 Operator Runbook](docs/operations/V1_0_OPERATOR_RUNBOOK.md)
 - [Supported Platforms](docs/operations/SUPPORTED_PLATFORMS.md)
 - [Operator CLI Contract](docs/operations/OPERATOR_CLI_CONTRACT.md)
 - [Upgrade and Rollback](docs/operations/V0_8_UPGRADE_AND_ROLLBACK.md)
 
-The versioned v1.0 operator runbook is still being normalized before release. Until it is frozen, the documents above remain the operational baseline.
+The v1.0 operator runbook is now the pre-release single-node operating guide. It does not imply that v1.0.0 qualification or publication has completed.
 
 Common storage operator commands include:
 
@@ -272,12 +272,12 @@ Ubuntu Server 24.04 LTS / x86_64 / systemd
 production向け導入ではrelease build済みbinaryとhardened systemd unitを使用します。次から確認してください。
 
 - [Operations index](docs/operations/README.md)
-- [v0.8.0 Operator Runbook](docs/operations/V0_8_OPERATOR_RUNBOOK.md)
+- [v1.0 Operator Runbook](docs/operations/V1_0_OPERATOR_RUNBOOK.md)
 - [Supported Platforms](docs/operations/SUPPORTED_PLATFORMS.md)
 - [Operator CLI Contract](docs/operations/OPERATOR_CLI_CONTRACT.md)
 - [Upgrade and Rollback](docs/operations/V0_8_UPGRADE_AND_ROLLBACK.md)
 
-versioned v1.0 operator runbookはrelease前の正規化作業中です。凍結が完了するまでは、上記文書を運用baselineとします。
+v1.0 operator runbookは、現在のpre-release single-node運用ガイドです。これはv1.0.0のqualificationや公開が完了したことを意味しません。
 
 代表的なstorage operator commandは次のとおりです。
 

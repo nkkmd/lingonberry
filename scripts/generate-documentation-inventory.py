@@ -27,6 +27,7 @@ HISTORICAL_OPERATION_DOCS = {
 NORMALIZED_OPERATION_DOCS = {
     "docs/operations/OPERATOR_CLI_CONTRACT.md",
     "docs/operations/STORAGE_MIGRATION_AND_UPGRADE.md",
+    "docs/operations/STORAGE_NODE_RUNTIME.md",
     "docs/operations/SUPPORTED_PLATFORMS.md",
     "docs/operations/SYSTEMD_UNIT_TEMPLATES.md",
 }

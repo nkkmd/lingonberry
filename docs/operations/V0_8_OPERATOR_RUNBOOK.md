@@ -1,6 +1,6 @@
 # v0.8.0 Operator Runbook
 
-**Status: implementation candidate** | **Last updated: 2026-07-22**
+**Status: implementation candidate** | **Last updated: 2026-07-23**
 
 ## Purpose
 
@@ -48,11 +48,21 @@ sudo chown root:lingonberry /etc/lingonberry/*.env
 
 Review both environment files before starting. Configuration precedence is `defaults < config file < environment < CLI`.
 
+When invoking storage commands manually, load the protected environment file **inside** the service-user shell. Do not use `env $(cat /etc/lingonberry/storage.env | xargs)`: command substitution runs before `sudo`, so an ordinary operator cannot read a correctly protected `0640 root:lingonberry` file.
+
 ## 3. Validate effective configuration
 
 ```bash
-sudo -u lingonberry env $(cat /etc/lingonberry/storage.env | xargs) /usr/local/bin/lingonberry-storage config
-sudo -u lingonberry env $(cat /etc/lingonberry/storage.env | xargs) /usr/local/bin/lingonberry-storage doctor
+sudo -u lingonberry sh -c '
+  set -a
+  . /etc/lingonberry/storage.env
+  exec /usr/local/bin/lingonberry-storage config
+'
+sudo -u lingonberry sh -c '
+  set -a
+  . /etc/lingonberry/storage.env
+  exec /usr/local/bin/lingonberry-storage doctor
+'
 ```
 
 `doctor` is read-only. Do not manually edit manifests, journals, pointers, indexes, or evidence files.
@@ -73,20 +83,35 @@ The storage unit is a oneshot readiness gate. The relay unit is the long-running
 
 ## 5. Publish and inspect
 
+Run the direct publish command as the service user because the canonical data directory is owned by `lingonberry`.
+
 ```bash
-LINGONBERRY_STATE_DIR=/var/lib/lingonberry/storage/data \
-  /usr/local/bin/lingonberry-relay publish fixtures/http-publish-request/minimal-request.json
-LINGONBERRY_STORAGE_DATA_DIR=/var/lib/lingonberry/storage/data \
-  /usr/local/bin/lingonberry-storage list
+sudo -u lingonberry env \
+  LINGONBERRY_STATE_DIR=/var/lib/lingonberry/storage/data \
+  /usr/local/bin/lingonberry-relay publish \
+  fixtures/http-publish-request/minimal-request.json
+sudo -u lingonberry sh -c '
+  set -a
+  . /etc/lingonberry/storage.env
+  exec /usr/local/bin/lingonberry-storage list
+'
 ```
 
 ## 6. Backup
 
 ```bash
-sudo -u lingonberry env $(cat /etc/lingonberry/storage.env | xargs) \
-  /usr/local/bin/lingonberry-storage backup create /var/backups/lingonberry/manual-backup
-sudo -u lingonberry env $(cat /etc/lingonberry/storage.env | xargs) \
-  /usr/local/bin/lingonberry-storage backup verify /var/backups/lingonberry/manual-backup
+sudo -u lingonberry sh -c '
+  set -a
+  . /etc/lingonberry/storage.env
+  exec /usr/local/bin/lingonberry-storage backup create \
+    /var/backups/lingonberry/manual-backup
+'
+sudo -u lingonberry sh -c '
+  set -a
+  . /etc/lingonberry/storage.env
+  exec /usr/local/bin/lingonberry-storage backup verify \
+    /var/backups/lingonberry/manual-backup
+'
 ```
 
 A created backup is not reported successful until an isolated import and index-consistency check pass.
@@ -97,12 +122,20 @@ Never restore over the active state or data directory.
 
 ```bash
 sudo install -d -o lingonberry -g lingonberry /var/lib/lingonberry/restore-candidate
-sudo -u lingonberry env $(cat /etc/lingonberry/storage.env | xargs) \
-  /usr/local/bin/lingonberry-storage restore plan \
-  /var/backups/lingonberry/manual-backup /var/lib/lingonberry/restore-candidate
-sudo -u lingonberry env $(cat /etc/lingonberry/storage.env | xargs) \
-  /usr/local/bin/lingonberry-storage restore apply \
-  /var/backups/lingonberry/manual-backup /var/lib/lingonberry/restore-candidate
+sudo -u lingonberry sh -c '
+  set -a
+  . /etc/lingonberry/storage.env
+  exec /usr/local/bin/lingonberry-storage restore plan \
+    /var/backups/lingonberry/manual-backup \
+    /var/lib/lingonberry/restore-candidate
+'
+sudo -u lingonberry sh -c '
+  set -a
+  . /etc/lingonberry/storage.env
+  exec /usr/local/bin/lingonberry-storage restore apply \
+    /var/backups/lingonberry/manual-backup \
+    /var/lib/lingonberry/restore-candidate
+'
 ```
 
 The target must be explicit, empty, isolated, and not a symbolic link.
@@ -110,8 +143,16 @@ The target must be explicit, empty, isolated, and not a symbolic link.
 ## 8. Index operations
 
 ```bash
-sudo -u lingonberry env $(cat /etc/lingonberry/storage.env | xargs) /usr/local/bin/lingonberry-storage index verify
-sudo -u lingonberry env $(cat /etc/lingonberry/storage.env | xargs) /usr/local/bin/lingonberry-storage index rebuild
+sudo -u lingonberry sh -c '
+  set -a
+  . /etc/lingonberry/storage.env
+  exec /usr/local/bin/lingonberry-storage index verify
+'
+sudo -u lingonberry sh -c '
+  set -a
+  . /etc/lingonberry/storage.env
+  exec /usr/local/bin/lingonberry-storage index rebuild
+'
 ```
 
 Canonical storage is authoritative; the index is derived state.
@@ -119,8 +160,12 @@ Canonical storage is authoritative; the index is derived state.
 ## 9. DR drill
 
 ```bash
-sudo -u lingonberry env $(cat /etc/lingonberry/storage.env | xargs) \
-  /usr/local/bin/lingonberry-storage drill restore /var/backups/lingonberry/manual-backup
+sudo -u lingonberry sh -c '
+  set -a
+  . /etc/lingonberry/storage.env
+  exec /usr/local/bin/lingonberry-storage drill restore \
+    /var/backups/lingonberry/manual-backup
+'
 ```
 
 A passing drill reports `readVerified`, `writeVerified`, and `cleanupVerified` as `true`. It restores into a temporary isolated directory, reads every restored record, verifies a duplicate-safe re-import, checks index consistency, and removes the temporary directory.
@@ -130,12 +175,18 @@ A passing drill reports `readVerified`, `writeVerified`, and `cleanupVerified` a
 Capture the persisted record listing, restart the long-running service, and compare the listing after readiness returns.
 
 ```bash
-sudo -u lingonberry env $(cat /etc/lingonberry/storage.env | xargs) \
-  /usr/local/bin/lingonberry-storage list > /tmp/lingonberry-list-before.json
+sudo -u lingonberry sh -c '
+  set -a
+  . /etc/lingonberry/storage.env
+  exec /usr/local/bin/lingonberry-storage list
+' > /tmp/lingonberry-list-before.json
 sudo systemctl restart lingonberry-relay.service
 curl -fsS http://127.0.0.1:8787/v1/ready
-sudo -u lingonberry env $(cat /etc/lingonberry/storage.env | xargs) \
-  /usr/local/bin/lingonberry-storage list > /tmp/lingonberry-list-after.json
+sudo -u lingonberry sh -c '
+  set -a
+  . /etc/lingonberry/storage.env
+  exec /usr/local/bin/lingonberry-storage list
+' > /tmp/lingonberry-list-after.json
 cmp /tmp/lingonberry-list-before.json /tmp/lingonberry-list-after.json
 ```
 
@@ -158,9 +209,21 @@ Pointer, journal, proof, inventory, completion-evidence, and cleanup-evidence fi
 ```bash
 systemctl --failed
 journalctl -u lingonberry-storage-ready.service -u lingonberry-relay.service --since today
-sudo -u lingonberry env $(cat /etc/lingonberry/storage.env | xargs) /usr/local/bin/lingonberry-storage status
-sudo -u lingonberry env $(cat /etc/lingonberry/storage.env | xargs) /usr/local/bin/lingonberry-storage doctor
-sudo -u lingonberry env $(cat /etc/lingonberry/storage.env | xargs) /usr/local/bin/lingonberry-storage metrics
+sudo -u lingonberry sh -c '
+  set -a
+  . /etc/lingonberry/storage.env
+  exec /usr/local/bin/lingonberry-storage status
+'
+sudo -u lingonberry sh -c '
+  set -a
+  . /etc/lingonberry/storage.env
+  exec /usr/local/bin/lingonberry-storage doctor
+'
+sudo -u lingonberry sh -c '
+  set -a
+  . /etc/lingonberry/storage.env
+  exec /usr/local/bin/lingonberry-storage metrics
+'
 ```
 
 When UFW is enabled and the relay is intentionally exposed beyond localhost, add only the required port and source scope. The reference unit listens on `127.0.0.1:8787` by default, so no UFW rule is required for local reverse-proxy operation.

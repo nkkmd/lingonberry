@@ -1,0 +1,70 @@
+name: v1 documentation walkthrough
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/run-v1-documentation-walkthrough.sh'
+      - '.github/workflows/v1-documentation-walkthrough.yml'
+      - 'docs/roadmap/V1_0_DOCUMENTATION_WALKTHROUGH.md'
+      - 'docs/roadmap/V1_0_RELEASE_EVIDENCE.md'
+      - 'docs/operations/**'
+      - 'deploy/systemd/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v1-documentation-walkthrough-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  walkthrough:
+    name: Candidate documentation walkthrough
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      CANDIDATE_SHA: f9543019f2c219aea3b085ff90f2da201b268a48
+      STORAGE_SHA256: 22228c6ee424c697114f1fcbb1f8aa2ad6c3a3feb4b0c1a71298c2cd7acbbeb0
+      RELAY_SHA256: 9552773a6138cbbbcd32d88a313e01865972facf5b9cbfb3104d091573d7625d
+    steps:
+      - name: Checkout walkthrough harness
+        uses: actions/checkout@v4
+        with:
+          path: harness
+      - name: Checkout exact candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.CANDIDATE_SHA }}
+          path: candidate
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: candidate
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Execute frozen documentation
+        run: bash harness/scripts/run-v1-documentation-walkthrough.sh candidate harness/target/v1-documentation-walkthrough
+      - name: Verify evidence bundle
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          p = Path('harness/target/v1-documentation-walkthrough/summary.json')
+          summary = json.loads(p.read_text())
+          assert summary['candidateCommit'] == 'f9543019f2c219aea3b085ff90f2da201b268a48'
+          assert summary['status'] == 'passed'
+          assert len(summary['procedures']) == 16
+          assert all(x['status'] == 'passed' for x in summary['procedures'])
+          PY
+          (cd harness/target/v1-documentation-walkthrough && sha256sum -c SHA256SUMS)
+      - name: Upload walkthrough evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v1-documentation-walkthrough-${{ env.CANDIDATE_SHA }}-${{ github.run_attempt }}
+          path: harness/target/v1-documentation-walkthrough/
+          if-no-files-found: error
+          retention-days: 90

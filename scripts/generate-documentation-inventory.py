@@ -25,6 +25,7 @@ HISTORICAL_OPERATION_DOCS = {
     "docs/operations/V0_8_UPGRADE_AND_ROLLBACK.md",
 }
 NORMALIZED_OPERATION_DOCS = {
+    "docs/operations/OPERATOR_CLI_CONTRACT.md",
     "docs/operations/SUPPORTED_PLATFORMS.md",
     "docs/operations/SYSTEMD_UNIT_TEMPLATES.md",
 }

@@ -1,0 +1,30 @@
+name: bilingual documentation
+
+on:
+  pull_request:
+    paths:
+      - "README.md"
+      - "docs/**/*.md"
+      - "scripts/check-bilingual-documentation.py"
+      - ".github/workflows/bilingual-documentation.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "README.md"
+      - "docs/**/*.md"
+      - "scripts/check-bilingual-documentation.py"
+      - ".github/workflows/bilingual-documentation.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  structure:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate bilingual-required documentation
+        run: |
+          python3 scripts/check-bilingual-documentation.py \
+            --allow-pending docs/operations/V0_8_OPERATOR_RUNBOOK.md

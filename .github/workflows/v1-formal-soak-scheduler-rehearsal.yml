@@ -1,0 +1,110 @@
+name: v1 formal soak scheduler rehearsal
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/v1_formal_soak_scheduler.py'
+      - 'deploy/soak/**'
+      - '.github/workflows/v1-formal-soak-scheduler-rehearsal.yml'
+      - 'docs/roadmap/V1_0_SOAK_PLAN.md'
+      - 'docs/roadmap/V1_0_FORMAL_SOAK_SCHEDULER.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  scheduler-rehearsal:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile scheduler
+        run: python3 -m py_compile scripts/v1_formal_soak_scheduler.py
+      - name: Run 72-hour virtual-time schedule rehearsal
+        run: |
+          python3 scripts/v1_formal_soak_scheduler.py \
+            --adapter mock \
+            --out target/formal-scheduler-pass \
+            --thresholds deploy/soak/v1-formal-thresholds.example.json \
+            --virtual-duration 259200 \
+            --tick-seconds 60
+          jq -e '
+            .adapter == "mock" and
+            .qualification == false and
+            .qualifyingPass == false and
+            .status == "passed" and
+            .scheduledDurationSeconds == 259200 and
+            .workloadCounts == .workloadMinima
+          ' target/formal-scheduler-pass/summary.json
+          test "$(wc -l < target/formal-scheduler-pass/telemetry/metrics.jsonl)" -ge 4321
+          (cd target/formal-scheduler-pass && sha256sum -c SHA256SUMS)
+      - name: Verify disruptive workload distribution
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          schedule = json.loads(Path('target/formal-scheduler-pass/manifests/schedule.json').read_text())
+          duration = 259200
+          disruptive = {'graceful_restart','abrupt_termination','index_rebuild','isolated_restore','crash_matrix','disk_pressure'}
+          for kind in disruptive:
+              offsets = [e['offset'] for e in schedule if e['kind'] == kind]
+              thirds = [any(0 <= x < duration//3 for x in offsets),
+                        any(duration//3 <= x < 2*duration//3 for x in offsets),
+                        any(2*duration//3 <= x <= duration for x in offsets)]
+              assert sum(thirds) >= min(3, len(offsets)), (kind, offsets, thirds)
+          PY
+      - name: Verify threshold failure retains partial evidence
+        run: |
+          set +e
+          python3 scripts/v1_formal_soak_scheduler.py \
+            --adapter mock \
+            --out target/formal-scheduler-threshold-failure \
+            --thresholds deploy/soak/v1-formal-thresholds.example.json \
+            --virtual-duration 600 \
+            --tick-seconds 60 \
+            --inject-threshold-failure-at 180
+          code=$?
+          set -e
+          test "$code" -ne 0
+          jq -e '
+            .qualification == false and
+            .qualifyingPass == false and
+            .status == "failed" and
+            (.stopReason | startswith("threshold violation:"))
+          ' target/formal-scheduler-threshold-failure/summary.json
+          test -s target/formal-scheduler-threshold-failure/telemetry/metrics.jsonl
+          (cd target/formal-scheduler-threshold-failure && sha256sum -c SHA256SUMS)
+      - name: Verify stopped runs cannot resume
+        run: |
+          set +e
+          python3 scripts/v1_formal_soak_scheduler.py \
+            --adapter mock \
+            --out target/formal-scheduler-pass \
+            --thresholds deploy/soak/v1-formal-thresholds.example.json \
+            --virtual-duration 60 \
+            --tick-seconds 60
+          code=$?
+          set -e
+          test "$code" -ne 0
+      - name: Verify systemd qualification fails closed outside reference host contract
+        run: |
+          set +e
+          python3 scripts/v1_formal_soak_scheduler.py \
+            --adapter systemd \
+            --out target/formal-systemd-refusal \
+            --thresholds deploy/soak/v1-formal-thresholds.example.json \
+            --virtual-duration 259200 \
+            --tick-seconds 60
+          code=$?
+          set -e
+          test "$code" -ne 0
+      - name: Upload scheduler rehearsal evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v1-formal-soak-scheduler-rehearsal-${{ github.run_number }}
+          path: |
+            target/formal-scheduler-pass
+            target/formal-scheduler-threshold-failure
+          retention-days: 90

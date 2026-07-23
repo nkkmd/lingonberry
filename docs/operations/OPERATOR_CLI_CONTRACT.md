@@ -1,12 +1,43 @@
 # Operator CLI Contract
 
-**Status: v0.8.0 release contract** | **Reference platform: Ubuntu Server 24.04 LTS x86_64**
+**Status: v1.0.0 pre-release qualification contract**  
+**Reference platform: Ubuntu Server 24.04 LTS / x86_64 / systemd / ext4**
 
-## Purpose
+## 1. Scope and release boundary
 
-This document defines the operator-facing command, exit-code, and output contract for the v0.8.0 single-node release. The contract covers `lingonberry-storage` and explicitly routes storage migration and quarantine maintenance to their existing dedicated surfaces.
+This document defines the operator-facing command, output, mutation, and exit-code contract for the Lingonberry single-node v1.x operational surface.
 
-## Global configuration options
+The latest published release is `v0.9.0`. `v1.0.0` is still under qualification and has not been published. This contract does not indicate that the formal 72-hour soak, version update, `v1.0.0` tag, or GitHub Release is complete.
+
+The designated pre-version qualification candidate remains:
+
+```text
+f9543019f2c219aea3b085ff90f2da201b268a48
+```
+
+The primary operator binaries covered here are:
+
+```text
+lingonberry-storage
+lingonberry-storage-migrate
+lingonberry-relay
+```
+
+Quarantine administration, replacement, cleanup, and other proof-bound maintenance surfaces remain governed by their dedicated runbooks and binaries.
+
+## 2. General rules
+
+- Successful machine-readable output is written to standard output.
+- Operator-facing errors are written to standard error.
+- A non-zero exit code is authoritative even when diagnostic JSON was written first.
+- Canonical storage is authoritative. Indexes and effective views are derived and rebuildable.
+- Read-only inspection must not be replaced by manual edits to manifests, journals, generation pointers, indexes, proof files, or evidence files.
+- Ordinary startup must not perform an implicit storage migration.
+- Commands that mutate storage require an explicit operator action and the preconditions documented in the operator or upgrade runbook.
+
+## 3. `lingonberry-storage`
+
+### 3.1 Global configuration options
 
 Global options must appear before the command:
 
@@ -34,13 +65,12 @@ LINGONBERRY_STORAGE_BACKUP_DIR
 LINGONBERRY_STORAGE_TEMP_DIR
 ```
 
-Empty values, unknown configuration fields, non-string path values, and an explicitly selected missing configuration file are errors.
+Empty values, unknown configuration fields, non-string path values, missing option values, unknown global options, and an explicitly selected missing configuration file are errors.
 
-## Command groups
-
-### Inspection and observability
+### 3.2 Capability and inspection commands
 
 ```text
+capabilities
 config
 status
 doctor
@@ -48,28 +78,38 @@ verify
 health
 ready
 metrics
-```
-
-- `config` prints the effective paths and precedence without secret material.
-- `status` and `doctor` are read-only and may report warnings.
-- `verify` is strict and fails when the doctor reports a failed check.
-- `health` reports process-level availability.
-- `ready` evaluates storage-aware readiness and returns a failure exit code when not ready.
-- `metrics` uses fixed keys and bounded-cardinality labels.
-
-### Canonical storage access
-
-```text
-append
-retrieve
-replay
-list
 run
 ```
 
-These commands operate on canonical storage through the existing storage backend contract.
+Mutation classification:
 
-### Backup and restore
+| Command | Contract |
+|---|---|
+| `capabilities` | Read-only capability manifest |
+| `config` | Read-only effective configuration and path report; secrets excluded |
+| `status` | Read-only bounded operator status |
+| `doctor` | Read-only diagnostics; warnings may still return success |
+| `verify` | Read-only strict diagnostics; warnings or failures return non-zero |
+| `health` | Read-only process-level health |
+| `ready` | Read-only storage-aware readiness; not-ready returns non-zero |
+| `metrics` | Read-only fixed-key, bounded-cardinality metrics |
+| `run` | Read-only runtime configuration/status report; it is not a daemon lifecycle command |
+
+### 3.3 Canonical storage commands
+
+```text
+append JSON_FILE
+retrieve CANONICAL_ID
+replay
+list
+```
+
+- `append` is mutating and validates the publish request and knowledge object before writing.
+- `retrieve`, `replay`, and `list` are read-only.
+- A missing object is a non-zero not-found result.
+- Duplicate-safe append behavior is reported in output rather than treated as an error.
+
+### 3.4 Backup, restore, and drill commands
 
 ```text
 backup create [ARCHIVE_DIR]
@@ -79,89 +119,204 @@ restore apply ARCHIVE_DIR TARGET_DIR
 drill restore ARCHIVE_DIR
 ```
 
+Mutation classification:
+
+| Command | Contract |
+|---|---|
+| `backup create` | Mutates only the requested backup destination |
+| `backup verify` | Does not mutate active storage; may use and clean an isolated temporary target |
+| `restore plan` | Read-only with respect to the requested target |
+| `restore apply` | Mutates only an explicit isolated target |
+| `drill restore` | Uses isolated temporary state and must clean it after completion or interruption |
+
 Safety requirements:
 
 - symbolic-link archive and target paths are refused;
-- a restore target must be isolated from active state and data directories;
+- restore targets must be isolated from active state and data directories;
 - `restore apply` requires a missing or empty target directory;
-- `restore plan` does not mutate the requested target;
-- every created or verified archive is restored into a temporary isolated target;
-- isolated verification reads every restored record, verifies the index, re-imports the archive to prove duplicate-safe write behavior, and removes the temporary target;
-- interruption during isolated verification must not leave the temporary target behind.
+- restore verification reads every restored record and verifies derived index state;
+- restore or drill completion does not authorize switching the active data path.
 
-### Index lifecycle
+### 3.5 Index commands
 
 ```text
 index verify
 index rebuild
 ```
 
-Canonical storage is authoritative. The index is derived state and must be reproducibly verifiable and rebuildable.
+- `index verify` is read-only.
+- `index rebuild` mutates derived index state only.
+- Neither command is a repair mechanism for corrupt canonical storage.
 
-## Explicit routing to existing operator surfaces
+## 4. `lingonberry-storage-migrate`
 
-The v0.8.0 integrated storage command does not duplicate established proof-bound maintenance workflows.
-
-### Storage migration
-
-Use:
+The migration surface is separate from ordinary storage operation.
 
 ```text
-lingonberry-storage-migrate inspect
-lingonberry-storage-migrate plan
-lingonberry-storage-migrate apply
-lingonberry-storage-migrate status
-lingonberry-storage-migrate resume
-lingonberry-storage-migrate rollback
+inspect
+plan
+backup
+apply
+verify
+commit
+resume
+rollback
+status
 ```
 
-Migration remains explicit. Normal startup never performs implicit migration.
-
-### Quarantine, replacement, and cleanup
-
-Use the existing quarantine admin HTTP/RBAC surface and the proof-bound runbooks linked from the Operations index. Replacement and cleanup remain separate operator-authorized workflows because they require preview, proof, durable transaction state, completion evidence, retention evaluation, and a separate irreversible acknowledgement.
-
-## Exit-code contract
+The normal migration sequence is:
 
 ```text
-0  command completed and its required invariant is satisfied
-1  operational or validation failure
-2  invocation or configuration error
+inspect
+→ plan
+→ backup
+→ apply
+→ verify
+→ commit
 ```
 
-Commands that report degraded or warning state may still return `0` unless their command contract is strict. `verify`, failed readiness, failed index verification, failed archive verification, and failed restore/drill invariants return non-zero.
+Mutation classification:
 
-The command writes machine-readable success output to standard output and operator-facing errors to standard error.
+| Command | Contract |
+|---|---|
+| `inspect` | Read-only storage-format inspection |
+| `plan` | Creates or validates durable migration planning state as implemented by the migration contract |
+| `backup` | Creates and verifies migration backup evidence |
+| `apply` | Mutates migration-controlled storage state |
+| `verify` | Read-only verification of the applied migration and source binding |
+| `commit` | Commits the verified format transition |
+| `status` | Read-only durable journal report |
+| `resume` | Continues an accepted durable journal state |
+| `rollback` | Performs only the rollback accepted by the current journal stage |
 
-## JSON output contract
+Migration output is currently a stable operator-oriented `key=value` line, not canonical JSON. Automation must evaluate both the command-specific fields and the exit code. Do not parse debug formatting beyond fields explicitly documented by the migration and upgrade contract.
 
-Machine-readable commands emit one canonical JSON object per invocation.
+## 5. `lingonberry-relay`
+
+The release binary is `lingonberry-relay`. Its Cargo entrypoint routes `publish` and `serve-http` to the HTTP/publish surface and routes other commands through the established classified/index command chain.
+
+Operator-relevant command families include:
+
+```text
+publish JSON_FILE
+serve-http [ADDR]
+capabilities
+ready
+get CANONICAL_ID
+raw CANONICAL_ID
+list
+subscribe [TYPE]
+replay
+rebuild-index
+catch-up-index
+export-archive ARCHIVE_DIR
+import-archive ARCHIVE_DIR
+```
+
+Additional graph and quarantine commands remain documented by their dedicated contracts and runbooks.
+
+- `publish`, `import-archive`, `rebuild-index`, and `catch-up-index` are mutating.
+- `serve-http` is long-running and must normally be managed through the checked-in systemd service contract.
+- `ready`, `capabilities`, `get`, `raw`, `list`, `subscribe`, `replay`, and archive export are inspection/read surfaces except for temporary output files explicitly requested by the operator.
+- Quarantine promotion, replacement, cleanup, and irreversible decisions require their dedicated authorization and evidence procedures.
+
+## 6. Exit-code contract
+
+Lingonberry uses command-specific non-zero codes. Automation must not collapse all failures into a documented `1` or `2` model.
+
+### 6.1 Shared meanings
+
+| Code | Meaning |
+|---:|---|
+| `0` | Command completed and its required invariant is satisfied |
+| `1` | Unclassified operational failure |
+| `64` | Invocation or usage error |
+| `65` | Validation, corrupt-state, unknown-newer, or refused-safety condition, depending on the binary |
+| `66` | Requested object, record, journal, or path was not found |
+| `69` | Storage doctor, strict verify, or readiness invariant failed |
+| `70` | Classified internal/proof/index failure, commonly represented by an `LB_*` code |
+| `78` | Configuration or service-bind failure |
+
+### 6.2 Binary-specific notes
+
+`lingonberry-storage` may return `64`, `65`, `66`, `69`, `70`, `78`, or `1`.
+
+`lingonberry-storage-migrate` currently returns:
+
+```text
+64  usage error
+65  refused, corrupt, or unknown-newer state
+66  required state or journal not found
+1   other operational failure
+```
+
+`lingonberry-relay` command paths may return `64`, `65`, `66`, `70`, `78`, or `1`. Index rebuild and catch-up commands explicitly use `70` when their consistency invariant fails.
+
+The exact non-zero code and standard-error message together form the failure classification. Scripts should match documented codes first and use message text only for additional diagnostics.
+
+## 7. Output contract
+
+### 7.1 Canonical JSON surfaces
+
+`lingonberry-storage` successful command output is one canonical JSON object per invocation. Relay commands intended for automation also emit canonical JSON unless a dedicated command contract states otherwise.
 
 Required conventions:
 
 - field names use lower camel case;
-- `status` is a stable, bounded string;
-- paths are emitted as strings;
+- status values are stable, bounded strings;
+- paths are strings or `null` where absence is meaningful;
 - counts are non-negative JSON numbers;
-- booleans describe verified invariants, not requested intent;
-- errors must not include secret configuration values;
-- new optional fields may be added in a compatible release;
-- existing fields must not change meaning within the v0.8.x line.
+- booleans describe verified outcomes, not requested intent;
+- secrets must not appear in output or errors;
+- compatible releases may add optional fields;
+- existing fields must not change meaning within the v1 compatibility contract.
 
-Examples of stable status values include:
+Examples of status values used by operator surfaces include:
 
 ```text
 ok
 warning
 failed
+ready
+not_ready
 verified
 planned
 restored
 passed
 consistent
 inconsistent
+deferred
+promoted
+rejected
 ```
 
-## Human-readable output policy
+### 7.2 Migration text surface
 
-v0.8.0 treats canonical JSON as the authoritative automation contract. Human-readable guidance belongs in errors, the runbook, and systemd journal messages. A future presentation layer may render the canonical JSON, but it must not replace or reinterpret the machine-readable contract.
+`lingonberry-storage-migrate` emits one `key=value` status line on success. This is intentionally distinct from canonical JSON and must not be described as JSON output.
+
+### 7.3 Standard error
+
+Errors and invariant failures are written to standard error. Secret configuration values must not be included. Some strict inspection commands print diagnostic JSON to standard output before returning a non-zero exit code; callers must always inspect the exit status.
+
+## 8. Compatibility and change control
+
+A change to any of the following is operator-facing and requires compatibility review, documentation update, and tests:
+
+- command name or argument order;
+- read-only versus mutating classification;
+- exit-code mapping;
+- output format or required field meaning;
+- configuration precedence or environment variable name;
+- implicit migration behavior;
+- safety refusal condition.
+
+New optional JSON fields may be added compatibly. Removing fields, changing field meaning, changing a successful command to mutate active state, or reassigning an established exit code requires an explicit compatibility decision.
+
+## 9. Related documents
+
+- [v1.0 Single-Node Operator Runbook](./V1_0_OPERATOR_RUNBOOK.md)
+- [v1.0 Upgrade and Rollback](./V1_0_UPGRADE_AND_ROLLBACK.md)
+- [Storage Migration and Upgrade Contract](./STORAGE_MIGRATION_AND_UPGRADE.md)
+- [Systemd Service Contract](./SYSTEMD_UNIT_TEMPLATES.md)
+- [Supported Platforms](./SUPPORTED_PLATFORMS.md)
+- [Operations Index](./README.md)

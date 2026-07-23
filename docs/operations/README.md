@@ -57,12 +57,12 @@ For development:
 For single-node operation:
 
 - [v1.0 Operator Runbook](./V1_0_OPERATOR_RUNBOOK.md)
+- [v1.0 Upgrade and Rollback](./V1_0_UPGRADE_AND_ROLLBACK.md)
 - [Supported Platforms](./SUPPORTED_PLATFORMS.md)
 - [Operator CLI Contract](./OPERATOR_CLI_CONTRACT.md)
 - [Systemd Unit Templates](./SYSTEMD_UNIT_TEMPLATES.md)
-- [v0.8.0 Upgrade and Rollback](./V0_8_UPGRADE_AND_ROLLBACK.md)
 
-The v1.0 operator runbook is the current pre-release single-node operating guide. It remains qualification documentation until the formal soak, version update, `v1.0.0` tag, and GitHub Release are complete. The v0.8 runbook remains a historical published baseline.
+The v1.0 operator and upgrade runbooks are the current pre-release single-node operating guides. They remain qualification documentation until the formal soak, version update, `v1.0.0` tag, and GitHub Release are complete. The v0.8 runbooks remain historical published baselines.
 
 ### Core operational contracts
 
@@ -102,6 +102,7 @@ The v1.0 operator runbook is the current pre-release single-node operating guide
 ### Historical release records
 
 - [v0.8.0 Operator Runbook](./V0_8_OPERATOR_RUNBOOK.md)
+- [v0.8.0 Upgrade and Rollback](./V0_8_UPGRADE_AND_ROLLBACK.md)
 - [v0.9.0 Release Checklist](../roadmap/RELEASE_0_9_0_CHECKLIST.md)
 - [v0.9.0 Release Notes](../roadmap/RELEASE_0_9_0_RELEASE_NOTE.md)
 - [v0.9.0 Release Evidence](../roadmap/V0_9_RELEASE_EVIDENCE.md)
@@ -163,12 +164,12 @@ release build済みbinaryをinstall
 single-node運用:
 
 - [v1.0 Operator Runbook](./V1_0_OPERATOR_RUNBOOK.md)
+- [v1.0 Upgrade and Rollback](./V1_0_UPGRADE_AND_ROLLBACK.md)
 - [Supported Platforms](./SUPPORTED_PLATFORMS.md)
 - [Operator CLI Contract](./OPERATOR_CLI_CONTRACT.md)
 - [Systemd Unit Templates](./SYSTEMD_UNIT_TEMPLATES.md)
-- [v0.8.0 Upgrade and Rollback](./V0_8_UPGRADE_AND_ROLLBACK.md)
 
-v1.0 operator runbookは、現在のpre-release single-node運用guideです。formal soak、version更新、`v1.0.0` tag、GitHub Releaseが完了するまではqualification文書として扱います。v0.8 runbookは公開済みbaselineの履歴として残します。
+v1.0 operator runbookとupgrade runbookは、現在のpre-release single-node運用guideです。formal soak、version更新、`v1.0.0` tag、GitHub Releaseが完了するまではqualification文書として扱います。v0.8 runbookは公開済みbaselineの履歴として残します。
 
 ### 主要運用契約
 
@@ -208,6 +209,7 @@ v1.0 operator runbookは、現在のpre-release single-node運用guideです。f
 ### 過去releaseの記録
 
 - [v0.8.0 Operator Runbook](./V0_8_OPERATOR_RUNBOOK.md)
+- [v0.8.0 Upgrade and Rollback](./V0_8_UPGRADE_AND_ROLLBACK.md)
 - [v0.9.0 Release Checklist](../roadmap/RELEASE_0_9_0_CHECKLIST.md)
 - [v0.9.0 Release Notes](../roadmap/RELEASE_0_9_0_RELEASE_NOTE.md)
 - [v0.9.0 Release Evidence](../roadmap/V0_9_RELEASE_EVIDENCE.md)

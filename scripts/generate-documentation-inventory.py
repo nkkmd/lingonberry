@@ -13,6 +13,7 @@ BILINGUAL_REQUIRED = {
     "docs/operations/README.md",
     "docs/operations/RELAY_QUICKSTART.md",
     "docs/operations/V1_0_OPERATOR_RUNBOOK.md",
+    "docs/operations/V1_0_UPGRADE_AND_ROLLBACK.md",
 }
 BILINGUAL_SCOPED = {
     "docs/concepts/GLOSSARY.md",
@@ -21,6 +22,7 @@ BILINGUAL_SCOPED = {
 }
 HISTORICAL_OPERATION_DOCS = {
     "docs/operations/V0_8_OPERATOR_RUNBOOK.md",
+    "docs/operations/V0_8_UPGRADE_AND_ROLLBACK.md",
 }
 NORMALIZED_OPERATION_DOCS = {
     "docs/operations/SUPPORTED_PLATFORMS.md",

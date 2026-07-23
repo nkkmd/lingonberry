@@ -38,7 +38,7 @@ jobs:
             .workloadCounts == .workloadMinima
           ' target/formal-scheduler-pass/summary.json
           test "$(wc -l < target/formal-scheduler-pass/telemetry/metrics.jsonl)" -ge 4321
-          sha256sum -c target/formal-scheduler-pass/SHA256SUMS
+          (cd target/formal-scheduler-pass && sha256sum -c SHA256SUMS)
       - name: Verify disruptive workload distribution
         run: |
           python3 - <<'PY'
@@ -74,7 +74,7 @@ jobs:
             (.stopReason | startswith("threshold violation:"))
           ' target/formal-scheduler-threshold-failure/summary.json
           test -s target/formal-scheduler-threshold-failure/telemetry/metrics.jsonl
-          sha256sum -c target/formal-scheduler-threshold-failure/SHA256SUMS
+          (cd target/formal-scheduler-threshold-failure && sha256sum -c SHA256SUMS)
       - name: Verify stopped runs cannot resume
         run: |
           set +e

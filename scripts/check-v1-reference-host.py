@@ -60,6 +60,8 @@ def main() -> None:
     paths = [Path(data[k]) for k in [
         "backingFile", "mountPoint", "workspace", "pressureFile", "evidenceDir", "journalDir"
     ]]
+    if any(not p.is_absolute() for p in paths):
+        fail("host paths must be absolute")
     if any(p.is_symlink() for p in paths if p.exists()):
         fail("contract paths must not be symlinks")
     if not str(data["mountPoint"]).startswith("/mnt/lingonberry-"):
@@ -68,8 +70,6 @@ def main() -> None:
         fail("workspace must be a direct child of mountPoint")
     if Path(data["pressureFile"]).parent != Path(data["mountPoint"]):
         fail("pressureFile must be a direct child of mountPoint")
-    if Path(data["backingFile"]).is_relative() or Path(data["mountPoint"]).is_relative():
-        fail("host paths must be absolute")
     if int(data["capacityBytes"]) < 512 * 1024 * 1024:
         fail("capacityBytes must be at least 512 MiB")
     if data["filesystemType"] != "ext4":

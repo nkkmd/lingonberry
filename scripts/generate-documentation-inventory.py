@@ -24,6 +24,7 @@ HISTORICAL_OPERATION_DOCS = {
 }
 NORMALIZED_OPERATION_DOCS = {
     "docs/operations/SUPPORTED_PLATFORMS.md",
+    "docs/operations/SYSTEMD_UNIT_TEMPLATES.md",
 }
 
 

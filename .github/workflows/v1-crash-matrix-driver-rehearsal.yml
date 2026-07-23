@@ -35,21 +35,22 @@ jobs:
         working-directory: candidate
         env:
           CRASH_MATRIX_REPO_ROOT: ${{ github.workspace }}/candidate
-          CRASH_MATRIX_OUT: target/v1-crash-matrix-rehearsal
+          CRASH_MATRIX_OUT: ${{ runner.temp }}/v1-crash-matrix-rehearsal
           CRASH_MATRIX_CYCLES: '2'
         run: bash ../harness/scripts/run-v1-crash-matrix-driver.sh
       - name: Verify evidence
-        working-directory: candidate
+        env:
+          EVIDENCE_DIR: ${{ runner.temp }}/v1-crash-matrix-rehearsal
         run: |
-          jq -e '.status == "passed" and .qualification == false and .qualifyingPass == false and .cyclesRequired == 2 and .cyclesCompleted == 2 and .testsPerCycle == 4' target/v1-crash-matrix-rehearsal/summary.json
-          test "$(find target/v1-crash-matrix-rehearsal/cycles -name 'cycle-*.json' | wc -l)" -eq 2
-          (cd target/v1-crash-matrix-rehearsal && sha256sum -c SHA256SUMS)
+          jq -e '.status == "passed" and .qualification == false and .qualifyingPass == false and .cyclesRequired == 2 and .cyclesCompleted == 2 and .testsPerCycle == 4' "$EVIDENCE_DIR/summary.json"
+          test "$(find "$EVIDENCE_DIR/cycles" -name 'cycle-*.json' | wc -l)" -eq 2
+          (cd "$EVIDENCE_DIR" && sha256sum -c SHA256SUMS)
       - name: Verify candidate mismatch fails closed
         working-directory: candidate
         env:
           CANDIDATE_SHA: 0000000000000000000000000000000000000000
           CRASH_MATRIX_REPO_ROOT: ${{ github.workspace }}/candidate
-          CRASH_MATRIX_OUT: target/v1-crash-matrix-mismatch
+          CRASH_MATRIX_OUT: ${{ runner.temp }}/v1-crash-matrix-mismatch
         run: |
           if bash ../harness/scripts/run-v1-crash-matrix-driver.sh; then
             echo 'candidate mismatch unexpectedly passed' >&2
@@ -60,5 +61,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: v1-crash-matrix-driver-rehearsal-${{ github.run_number }}
-          path: candidate/target/v1-crash-matrix-rehearsal
+          path: ${{ runner.temp }}/v1-crash-matrix-rehearsal
           retention-days: 90

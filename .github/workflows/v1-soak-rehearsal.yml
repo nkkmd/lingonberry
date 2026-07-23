@@ -16,29 +16,41 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout rehearsal harness
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          path: harness
+      - name: Checkout exact candidate
+        uses: actions/checkout@v4
         with:
           ref: f9543019f2c219aea3b085ff90f2da201b268a48
-      - name: Overlay rehearsal harness
+          path: candidate
+      - name: Install rehearsal harness
         run: |
-          git show "${{ github.event.pull_request.head.sha || github.sha }}:scripts/run-v1-soak.sh" > scripts/run-v1-soak.sh
-          chmod +x scripts/run-v1-soak.sh
+          cp harness/scripts/run-v1-soak.sh candidate/scripts/run-v1-soak.sh
+          chmod +x candidate/scripts/run-v1-soak.sh
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: candidate
       - uses: actions/setup-node@v4
         with:
           node-version: 22
       - name: Run passing rehearsal
+        working-directory: candidate
         env:
           SOAK_PROFILE: rehearsal
           SOAK_OUT: target/v1-soak-rehearsal-pass
         run: bash scripts/run-v1-soak.sh
       - name: Verify passing bundle
+        working-directory: candidate
         run: |
           jq -e '.profile == "rehearsal" and .qualification == false and .status == "passed"' target/v1-soak-rehearsal-pass/summary.json
           test "$(jq '.scenarios | length' target/v1-soak-rehearsal-pass/summary.json)" -ge 9
           (cd target/v1-soak-rehearsal-pass && sha256sum -c SHA256SUMS)
       - name: Run forced-failure rehearsal
+        working-directory: candidate
         env:
           SOAK_PROFILE: rehearsal
           SOAK_FORCE_FAILURE: '1'
@@ -49,6 +61,7 @@ jobs:
             exit 1
           fi
       - name: Verify failed partial bundle
+        working-directory: candidate
         run: |
           jq -e '.qualification == false and .status == "failed" and .stopReason == "forced rehearsal failure"' target/v1-soak-rehearsal-failure/summary.json
           (cd target/v1-soak-rehearsal-failure && sha256sum -c SHA256SUMS)
@@ -58,6 +71,6 @@ jobs:
         with:
           name: v1-soak-rehearsal-${{ github.run_number }}
           path: |
-            target/v1-soak-rehearsal-pass
-            target/v1-soak-rehearsal-failure
+            candidate/target/v1-soak-rehearsal-pass
+            candidate/target/v1-soak-rehearsal-failure
           retention-days: 90

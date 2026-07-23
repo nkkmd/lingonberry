@@ -32,8 +32,10 @@ jobs:
             .qualification == false and
             .qualifyingPass == false and
             .referenceHostRehearsalComplete == false and
-            (.phasesCompleted | length) == 12 and
-            .pressureFilePresentAfterCleanup == false
+            .cleanupRestrictedToRunOwnedFiles == true and
+            .pressureFilePresentAfterCleanup == false and
+            .probePresentAfterCleanup == false and
+            (.phasesCompleted | length) == 12
           ' target/disk-pressure-driver-pass/summary.json
           test "$(wc -l < target/disk-pressure-driver-pass/timeline.jsonl)" -eq 12
           (cd target/disk-pressure-driver-pass && sha256sum -c SHA256SUMS)
@@ -53,7 +55,9 @@ jobs:
             .qualification == false and
             .qualifyingPass == false and
             .cleanupAttempted == true and
+            .cleanupRestrictedToRunOwnedFiles == true and
             .pressureFilePresentAfterCleanup == false and
+            .probePresentAfterCleanup == false and
             (.stopReason | contains("forced failure at release_pressure")) and
             (.phasesCompleted | length) == 5
           ' target/disk-pressure-driver-failure/summary.json
@@ -83,6 +87,9 @@ jobs:
             .status == "failed" and
             .qualification == false and
             .qualifyingPass == false and
+            .cleanupRestrictedToRunOwnedFiles == true and
+            .pressureFilePresentAfterCleanup == false and
+            .probePresentAfterCleanup == false and
             .referenceHostRehearsalComplete == false
           ' target/disk-pressure-driver-live-refusal/summary.json
       - name: Upload driver rehearsal evidence

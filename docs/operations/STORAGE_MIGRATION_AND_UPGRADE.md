@@ -1,74 +1,101 @@
-# Storage migration and upgrade contract
+# Storage Migration and Upgrade Contract
 
-**Status: v0.7.0 implementation contract** | **Last updated: 2026-07-21**
+**Status: v1.0 pre-release implementation contract**  
+**Normative language: English**
 
-## 1. Purpose
+## 1. Purpose and boundary
 
-This document defines the single-node storage migration boundary for Lingonberry v0.7.0. It supplements the release roadmap and does not replace backup, restore, replacement, cleanup, or recovery contracts.
+This document defines the implemented single-node storage-format migration primitive used by Lingonberry. It describes source inspection, deterministic planning, verified migration backup, durable journal transitions, target-manifest publication, resume, commit, and rollback.
 
-The migration system must preserve existing durable evidence while allowing a supported legacy data directory to move to the current storage format. Unknown, corrupt, unreadable, contradictory, or changed-after-plan state fails closed.
+It does not replace the operator-facing upgrade procedure in [`V1_0_UPGRADE_AND_ROLLBACK.md`](./V1_0_UPGRADE_AND_ROLLBACK.md). Binary replacement, systemd lifecycle, post-upgrade health checks, canonical read/write validation, index verification, and backup-based release rollback remain operator and release-qualification responsibilities.
 
-## 2. Storage format manifest
+The latest published release is `v0.9.0`. `v1.0.0` remains unpublished. This contract does not indicate that formal qualification, the 72-hour soak, version update, tag, or GitHub Release has completed.
 
-The data directory contains `storage-format.manifest` after initialization or successful migration.
+## 2. Files and current format
 
-The v1 manifest records:
+The migration implementation uses these files inside the configured storage data directory:
+
+```text
+storage-format.manifest
+storage-migration.journal
+```
+
+The current supported format is:
+
+```text
+format_version=1
+layout_id=single-node-canonical-v1
+```
+
+The manifest records:
 
 - `format_version`
 - `layout_id`
 - `created_by`
 - optional `source_format_version`
 
-The current contract is:
+Both manifest and journal are written through a temporary file, synchronized, renamed, and followed by parent-directory synchronization. Operators must not edit either file manually.
+
+## 3. Inspection classifications
+
+`lingonberry-storage-migrate inspect` performs read-only inspection and reports one of:
 
 ```text
-format_version: 1
-layout_id: single-node-canonical-v1
+empty
+legacy_unversioned
+supported
+unknown_newer
+corrupt
 ```
 
-The manifest is written atomically and durably. A manifest is not evidence that migration completed unless the durable migration journal also reaches `committed` after verification.
+Meanings:
 
-## 3. Inspection classification
+- `empty`: no durable inventory and no manifest;
+- `legacy_unversioned`: durable inventory exists without a manifest;
+- `supported`: the manifest version and layout match the current binary;
+- `unknown_newer`: the manifest version is newer than the current binary;
+- `corrupt`: the manifest is malformed, contradictory, unsupported, or unreadable.
 
-Read-only inspection produces exactly one classification:
+Inspection recursively inventories regular files and directories in deterministic order. Symlinks and unsupported filesystem entry types fail closed. The manifest and migration journal are excluded from the source inventory digest so journal progress does not change the source binding.
 
-- `empty`: no durable entries and no manifest
-- `legacy_unversioned`: durable entries exist but no manifest exists
-- `supported`: manifest version and layout are supported by this binary
-- `unknown_newer`: manifest format version is newer than this binary supports
-- `corrupt`: malformed, contradictory, unsupported, or unreadable state
+## 4. Deterministic plan and journal creation
 
-Inspection inventories regular files and directories deterministically. Symlinks and unsupported filesystem entry types are rejected. Manifest and migration-journal files are excluded from the source inventory digest so journal progress does not invalidate the inspected source binding.
+`lingonberry-storage-migrate plan`:
 
-## 4. Deterministic migration plan
+1. refuses to replace an existing migration journal;
+2. inspects the configured data directory;
+3. creates a deterministic plan bound to:
+   - source inventory digest;
+   - source format version or legacy classification;
+   - target format version;
+4. writes a durable journal in `planned` stage.
 
-A migration plan is bound to:
+A directory already at the current supported format does not receive a new migration plan. `unknown_newer` and `corrupt` states are refused.
 
-- the inspected source inventory digest
-- the source format classification
-- the target storage format version
+A non-empty legacy source requires verified backup evidence. An empty directory may proceed without backup because no source durable inventory exists.
 
-The resulting `plan_id` is deterministic. Before mutation, the implementation must re-check that the current source inventory still matches the journal's bound source digest.
+## 5. Migration stages
 
-A non-empty legacy or older supported state requires verified backup evidence. An empty directory may be initialized without a backup because no durable source evidence exists.
-
-## 5. Durable migration journal
-
-The journal file is `storage-migration.journal`.
-
-Allowed forward path:
+Allowed forward transitions are:
 
 ```text
 planned
-→ backup_verified   # required when the plan requires backup
+→ backup_verified      # required for a legacy non-empty source
 → migrating
 → verified
 → committed
 ```
 
-An empty initialization may move directly from `planned` to `migrating`.
+For an empty source, the allowed forward path may omit `backup_verified`:
 
-Allowed rollback path:
+```text
+planned
+→ migrating
+→ verified
+→ committed
+```
+
+Allowed rollback transitions are:
 
 ```text
 planned | backup_verified | migrating | verified
@@ -76,69 +103,159 @@ planned | backup_verified | migrating | verified
 → rolled_back
 ```
 
-No transition may skip verification and publish `committed`. Backup evidence may only be attached when entering `backup_verified`.
+A committed migration cannot be rolled back by the migration primitive.
 
-## 6. Required migration phases
+## 6. Verified migration backup
 
-1. **Inspect** — classify source state and seal deterministic inventory.
-2. **Plan** — generate the target-bound migration plan without mutation.
-3. **Verified backup** — create and verify a backup bound to the source digest and plan ID.
-4. **Migrate** — perform idempotent target-format steps while recording durable progress.
-5. **Verify** — verify manifest, canonical reads, index consistency, backup readability, and recovery evidence.
-6. **Commit** — durably publish the target format only after verification succeeds.
-7. **Resume or rollback** — classify interrupted state from durable evidence and continue deterministically.
+`lingonberry-storage-migrate backup` requires the journal to be in `planned` stage.
 
-## 7. Fail-closed rules
+The implementation:
 
-The implementation must not mutate storage when:
+1. verifies that the current source inventory still matches the plan binding;
+2. creates a new backup directory under the configured backup root using the deterministic plan ID;
+3. refuses an existing destination;
+4. copies the durable tree while excluding the migration manifest and journal;
+5. rejects symlinks and unsupported entry types;
+6. synchronizes copied files and directories;
+7. re-inspects both source and backup;
+8. requires both inventory digests to match the planned source digest;
+9. records that digest as backup evidence and advances to `backup_verified`.
 
-- the manifest format is newer than supported
-- the manifest is malformed or has unknown fields
-- the layout identifier is unsupported
-- the data directory contains symlinks or unsupported entry types
-- the source inventory differs from the plan binding
-- required verified backup evidence is absent
-- the journal contains an invalid stage or transition
-- verification has not succeeded durably
+This is a byte-and-inventory binding check for the migration source. It is not the full operator backup/restore drill described in the v1 upgrade runbook.
 
-Errors must not be converted into an empty or legacy classification.
+## 7. Apply and verification boundary
 
-## 8. Upgrade policy
+`lingonberry-storage-migrate apply` accepts `planned` for an empty source or `backup_verified` for a legacy source.
 
-- Supported legacy states are upgraded only through an explicit inspected plan.
-- Upgrade is not an implicit side effect of ordinary server startup.
-- A migration requiring backup must not enter `migrating` until backup evidence is verified and durably recorded.
-- Re-running an interrupted migration uses the existing journal and plan binding; it must not silently generate a replacement plan over changed source state.
-- Canonical Knowledge Objects and transition evidence are not semantically rewritten during a format-only migration.
+The implementation:
 
-## 9. Downgrade policy
+1. re-verifies the source inventory binding;
+2. advances the journal to `migrating`;
+3. writes the current storage manifest;
+4. re-inspects the data directory;
+5. requires the durable inventory digest to remain equal to the planned source digest;
+6. requires inspection to report the target supported format;
+7. advances the journal to `verified`.
 
-Automatic downgrade is not supported in v0.7.0.
+The migration primitive's `verified` stage proves the inventory binding and target manifest contract. It does not by itself prove application-level canonical reads, new writes, index consistency, relay readiness, backup restoration, or disaster recovery. Those checks remain mandatory in the operator runbook and release qualification.
 
-A binary that encounters a newer format must stop before mutation. Downgrade requires restoration of a verified backup created by a version compatible with the target binary. Removing or editing the manifest to force startup is unsupported and must not be documented as a recovery method.
+## 8. Verify and commit commands
 
-## 10. Deprecated configuration policy
+`lingonberry-storage-migrate verify` is read-only. It requires the journal to be `verified` or `committed`, then confirms that the current inventory still matches the journal source binding.
 
-Configuration deprecation must include:
+`lingonberry-storage-migrate commit`:
 
-- the replacement key or procedure
-- the first version emitting a warning
-- the earliest removal version
-- deterministic precedence during the transition period
-- a migration example
+- requires `verified` stage;
+- repeats migrated-storage verification;
+- advances durably to `committed`;
+- is idempotent when already committed.
 
-A deprecated configuration key must not change meaning before removal. Conflicting old and new keys fail closed unless an explicit precedence contract has already been published.
+Ordinary service startup must not perform implicit migration or implicit commit.
 
-## 11. v0.7.0 completion evidence
+## 9. Resume semantics
 
-The release gate requires an integration fixture representing v0.4.0-equivalent durable state and evidence that migration to v0.7.0 preserves:
+`lingonberry-storage-migrate resume` follows the durable journal:
 
-- read
-- write
-- index verification
-- verified backup
-- crash recovery
-- deterministic resume or rollback
-- fail-closed rejection of unknown newer format
+- `planned` or `backup_verified`: continue through apply;
+- `migrating`: create the manifest if absent, verify the target state, and advance to `verified`;
+- `verified`: commit;
+- `committed`: return the existing committed state;
+- `rolling_back` or `rolled_back`: refuse resume.
 
-The implementation must retain failure-point coverage around backup verification, manifest publication, verification, commit, resume, and rollback.
+Resume uses the existing plan binding. It must not silently generate a replacement plan over changed source state.
+
+## 10. Rollback semantics
+
+`lingonberry-storage-migrate rollback` is available only before commit.
+
+The implementation:
+
+1. advances to `rolling_back` when necessary;
+2. removes the target storage manifest if present;
+3. synchronizes the data directory;
+4. advances to `rolled_back`;
+5. returns the existing result when already rolled back.
+
+Rollback does not restore files from the migration backup because the implemented format migration does not rewrite canonical durable inventory. Recovery from binary incompatibility, data loss, or post-commit failure requires the backup-based procedure in [`V1_0_UPGRADE_AND_ROLLBACK.md`](./V1_0_UPGRADE_AND_ROLLBACK.md).
+
+## 11. Fail-closed rules
+
+Migration must stop without mutation when:
+
+- the manifest is newer than supported;
+- the manifest is malformed or contains unknown fields;
+- the layout identifier is unsupported;
+- the data directory is not a directory;
+- a symlink or unsupported entry type is encountered;
+- the source inventory differs from the plan binding;
+- a required verified migration backup is absent;
+- a backup destination already exists;
+- a journal already exists when planning;
+- the journal stage or transition is invalid;
+- commit is requested before `verified`;
+- rollback is requested after `committed`.
+
+Operators must not remove or edit the manifest or journal to bypass these checks.
+
+## 12. CLI sequence
+
+Normal legacy migration:
+
+```text
+inspect
+→ plan
+→ backup
+→ apply
+→ verify
+→ commit
+```
+
+Empty-directory initialization:
+
+```text
+inspect
+→ plan
+→ apply
+→ verify
+→ commit
+```
+
+Interrupted operation:
+
+```text
+status
+→ resume
+```
+
+Pre-commit abandonment:
+
+```text
+status
+→ rollback
+```
+
+The migration binary emits operator-oriented `key=value` output rather than canonical JSON. Exit-code details are defined in [`OPERATOR_CLI_CONTRACT.md`](./OPERATOR_CLI_CONTRACT.md).
+
+## 13. Upgrade and downgrade policy
+
+- Storage migration is always explicit.
+- Ordinary relay or storage startup must not migrate storage.
+- A newer unsupported storage format blocks an older binary before mutation.
+- Automatic downgrade is not supported.
+- Post-commit downgrade requires a verified backup compatible with the target binary and the backup-based rollback procedure.
+- Canonical Knowledge Objects and transition evidence are not semantically rewritten by the current format migration.
+
+## 14. Required operator evidence
+
+For an actual release upgrade, preserve at minimum:
+
+- old and new binary digests;
+- effective configuration and systemd unit snapshots;
+- `inspect`, `plan`, `backup`, `apply`, `verify`, `commit`, or interruption outputs;
+- migration backup path and evidence digest;
+- post-upgrade storage `doctor` and `verify` output;
+- index verification output;
+- relay readiness and canonical read/write validation;
+- rollback disposition.
+
+The migration journal is durable implementation state, not a complete release evidence bundle.

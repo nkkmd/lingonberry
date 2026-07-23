@@ -1,128 +1,291 @@
 # Relay Quickstart
 
-**Status: draft** | **Last updated: 2026-06-23**
+[English](#english) | [日本語](#日本語)
 
-## 目的
+> English is the normative version of this document. The Japanese section is a translation. If the two sections differ, the English section takes precedence.
+>
+> 英語版がこの文書の正本です。日本語部分は翻訳です。内容に差異がある場合は英語版を優先します。
 
-この文書は、初めて Lingonberry を触る人が、`git clone` から `cargo run` で `relay` を起動するまでをそのまま追えるようにまとめます。  
-ここでは `relay` の起動確認を最短で通すことを優先し、`storage node` との分離や運用の詳細は別文書に分けます。
+**Status: v1.0.0 documentation normalization** | **Last updated: 2026-07-23**
 
-## 1. 事前に必要なもの
+## English
 
-- `git`
-- Rust toolchain
-- `cargo`
-- `curl` か同等の HTTP クライアント
+### Purpose
 
-Rust が入っていない場合は、公式の `rustup` を使う前提で進めます。
+This quickstart takes a first-time contributor from cloning the repository to starting the Lingonberry relay with `cargo run`. It prioritizes the shortest development path. Production installation, relay/storage separation, systemd deployment, and recovery procedures are documented separately.
 
-## 2. リポジトリを取得する
+### Prerequisites
+
+- Git
+- a current Rust toolchain
+- Cargo
+- `curl` or another HTTP client
+
+When Rust is not installed, use the official `rustup` installer.
+
+### 1. Clone the repository
+
+HTTPS:
+
+```bash
+git clone https://github.com/nkkmd/lingonberry.git
+cd lingonberry
+```
+
+SSH may be used when your GitHub SSH key is configured:
 
 ```bash
 git clone git@github.com:nkkmd/lingonberry.git lingonberry
 cd lingonberry
 ```
 
-## 3. Rust を導入する
-
-Rust が未導入なら、`rustup` で入れます。
+### 2. Install Rust when needed
 
 ```bash
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 source "$HOME/.cargo/env"
 ```
 
-導入できたか確認します。
+Verify the installation:
 
 ```bash
 rustc --version
 cargo --version
 ```
 
-既に Rust が入っているなら、この手順は飛ばしてかまいません。
+Skip this section when a suitable Rust toolchain is already installed.
 
-## 4. 依存関係を確認する
+### 3. Confirm the workspace
 
-リポジトリのルートで作業していることを確認します。
-
-```bash
-pwd
-```
-
-必要なら、まずワークスペース全体が見えているかを確かめます。
+From the repository root:
 
 ```bash
 cargo metadata --no-deps
 ```
 
-## 5. relay を起動する
+This should complete successfully and list the workspace packages.
 
-まず能力確認を行います。
+### 4. Inspect relay capabilities
 
 ```bash
 cargo run -p lingonberry-relay -- capabilities
 ```
 
-次に HTTP carrier を起動します。
+The command must exit successfully before starting the HTTP listener.
+
+### 5. Start the HTTP relay
 
 ```bash
 cargo run -p lingonberry-relay -- serve-http 127.0.0.1:8787
 ```
 
-`serve-http` は前面で動くので、その端末は起動しっぱなしにします。
+`serve-http` remains in the foreground. Leave that terminal open.
 
-## 6. 起動確認をする
+### 6. Check capabilities and readiness
 
-別端末を開いて、`capabilities` endpoint を確認します。
-
-```bash
-curl -sS http://127.0.0.1:8787/v1/capabilities
-```
-
-余裕があれば readiness も確認します。
+Open another terminal:
 
 ```bash
-curl -sS http://127.0.0.1:8787/v1/ready
+curl -fsS http://127.0.0.1:8787/v1/capabilities
+curl -fsS http://127.0.0.1:8787/v1/ready
 ```
 
-## 7. Caddy 越しで確認する
+A nonzero `curl` exit status, connection refusal, or non-success HTTP response means the quickstart has not passed.
 
-`relay` を外部公開するときは、`Caddy` を前段の reverse proxy として置きます。  
-この場合、確認先は `relay` 直ではなく `Caddy` の公開 URL にします。
+### 7. Try a minimal publish
 
-```bash
-curl -sS https://<public-host>/v1/capabilities
-curl -sS https://<public-host>/v1/ready
-```
-
-`storage node` はここでは直接見せず、公開確認は `relay` の公開面だけで行います。
-`Caddy` の設定例や公開時の注意点は [Caddy Relay Publication](./CADDY_RELAY_PUBLICATION.md) を参照してください。
-
-## 8. 追加で試す
-
-最小の publish まで確認したい場合は、fixture を使います。
+With the relay available, use the repository fixture:
 
 ```bash
 cargo run -p lingonberry-relay -- publish fixtures/http-publish-request/minimal-request.json
 ```
 
-archive への export / import も確認できます。
+For a complete publish walkthrough, see [Knowledge Object Publish Quickstart](./KNOWLEDGE_OBJECT_PUBLISH_QUICKSTART.md).
+
+### 8. Optional archive exercise
 
 ```bash
 cargo run -p lingonberry-relay -- export-archive /tmp/lingonberry-archive
 cargo run -p lingonberry-relay -- import-archive /tmp/lingonberry-archive
 ```
 
-## 9. つまずきやすい点
+Use only disposable development paths for this exercise.
 
-- `cargo` が見つからない場合は、`source "$HOME/.cargo/env"` を実行してから再試行します
-- `serve-http` が bind 失敗する場合は、`127.0.0.1:8787` が他プロセスに使われていないか確認します
-- ビルドが長い場合は、初回だけ依存取得とコンパイルに時間がかかることがあります
-- `Caddy` 経由で見る場合は、`relay` 直ではなく `https://<public-host>` 側の URL と証明書設定を確認します
+### 9. Stop the relay
 
-## 参照
+Return to the terminal running `serve-http` and press `Ctrl+C`.
 
+This development shutdown path is not the production systemd lifecycle. For production-oriented operation, use the operator runbook and systemd units.
+
+### 10. Reverse-proxy publication
+
+When exposing the relay externally, place Caddy or another approved reverse proxy in front of the relay. Validate the public endpoint rather than treating the loopback listener as the public interface.
+
+```bash
+curl -fsS https://<public-host>/v1/capabilities
+curl -fsS https://<public-host>/v1/ready
+```
+
+Do not expose the storage node directly through this quickstart. See [Caddy Relay Publication](./CADDY_RELAY_PUBLICATION.md) and [Relay / Storage Separation](./RELAY_STORAGE_SEPARATION.md).
+
+### Troubleshooting
+
+- `cargo: command not found`: run `source "$HOME/.cargo/env"`, then retry.
+- bind failure on `127.0.0.1:8787`: check whether another process is already using the port.
+- long first build: the initial run may download and compile dependencies.
+- readiness failure: inspect the relay terminal output before retrying.
+- public Caddy failure: check the public hostname, TLS certificate, reverse-proxy target, and firewall rather than only the relay loopback URL.
+
+### Production boundary
+
+This quickstart is for source-based development. It does not qualify a production deployment. The formal reference platform is Ubuntu Server 24.04 LTS, x86_64, systemd, using release-built binaries and hardened units.
+
+Read next:
+
+- [Operations Index](./README.md)
+- [v0.8.0 Operator Runbook](./V0_8_OPERATOR_RUNBOOK.md)
+- [Supported Platforms](./SUPPORTED_PLATFORMS.md)
 - [Node Lifecycle Runbook](./NODE_LIFECYCLE_RUNBOOK.md)
-- [relay / storage separation](./RELAY_STORAGE_SEPARATION.md)
-- [Caddy Relay Publication](./CADDY_RELAY_PUBLICATION.md)
-- [運用準備ロードマップ](../roadmap/OPERATIONAL_READINESS_ROADMAP.md)
+- [Relay / Storage Separation](./RELAY_STORAGE_SEPARATION.md)
+
+---
+
+## 日本語
+
+### 目的
+
+このquickstartは、初めてLingonberryを扱うcontributorが、repositoryのcloneから`cargo run`によるrelay起動までを確認するための手順です。開発環境で最短の起動確認を行うことを優先します。production installation、relay／storage分離、systemd deployment、recovery procedureは別文書で扱います。
+
+### 前提条件
+
+- Git
+- 現在のRust toolchain
+- Cargo
+- `curl`または同等のHTTP client
+
+Rustが未導入の場合は、公式の`rustup` installerを使用します。
+
+### 1. Repositoryをcloneする
+
+HTTPS:
+
+```bash
+git clone https://github.com/nkkmd/lingonberry.git
+cd lingonberry
+```
+
+GitHub SSH keyを設定済みの場合はSSHも使用できます。
+
+```bash
+git clone git@github.com:nkkmd/lingonberry.git lingonberry
+cd lingonberry
+```
+
+### 2. 必要な場合はRustを導入する
+
+```bash
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source "$HOME/.cargo/env"
+```
+
+導入を確認します。
+
+```bash
+rustc --version
+cargo --version
+```
+
+利用可能なRust toolchainが既にある場合、このsectionは不要です。
+
+### 3. Workspaceを確認する
+
+repository rootで実行します。
+
+```bash
+cargo metadata --no-deps
+```
+
+正常終了し、workspace packageが表示されることを確認します。
+
+### 4. Relay capabilityを確認する
+
+```bash
+cargo run -p lingonberry-relay -- capabilities
+```
+
+HTTP listenerを起動する前に、このcommandが正常終了する必要があります。
+
+### 5. HTTP relayを起動する
+
+```bash
+cargo run -p lingonberry-relay -- serve-http 127.0.0.1:8787
+```
+
+`serve-http`はforegroundで動作します。このterminalは開いたままにします。
+
+### 6. Capabilityとreadinessを確認する
+
+別のterminalを開きます。
+
+```bash
+curl -fsS http://127.0.0.1:8787/v1/capabilities
+curl -fsS http://127.0.0.1:8787/v1/ready
+```
+
+`curl`が非zeroで終了する、connection refusedになる、またはsuccess以外のHTTP responseになる場合、quickstartは未達です。
+
+### 7. 最小publishを試す
+
+relayが利用可能な状態でrepository fixtureを使用します。
+
+```bash
+cargo run -p lingonberry-relay -- publish fixtures/http-publish-request/minimal-request.json
+```
+
+完全なpublish手順は[Knowledge Object Publish Quickstart](./KNOWLEDGE_OBJECT_PUBLISH_QUICKSTART.md)を参照してください。
+
+### 8. 任意のarchive確認
+
+```bash
+cargo run -p lingonberry-relay -- export-archive /tmp/lingonberry-archive
+cargo run -p lingonberry-relay -- import-archive /tmp/lingonberry-archive
+```
+
+この確認には破棄可能な開発用pathだけを使用してください。
+
+### 9. Relayを停止する
+
+`serve-http`を実行しているterminalへ戻り、`Ctrl+C`を押します。
+
+これは開発用の停止方法であり、production systemd lifecycleではありません。production向け運用ではoperator runbookとsystemd unitを使用します。
+
+### 10. Reverse proxyを使った公開
+
+relayを外部公開する場合は、Caddyまたは承認済みreverse proxyをrelayの前段へ配置します。loopback listenerを公開interfaceとして扱わず、public endpointを確認します。
+
+```bash
+curl -fsS https://<public-host>/v1/capabilities
+curl -fsS https://<public-host>/v1/ready
+```
+
+このquickstartでstorage nodeを直接公開してはいけません。[Caddy Relay Publication](./CADDY_RELAY_PUBLICATION.md)と[Relay / Storage Separation](./RELAY_STORAGE_SEPARATION.md)を参照してください。
+
+### トラブルシューティング
+
+- `cargo: command not found`: `source "$HOME/.cargo/env"`を実行して再試行する
+- `127.0.0.1:8787`のbind失敗: 他processがportを使用していないか確認する
+- 初回buildが長い: 最初の実行ではdependencyのdownloadとcompileが発生する場合がある
+- readiness失敗: 再試行前にrelay terminalの出力を確認する
+- 公開Caddyの失敗: relayのloopback URLだけでなく、public hostname、TLS certificate、reverse-proxy target、firewallを確認する
+
+### Production境界
+
+このquickstartはsource-based development向けであり、production deploymentを資格確認するものではありません。正式reference platformはUbuntu Server 24.04 LTS、x86_64、systemdで、release build済みbinaryとhardened unitを使用します。
+
+次に読む文書:
+
+- [Operations Index](./README.md)
+- [v0.8.0 Operator Runbook](./V0_8_OPERATOR_RUNBOOK.md)
+- [Supported Platforms](./SUPPORTED_PLATFORMS.md)
+- [Node Lifecycle Runbook](./NODE_LIFECYCLE_RUNBOOK.md)
+- [Relay / Storage Separation](./RELAY_STORAGE_SEPARATION.md)

@@ -1,28 +1,35 @@
 # Operations
 
+[English](#english) | [日本語](#日本語)
+
+> English is the normative version of this document. The Japanese section is a translation. If the two sections differ, the English section takes precedence.
+>
+> 英語版がこの文書の正本です。日本語部分は翻訳です。内容に差異がある場合は英語版を優先します。
+
 **Status: v1.0.0 qualification active** | **Latest published release: v0.9.0** | **Next release target: v1.0.0** | **Last updated: 2026-07-23**
 
-このディレクトリには、Lingonberryの技術決定、運用契約、operator runbook、機械可読なfailure／crash inventoryを置きます。
+## English
 
-## Active v1.0.0 qualification
+This directory contains Lingonberry operational contracts, operator runbooks, deployment guidance, recovery procedures, and machine-readable failure or crash inventories.
 
-v1.0.0は新機能追加ではなく、v0.9.0までに確立したsingle-node operator contractを正式なv1.x互換性契約として資格確認するreleaseです。
+### Current release boundary
 
-現在の正本:
+`v0.9.0` is the latest published release. `v1.0.0` is under qualification and has not been published. The current work is release qualification, documentation normalization, and contract finalization rather than feature expansion.
+
+Primary v1.0.0 sources:
 
 - [v1 Compatibility Policy](../architecture/V1_COMPATIBILITY_POLICY.md)
-- [v1 Rust Public API Audit](../architecture/V1_0_RUST_API_AUDIT.md)
 - [v1.0.0 Qualification Plan](../roadmap/V1_0_QUALIFICATION_PLAN.md)
 - [v1.0.0 Qualification Status](../roadmap/V1_0_QUALIFICATION_STATUS.md)
 - [v1.0.0 Security Diff Review](../security/V1_0_SECURITY_DIFF_REVIEW.md)
-- [v1.0.0 Documentation Freeze Plan](../roadmap/V1_0_DOCUMENTATION_FREEZE_PLAN.md)
-- [v1.0.0 Documentation Walkthrough](../roadmap/V1_0_DOCUMENTATION_WALKTHROUGH.md)
+- [Documentation Policy](../DOCUMENTATION_POLICY.md)
+- [Documentation Inventory](../DOCUMENTATION_INVENTORY.md)
 - [v1.0.0 Soak Plan](../roadmap/V1_0_SOAK_PLAN.md)
 - [v1.0.0 Release Evidence](../roadmap/V1_0_RELEASE_EVIDENCE.md)
 
-The candidate-qualification dry run is infrastructure evidence only. Final operator acceptance and documentation walkthrough must use release-built binaries from the designated candidate commit on Ubuntu Server 24.04 LTS, x86_64, systemd.
+A dry run, hosted-CI rehearsal, or virtual-time rehearsal is infrastructure evidence only. Final operator acceptance and formal soak evidence must remain bound to the designated candidate and candidate-built binary digests on the reference platform.
 
-## Canonical operator path
+### Canonical operator path
 
 ```text
 install release-built binaries
@@ -33,124 +40,178 @@ install release-built binaries
 → backup create / verify
 → isolated restore plan / apply
 → index verify / rebuild
-→ isolated DR drill
+→ isolated disaster-recovery drill
 → journalctl / status / doctor / metrics diagnosis
 ```
 
-The final walkthrough classification and observed command results are recorded in `V1_0_DOCUMENTATION_WALKTHROUGH.md`; final commit-bound proof belongs in `V1_0_RELEASE_EVIDENCE.md`.
+The formal reference platform is Ubuntu Server 24.04 LTS, x86_64, systemd.
 
-## v0.9.0 hardening release
+### Start here
 
-- [v0.9.0 Release Checklist](../roadmap/RELEASE_0_9_0_CHECKLIST.md)
-- [v0.9.0 Release Notes](../roadmap/RELEASE_0_9_0_RELEASE_NOTE.md)
-- [v0.9.0 Release Evidence](../roadmap/V0_9_RELEASE_EVIDENCE.md)
-- [v0.9.0 Hardening Plan](../roadmap/V0_9_HARDENING_PLAN.md)
-- [v0.9.0 Security Review](../security/V0_9_SECURITY_REVIEW.md)
-- [v0.9.0 Security Findings](../security/V0_9_SECURITY_FINDINGS.md)
-- [Signature Workspace Remediation](../security/V0_9_SIGNATURE_WORKSPACE_REMEDIATION.md)
-- [v0.9.0 Public API Freeze Candidate](../architecture/V0_9_PUBLIC_API_FREEZE_CANDIDATE.md)
-- [v0.9.0 Rust API Inventory](../architecture/V0_9_RUST_API_INVENTORY.md)
+For development:
 
-v0.9.0はv0.8.0のsingle-node operator contractを維持したまま、protocol JSON parserへ1 MiB input limitとdepth 128 limitを導入し、signature verification temporary workspaceをexclusive creation、owner-only permission、create-new artifact、normal-path cleanupでhardeningしました。
-
-Operationally relevant boundaries:
-
-- oversized／deeply nested JSONはcanonical processingへ進む前にfail closedで拒否する
-- signature verification artifactは既存pathへ上書きしない
-- request payload、signature、temporary pathをpublic errorへ含めない
-- normal success／failure pathでtemporary verification workspaceを残さない
-- process crash後のstale temporary entryはsecure eraseを保証せず、host temporary-directory policyの対象とする
-- v0.9.0は新しいstorage formatやimplicit migrationを導入しない
-
-Publication record:
-
-- PR #108 merged
-- merge commit `971155340603afdc0c9c5bd37e596f49c260d15e`
-- tag `v0.9.0`
-- GitHub Release `v0.9.0` published
-
-## v0.8.0 operational baseline
-
-- [v0.8.0 Release Checklist](../roadmap/RELEASE_0_8_0_CHECKLIST.md)
-- [v0.8.0 Release Notes](../roadmap/RELEASE_0_8_0_RELEASE_NOTE.md)
-- [Supported Platforms](./SUPPORTED_PLATFORMS.md)
-- [v0.8.0 Operator Runbook](./V0_8_OPERATOR_RUNBOOK.md)
-- [Operator CLI Contract](./OPERATOR_CLI_CONTRACT.md)
-- [v0.8.0 Upgrade and Rollback](./V0_8_UPGRADE_AND_ROLLBACK.md)
-- [Systemd Unit Templates](./SYSTEMD_UNIT_TEMPLATES.md)
-
-## Quickstart
-
-- [Knowledge Object Publish Quickstart](./KNOWLEDGE_OBJECT_PUBLISH_QUICKSTART.md)
 - [Relay Quickstart](./RELAY_QUICKSTART.md)
+- [Knowledge Object Publish Quickstart](./KNOWLEDGE_OBJECT_PUBLISH_QUICKSTART.md)
 - [Storage Node Quickstart](./STORAGE_NODE_QUICKSTART.md)
 
-## Contracts and specifications
+For single-node operation:
 
-- [技術決定 ADR](./TECH_DECISION_ADR.md)
-- [運用前提メモ](./OPERATIONAL_PREMISES_MEMO.md)
-- [Carrier Decision Memo](./CARRIER_DECISION_MEMO.md)
-- [HTTP Carrier Contract](./HTTP_CARRIER_CONTRACT.md)
-- [File / Archive Carrier Contract](./FILE_ARCHIVE_CARRIER_CONTRACT.md)
-- [Carrier Capability Negotiation](./CARRIER_CAPABILITY_NEGOTIATION.md)
+- [v0.8.0 Operator Runbook](./V0_8_OPERATOR_RUNBOOK.md)
+- [Supported Platforms](./SUPPORTED_PLATFORMS.md)
+- [Operator CLI Contract](./OPERATOR_CLI_CONTRACT.md)
+- [Systemd Unit Templates](./SYSTEMD_UNIT_TEMPLATES.md)
+- [v0.8.0 Upgrade and Rollback](./V0_8_UPGRADE_AND_ROLLBACK.md)
+
+The versioned v1.0 operator runbook is being normalized before release. Until it is frozen, the v0.8 operational baseline and v0.9 hardening boundaries remain authoritative for published behavior.
+
+### Core operational contracts
+
 - [Storage Migration and Upgrade Contract](./STORAGE_MIGRATION_AND_UPGRADE.md)
+- [Storage Node Runtime](./STORAGE_NODE_RUNTIME.md)
+- [Relay / Storage Separation](./RELAY_STORAGE_SEPARATION.md)
+- [Node Lifecycle Runbook](./NODE_LIFECYCLE_RUNBOOK.md)
+- [Secret Management](./SECRET_MANAGEMENT.md)
+- [Observability](./OBSERVABILITY.md)
+- [Caddy Relay Publication](./CADDY_RELAY_PUBLICATION.md)
 
-## Quarantine administration
+### Quarantine administration and recovery
 
 - [Quarantine Admin HTTP and RBAC](./QUARANTINE_ADMIN_HTTP.md)
 - [Quarantine Concurrent Operations](./QUARANTINE_CONCURRENCY.md)
 - [Quarantine Operator Annotations](./QUARANTINE_ANNOTATIONS.md)
 - [Quarantine Manual Dismissals](./QUARANTINE_DISMISSALS.md)
 - [Quarantine Permanent Rejections](./QUARANTINE_PERMANENT_REJECTIONS.md)
-- [Quarantine Status API](../roadmap/QUARANTINE_STATUS_API.md)
 - [Quarantine Observability Metrics](./QUARANTINE_OBSERVABILITY_METRICS.md)
 - [Quarantine Scheduler](./QUARANTINE_SCHEDULER.md)
-
-## Quarantine data protection and maintenance
-
 - [Quarantine Backup / Verify / Restore](./QUARANTINE_BACKUP_RESTORE.md)
-- [Quarantine JSONL Index, Rotation, and Maintenance](./QUARANTINE_JSONL_MAINTENANCE.md)
-- [Quarantine Compaction Preview and Proof](./QUARANTINE_COMPACTION_PROOF.md)
-
-## Quarantine verified replacement and cleanup
-
-- [Replacement Policy and Semantic-equivalence Contract](./QUARANTINE_REPLACEMENT_POLICY.md)
-- [Replacement Preview and Proof Contract](./QUARANTINE_REPLACEMENT_PREVIEW.md)
+- [Quarantine JSONL Maintenance](./QUARANTINE_JSONL_MAINTENANCE.md)
+- [Replacement Policy](./QUARANTINE_REPLACEMENT_POLICY.md)
 - [Replacement Preview Runbook](./QUARANTINE_REPLACEMENT_PREVIEW_RUNBOOK.md)
-- [Replacement Transaction Contract](./QUARANTINE_REPLACEMENT_TRANSACTION.md)
-- [Generation-directory Contract](./QUARANTINE_REPLACEMENT_GENERATION.md)
 - [Replacement Recovery Runbook](./QUARANTINE_REPLACEMENT_RECOVERY_RUNBOOK.md)
-- [Replacement Operations Hardening](./QUARANTINE_REPLACEMENT_OPERATIONS_HARDENING.md)
-- [Cleanup Retention Policy](./QUARANTINE_REPLACEMENT_RETENTION_POLICY.md)
 - [Cleanup Operations Runbook](./QUARANTINE_REPLACEMENT_CLEANUP_RUNBOOK.md)
 
-## General operations
+### Architecture and carrier decisions
 
-- [Access and Retention Policy](./ACCESS_RETENTION_POLICY.md)
-- [Access and Retention Audit Checklist](./ACCESS_RETENTION_AUDIT_CHECKLIST.md)
-- [Caddy Relay Publication](./CADDY_RELAY_PUBLICATION.md)
-- [Secret Management](./SECRET_MANAGEMENT.md)
-- [Observability](./OBSERVABILITY.md)
-- [Storage Node Runtime](./STORAGE_NODE_RUNTIME.md)
-- [Relay / Storage Separation](./RELAY_STORAGE_SEPARATION.md)
-- [Node Lifecycle Runbook](./NODE_LIFECYCLE_RUNBOOK.md)
+- [Technical Decision ADR](./TECH_DECISION_ADR.md)
+- [Operational Premises Memo](./OPERATIONAL_PREMISES_MEMO.md)
+- [Carrier Decision Memo](./CARRIER_DECISION_MEMO.md)
+- [HTTP Carrier Contract](./HTTP_CARRIER_CONTRACT.md)
+- [File / Archive Carrier Contract](./FILE_ARCHIVE_CARRIER_CONTRACT.md)
+- [Carrier Capability Negotiation](./CARRIER_CAPABILITY_NEGOTIATION.md)
 
-## Multi-node
+### Historical release records
 
-- [Multi-node Discovery and Topology](./MULTI_NODE_DISCOVERY_AND_TOPOLOGY.md)
-- [Multi-node Sync Contract](./MULTI_NODE_SYNC_CONTRACT.md)
-- [Multi-node Conflict Policy](./MULTI_NODE_CONFLICT_POLICY.md)
-- [Multi-node Capacity and Placement Policy](./MULTI_NODE_CAPACITY_AND_PLACEMENT_POLICY.md)
-
-Multi-node文書は将来構成の契約です。same-host coordinationをdistributed lockとして扱いません。
-
-## Release notes
-
+- [v0.9.0 Release Checklist](../roadmap/RELEASE_0_9_0_CHECKLIST.md)
 - [v0.9.0 Release Notes](../roadmap/RELEASE_0_9_0_RELEASE_NOTE.md)
+- [v0.9.0 Release Evidence](../roadmap/V0_9_RELEASE_EVIDENCE.md)
 - [v0.8.0 Release Notes](../roadmap/RELEASE_0_8_0_RELEASE_NOTE.md)
 - [v0.7.0 Release Notes](../roadmap/RELEASE_0_7_0_RELEASE_NOTE.md)
 - [v0.6.0 Release Notes](../roadmap/RELEASE_0_6_0_RELEASE_NOTE.md)
 - [v0.5.0 Release Notes](../roadmap/RELEASE_0_5_0_RELEASE_NOTE.md)
-- [v0.4.0 Release Notes](../roadmap/RELEASE_0_4_0_RELEASE_NOTE.md)
-- [v0.3.0 Release Notes](../roadmap/RELEASE_0_3_0_RELEASE_NOTE.md)
-- [v0.2.0 Release Notes](../roadmap/RELEASE_0_2_0_RELEASE_NOTE.md)
+
+Historical and maintainer-only documents remain English-only unless the documentation policy explicitly classifies them otherwise.
+
+---
+
+## 日本語
+
+このdirectoryには、Lingonberryの運用契約、operator runbook、deployment guidance、recovery procedure、機械可読なfailure／crash inventoryを配置します。
+
+### 現在のリリース境界
+
+最新の公開済みreleaseは`v0.9.0`です。`v1.0.0`は資格確認中で、まだ公開されていません。現在の作業は新機能追加ではなく、release qualification、文書正規化、契約の最終確定です。
+
+v1.0.0の主要な正本:
+
+- [v1 Compatibility Policy](../architecture/V1_COMPATIBILITY_POLICY.md)
+- [v1.0.0 Qualification Plan](../roadmap/V1_0_QUALIFICATION_PLAN.md)
+- [v1.0.0 Qualification Status](../roadmap/V1_0_QUALIFICATION_STATUS.md)
+- [v1.0.0 Security Diff Review](../security/V1_0_SECURITY_DIFF_REVIEW.md)
+- [Documentation Policy](../DOCUMENTATION_POLICY.md)
+- [Documentation Inventory](../DOCUMENTATION_INVENTORY.md)
+- [v1.0.0 Soak Plan](../roadmap/V1_0_SOAK_PLAN.md)
+- [v1.0.0 Release Evidence](../roadmap/V1_0_RELEASE_EVIDENCE.md)
+
+dry run、hosted CI rehearsal、virtual-time rehearsalはinfrastructure evidenceに限られます。最終operator acceptanceとformal soak evidenceは、reference platform上の指定candidateおよびcandidate build済みbinary digestに結び付いている必要があります。
+
+### 標準operator path
+
+```text
+release build済みbinaryをinstall
+→ configure
+→ doctor / ready
+→ systemdでvalidateして起動
+→ publish / persisted state確認
+→ backup create / verify
+→ isolated restore plan / apply
+→ index verify / rebuild
+→ isolated disaster-recovery drill
+→ journalctl / status / doctor / metricsで診断
+```
+
+正式reference platformはUbuntu Server 24.04 LTS、x86_64、systemdです。
+
+### 最初に読む文書
+
+開発用途:
+
+- [Relay Quickstart](./RELAY_QUICKSTART.md)
+- [Knowledge Object Publish Quickstart](./KNOWLEDGE_OBJECT_PUBLISH_QUICKSTART.md)
+- [Storage Node Quickstart](./STORAGE_NODE_QUICKSTART.md)
+
+single-node運用:
+
+- [v0.8.0 Operator Runbook](./V0_8_OPERATOR_RUNBOOK.md)
+- [Supported Platforms](./SUPPORTED_PLATFORMS.md)
+- [Operator CLI Contract](./OPERATOR_CLI_CONTRACT.md)
+- [Systemd Unit Templates](./SYSTEMD_UNIT_TEMPLATES.md)
+- [v0.8.0 Upgrade and Rollback](./V0_8_UPGRADE_AND_ROLLBACK.md)
+
+versioned v1.0 operator runbookはrelease前の正規化作業中です。凍結完了までは、v0.8 operational baselineとv0.9 hardening boundaryを公開済み挙動の基準とします。
+
+### 主要運用契約
+
+- [Storage Migration and Upgrade Contract](./STORAGE_MIGRATION_AND_UPGRADE.md)
+- [Storage Node Runtime](./STORAGE_NODE_RUNTIME.md)
+- [Relay / Storage Separation](./RELAY_STORAGE_SEPARATION.md)
+- [Node Lifecycle Runbook](./NODE_LIFECYCLE_RUNBOOK.md)
+- [Secret Management](./SECRET_MANAGEMENT.md)
+- [Observability](./OBSERVABILITY.md)
+- [Caddy Relay Publication](./CADDY_RELAY_PUBLICATION.md)
+
+### Quarantine管理とrecovery
+
+- [Quarantine Admin HTTP and RBAC](./QUARANTINE_ADMIN_HTTP.md)
+- [Quarantine Concurrent Operations](./QUARANTINE_CONCURRENCY.md)
+- [Quarantine Operator Annotations](./QUARANTINE_ANNOTATIONS.md)
+- [Quarantine Manual Dismissals](./QUARANTINE_DISMISSALS.md)
+- [Quarantine Permanent Rejections](./QUARANTINE_PERMANENT_REJECTIONS.md)
+- [Quarantine Observability Metrics](./QUARANTINE_OBSERVABILITY_METRICS.md)
+- [Quarantine Scheduler](./QUARANTINE_SCHEDULER.md)
+- [Quarantine Backup / Verify / Restore](./QUARANTINE_BACKUP_RESTORE.md)
+- [Quarantine JSONL Maintenance](./QUARANTINE_JSONL_MAINTENANCE.md)
+- [Replacement Policy](./QUARANTINE_REPLACEMENT_POLICY.md)
+- [Replacement Preview Runbook](./QUARANTINE_REPLACEMENT_PREVIEW_RUNBOOK.md)
+- [Replacement Recovery Runbook](./QUARANTINE_REPLACEMENT_RECOVERY_RUNBOOK.md)
+- [Cleanup Operations Runbook](./QUARANTINE_REPLACEMENT_CLEANUP_RUNBOOK.md)
+
+### Architectureとcarrier判断
+
+- [Technical Decision ADR](./TECH_DECISION_ADR.md)
+- [Operational Premises Memo](./OPERATIONAL_PREMISES_MEMO.md)
+- [Carrier Decision Memo](./CARRIER_DECISION_MEMO.md)
+- [HTTP Carrier Contract](./HTTP_CARRIER_CONTRACT.md)
+- [File / Archive Carrier Contract](./FILE_ARCHIVE_CARRIER_CONTRACT.md)
+- [Carrier Capability Negotiation](./CARRIER_CAPABILITY_NEGOTIATION.md)
+
+### 過去releaseの記録
+
+- [v0.9.0 Release Checklist](../roadmap/RELEASE_0_9_0_CHECKLIST.md)
+- [v0.9.0 Release Notes](../roadmap/RELEASE_0_9_0_RELEASE_NOTE.md)
+- [v0.9.0 Release Evidence](../roadmap/V0_9_RELEASE_EVIDENCE.md)
+- [v0.8.0 Release Notes](../roadmap/RELEASE_0_8_0_RELEASE_NOTE.md)
+- [v0.7.0 Release Notes](../roadmap/RELEASE_0_7_0_RELEASE_NOTE.md)
+- [v0.6.0 Release Notes](../roadmap/RELEASE_0_6_0_RELEASE_NOTE.md)
+- [v0.5.0 Release Notes](../roadmap/RELEASE_0_5_0_RELEASE_NOTE.md)
+
+historical文書とmaintainer-only文書は、documentation policyで別途指定されない限り英語のみとします。

@@ -1,211 +1,252 @@
 # Access and Retention Policy
 
-**Status: draft** | **Last updated: 2026-06-20**
+**Status: v1.0.0 pre-release**  
+**Normative language: English**
 
-## 目的
+This document defines the access and retention boundaries implemented or relied on by the v1.0.0 pre-release line. It separates protocol metadata from operator policy and does not claim that future private-object, deletion, or lifecycle features already exist.
 
-この文書は、Lingonberry における access policy と retention policy の運用境界を整理します。
+Lingonberry v1.0.0 has not been published. The designated pre-version candidate remains:
 
-ここで扱う policy は protocol semantic ではありません。  
-carrier、relay、storage node、operator が運用上どう扱うかを定義する補助層です。
+```text
+f9543019f2c219aea3b085ff90f2da201b268a48
+```
 
-## 原則
+Evidence and documentation commits after that candidate do not redefine it.
 
-- access policy は公開範囲を決める
-- retention policy は保存期間と削除手順を決める
-- 物理削除や scrub は protocol core の責務ではない
-- private / encrypted object は core の初期版に含めない
-- public / curated / private の区分は運用ポリシーとして扱う
-- carrier ごとの既定値は capability と contract で公開し、semantic には持ち込まない
+## 1. Governing principles
 
-## 1. Access policy
+- Access scope and retention hints are descriptive policy metadata, not authorization credentials.
+- The protocol defaults are `accessScope=public` and `retentionHint=long-lived`.
+- `long-lived` is not a legally or operationally fixed expiration period.
+- The current core does not provide a general private or encrypted object mode.
+- The current storage command surface does not provide a general delete or tombstone command for canonical records.
+- Operators must not physically remove active canonical storage merely because a retention hint is shorter than local policy.
+- Active storage, quarantine, audit records, backups, temporary workspaces, and release evidence are distinct retention domains.
+- Authentication secrets are governed by [Secret Management](./SECRET_MANAGEMENT.md), not by protocol metadata.
 
-Access policy は、どの object をどの carrier / relay / API が受け付けるかを決めます。
+## 2. Protocol and carrier metadata
 
-### 1.1 Public
+The implemented protocol defaults are:
 
-- 署名と形式が正しい public object を受け入れる
-- 内容の真偽は保証しない
-- 原則として canonical view を公開できる
+```text
+accessScope = public
+retentionHint = long-lived
+```
 
-### 1.2 Curated
+These values communicate the expected handling of an accepted object. They do not:
 
-- 特定 type や特定 profile の object のみ受け入れる
-- 運用者またはコミュニティの curation rule を適用できる
-- protocol semantic ではなくローカル運用の判断として扱う
+- grant access to an administrator interface;
+- encrypt content;
+- create an automatic deletion timer;
+- authorize removal from canonical storage;
+- override local legal, incident-response, or evidence-preservation obligations;
+- guarantee that every carrier implements independent retention scheduling.
 
-### 1.3 Private
+Carrier capability output may expose these defaults. Automation should treat them as declared capability metadata and not as proof that storage has already expired or been deleted.
 
-- 限定メンバーにのみ公開する
-- 暗号化オブジェクトや非公開配布を許容する場合がある
-- ただし、core protocol の初期版では private / encrypted object を前提にしない
+## 3. Access boundaries
 
-### 1.4 Carrier への適用
+### 3.1 Public data surface
 
-access policy は carrier ごとの既定値として公開できますが、どの carrier でも同じ意味ではありません。
+The v1 public relay accepts and serves the implemented public object and publish surfaces. Validation and acceptance determine whether input is stored, deferred, or rejected. Acceptance does not certify factual truth.
 
-- HTTP carrier は公開探索と publish の入口として public を既定にする
-- archive carrier は export / import の入口として public object を広く受け、private / curated は policy で制御する
-- relay / storage carrier は replay 可能性を壊さない範囲で public を既定にする
-- curated は運用者が狭めるための上書きであり、protocol semantic ではない
-- private は初期版では別運用として扱い、core の必須条件にしない
+The public listener must not expose administrator-only routes. Administrator routes belong on the separately configured authenticated admin listener.
 
-## 2. Retention policy
+### 3.2 Administrator surface
 
-Retention policy は、保存の寿命と削除相当の扱いを決めます。
+Administrator access is controlled by bearer credentials and role-based authorization:
 
-### 2.1 基本方針
+- `observer` may use observe operations;
+- `reviewer` may observe and annotate;
+- `operator` may observe, annotate, and operate.
 
-- append-only を壊さない
-- replay 可能性を壊さない
-- canonicalization の再実行に必要な情報を残す
+This authorization model applies to the implemented administrator and quarantine surfaces. It does not make canonical protocol objects private.
 
-### 2.2 保持対象
+### 3.3 Private and encrypted objects
 
-少なくとも次を retention の対象として扱います。
+Private membership distribution, encrypted object payloads, per-object ACLs, and confidential canonical storage are outside the current v1 contract. An external deployment may add a restricted network boundary, but it must not describe that deployment choice as an implemented core private-object feature.
 
-- raw log
-- canonical catalog
-- replay metadata
-- archive manifest
+## 4. Active canonical storage
 
-### 2.3 削除の扱い
+Active canonical storage includes the raw publish log, canonical catalog, format state, migration journal when present, and derived index state required by the implementation.
 
-- `delete` は tombstone 化として扱う
-- 物理削除は protocol core の意味論にしない
-- scrub が必要な場合は storage / operator policy として実施する
+The operator must preserve enough source state to:
 
-### 2.4 既定の運用方針
+- read canonical records;
+- replay the append history;
+- verify or rebuild derived index state;
+- inspect storage format and migration state;
+- create verified backups and isolated restores.
 
-初期運用では、次の考え方を既定とします。
+The current command contract does not define general deletion of individual canonical records. Therefore:
 
-- public object は基本的に永続保存を前提にする
-- curated object は運用者が retention を短く設定してもよい
-- private object を扱う場合は、core ではなく policy / carrier 側で別扱いにする
-- export 可能性は削らない
+- do not document `delete` as an implemented tombstone operation;
+- do not edit the raw log or canonical catalog manually;
+- do not use `index rebuild` as a deletion or corruption-repair mechanism;
+- do not replace active storage with an unverified archive or restore target.
 
-### 2.5 退役と移行
+Any future deletion, tombstone, compaction, or scrub mechanism requires a separately versioned contract and migration path.
 
-storage node や relay を退役させる場合は、次を満たすようにします。
+## 5. Quarantine retention
 
-- export で archive を作れる
-- archive から replay できる
-- retention に基づく削除と、operator の都合による退役を区別する
-- 退役時は少なくとも `manifest.json`、`wire-log.jsonl`、`canonical-catalog.sqlite3`、`replay-metadata.json`、`resolved-config.json` を保持する
-- `tempDir` 配下の一時ファイルや再生成可能なキャッシュは retention ではなく operator policy で削除できる
+Deferred input may be retained in the quarantine subsystem for review. Quarantine records, annotations, promotion results, resolutions, and permanent-rejection records are operational state distinct from accepted canonical storage.
 
-### 2.6 backup と restore
+Operators must preserve quarantine state when it is needed for:
 
-- backup は、restore 可能性を失わない保存単位として扱う
-- backup の中核は raw log、canonical catalog、replay metadata、archive manifest です
-- backup bundle では、`manifest.json`、`wire-log.jsonl`、`canonical-catalog.sqlite3`、`replay-metadata.json` を基本要素として扱う
-- restore では、backup の内容を上書き修正せず、再構成のための入力として扱う
-- backup と archive は別概念だが、運用上は archive を backup の運搬形式として使える
-- backup の保持期間は retention policy に従い、operator policy で短縮してもよいが、replay 可能性は壊さない
-- backup の作成中に一時生成した退避物は、完了後に `backupDir` へまとめる
+- review or promotion decisions;
+- permanent-rejection evidence;
+- incident investigation;
+- qualification or soak evidence;
+- audit of administrator actions.
 
-### 2.7 監査時の確認項目
+Promotion may create or identify a canonical record, but it does not imply that all quarantine evidence may immediately be deleted. Permanent rejection prevents the rejected quarantine record from being promoted through the implemented administrator flow; it is not deletion of an accepted canonical object.
 
-監査時は、少なくとも次を確認します。
+No default automatic quarantine-expiry scheduler is part of the v1 contract. Local cleanup requires an explicit policy that preserves required audit and incident evidence.
 
-1. access scope の既定値が carrier ごとに説明できる
-2. retention hint の既定値が carrier ごとに説明できる
-3. raw log、canonical catalog、replay metadata、archive manifest の保持方針が一致している
-4. scrub が operator policy に閉じている
-5. backup / restore / retirement と export / import の責務が分かれている
-6. authn/authz が必要になった場合の注入経路が secret management と分離されている
+## 6. Administrator authentication audit
 
-### 2.8 監査の参照順
+Authentication and authorization failures are appended to:
 
-監査や変更確認では、次の順で文書を突き合わせます。
+```text
+<state-dir>/admin-auth-audit.jsonl
+```
 
-1. [Access and Retention Audit Checklist](./ACCESS_RETENTION_AUDIT_CHECKLIST.md) で実行項目を確認する
-2. [Access and Retention Policy](./ACCESS_RETENTION_POLICY.md) で運用方針を確認する
-3. [HTTP Carrier Contract](./HTTP_CARRIER_CONTRACT.md) と [Carrier Capability Negotiation](./CARRIER_CAPABILITY_NEGOTIATION.md) で carrier ごとの公開値を確認する
-4. [File / Archive Carrier Contract](./FILE_ARCHIVE_CARRIER_CONTRACT.md) で export / import と scrub の扱いを確認する
-5. [Node Lifecycle Runbook](./NODE_LIFECYCLE_RUNBOOK.md) で backup / restore / retirement の手順を確認する
-6. [Secret Management](./SECRET_MANAGEMENT.md) で authn/authz の注入経路を確認する
+The audit record contains operational metadata such as attempt time, remote address, method, path, resolved role when available, and outcome code. It does not contain the bearer token value.
 
-## 3. Authentication / Authorization
+Retention requirements:
 
-Authentication / authorization は、必要なら運用層で定義します。
+- protect the file with the same care as other security-relevant state;
+- preserve relevant records during an active incident or credential investigation;
+- do not publish raw remote-address data without reviewing privacy and disclosure requirements;
+- do not rewrite records merely to reduce their size;
+- never add token values to derived reports or evidence bundles.
 
-- protocol core では必須要素にしない
-- HTTP carrier では将来の拡張点として扱える
-- carrier ごとの差分は policy と capability に閉じる
-- secret の保管と注入は [Secret Management](./SECRET_MANAGEMENT.md) に分離する
+The implementation does not define a universal audit-log expiration period. The deployment owner must define one consistent with incident-response and applicable legal requirements.
 
-## 4. 運用モデル
+## 7. Backup and restore retention
 
-### Public relay
+A verified storage backup is a recovery artifact, not an alternate active node and not an automatic retention scheduler.
 
-- public object を受け付ける
-- 署名と形式の妥当性を確認する
-- 内容の真偽は保証しない
+Operators must:
 
-### Curated relay
+- create backups in the configured backup root or another explicitly approved destination;
+- verify a backup before relying on it;
+- preserve the manifest and files as one bound artifact;
+- avoid modifying backup contents in place;
+- restore only to an isolated missing or empty target;
+- verify the restored target before considering any active-path switch;
+- retain at least one known-good recovery point before migration, upgrade, or destructive operator action.
 
-- public relay より狭い受け入れ条件を持てる
-- access policy を運用上の許可条件として使う
+Backup creation, migration backup, archive export, and qualification evidence are related but distinct artifacts. Their manifests and verification rules must not be treated as interchangeable.
 
-### Archive / storage
+Post-commit migration recovery follows the v1 upgrade and rollback runbook; the migration primitive does not provide arbitrary record-level retention or deletion.
 
-- 長期保存を前提に retention を設定する
-- replay のための情報を残す
-- 退役時も export 可能性を考える
-- backup / restore の実行時は、archive manifest と raw log の整合性を優先する
+## 8. Temporary and derived state
 
-## 5. 判定ルール
+Temporary workspaces and reproducible derived state may be removed only when the owning operation has completed or been safely abandoned.
 
-- `public / curated / private` の分類は protocol object の semantic ではない
-- retention の設定差は carrier capability と operator policy で表す
-- authn/authz の有無は protocol compatibility とは分ける
-- 監査の基準は policy 文書、carrier contract、runbook の 3 点を突き合わせて確認する
+Examples include:
 
-## 6. carrier ごとの既定値
+- isolated restore drill targets;
+- temporary verification directories;
+- generated index state that can be rebuilt from intact canonical storage;
+- transient qualification workspaces.
 
-### 6.1 HTTP carrier
+Before cleanup, confirm that the path is not:
 
-- default access: public
-- curated: 任意で有効化できる
-- private: core の初期版では既定で無効
-- default retention: public object は永続保存を基本とする
-- authn/authz: 必須ではなく、必要なら運用層で追加する
+- active state or data storage;
+- the configured backup root;
+- a migration-controlled path;
+- evidence required by an open incident, qualification, or soak run;
+- a target still needed to diagnose a failed operation.
 
-### 6.2 file / archive carrier
+A path under a temporary directory is not automatically safe to delete while an operation is active.
 
-- default access: export/import 可能な object を広く受ける
-- curated: 取り込み時の制約として扱える
-- private: policy / carrier 側で別扱いにする
-- default retention: archive 自体は長期保管を前提にする
-- scrub: export 時に operator policy で適用可
-- differential export は既定ではなく、必要な場合にのみ operator policy で採用する
+## 9. Release, qualification, and soak evidence
 
-### 6.3 relay / storage carrier
+Qualification and soak artifacts must be retained long enough to support the release decision and subsequent audit. Evidence retention is candidate-bound.
 
-- default access: public relay は public object を受ける
-- curated: curated relay として狭められる
-- private: 初期版では別運用として切る
-- default retention: replay 可能性を壊さない範囲で長期保存する
-- scrub: storage / operator policy でのみ実施する
+Operators must preserve:
 
-## 7. 未決事項
+- the exact candidate commit identity;
+- harness and workflow identity;
+- timestamps and host context required by the evidence contract;
+- command outputs and classified results;
+- hashes or manifests used to bind the bundle;
+- failure evidence until disposition is documented.
 
-次は実装と運用に応じて詰めます。
+Evidence must not contain administrator tokens, secret environment files, or other live credentials. Redaction must not alter the result-bearing fields required to verify the evidence.
 
-1. carrier 別の access policy 表現
-2. retention の既定値
-3. export 時の scrub 方針
-4. authn/authz をどこまで共通化するか
-5. public / curated / private の具体的な carrier 既定値
-6. backup / restore の運用上の既定値
-7. 監査のチェックリストを runbook に分離するかどうか
-8. 監査の参照順を別紙に切り出すかどうか
+Formal 72-hour soak evidence does not exist until the formal run has actually started and completed under its governing contract. Rehearsal evidence must not be relabeled as formal-soak evidence.
 
-## 関連
+## 10. Node retirement
 
-- [HTTP Carrier Contract](./HTTP_CARRIER_CONTRACT.md)
-- [File / Archive Carrier Contract](./FILE_ARCHIVE_CARRIER_CONTRACT.md)
-- [Carrier Capability Negotiation](./CARRIER_CAPABILITY_NEGOTIATION.md)
-- [Carrier Decision Memo](./CARRIER_DECISION_MEMO.md)
+Before retiring a node:
+
+1. stop new writes according to the operator runbook;
+2. record the exact running version and configured paths;
+3. create and verify a final backup or export appropriate to the recovery contract;
+4. perform an isolated restore or recovery verification when required;
+5. preserve security, quarantine, migration, and release evidence still under retention;
+6. document the disposition of active storage and every retained copy;
+7. remove secrets separately from data disposal;
+8. only then remove local active and temporary paths according to the approved disposal policy.
+
+Retirement is an operator lifecycle action. It is not evidence that individual protocol objects were semantically deleted from every copy or carrier.
+
+## 11. Data disposal and scrub boundary
+
+The v1 implementation does not define a general secure-erase or canonical-record scrub command. Filesystem deletion alone may not guarantee physical media sanitization, snapshot removal, remote backup removal, or deletion from another carrier.
+
+When disposal is required, the deployment owner must account for:
+
+- active storage;
+- verified backups and migration backups;
+- filesystem snapshots;
+- exported archives;
+- quarantine and administrator audit state;
+- qualification and incident evidence;
+- external log or backup systems;
+- the underlying media-sanitization requirement.
+
+Do not claim global deletion unless all controlled copies and applicable external systems have been addressed.
+
+## 12. Operator verification checklist
+
+Before changing retention or disposing of state, verify:
+
+- the exact node and candidate or release version;
+- resolved state, data, backup, and temporary directories;
+- storage doctor and strict verification results;
+- migration journal stage;
+- backup verification status;
+- open incidents or security investigations;
+- quarantine records requiring disposition;
+- formal qualification or soak evidence requirements;
+- secret rotation and audit-preservation requirements;
+- legal or organizational retention constraints outside this repository.
+
+## 13. Non-goals for v1
+
+The current contract does not promise:
+
+- private or encrypted canonical objects;
+- per-object ACL enforcement in the protocol core;
+- automatic object expiration;
+- a general delete or tombstone command;
+- online compaction or secure erase;
+- globally coordinated deletion across carriers;
+- a repository-defined universal number of retention days;
+- automatic quarantine or audit-log purging.
+
+## 14. Related documents
+
 - [Secret Management](./SECRET_MANAGEMENT.md)
+- [Observability Contract](./OBSERVABILITY.md)
+- [Storage Node Runtime](./STORAGE_NODE_RUNTIME.md)
+- [Storage Migration and Upgrade](./STORAGE_MIGRATION_AND_UPGRADE.md)
+- [Operator CLI Contract](./OPERATOR_CLI_CONTRACT.md)
+- [v1.0 Operator Runbook](./V1_0_OPERATOR_RUNBOOK.md)
+- [v1.0 Upgrade and Rollback](./V1_0_UPGRADE_AND_ROLLBACK.md)
+- [Quarantine Admin HTTP](./QUARANTINE_ADMIN_HTTP.md)
+- [Quarantine Observability Metrics](./QUARANTINE_OBSERVABILITY_METRICS.md)

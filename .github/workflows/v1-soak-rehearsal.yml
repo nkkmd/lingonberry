@@ -1,0 +1,92 @@
+name: v1 soak rehearsal
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/run-v1-soak.sh'
+      - '.github/workflows/v1-soak-rehearsal.yml'
+      - 'docs/roadmap/V1_0_SOAK_PLAN.md'
+      - 'docs/roadmap/V1_0_SOAK_REHEARSAL.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rehearsal:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Checkout rehearsal harness
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          path: harness
+      - name: Checkout exact candidate
+        uses: actions/checkout@v4
+        with:
+          ref: f9543019f2c219aea3b085ff90f2da201b268a48
+          path: candidate
+      - name: Prepare external rehearsal harness
+        run: |
+          cp harness/scripts/run-v1-soak.sh /tmp/run-v1-soak.sh
+          sed -i 's|repo_root="$(cd "$(dirname "${BASH_SOURCE\[0\]}")/.." && pwd)"|repo_root="${SOAK_REPO_ROOT:?SOAK_REPO_ROOT required}"|' /tmp/run-v1-soak.sh
+          chmod +x /tmp/run-v1-soak.sh
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: candidate
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Run passing rehearsal
+        working-directory: candidate
+        env:
+          SOAK_REPO_ROOT: ${{ github.workspace }}/candidate
+          SOAK_PROFILE: rehearsal
+          SOAK_OUT: target/v1-soak-rehearsal-pass
+        run: bash /tmp/run-v1-soak.sh
+      - name: Verify passing bundle
+        working-directory: candidate
+        run: |
+          jq -e '.profile == "rehearsal" and .qualification == false and .status == "passed"' target/v1-soak-rehearsal-pass/summary.json
+          test "$(jq '.scenarios | length' target/v1-soak-rehearsal-pass/summary.json)" -ge 9
+          (cd target/v1-soak-rehearsal-pass && sha256sum -c SHA256SUMS)
+      - name: Run forced-failure rehearsal
+        working-directory: candidate
+        env:
+          SOAK_REPO_ROOT: ${{ github.workspace }}/candidate
+          SOAK_PROFILE: rehearsal
+          SOAK_FORCE_FAILURE: '1'
+          SOAK_OUT: target/v1-soak-rehearsal-failure
+        run: |
+          if bash /tmp/run-v1-soak.sh; then
+            echo 'forced-failure rehearsal unexpectedly passed' >&2
+            exit 1
+          fi
+      - name: Verify failed partial bundle
+        working-directory: candidate
+        run: |
+          jq -e '.qualification == false and .status == "failed" and .stopReason == "forced rehearsal failure"' target/v1-soak-rehearsal-failure/summary.json
+          (cd target/v1-soak-rehearsal-failure && sha256sum -c SHA256SUMS)
+      - name: Verify formal profile is fail closed
+        working-directory: candidate
+        env:
+          SOAK_REPO_ROOT: ${{ github.workspace }}/candidate
+          SOAK_PROFILE: formal
+        run: |
+          if bash /tmp/run-v1-soak.sh > /tmp/formal.out 2>&1; then
+            echo 'formal profile unexpectedly started' >&2
+            exit 1
+          fi
+          grep -q 'formal soak execution is intentionally disabled' /tmp/formal.out
+          test ! -e target/v1-soak-formal/summary.json
+      - name: Upload rehearsal evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v1-soak-rehearsal-${{ github.run_number }}
+          path: |
+            candidate/target/v1-soak-rehearsal-pass
+            candidate/target/v1-soak-rehearsal-failure
+          retention-days: 90

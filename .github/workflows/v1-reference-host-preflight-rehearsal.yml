@@ -1,0 +1,68 @@
+name: v1 reference host preflight rehearsal
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/check-v1-reference-host.py'
+      - 'deploy/soak/v1-disk-pressure-contract.example.json'
+      - '.github/workflows/v1-reference-host-preflight-rehearsal.yml'
+      - 'docs/roadmap/V1_0_REFERENCE_HOST_REHEARSAL.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rehearse:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile checker
+        run: python3 -m py_compile scripts/check-v1-reference-host.py
+      - name: Validate frozen static contract fixture
+        run: |
+          jq '.filesystemUuid="11111111-2222-3333-4444-555555555555"' \
+            deploy/soak/v1-disk-pressure-contract.example.json > /tmp/reference-host-contract.json
+          python3 scripts/check-v1-reference-host.py \
+            --contract /tmp/reference-host-contract.json > reference-host-static.json
+          jq -e '
+            .staticContractValid == true and
+            .liveValidationRequested == false and
+            .qualificationReady == false and
+            .referenceHostRehearsalComplete == false and
+            .candidateCommit == "f9543019f2c219aea3b085ff90f2da201b268a48"
+          ' reference-host-static.json
+      - name: Reject placeholder UUID
+        run: |
+          set +e
+          python3 scripts/check-v1-reference-host.py \
+            --contract deploy/soak/v1-disk-pressure-contract.example.json
+          code=$?
+          set -e
+          test "$code" -ne 0
+      - name: Reject dangerous mount namespace
+        run: |
+          jq '.filesystemUuid="11111111-2222-3333-4444-555555555555" | .mountPoint="/var/lib" | .workspace="/var/lib/workspace" | .pressureFile="/var/lib/.pressure"' \
+            deploy/soak/v1-disk-pressure-contract.example.json > /tmp/dangerous-contract.json
+          set +e
+          python3 scripts/check-v1-reference-host.py --contract /tmp/dangerous-contract.json
+          code=$?
+          set -e
+          test "$code" -ne 0
+      - name: Verify live mode fails closed on hosted runner
+        run: |
+          jq '.filesystemUuid="11111111-2222-3333-4444-555555555555"' \
+            deploy/soak/v1-disk-pressure-contract.example.json > /tmp/live-refusal-contract.json
+          set +e
+          sudo -E python3 scripts/check-v1-reference-host.py \
+            --contract /tmp/live-refusal-contract.json --live
+          code=$?
+          set -e
+          test "$code" -ne 0
+      - name: Upload preflight evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: v1-reference-host-preflight-rehearsal-${{ github.run_number }}
+          path: reference-host-static.json
+          retention-days: 90

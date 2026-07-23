@@ -25,6 +25,4 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Validate bilingual-required documentation
-        run: |
-          python3 scripts/check-bilingual-documentation.py \
-            --allow-pending docs/operations/V0_8_OPERATOR_RUNBOOK.md
+        run: python3 scripts/check-bilingual-documentation.py

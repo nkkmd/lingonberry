@@ -12,12 +12,15 @@ BILINGUAL_REQUIRED = {
     "docs/DOCUMENTATION_POLICY.md",
     "docs/operations/README.md",
     "docs/operations/RELAY_QUICKSTART.md",
-    "docs/operations/V0_8_OPERATOR_RUNBOOK.md",
+    "docs/operations/V1_0_OPERATOR_RUNBOOK.md",
 }
 BILINGUAL_SCOPED = {
     "docs/concepts/GLOSSARY.md",
     "docs/concepts/CARRIER.md",
     "docs/protocols/VERSIONING_AND_COMPATIBILITY.md",
+}
+HISTORICAL_OPERATION_DOCS = {
+    "docs/operations/V0_8_OPERATOR_RUNBOOK.md",
 }
 
 
@@ -31,6 +34,8 @@ def classify(path: str) -> tuple[str, str, str]:
         return "BILINGUAL_REQUIRED", "NORMALIZE_BEFORE_V1", "yes"
     if path in BILINGUAL_SCOPED:
         return "BILINGUAL_SCOPED", "REVIEW_SCOPE_BEFORE_V1", "yes"
+    if path in HISTORICAL_OPERATION_DOCS:
+        return "ENGLISH_ONLY", "KEEP_HISTORICAL", "no"
     if path.startswith("docs/roadmap/RELEASE_0_"):
         return "ENGLISH_ONLY", "ARCHIVE_REVIEW", "no"
     if path.startswith("docs/roadmap/"):

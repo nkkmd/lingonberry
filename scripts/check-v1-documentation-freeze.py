@@ -13,7 +13,7 @@ REQUIRED_PATHS = (
     "README.md",
     "docs/operations/README.md",
     "docs/operations/SUPPORTED_PLATFORMS.md",
-    "docs/operations/V0_8_OPERATOR_RUNBOOK.md",
+    "docs/operations/V1_0_OPERATOR_RUNBOOK.md",
     "docs/operations/OPERATOR_CLI_CONTRACT.md",
     "docs/operations/V0_8_UPGRADE_AND_ROLLBACK.md",
     "docs/operations/STORAGE_MIGRATION_AND_UPGRADE.md",

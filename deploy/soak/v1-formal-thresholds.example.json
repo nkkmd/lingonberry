@@ -1,0 +1,9 @@
+{
+  "minimum_free_disk_bytes": 10737418240,
+  "minimum_free_inodes": 100000,
+  "maximum_file_descriptors": 4096,
+  "maximum_rss_bytes": 1073741824,
+  "maximum_swap_used_bytes": 1073741824,
+  "maximum_readiness_failure_seconds": 60,
+  "maximum_unexpected_restarts": 0
+}

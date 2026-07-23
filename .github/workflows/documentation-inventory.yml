@@ -1,0 +1,33 @@
+name: documentation inventory
+
+on:
+  pull_request:
+    paths:
+      - '**.md'
+      - 'scripts/generate-documentation-inventory.py'
+      - '.github/workflows/documentation-inventory.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inventory:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile generator
+        run: python3 -m py_compile scripts/generate-documentation-inventory.py
+      - name: Generate inventory artifact
+        run: |
+          python3 scripts/generate-documentation-inventory.py \
+            --output /tmp/DOCUMENTATION_INVENTORY.md
+      - name: Check committed inventory
+        run: python3 scripts/generate-documentation-inventory.py --check
+      - name: Upload generated inventory
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: documentation-inventory-${{ github.run_number }}
+          path: /tmp/DOCUMENTATION_INVENTORY.md
+          retention-days: 30

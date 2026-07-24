@@ -25,6 +25,7 @@ HISTORICAL_OPERATION_DOCS = {
     "docs/operations/V0_8_UPGRADE_AND_ROLLBACK.md",
 }
 NORMALIZED_OPERATION_DOCS = {
+    "docs/operations/ACCEPTANCE_POLICY.md",
     "docs/operations/ACCESS_RETENTION_AUDIT_CHECKLIST.md",
     "docs/operations/ACCESS_RETENTION_POLICY.md",
     "docs/operations/OBSERVABILITY.md",

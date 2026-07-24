@@ -1,20 +1,35 @@
-# Quarantine Operator Annotations
+# Quarantine Annotation Contract
 
-**Status: implemented** | **Last updated: 2026-07-12**
+**Status: implemented v1.0 pre-release contract** | **Last updated: 2026-07-24**
 
-## 1. 目的
+This document defines the normative v1.0 pre-release contract for operator annotations attached to quarantine records.
 
-quarantine record に対する運用上の確認事項や判断根拠を、元recordを変更せずappend-onlyの監査イベントとして記録します。
+Annotations are append-only operational notes. They do not mutate the quarantined publish request, do not change lifecycle state, and do not alter acceptance or promotion decisions.
 
-annotationはlifecycle stateではありません。recordをpromoted、dismissed、rejectedなどへ遷移させず、promotion判定にも影響しません。
+## 1. Scope
 
-## 2. 永続ファイル
+The contract covers:
+
+- annotation event shape;
+- active and archived annotation ledgers;
+- CLI and administrative HTTP surfaces;
+- validation and authorization behavior;
+- append-only correction practice;
+- interactions with promotion, permanent rejection, rotation, backup, and audit evidence.
+
+It does not define a general-purpose case-management system.
+
+## 2. Persistence contract
+
+The active annotation ledger is:
 
 ```text
-<state-dir>/quarantine-annotations.jsonl
+<runtime-state-dir>/quarantine-annotations.jsonl
 ```
 
-各行は独立したannotation eventです。
+The runtime state directory is resolved by the same storage configuration used by the relay and quarantine store. Operators must not assume the obsolete generic `LINGONBERRY_STATE_DIR` name when a deployment uses the normalized storage configuration variables.
+
+Each line is one canonical JSON annotation event:
 
 ```json
 {
@@ -26,9 +41,32 @@ annotationはlifecycle stateではありません。recordをpromoted、dismisse
 }
 ```
 
-## 3. CLI
+Required fields:
 
-annotation追加：
+| Field | Contract |
+|---|---|
+| `id` | Implementation-generated annotation identifier with the `lb:qa:` prefix. |
+| `quarantineId` | Existing quarantine record identifier. |
+| `annotatedAt` | Implementation-generated UTC timestamp string. |
+| `operator` | Non-empty operational actor identifier after trimming. |
+| `note` | Non-empty free-text note after trimming. |
+
+The implementation appends canonical JSON and does not rewrite earlier events.
+
+## 3. Active and archived ledgers
+
+Annotation reads use the managed-ledger reader and therefore include both archived and active annotation segments when ledger rotation has occurred.
+
+Consequences:
+
+- rotating `quarantine-annotations.jsonl` does not remove earlier annotations from normal reads;
+- backup and restore procedures must preserve active files, archived segments, and the associated managed-ledger index;
+- an active file alone is not a complete annotation history after rotation;
+- compaction, retention, and archive deletion must follow the dedicated quarantine ledger procedures rather than deleting files ad hoc.
+
+## 4. CLI surface
+
+Append an annotation:
 
 ```bash
 lingonberry-relay quarantine-annotate \
@@ -37,99 +75,194 @@ lingonberry-relay quarantine-annotate \
   <note>
 ```
 
-noteに空白を含む場合はshellで引用します。
+Quote notes containing shell metacharacters or whitespace:
 
 ```bash
 lingonberry-relay quarantine-annotate \
   lb:q:123 \
-  akihiro \
+  operator-42 \
   "source identity requires follow-up"
 ```
 
-全annotation一覧：
+List all annotations:
 
 ```bash
 lingonberry-relay quarantine-annotations
 ```
 
-特定recordのannotation一覧：
+List annotations for one quarantine record:
 
 ```bash
 lingonberry-relay quarantine-annotations lb:q:123
 ```
 
-## 4. HTTP
+CLI access is local process access. The CLI does not add a separate authentication layer; host access controls, service-user permissions, and filesystem permissions remain deployment responsibilities.
 
-追加：
+## 5. Administrative HTTP surface
+
+Annotations are available only on the authenticated administrative listener.
+
+Append:
 
 ```text
 POST /v1/quarantine/<quarantine-id>/annotations
+Authorization: Bearer <reviewer-or-operator-token>
 Content-Type: application/json
 ```
 
 ```json
 {
-  "operator": "akihiro",
+  "operator": "operator-42",
   "note": "source identity requires follow-up"
 }
 ```
 
-一覧：
+List:
 
 ```text
 GET /v1/quarantine/<quarantine-id>/annotations
+Authorization: Bearer <observer-reviewer-or-operator-token>
 ```
 
-## 5. Validation
+The public relay listener must return `404` for these paths. The administrative listener applies the authorization order defined in [Quarantine Admin HTTP](./QUARANTINE_ADMIN_HTTP.md): route classification, authentication, permission check, then body read and execution.
 
-次を拒否します。
+Permission mapping:
 
-- 存在しないquarantine ID
-- 空のoperator
-- 空のnote
-- objectではないHTTP request body
-- 必須fieldがないrequest
-- corrupt annotation JSONL
+- observer: read annotations;
+- reviewer: read and append annotations;
+- operator: read and append annotations.
 
-operatorとnoteは前後の空白を除去して保存します。
+Unauthorized mutation bodies are not interpreted before denial.
 
-## 6. Append-only原則
+## 6. Validation and failure behavior
 
-- 元の`quarantine.jsonl`を書き換えない
-- resolution ledgerを書き換えない
-- annotationの更新・削除APIを設けない
-- 同一recordへ複数annotationを追加できる
--過去のannotationを上書きせず、新しいeventを追記する
+Append operations reject:
 
-誤ったannotationを訂正する場合も、訂正内容を新しいannotationとして追記します。
+- a quarantine identifier that does not resolve to an existing record;
+- an empty operator after trimming;
+- an empty note after trimming;
+- a non-object administrative HTTP request body;
+- missing required HTTP request fields;
+- malformed JSON;
+- I/O or lock acquisition failures.
 
-## 7. Securityと個人情報
+Annotation reads fail closed when a managed ledger entry is corrupt, not an object, or missing a required string field. The implementation does not silently skip corrupt annotation events.
 
-annotationは運用管理情報です。
+Representative storage error codes include:
 
-- HTTP管理endpointを一般公開しない
-- operatorには安定した運用識別子を使う
-- secret、credential、個人情報をnoteへ記録しない
-- 自由文noteをmetric labelへ使用しない
-- access control実装前は信頼された管理環境だけで使用する
+```text
+LB_QUARANTINE_NOT_FOUND
+LB_QUARANTINE_ANNOTATION
+LB_QUARANTINE_CORRUPT
+LB_QUARANTINE_IO
+```
 
-## 8. Lifecycleとの関係
+Operators must preserve the original evidence before attempting repair. Directly editing JSONL ledgers is not a supported recovery procedure.
 
-annotationの有無にかかわらず、pending recordはschedulerや手動promotionの対象です。
+## 7. Append-only semantics
 
-manual dismissalを将来追加する場合は、annotationとは別のappend-only lifecycle eventとして設計します。annotationの特定文言を機械的なdismissal状態として解釈してはいけません。
+The following rules are normative:
 
-## 9. 非スコープ
+- do not modify the original quarantine record;
+- do not modify the resolution ledger through annotation operations;
+- do not update or delete an existing annotation;
+- allow multiple annotations for the same quarantine record;
+- append corrections as new annotation events;
+- do not interpret a note string as a machine-readable lifecycle transition.
 
-- manual dismissal
-- permanently rejected state
-- annotationの更新・削除
-- authentication / authorization
-- retention / compaction
-- distributed locking
+A correction should identify the earlier annotation in human-readable form and append the corrected information. The implementation does not provide supersession links or automatic redaction.
 
-## 10. 関連資料
+## 8. Lifecycle interactions
 
-- [Quarantine Status API](../roadmap/QUARANTINE_STATUS_API.md)
-- [Quarantine Scheduler](./QUARANTINE_SCHEDULER.md)
-- [Quarantine Observability Metrics](./QUARANTINE_OBSERVABILITY_METRICS.md)
+An annotation is not a lifecycle state.
+
+Its presence or absence does not:
+
+- promote a record;
+- permanently reject a record;
+- suppress scheduler or manual promotion attempts;
+- override acceptance policy;
+- change duplicate or conflict classification;
+- make a quarantined request valid.
+
+Promotion re-runs the implemented validation and acceptance path. Permanent rejection is recorded through its separate append-only contract. Annotation routes do not bypass either mechanism.
+
+Annotations may remain readable after promotion or permanent rejection because they are historical operational evidence associated with the quarantine identifier.
+
+## 9. Audit and sensitive data
+
+Annotations are operational records and may be included in backups, incident evidence, and qualification bundles. They are distinct from the administrative authentication-failure ledger.
+
+Operators must not place the following in `operator` or `note`:
+
+- bearer tokens or other credentials;
+- private keys;
+- authentication headers;
+- unnecessary personal data;
+- full quarantined payloads when a stable identifier is sufficient;
+- unbounded or attacker-controlled text copied without review.
+
+Free-text notes must not be used as metric labels. Access to annotation files must be limited to the service account and authorized operators.
+
+The `operator` field is caller-supplied metadata. It is not cryptographically bound to the bearer credential or operating-system identity. Deployments requiring stronger attribution must add external controls and must not claim that the current field alone proves actor identity.
+
+## 10. Concurrency and locking
+
+Append operations acquire the quarantine lock before validating the target record and writing the event. This provides the implementation's local-filesystem serialization boundary.
+
+This contract does not guarantee:
+
+- distributed locking across hosts;
+- concurrent writers on a shared network filesystem;
+- multi-node annotation replication;
+- transactionality across annotation, promotion, and permanent-rejection ledgers.
+
+Multi-node deployments require a separately qualified coordination design.
+
+## 11. Verification
+
+After appending an annotation, verify:
+
+1. the command or HTTP request succeeded;
+2. the returned event contains the expected quarantine identifier, operator, and note;
+3. a filtered list operation returns the new event;
+4. earlier events remain present and unchanged;
+5. the public listener still returns `404` for annotation administration paths;
+6. observer credentials cannot append;
+7. reviewer and operator credentials can append;
+8. backup evidence includes active and archived annotation ledgers where applicable.
+
+A successful unit test or documentation walkthrough is not privileged reference-host qualification and is not the formal 72-hour soak.
+
+## 12. Non-goals
+
+The v1.0 pre-release annotation contract does not provide:
+
+- annotation update or deletion;
+- automatic redaction;
+- structured labels, workflow states, or assignment queues;
+- cryptographic actor attribution;
+- per-annotation ACLs;
+- browser sessions, OAuth, or OIDC;
+- automatic retention or compaction policy;
+- distributed consensus or replication;
+- lifecycle transitions derived from note content.
+
+## References
+
+- [Quarantine Admin HTTP](./QUARANTINE_ADMIN_HTTP.md)
+- [Quarantine Permanent Rejections](./QUARANTINE_PERMANENT_REJECTIONS.md)
+- [Quarantine Backup and Restore](./QUARANTINE_BACKUP_RESTORE.md)
+- [Quarantine Compaction Proof](./QUARANTINE_COMPACTION_PROOF.md)
+- [Secret Management](./SECRET_MANAGEMENT.md)
+- [v1.0 Operator Runbook](./V1_0_OPERATOR_RUNBOOK.md)
+
+## Release boundary
+
+This document does not redefine the fixed v1.0.0 candidate commit:
+
+```text
+f9543019f2c219aea3b085ff90f2da201b268a48
+```
+
+The formal 72-hour soak has not been performed. Privileged reference-host qualification and rehearsal remain incomplete. Version update, release PR, tag creation, and GitHub Release publication remain incomplete.

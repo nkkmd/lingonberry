@@ -1,160 +1,181 @@
-# 運用前提メモ
+# Operational Premises Memo
 
-**Status: active** | **Last updated: 2026-06-23**
+**Status: v1.0 pre-release normative**  
+**Last reviewed: 2026-07-24**
 
-## 目的
+This memo records the operating premises that constrain the Lingonberry v1.0 reference deployment. English is normative.
 
-この文書は、[運用準備ロードマップ](../roadmap/OPERATIONAL_READINESS_ROADMAP.md) のフェーズ 0 で固定する運用前提をまとめる、正本メモです。  
-以後のフェーズで迷いやすい境界を先に確定し、実装や運用の判断をぶらさないことを目的にします。
+## 1. Scope
 
-## 決定事項
+These premises define responsibility boundaries for the protocol, relay, storage runtime, deployment, monitoring, and qualification. They do not replace the protocol schemas, carrier contracts, storage runbooks, or release checklist.
 
-- `knowledge object` は append-only とする
-- `wire` と `canonical` は別プロトコルではなく、同じ protocol object の別表現とする
-- `carrier` は protocol object を wire 上で運ぶ正規の実装とする
-- `relay` と `storage node` は責務を分離する
-- core protocol は分野中立を保ち、分野固有の語彙や運用差分は profile / policy 側に寄せる
-- secret は設定ファイルに平文で置かず、deployment 側の secret store や注入経路で扱う
+The fixed v1.0.0 pre-version candidate remains:
 
-## 1. relay と storage node の責務境界
+```text
+f9543019f2c219aea3b085ff90f2da201b268a48
+```
 
-### relay の責務
+Later documentation and tooling commits do not redefine that candidate.
 
-relay は入口として振る舞います。
+## 2. Core premises
 
-- ingress
-- schema / framing / carrier identity の validation
-- routing
-- publish の受け口
+- Knowledge objects are append-only once accepted into canonical storage.
+- Wire and canonical forms are representations of the same protocol object, not separate protocols.
+- A carrier transports protocol-native objects and must not redefine canonical identity, provenance, acceptance policy, or storage semantics.
+- Relay ingress and storage persistence are separate responsibilities.
+- The core protocol remains domain-neutral. Domain vocabulary, curation, trust, and presentation rules belong to profiles or local policy.
+- Secrets belong to deployment-managed injection paths and must not be committed to repository files, embedded in images, exposed in process arguments, or copied into public evidence.
+- Documentation clarification must not claim qualification, soak completion, release publication, or compatibility guarantees that have not been demonstrated.
 
-relay は次を持ちません。
+## 3. Relay boundary
 
-- 永続化の内部構造
-- raw log の保管方式の詳細
-- canonical catalog の実装詳細
-- domain truth の判定
+The public relay is the ingress and retrieval surface. Its implemented responsibilities include:
 
-### storage node の責務
+- bounded HTTP request handling;
+- route and request-envelope parsing;
+- schema, identity, and signature validation;
+- configured acceptance-policy evaluation;
+- quarantine deferral where supported;
+- finalization and storage-backend invocation;
+- retrieval, capability discovery, and listener readiness;
+- serialization of versioned route-specific results.
 
-storage node は保持と再構成を担います。
+The relay does not own:
 
-- append
-- replay
-- retrieve
-- export
+- the internal SQLite layout;
+- backup or restore policy;
+- migration execution;
+- canonical truth about the real world;
+- domain-specific curation;
+- administrator authorization through the public listener;
+- production TLS termination or Internet-edge denial-of-service protection.
 
-storage node は次を担います。
+A successful relay readiness response proves only that the listener accepted and routed the request. It is not deep storage verification.
 
-- raw log の保持
-- canonical store の保持
-- replay の再構成
-- export / import の基盤
+## 4. Storage boundary
 
-### 境界の含意
+The reference storage runtime owns persistent canonical state and storage-specific operations, including:
 
-- relay は受け口であり、保存方式を知りすぎない
-- storage node は保存と再構成を担い、入口の transport 詳細を持ち込まない
-- 既存の HTTP publish 経路は、この責務分離に合わせて所属を固定する
+- append and duplicate/conflict classification;
+- retrieval and listing where implemented;
+- replay and verification;
+- backup and restore;
+- archive export and import;
+- explicit migration tooling;
+- resolved storage configuration and diagnostics.
 
-## 2. public / private の扱い
+`lingonberry-storage ready` is a finite readiness gate, not a resident storage daemon. `lingonberry-storage run` prints the resolved runtime snapshot and exits.
 
-フェーズ 0 では、core protocol を public object 前提で固定します。  
-private / encrypted object の扱いは、core へ持ち込まず、application profile または policy 拡張で扱います。
+Ordinary relay startup, storage readiness, or process restart must not perform an implicit migration. Migration, restore, and destructive replacement work require the relay to be stopped from writing the same active storage.
 
-この方針により、次を避けます。
+## 5. Reference deployment premises
 
-- core schema の複雑化
-- carrier ごとの差分の肥大化
-- 公開範囲の判断を protocol semantic に混ぜること
+The v1 reference host contract is:
 
-### 含意
+- Ubuntu Server 24.04 LTS on x86_64;
+- systemd-managed `lingonberry-storage-ready.service` and `lingonberry-relay.service`;
+- an unprivileged `lingonberry` service account;
+- SQLite as the default active storage backend;
+- persistent local storage on a supported filesystem;
+- separate active-data, backup, and temporary roots;
+- a private relay bind address when a reverse proxy provides public TLS;
+- Caddy, nginx, or another externally maintained reverse proxy as a deployment layer, not a protocol component.
 
-- core は公開可能な知識オブジェクトの共通面に集中する
-- secret の扱いは profile / policy の責務に分ける
-- secret は profile / policy / deployment の責務に分ける
-- carrier 固有の公開範囲は protocol semantic にしない
+Container execution is optional. It is supportable only when it preserves the same binaries, configuration precedence, persistent paths, readiness ordering, secret boundaries, and evidence requirements. The repository does not currently establish a normative image registry, Dockerfile, Compose stack, Kubernetes manifest, or container orchestrator contract.
 
-## 3. 監視対象としないもの
+PostgreSQL, external indexers, clustered storage, zero-downtime migration, automatic failover, and cross-node orchestration are not v1 reference guarantees.
 
-### 監視対象
+## 6. Public, administrative, and private-data premises
 
-フェーズ 0 で監視対象にするのは、運用成立に直接効くものだけです。
+The core v1 object path is designed for publicly shareable knowledge objects. `accessScope=public` and `retentionHint=long-lived` are metadata and policy inputs; they do not implement confidentiality, deletion authorization, or automatic expiry.
 
-- relay と storage node の起動可否
-- publish の受け付け可否
-- append / replay / retrieve の基本健全性
-- 明示した carrier contract に対する整合性
+Private or encrypted application data requires a separately reviewed profile, policy, and deployment design. It must not be inferred from the public carrier contract.
 
-### 監視対象としないもの
+The public HTTP listener and authenticated administrator listener are separate process surfaces. Public publisher signatures are not administrator credentials. Administrator authorization does not bypass object validation, acceptance policy, conflict detection, or quarantine state rules.
 
-- 内容の真偽
-- domain-specific な妥当性
-- profile 固有の trust rule
-- UI や表示順序の都合
-- federation 全体の完全な可観測性
+## 7. Core and profile boundary
 
-## 4. core と profile の境界
+Core responsibilities include:
 
-### core に残すもの
+- protocol object structure;
+- canonical identity and canonicalization;
+- provenance and signature boundaries;
+- protocol-native carrier framing;
+- validation, normalization, and finalization;
+- append-only persistence semantics;
+- replay compatibility within the implemented version contracts.
 
-- knowledge object の基本構造
-- canonical identity
-- provenance
-- rawRef
-- carrier framing
-- validate / normalize / finalize
-- replay 可能性
+Profile or local-policy responsibilities include:
 
-### profile に寄せるもの
+- domain-specific object subtypes;
+- relation and context vocabularies;
+- curation and trust rules;
+- query and display priority;
+- local acceptance allowlists or denylists;
+- retention operations beyond the protocol metadata;
+- confidentiality and access-control designs not implemented by the public v1 carrier.
 
-- object subtype の使い分け
-- relation vocabulary
-- context vocabulary
-- curation rule
-- display / query priority
-- profile 固有の trust rule
+Profile vocabulary must not silently change core identity, signing bytes, schema requirements, or storage classification.
 
-### 境界の含意
+## 8. Monitoring premises
 
-- core は意味の共通面に集中する
-- profile は分野差分と運用差分を受け持つ
-- 追加の語彙は core に逆流させない
+Operational monitoring should distinguish at least these layers:
 
-## 5. 実装配置の前提
+- process and service state;
+- storage configuration and diagnostics;
+- relay listener readiness;
+- publish outcomes: `stored`, `duplicate`, `deferred`, `rejected`, `conflict`, and `failed`;
+- quarantine persistence and administrator operations where enabled;
+- backup, restore, migration, disk-pressure, and incident evidence under their governing runbooks.
 
-Phase 0 の時点では、配置を新しく増やしません。  
-既存の責務別配置を前提に、次の置き場を使います。
+The following are outside generic operational-health claims:
 
-- `packages/relay/`
-- `packages/storage/`
-- `packages/core/`
-- `packages/protocol/`
-- `packages/api/`
-- `packages/cli/`
+- truth of object content;
+- domain-specific validity;
+- profile-specific trust decisions;
+- UI ordering or presentation quality;
+- complete observability of a wider federation;
+- formal qualification or soak status not supported by the recorded evidence.
 
-## 6. Phase 1 への引き継ぎ
+A green hosted CI run is not proof of reference-host readiness. A successful local walkthrough is not privileged reference-host qualification and is not the formal 72-hour soak.
 
-### レビュー観点
+## 9. Change-control consequences
 
-- [x] 責務境界が一貫しているか
-- [x] core に入れないものが明確か
-- [x] public / private が profile / policy 側か
-- [x] 監視対象外が明文化されているか
-- [x] profile 側の差分が切り出せているか
+A change requires focused compatibility or operational review when it alters:
 
-### 再利用する判断
+- protocol or schema version contracts;
+- signing bytes or identity derivation;
+- public or administrator routes;
+- acceptance or quarantine semantics;
+- publish-result statuses or HTTP mappings;
+- storage schema or migration behavior;
+- filesystem, account, service, or network boundaries;
+- backup, restore, or rollback procedures;
+- the fixed release candidate or qualification evidence.
 
-- relay と storage の責務境界
-- core に入れないもの
-- public / private の扱い
-- 監視対象としないもの
-- profile 側へ逃がすべき差分
+Runtime fixes, protocol changes, and documentation inventory updates must remain in their appropriate separate pull requests.
 
-## 参照
+## 10. Release boundary
 
-- [運用準備ロードマップ](../roadmap/OPERATIONAL_READINESS_ROADMAP.md)
-- [運用準備バックログ](../roadmap/OPERATIONAL_READINESS_BACKLOG.md)
-- [技術決定 ADR](./TECH_DECISION_ADR.md)
-- [概念モデル](../concepts/CONCEPT_MODEL.md)
-- [Carrier](../concepts/CARRIER.md)
+The following remain incomplete unless separately recorded with evidence:
+
+- formal 72-hour soak;
+- privileged reference-host qualification and rehearsal;
+- final version update;
+- release pull request;
+- v1.0.0 tag;
+- GitHub Release publication.
+
+Ordinary CI, documentation walkthroughs, archive tests, and nonprivileged rehearsals do not satisfy those release gates.
+
+## Related documents
+
+- [Node Lifecycle Runbook](./NODE_LIFECYCLE_RUNBOOK.md)
+- [Relay and Storage Separation](./RELAY_STORAGE_SEPARATION.md)
+- [Storage Node Runtime](./STORAGE_NODE_RUNTIME.md)
+- [HTTP Carrier Contract](./HTTP_CARRIER_CONTRACT.md)
+- [Access and Retention Policy](./ACCESS_RETENTION_POLICY.md)
 - [Secret Management](./SECRET_MANAGEMENT.md)
+- [Observability](./OBSERVABILITY.md)
+- [Supported Platforms](./SUPPORTED_PLATFORMS.md)
+- [Technology Decision ADR](./TECH_DECISION_ADR.md)

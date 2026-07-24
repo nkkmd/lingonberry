@@ -70,6 +70,9 @@ NORMALIZED_OPERATION_DOCS = {
     "docs/operations/SYSTEMD_UNIT_TEMPLATES.md",
     "docs/operations/TECH_DECISION_ADR.md",
 }
+NORMALIZED_PROTOCOL_DOCS = {
+    "docs/protocols/CANONICALIZATION.md",
+}
 
 
 def tracked_markdown() -> list[str]:
@@ -84,7 +87,7 @@ def classify(path: str) -> tuple[str, str, str]:
         return "BILINGUAL_SCOPED", "REVIEW_SCOPE_BEFORE_V1", "yes"
     if path in HISTORICAL_OPERATION_DOCS:
         return "ENGLISH_ONLY", "KEEP_HISTORICAL", "no"
-    if path in NORMALIZED_OPERATION_DOCS:
+    if path in NORMALIZED_OPERATION_DOCS or path in NORMALIZED_PROTOCOL_DOCS:
         return "ENGLISH_ONLY", "KEEP_ENGLISH", "no"
     if path.startswith("docs/roadmap/RELEASE_0_"):
         return "ENGLISH_ONLY", "ARCHIVE_REVIEW", "no"

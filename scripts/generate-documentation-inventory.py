@@ -28,6 +28,7 @@ NORMALIZED_OPERATION_DOCS = {
     "docs/operations/ACCEPTANCE_POLICY.md",
     "docs/operations/ACCESS_RETENTION_AUDIT_CHECKLIST.md",
     "docs/operations/ACCESS_RETENTION_POLICY.md",
+    "docs/operations/HTTP_CARRIER_CONTRACT.md",
     "docs/operations/NODE_LIFECYCLE_RUNBOOK.md",
     "docs/operations/OBSERVABILITY.md",
     "docs/operations/OPERATOR_CLI_CONTRACT.md",

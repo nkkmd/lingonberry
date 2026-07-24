@@ -44,6 +44,7 @@ NORMALIZED_OPERATION_DOCS = {
     "docs/operations/QUARANTINE_ANNOTATIONS.md",
     "docs/operations/QUARANTINE_BACKUP_RESTORE.md",
     "docs/operations/QUARANTINE_DISMISSALS.md",
+    "docs/operations/QUARANTINE_JSONL_MAINTENANCE.md",
     "docs/operations/QUARANTINE_PERMANENT_REJECTIONS.md",
     "docs/operations/RELAY_STORAGE_SEPARATION.md",
     "docs/operations/SECRET_MANAGEMENT.md",

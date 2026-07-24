@@ -1,467 +1,494 @@
 # Node Lifecycle Runbook
 
-**Status: active** | **Last updated: 2026-06-23**
+**Status: v1.0 pre-release normative operations contract**  
+**Last reviewed: 2026-07-24**
 
-## 目的
+## Purpose
 
-この文書は、`relay` と `storage node` の起動・停止・再起動を、container-first の運用前提で扱うための runbook です。  
-Phase 3 では、まず手動で再現できる手順を固め、その上で container を primary、systemd を併設とする方針を前提化します。
+This runbook defines the supported lifecycle for a single-node Lingonberry reference deployment: installation, preflight, start, verification, stop, restart, backup, restore, migration, failure recovery, and retirement.
 
-## 1. 運用の優先順位
+The checked-in systemd units are the reference host integration for v1.0. Container deployment is optional and must preserve the same binary, configuration, filesystem, readiness, and evidence boundaries. This document does not make containers the primary or normative lifecycle.
 
-- primary は container
-- systemd は併設手段
-- 手動起動は確認・検証用の基準手順
+## 1. Runtime model
 
-この文書では、container 化の最終形よりも、同じ起動コマンドと同じ環境変数を使えることを優先します。
+The reference node has two different lifecycle components:
 
-## 2. 起動順
+| Component | Lifecycle | Responsibility |
+|---|---|---|
+| `lingonberry-storage ready` | systemd `oneshot` readiness gate | Resolve storage configuration and reject failed storage checks before relay startup. |
+| `lingonberry-relay serve-http` | long-running process | Bind the HTTP listener and serve the relay surface. |
 
-- 同じ `stateDir` を共有する構成では、まず `storage node` の設定を確認し、その後に `relay` を起動する
-- `stateDir` を分ける構成では、各 binary を独立に確認できる
-- `relay` と `storage node` を同梱起動前提にしない
+`lingonberry-storage run` prints a resolved runtime snapshot and exits. It is not a daemon and has no resident process to stop.
 
-## 3. 手動起動
+The reference units are:
 
-### 3.1 `storage node`
-
-```bash
-export LINGONBERRY_STATE_DIR=/var/lib/lingonberry/storage
-cargo run -p lingonberry-storage -- capabilities
-cargo run -p lingonberry-storage -- config
-cargo run -p lingonberry-storage -- run
+```text
+deploy/systemd/lingonberry-storage-ready.service
+deploy/systemd/lingonberry-relay.service
 ```
 
-`config` は、`LINGONBERRY_STORAGE_CONFIG` と `LINGONBERRY_STATE_DIR` を含めた解決済み設定を確認するために使います。  
-`run` は最低限の status 出力を確認するために使います。  
-`stateDir` を config file で上書きする運用では、`config` の `stateDir`、`dataDir`、`backupDir`、`tempDir` が意図どおりかを先に確認します。
+The relay unit requires and starts after the storage readiness gate. Both units use the `lingonberry` service account. The relay may write the active state root but must not receive storage-backup-root write access merely because the storage gate has it.
 
-### 3.2 `relay`
+See:
 
-```bash
-export LINGONBERRY_STATE_DIR=/var/lib/lingonberry/relay
-cargo run -p lingonberry-relay -- capabilities
-cargo run -p lingonberry-relay -- serve-http 127.0.0.1:8787
+- [Relay and Storage Separation](./RELAY_STORAGE_SEPARATION.md)
+- [Systemd Unit Templates](./SYSTEMD_UNIT_TEMPLATES.md)
+- [Storage Node Runtime](./STORAGE_NODE_RUNTIME.md)
+
+## 2. Lifecycle invariants
+
+Every lifecycle operation must preserve these invariants:
+
+1. Record the exact application commit or release artifact under operation.
+2. Resolve and record `configPath`, `stateDir`, `dataDir`, `backupDir`, and `tempDir` before mutation.
+3. Do not run migration, restore, or replacement cleanup while the relay can write the same active storage.
+4. Do not treat `health` as storage verification.
+5. Do not treat relay HTTP readiness as deep storage verification.
+6. Keep verified backups distinct from migration backups, archive exports, qualification evidence, and formal-soak evidence.
+7. Never perform an implicit migration during ordinary relay or readiness startup.
+8. Preserve unresolved migration, quarantine, incident, and release-blocking evidence.
+9. Do not publish environment files, bearer tokens, or unreviewed network identifiers in lifecycle evidence.
+
+## 3. Configuration preflight
+
+Configuration precedence is:
+
+```text
+defaults -> configuration file -> environment -> CLI overrides
 ```
 
-HTTP carrier を確認する場合は、別端末から次を実行します。
+Storage-specific environment variables are:
 
-```bash
-curl -sS http://127.0.0.1:8787/v1/capabilities
+```text
+LINGONBERRY_STORAGE_CONFIG
+LINGONBERRY_STORAGE_STATE_DIR
+LINGONBERRY_STORAGE_DATA_DIR
+LINGONBERRY_STORAGE_BACKUP_DIR
+LINGONBERRY_STORAGE_TEMP_DIR
 ```
 
-### 3.3 `Caddy`
+Equivalent CLI overrides are:
 
-`relay` を外部公開する場合は、`Caddy` を `relay` の前段に置きます。  
-`Caddy` は公開 URL を担い、`relay` は内向きの HTTP carrier 入口として残します。
-
-```bash
-caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
-caddy run --config /etc/caddy/Caddyfile --adapter caddyfile
+```text
+--config
+--state-dir
+--data-dir
+--backup-dir
+--temp-dir
 ```
 
-`Caddy` を起動したら、公開 URL 側から確認します。
+Before startup or mutation, inspect the resolved configuration:
 
 ```bash
-curl -sS https://<public-host>/v1/capabilities
-curl -sS https://<public-host>/v1/ready
+lingonberry-storage config
+lingonberry-storage status
 ```
 
-## 4. container / systemd
+Then run read-only diagnostics:
 
-### 4.1 container
+```bash
+lingonberry-storage doctor
+lingonberry-storage ready
+```
 
-- container は、手動起動と同じ binary と同じ引数を使う
-- container は、同じ環境変数を受け取る
-- container は、起動後に `ready` または HTTP の readiness endpoint で確認できる
-- container は、起動後に `capabilities` または HTTP の capability endpoint で機能面を確認できる
-- container は、`storage node` と `relay` を別コンテナとして扱う
-- `Caddy` は `relay` の前段に別コンテナとして置いてもよい
-- `Caddy` を別コンテナにする場合は、`relay` の内向きポートを proxy する
+Use strict verification when warnings must block the operation:
 
-container の具体例は [Container Execution Templates](./CONTAINER_EXECUTION_TEMPLATES.md) にまとめます。
+```bash
+lingonberry-storage verify
+```
 
-### 4.2 systemd
+Semantics:
 
-- systemd は container の代替ではなく併設手段として扱う
-- `ExecStart` は手動起動と同じコマンドに合わせる
-- `KillSignal` は `SIGTERM` を基本とする
-- `Restart` は失敗時の再起動を前提にする
-- systemd unit は `storage` と `relay` で分ける
-- `Caddy` を systemd で管理する場合は、`relay` とは別 unit にする
-- `Caddy` の unit は `relay` の内向き待受け先を参照する
+- `health` reports process-level health only.
+- `doctor` fails on failed checks but permits warnings.
+- `ready` fails on failed checks but permits warning-only reports.
+- `verify` fails on warnings or failed checks.
+- `run` prints the resolved runtime snapshot and exits.
 
-unit の具体例は [Systemd Unit Templates](./SYSTEMD_UNIT_TEMPLATES.md) にまとめます。
+## 4. Initial installation and host preparation
 
-## 5. graceful shutdown
+Before enabling the services:
 
-- 終了時は新規受付を止める
-- 進行中の処理は可能な限り完了させる
-- 保存途中のデータは、次回起動時に replay 可能であることを優先する
-- 強制終了は、最後の 1 件の処理が不完全になるリスクを持つ
+1. Install the intended `lingonberry-storage`, `lingonberry-storage-migrate`, and `lingonberry-relay` binaries.
+2. Install the checked-in systemd units without editing repository copies in place.
+3. Create the `lingonberry` service account and required directories.
+4. Create `/etc/lingonberry/storage.env` and `/etc/lingonberry/relay.env` with restrictive ownership and permissions.
+5. Confirm the storage and relay units use the intended environment files.
+6. Confirm the relay listen address is private when a reverse proxy is responsible for public TLS termination.
+7. Run storage `config`, `doctor`, and `ready` under the same account and environment used by systemd.
+8. Validate reverse-proxy configuration separately when used.
 
-現状の実装では、専用の signal hook を明示していません。  
-そのため、ここでの graceful shutdown は、container / systemd / 手動運用に対する期待動作として定義しています。
+Do not place administrator tokens in unit command lines, repository files, shell history, or evidence bundles.
 
-## 6. 再起動後の確認
+## 5. Start procedure
 
-再起動後は、次の順で確認します。
+### 5.1 Reference systemd deployment
 
-1. `storage node` の `ready` または `run` が `status: ok` を返す
-2. `storage node` の `config` で `configPath`、`stateDir`、`dataDir`、`backupDir`、`tempDir` が意図どおりか確認する
-3. `storage node` の `replay` または `list` で保存件数が想定どおりであることを確認する
-4. `relay` の `ready` が返る
-5. `relay` の `capabilities` が返る
-6. HTTP carrier を使う場合は `GET /v1/ready` と `GET /v1/capabilities` が返る
-7. `Caddy` 経由で公開している場合は `GET https://<public-host>/v1/ready` と `GET https://<public-host>/v1/capabilities` が返る
-8. 必要なら対象 object を `retrieve` または `GET /v1/objects/<id>` で確認する
+Reload units after installation or unit changes:
 
-切り分けの順番は次の通りです。
+```bash
+sudo systemctl daemon-reload
+```
 
-- `storage node` 側の `ready` が失敗するなら、設定解決か保存先の初期化を疑う
-- `storage node` 側の `replay` / `list` が崩れるなら、保存状態か raw log を疑う
-- `relay` 側の `ready` が失敗するなら、bind 失敗か環境変数を疑う
-- `GET /v1/capabilities` が失敗するなら、HTTP carrier の起動状態を疑う
-- `Caddy` 経由の確認だけ失敗するなら、`Caddy` の upstream、TLS、host / path routing を疑う
+Run the storage gate first:
 
-## 7. readiness / liveness
+```bash
+sudo systemctl restart lingonberry-storage-ready.service
+sudo systemctl status --no-pager lingonberry-storage-ready.service
+```
 
-### 7.1 storage node
+Only after it succeeds, start or restart the relay:
 
-- readiness: `ready` または `run` が `status: ok` を返し、解決済みの保存先を表示できる
-- liveness: プロセスが継続して動作し、`replay` / `list` を受け付けられる
+```bash
+sudo systemctl restart lingonberry-relay.service
+sudo systemctl status --no-pager lingonberry-relay.service
+```
 
-### 7.2 relay
+The relay unit's `Requires=` and `After=` relationship is the host-level startup ordering contract. It does not turn the storage gate into a resident storage service.
 
-- readiness: `ready` が返り、HTTP listener が bind できる
-- liveness: `serve-http` が継続動作し、HTTP リクエストを受け付けられる
+### 5.2 Manual diagnostic startup
 
-### 7.3 Caddy
+Manual startup is for controlled diagnosis and development, not a substitute for the reference service contract.
 
-- readiness: 公開 URL の `GET /v1/ready` が `200` を返す
-- liveness: `Caddy` が起動し、`relay` への proxy を継続できる
+```bash
+lingonberry-storage config
+lingonberry-storage ready
+lingonberry-relay serve-http 127.0.0.1:8787
+```
 
-### 7.4 失敗時の扱い
+Run the relay in a supervised terminal and stop it with `SIGTERM` or an equivalent normal termination request.
 
-- 設定解決や bind の失敗は起動失敗として扱う
-- 起動失敗は non-zero exit code として運用側に返す
-- `64` は usage / 引数不備、`65` は validation 失敗、`66` は not found、`70` は runtime/storage エラー、`78` は config / bind 失敗の目安として扱う
-- `Caddy` 由来の失敗は、設定エラー、証明書、upstream 到達性、routing を優先して切り分ける
-- HTTP request の検証失敗は 4xx として返す
-- storage 由来の実行時エラーは 5xx または CLI error として返す
+### 5.3 Container deployment
 
-## 8. Observability の見方
+A container deployment is supported only when it preserves these boundaries:
 
-障害時は、次の順で最小確認を行います。
+- separate storage readiness and relay execution steps;
+- the same configuration precedence and directory layout;
+- persistent active storage outside ephemeral container layers;
+- explicit backup and restore locations;
+- relay startup blocked by a failed storage readiness check;
+- ordinary process restart does not perform migration;
+- secrets are injected without appearing in images or command lines;
+- lifecycle evidence records the image digest and application commit.
 
-1. `ready` / `run` の結果を見る
-2. `service` と `event` を見て、`relay` か `storage node` かを分ける
-3. `requestId`、`errorType`、`errorCode` を拾う
-4. `startup` / `validation_failed` / `runtime_error` の event を見る
-5. `publish` / `append` / `replay` / `retrieve` の件数と失敗率を見る
-6. `stateDir` と保存先を見直す
-7. 必要なら [Observability](./OBSERVABILITY.md) の alert / metric / log の対応を参照する
+## 6. Post-start verification
 
-障害時は、`relay` と `storage node` のどちらで失敗しているかを先に分けます。  
-`relay` の failure は受け口と routing を、`storage node` の failure は保存先と replay を優先して確認します。
-`publish` が `429` で返る場合は、rate limit の閾値、対象 carrier、直近のアクセス集中を優先して確認します。
+Verify in this order:
 
-alert を受けたときは、`service`、`event`、`requestId` の 3 つを先に拾うと切り分けが早くなります。  
-`errorType` と `errorCode` は、その後の再現や問い合わせ時の手掛かりとして残します。
-
-### 8.1 `relay` の最小確認
-
-- `startup` と `readiness_checked` が `ok` か確認する
-- `publish_received` と `validation_failed` のログを確認する
-- `rate_limited` が増えていないか確認する
-- `lingonberry_startup_total`、`lingonberry_publish_total`、`lingonberry_publish_failure_total` を確認する
-- `lingonberry_rate_limited_total` を確認する
-- `lingonberry_runtime_error_total` と `lingonberry_operation_duration_ms` を確認する
-
-### 8.2 `storage node` の最小確認
-
-- `startup` と `readiness_checked` が `ok` か確認する
-- `config_resolved` で `stateDir` と保存先が意図どおりか確認する
-- `append_completed`、`replay_completed`、`retrieve_completed` のログを確認する
-- `lingonberry_startup_total`、`lingonberry_config_resolved_total`、`lingonberry_append_total`、`lingonberry_replay_total`、`lingonberry_retrieve_total` を確認する
-- `lingonberry_runtime_error_total` と `lingonberry_operation_duration_ms` を確認する
-
-### 8.3 観測対象外
-
-- 内容の真偽は確認対象にしない
-- profile 固有の trust rule はここでは追わない
-- UI や表示順序の問題はここでは追わない
-- carrier 変換の細部は carrier contract 側で扱う
-
-## 9. backup / restore / retirement
-
-Quick reference:
-
-- backup: `dataDir` から `manifest.json`、`wire-log.jsonl`、`canonical-catalog.sqlite3`、`replay-metadata.json`、必要なら `resolved-config.json` を固める
-- restore: `tempDir` を分けてから、`config`、`run`、`replay`、`list` を順に確認する
-- retirement: `manifest.json`、`wire-log.jsonl`、`canonical-catalog.sqlite3`、`replay-metadata.json`、`resolved-config.json` を残し、`tempDir` の一時物を消す
-
-### 9.1 backup
-
-- backup の単位は、`storage node` の `dataDir` を基本とし、少なくとも `rawLogPath`、`catalogPath`、replay metadata、manifest を含める
-- backup bundle では、`manifest.json`、`wire-log.jsonl`、`canonical-catalog.sqlite3`、`replay-metadata.json` を基本要素として扱う
-- `resolved-config.json` がある場合は、復旧時の比較用に残す
-- backup は replay 可能性を壊さないことを優先する
-- 物理コピーの粒度よりも、再投入時に同じ canonical state を再構成できることを優先する
-- archive 形式に載せる場合は [File / Archive Carrier Contract](./FILE_ARCHIVE_CARRIER_CONTRACT.md) の `manifest.json` と `wire-log.jsonl` の考え方に合わせる
-
-backup 実行時の確認は次の順で行います。
-
-1. `config` で `stateDir`、`dataDir`、`backupDir`、`tempDir` を確認する
-2. `backupDir` の空き容量と書き込み権限を確認する
-3. `dataDir` から `manifest.json`、`wire-log.jsonl`、`canonical-catalog.sqlite3`、`replay-metadata.json`、必要なら `resolved-config.json` を束ねる
-4. archive を作る場合は `manifest.json` と `wire-log.jsonl` が一致しているか確認する
-5. backup 後に、次回 restore に使う保管先を記録する
-
-| 段階 | 確認 |
-| --- | --- |
-| 実行前 | `stateDir`、`dataDir`、`backupDir`、`tempDir`、空き容量、権限 |
-| 実行中 | `manifest.json`、`wire-log.jsonl`、`canonical-catalog.sqlite3`、`replay-metadata.json`、`resolved-config.json` |
-| 実行後 | 保管先、archive の有無、次回 restore 先 |
-
-### 9.2 restore
-
-- restore は、backup または archive から `storage node` を再構成する手順として扱う
-- restore の前に、対象 backup の `archive version`、`protocol version`、`item count`、`manifest.json`、`wire-log.jsonl`、`canonical-catalog.sqlite3`、`replay-metadata.json` の所在を確認する
-- restore の後に、`config`、`run`、`replay`、`list` の順で整合性を確認し、件数と保存先が想定どおりかを見る
-- restore は canonical catalog を再生成できることを前提にする
-- restore 中に不整合が見つかった場合は、replay を止めて backup の内容を優先して調査する
-
-restore 実行時の確認は次の順で行います。
-
-1. まず `tempDir` を空にし、restore 中の作業領域を分ける
-2. `manifest.json`、`wire-log.jsonl`、`canonical-catalog.sqlite3`、`replay-metadata.json` の有無と更新日時を確認する
-3. `archive version`、`protocol version`、`item count` を確認する
-4. `config` で `stateDir` と保存先が期待値と一致するか確認する
-5. `run`、`replay`、`list` を順に実行する
-6. 必要なら `relay` を再起動し、`ready` と `capabilities` を確認する
-
-| 段階 | 確認 |
-| --- | --- |
-| 実行前 | `tempDir` の空状態、`manifest.json`、`wire-log.jsonl`、`canonical-catalog.sqlite3`、`replay-metadata.json`、`archive version`、`protocol version`、`item count` |
-| 実行中 | `config` の `stateDir` と保存先、`run`、`replay`、`list` |
-| 実行後 | `relay` の `ready`、`capabilities`、canonical state の再構成結果 |
-
-### 9.3 retirement
-
-- retirement は、`storage node` や `relay` を operator の判断で退役させる操作として扱う
-- 退役前に、必要な archive を作成し、再投入に必要な `manifest.json`、`wire-log.jsonl`、`canonical-catalog.sqlite3`、`replay-metadata.json` を残す
-- 退役対象に残すものは、少なくとも `manifest.json`、`wire-log.jsonl`、`canonical-catalog.sqlite3`、`replay-metadata.json`、`resolved-config.json`、`backupDir` 配下の未使用退避物とする
-- 退役対象からは、`tempDir` 配下の一時ファイル、未完了の作業領域、再生成可能なキャッシュを除外してよい
-- 物理削除は retention policy と operator policy に従い、protocol semantic とは分けて扱う
-- 退役完了後は、archive の保管先、保持期間、再投入担当を記録する
-- 退役後も、必要なら archive から replay できることを確認する
-
-retirement 実行時の確認は次の順で行います。
-
-1. 退役対象の `stateDir`、`dataDir`、`backupDir`、`tempDir` を確認する
-2. 必要な archive が作成済みか確認する
-3. `tempDir` 配下の未完了作業と再生成可能キャッシュを削除する
-4. `manifest.json`、`wire-log.jsonl`、`canonical-catalog.sqlite3`、`replay-metadata.json`、`resolved-config.json` を退役保管へ移す
-5. retention policy と operator policy の記録を残す
-6. 必要なら archive から replay できるかを、退役前に最終確認する
-
-| 段階 | 確認 |
-| --- | --- |
-| 実行前 | `stateDir`、`dataDir`、`backupDir`、`tempDir`、archive 作成済みか |
-| 実行中 | `tempDir` の削除、退役保管への移送、`manifest.json` と `wire-log.jsonl` の保持 |
-| 実行後 | retention / operator policy の記録、必要なら archive replay の最終確認 |
-
-### 9.4 再投入時の整合性
-
-- 再投入時は、version と manifest が期待値と一致するかを先に見る
-- `resolved-config.json` がある場合は、再投入先の `stateDir` と差分がないかを確認する
-- その後で replay により canonical state が再構成できるかを確認する
-- 失敗した場合は、`manifest.json`、`wire-log.jsonl`、`canonical-catalog.sqlite3`、`replay-metadata.json` のどこで崩れているかを順に切り分ける
-- そのうえで、raw log の欠落、catalog の不整合、設定差分の順で切り分ける
-- 再投入後は、`storage node` と `relay` を別々に再確認する
-
-### 9.5 archive export / import
-
-- archive export は、持ち運び用の `archive bundle` を作る操作として扱う
-- archive import は、`archive bundle` から canonical state を再構成する操作として扱う
-- archive は backup と別概念で、持ち運び・再投入・共有を主目的にする
-- 既定は full export とし、差分移送は必要な場合にのみ採用する
-- archive export の前に、`manifest.json`、`wire-log.jsonl`、`canonical-catalog.jsonl`、必要なら `replay-metadata.json` と `resolved-config.json` の整合を確認する
-- archive import の前に、`archive version`、`protocol version`、`item count`、`carrier kind` を確認する
-- archive import の後に、`config`、`run`、`replay`、`list` の順で確認する
-- import 中に不整合が見つかった場合は、`manifest.json`、`wire-log.jsonl`、`canonical-catalog.jsonl`、`replay-metadata.json` の順で切り分ける
-- archive export / import の scrub や受け入れ可否は policy と capability で決める
-- archive 形式の変更は versioned に扱う
-
-archive 実行時の確認は次の順で行います。
-
-1. export する対象の `stateDir`、`dataDir`、`backupDir` を確認する
-2. `manifest.json`、`wire-log.jsonl`、`canonical-catalog.jsonl`、必要なら `replay-metadata.json` と `resolved-config.json` を bundle にまとめる
-3. `archive version`、`protocol version`、`carrier kind`、`item count` を manifest で確認する
-4. import 先の `tempDir` を分ける
-5. import 後に `config`、`run`、`replay`、`list` を順に実行する
-6. 必要なら `relay` と `storage node` を別々に再確認する
-
-差分移送を採る場合は、次の追加確認を入れます。
-
-1. 差分の基準点が manifest で説明できるか確認する
-2. 差分 bundle が full replay と同じ検証を満たすか確認する
-3. 差分で欠落する情報がないか確認する
-4. 差分を再適用できない場合は full export に戻す
-
-| 段階 | 確認 |
-| --- | --- |
-| 実行前 | `stateDir`、`dataDir`、`backupDir`、`archive version`、`protocol version`、`carrier kind` |
-| 実行中 | `manifest.json`、`wire-log.jsonl`、`canonical-catalog.jsonl`、`replay-metadata.json`、`resolved-config.json`、差分の基準点 |
-| 実行後 | `config`、`run`、`replay`、`list`、canonical state の再構成結果 |
-
-## 10. 運用例
-
-### 10.1 通常運用
-
-1. `storage node` の `config` を確認する
-2. `storage node` の `run` で status を確認する
-3. `relay` の `capabilities` を確認する
-4. `relay` の HTTP listener を起動する
-5. publish / retrieve を 1 件だけ通して、再起動後に同じ object を再確認する
-
-### 10.2 backup からの restore
-
-1. `backupDir` か archive 保管先から、`manifest.json`、`wire-log.jsonl`、`canonical-catalog.sqlite3`、`replay-metadata.json`、必要なら `resolved-config.json` を取り出す
-2. `archive version`、`protocol version`、`item count` を確認する
-3. `storage node` の `dataDir` と `tempDir` を分けて restore を実行する
-4. `storage node` の `config`、`run`、`replay`、`list` を順に確認する
-5. `relay` を再起動し、`capabilities` と `ready` を確認する
-6. 必要なら対象 object を `retrieve` して、再構成後の canonical state を確認する
-
-### 10.3 archive export / import
-
-1. export 対象の `stateDir` と `dataDir` を確認する
-2. `manifest.json`、`wire-log.jsonl`、`canonical-catalog.jsonl`、必要なら `replay-metadata.json` と `resolved-config.json` を bundle としてまとめる
-3. `archive version`、`protocol version`、`carrier kind`、`item count` を確認する
-4. import 先の `tempDir` を分けてから、archive を再投入する
-5. `storage node` の `config`、`run`、`replay`、`list` を順に確認する
-6. `relay` の `capabilities` と `ready` を確認する
-7. 必要なら対象 object を `retrieve` して、再構成後の canonical state を確認する
-
-実地確認メモ:
-
-- `cargo run -p lingonberry-relay -- publish fixtures/http-publish-request/minimal-request.json`
-- `cargo run -p lingonberry-relay -- export-archive /tmp/lingonberry-archive`
-- `cargo run -p lingonberry-relay -- import-archive /tmp/lingonberry-archive`
-- これらは一時 `stateDir` で通して、`recordCount: 1` と `duplicateCount: 0` を確認済みです
-
-### 10.4 退役
-
-1. 退役対象の `storage node` または `relay` について、必要な archive を作成する
-2. `manifest.json`、`wire-log.jsonl`、`canonical-catalog.sqlite3`、`replay-metadata.json`、`resolved-config.json` を退役保管に残す
-3. `tempDir` 配下の一時ファイルと再生成可能なキャッシュを削除する
-4. retention policy と operator policy の記録を残す
-5. 必要なら archive から replay できることを確認してから、退役を完了する
-
-### 10.5 schema version 変更時
-
-schema 変更を入れたときは、[Migration and Schema Versioning](./MIGRATION_AND_SCHEMA_VERSIONING.md) を正本として次の順で確認します。
-
-1. `schemaVersion` の変更点が backward-compatible か breaking かを確認する
-2. `knowledge-object.schema.json` と `http-publish-request.schema.json` の両方に影響がないか確認する
-3. `fixtures/knowledge-object/minimal-wire-object.json` と `fixtures/http-publish-request/minimal-request.json` が現行 baseline と一致するか確認する
-4. `fixtures/knowledge-object/invalid-schema-version.json` と `fixtures/http-publish-request/invalid-schema-version.json` で version mismatch を reject できるか確認する
-5. 変更がある場合は、`config`、`run`、`replay`、`list` の確認順に加えて、publish / retrieve の round-trip を確認する
-6. `GET /v1/capabilities` の `supported schema versions`、`validationConstraints`、`finalizeConstraints` が schema 変更後の運用と一致するか確認する
-
-schema 変更時に見るものは次の通りです。
-
-| 段階 | 確認 |
-| --- | --- |
-| 実行前 | `schemaVersion`、`$id`、fixture の baseline、互換境界 |
-| 実行中 | validate 結果、normalize 結果、identity / provenance の保持 |
-| 実行後 | publish / retrieve の round-trip、`capabilities` との整合、deprecated schema の終了条件 |
-
-deprecated schema を実際に外すかどうかは、[Migration and Schema Versioning](./MIGRATION_AND_SCHEMA_VERSIONING.md) の終了条件と capability の両方で確認します。
-
-### 10.6 access / retention policy 変更時
-
-access / retention policy を変えるときは、carrier contract と runbook を同時に確認します。
-
-1. [Access and Retention Audit Checklist](./ACCESS_RETENTION_AUDIT_CHECKLIST.md) で実行項目を確認する
-2. [Access and Retention Policy](./ACCESS_RETENTION_POLICY.md) で access scope と retention hint の既定値を確認する
-3. [HTTP Carrier Contract](./HTTP_CARRIER_CONTRACT.md) の `supportedAccessScopes` と `supportedRetentionHints` が policy と一致するか確認する
-4. [File / Archive Carrier Contract](./FILE_ARCHIVE_CARRIER_CONTRACT.md) の export / import と scrub の扱いが policy と一致するか確認する
-5. backup / restore / retirement で残すものと消すものが retention policy と矛盾しないか確認する
-6. authn/authz を追加する場合は [Secret Management](./SECRET_MANAGEMENT.md) と分離された注入経路を使う
-7. 変更後に `ready`、`capabilities`、`config` を見て、公開範囲と保持期間が運用上の想定に収まるか確認する
-
-| 段階 | 確認 |
-| --- | --- |
-| 実行前 | checklist、policy の差分、carrier capability、runbook の確認箇所 |
-| 実行中 | `supportedAccessScopes`、`supportedRetentionHints`、scrub の扱い |
-| 実行後 | `ready`、`capabilities`、`config`、backup / restore / retirement の整合 |
-
-### 10.7 Phase 11: 複数ノード運用
-
-複数ノード運用では、次の順で見ると切り分けしやすくなります。
-
-1. [Multi-node Discovery and Topology](./MULTI_NODE_DISCOVERY_AND_TOPOLOGY.md) で、見つけ方と役割を確認する
-2. [Carrier Capability Negotiation](./CARRIER_CAPABILITY_NEGOTIATION.md) で、受け入れ可能な carrier と version を確認する
-3. [Multi-node Sync Contract](./MULTI_NODE_SYNC_CONTRACT.md) で、`subscription`、`replay`、`export / import` のどれで運ぶかを確認する
-4. [Multi-node Conflict Policy](./MULTI_NODE_CONFLICT_POLICY.md) で、duplicate、conflict、collision、revision の扱いを確認する
-5. [Multi-node Capacity and Placement Policy](./MULTI_NODE_CAPACITY_AND_PLACEMENT_POLICY.md) で、どの node に何を置くかを確認する
-6. 必要なら [Observability](./OBSERVABILITY.md) の event と metric を見て、どの役割で詰まっているかを切り分ける
-
-Phase 11 の障害時は、次の順で切り分けます。
-
-- discovery が失敗するなら、signed manifest、capability endpoint、relay discovery、indexer cache を疑う
-- sync が失敗するなら、bundle 形式、archive version、protocol version、subscription/replay/export の経路を疑う
-- conflict が出るなら、exact duplicate、conflicting re-publish、identity collision、revision のどれかを疑う
-- capacity が詰まるなら、`dataDir` usage、replay backlog、subscription backlog、archive 保管余力を疑う
-- どれでもないなら、上の `relay` / `storage node` 切り分けに戻る
-
-Phase 11 で参照する正本は次です。
-
-- [Multi-node Discovery and Topology](./MULTI_NODE_DISCOVERY_AND_TOPOLOGY.md)
-- [Multi-node Sync Contract](./MULTI_NODE_SYNC_CONTRACT.md)
-- [Multi-node Conflict Policy](./MULTI_NODE_CONFLICT_POLICY.md)
-- [Multi-node Capacity and Placement Policy](./MULTI_NODE_CAPACITY_AND_PLACEMENT_POLICY.md)
-
-### 10.8 Phase 12: 追加 carrier への拡張準備
-
-追加 carrier を導入するときは、まず capability と policy の整合から確認します。
-
-1. [Carrier Capability Negotiation](./CARRIER_CAPABILITY_NEGOTIATION.md) で `carrier kind`、`protocol version`、`supported schema versions` を確認する
-2. [HTTP Carrier Contract](./HTTP_CARRIER_CONTRACT.md) または [File / Archive Carrier Contract](./FILE_ARCHIVE_CARRIER_CONTRACT.md) で、共通 validation と carrier 固有制約の境界を確認する
-3. [Access and Retention Policy](./ACCESS_RETENTION_POLICY.md) で `supported access scopes` と `supported retention hints` が運用と一致するか確認する
-4. [Migration and Schema Versioning](./MIGRATION_AND_SCHEMA_VERSIONING.md) で schema 互換と replay 互換を確認する
-5. [Toitoi Application Profile](../profiles/TOITOI_APPLICATION_PROFILE.md) のような profile 文書で、差し替え点と返却形を確認する
-6. 必要なら `ready`、`capabilities`、`config` を見て、追加 carrier が既存運用に影響しないか確認する
-
-Phase 12 で見る順番は次の通りです。
-
-- まず carrier kind と capability を見る
-- 次に policy との整合を見る
-- その後に profile への影響を見る
-- 最後に runbook に新 carrier の追加手順を残す
-
-追加 carrier の受け入れ判断は、以下のどれかが曖昧なら保留します。
-
-- protocol version
-- supported schema versions
-- supported object types
-- supported auth modes
-- supported content types
-- supported access scopes
-- supported retention hints
-- replay support
-- supported archive versions
-
-この段階では、semantic translation で穴埋めせず、fail closed を優先します。
-
-## 参照
-
-- [運用準備ロードマップ](../roadmap/OPERATIONAL_READINESS_ROADMAP.md)
-- [運用準備バックログ](../roadmap/OPERATIONAL_READINESS_BACKLOG.md)
-- [運用前提メモ](./OPERATIONAL_PREMISES_MEMO.md)
-- [File / Archive Carrier Contract](./FILE_ARCHIVE_CARRIER_CONTRACT.md)
-- [storage node runtime](./STORAGE_NODE_RUNTIME.md)
-- [relay / storage separation](./RELAY_STORAGE_SEPARATION.md)
+1. Storage gate state:
+
+   ```bash
+   systemctl is-active lingonberry-storage-ready.service
+   ```
+
+2. Resolved storage configuration:
+
+   ```bash
+   lingonberry-storage config
+   ```
+
+3. Storage diagnostics:
+
+   ```bash
+   lingonberry-storage ready
+   lingonberry-storage doctor
+   ```
+
+4. Strict storage verification when required by the operation:
+
+   ```bash
+   lingonberry-storage verify
+   ```
+
+5. Relay process state:
+
+   ```bash
+   systemctl is-active lingonberry-relay.service
+   ```
+
+6. Relay CLI and public HTTP readiness:
+
+   ```bash
+   lingonberry-relay ready
+   curl -fsS http://127.0.0.1:8787/v1/ready
+   curl -fsS http://127.0.0.1:8787/v1/capabilities
+   ```
+
+7. When public reverse proxying is enabled, repeat the HTTP checks through the public endpoint.
+8. When the operation changes storage state, perform a controlled object read or other operation-specific verification defined by the governing runbook.
+
+`GET /v1/ready` proves that the HTTP listener can receive and route the request. It is not a replacement for storage `doctor`, `ready`, or `verify`.
+
+## 7. Stop procedure
+
+### 7.1 Normal relay stop
+
+Stop the network-facing process first:
+
+```bash
+sudo systemctl stop lingonberry-relay.service
+```
+
+Confirm it is inactive and that no process still holds the relay listener or writes the active storage.
+
+### 7.2 Storage gate stop
+
+```bash
+sudo systemctl stop lingonberry-storage-ready.service
+```
+
+Stopping this unit clears its active systemd state. It does not terminate a resident storage daemon because none exists.
+
+### 7.3 Maintenance stop boundary
+
+Before migration, restore, destructive cleanup, or retirement:
+
+1. stop the relay;
+2. confirm the relay is inactive;
+3. confirm no other process can mutate the same `dataDir`;
+4. record the resolved directories;
+5. create or identify the required verified backup;
+6. perform the maintenance operation;
+7. rerun storage readiness and verification before restarting the relay.
+
+## 8. Restart procedure
+
+A relay-only restart is appropriate for relay binary, listener, or non-storage relay configuration changes.
+
+A full lifecycle restart is required after:
+
+- storage configuration changes;
+- restore;
+- storage-format migration;
+- active storage replacement;
+- binary changes that affect storage diagnostics or compatibility;
+- host permission changes affecting storage paths.
+
+Full restart sequence:
+
+```bash
+sudo systemctl stop lingonberry-relay.service
+sudo systemctl restart lingonberry-storage-ready.service
+sudo systemctl restart lingonberry-relay.service
+```
+
+Then execute the post-start verification sequence. A successful relay restart does not prove restore, migration, or storage consistency.
+
+## 9. Backup lifecycle
+
+Use the implemented storage recovery interface rather than constructing an ad hoc bundle from assumed filenames:
+
+```bash
+lingonberry-storage backup ...
+```
+
+Before backup:
+
+- record the exact binary or commit;
+- inspect resolved storage directories;
+- confirm backup-root capacity and permissions;
+- determine whether relay writes must be stopped for the required consistency level;
+- distinguish a verified operational backup from an archive export or migration backup.
+
+After backup:
+
+- retain the generated manifest and verification output;
+- record source storage identity and destination;
+- verify the backup using the implemented command contract;
+- protect the backup from modification;
+- keep credentials and environment files outside the bundle;
+- record the retention and disposal decision.
+
+Do not assume that files named `manifest.json`, `replay-metadata.json`, or `resolved-config.json` are universal active-storage backup members. The implemented backup manifest is authoritative for that backup.
+
+See [v1.0 Upgrade and Rollback](./V1_0_UPGRADE_AND_ROLLBACK.md) and [Access and Retention Policy](./ACCESS_RETENTION_POLICY.md).
+
+## 10. Restore lifecycle
+
+Use the implemented restore interface:
+
+```bash
+lingonberry-storage restore ...
+```
+
+Restore is a maintenance operation, not an online relay action.
+
+Required sequence:
+
+1. identify and verify the intended backup;
+2. record the pre-restore state and exact target directories;
+3. stop the relay and exclude concurrent writers;
+4. use an isolated temporary workspace;
+5. execute restore according to the recovery command contract;
+6. inspect restore output and manifest verification;
+7. run `config`, `doctor`, `ready`, and strict `verify` where required;
+8. run `replay`, `list`, `retrieve`, or the operation-specific integrity checks needed for the restored state;
+9. rerun the storage systemd gate;
+10. restart the relay;
+11. verify CLI and HTTP readiness;
+12. retain the restore evidence and rollback decision.
+
+Do not overwrite the last known good source or backup merely to make the restored node start. If verification fails, keep the relay stopped and investigate or roll back using the governing recovery procedure.
+
+## 11. Storage-format migration lifecycle
+
+Migration uses a separate binary:
+
+```text
+lingonberry-storage-migrate
+```
+
+Supported stages are governed by [Storage Migration and Upgrade](./STORAGE_MIGRATION_AND_UPGRADE.md). Ordinary relay or readiness startup must never silently advance migration state.
+
+High-level sequence:
+
+1. stop relay writes;
+2. inspect the source and migration status;
+3. create and verify the required backup;
+4. create the migration plan;
+5. apply or resume the migration;
+6. verify migration output;
+7. commit only after verification;
+8. rerun storage diagnostics and the readiness gate;
+9. restart the relay and verify service behavior.
+
+The migration primitive's pre-commit rollback and release rollback from a verified backup are different operations. A committed migration cannot be undone by pretending the migration primitive restores backup files.
+
+## 12. Failure handling
+
+### 12.1 Storage gate failure
+
+Keep the relay stopped. Inspect:
+
+```bash
+lingonberry-storage config
+lingonberry-storage doctor
+lingonberry-storage verify
+journalctl -u lingonberry-storage-ready.service
+```
+
+Prioritize directory type, ownership, permissions, symlinks, storage format, migration journal, raw log, catalog, generation pointer, backup inventory, workspace, and disk-capacity findings reported by the doctor.
+
+### 12.2 Relay startup or bind failure
+
+Inspect:
+
+```bash
+lingonberry-relay ready
+journalctl -u lingonberry-relay.service
+```
+
+Check listen configuration, environment loading, port conflicts, service account access, and reverse-proxy upstream configuration. Do not modify canonical storage merely to solve a listener bind failure.
+
+### 12.3 Storage verification failure after restart
+
+Stop the relay again. Preserve:
+
+- resolved configuration output;
+- doctor and verify output;
+- relevant journals;
+- backup or migration manifests;
+- exact binary and commit identity;
+- the first observed failure time.
+
+Do not reclassify a failed rehearsal as successful qualification or formal soak evidence.
+
+### 12.4 Disk pressure
+
+Disk-pressure qualification on the privileged reference host remains a separate release requirement. Do not infer it from ordinary CI, local disposable-directory tests, or warning-free doctor output.
+
+## 13. Observability during lifecycle operations
+
+Use only implemented signals:
+
+- systemd unit state;
+- journald text for the relay and storage gate;
+- storage CLI JSON from `config`, `status`, `doctor`, `verify`, `ready`, and `metrics`;
+- relay CLI readiness;
+- `GET /v1/ready` and `GET /v1/capabilities`;
+- operation-specific backup, restore, migration, quarantine, qualification, or soak evidence.
+
+Storage `metrics` is a point-in-time bounded-cardinality doctor summary. It is not a cumulative Prometheus registry. The repository does not guarantee universal `requestId`, `durationMs`, startup-event names, or generic publish/append/replay counter families in journald.
+
+See [Observability](./OBSERVABILITY.md).
+
+## 14. Retirement lifecycle
+
+Retirement is not equivalent to deleting `tempDir` or exporting an archive.
+
+Required sequence:
+
+1. identify the node, exact application version, operator, and retirement reason;
+2. stop external traffic and the relay;
+3. confirm no remaining writer can mutate active storage;
+4. resolve and record all storage directories;
+5. create and verify the required final backup or archive according to its own contract;
+6. preserve migration, quarantine, audit, incident, qualification, and release-blocking evidence required by policy;
+7. record backup location, retention period, restore owner, and disposal authority;
+8. remove or revoke administrator credentials and host access;
+9. disable the systemd units and reverse-proxy route;
+10. dispose of temporary and derived state only after confirming it is not required evidence;
+11. perform physical deletion only under the applicable operator and retention policy;
+12. record the completed retirement decision and verification.
+
+Do not assume active canonical storage can always be reconstructed from an archive export. Do not delete the only verified backup while testing retirement replay.
+
+## 15. Lifecycle evidence record
+
+Record at least:
+
+```text
+Operation:
+Node identifier:
+Application commit or release artifact:
+Binary or image digest:
+Started at:
+Completed at:
+Operator:
+Config path:
+State directory:
+Data directory:
+Backup directory:
+Temporary directory:
+Relay stopped and writer exclusion verified:
+Pre-operation backup and verification:
+Storage doctor result:
+Storage ready result:
+Storage verify result:
+Relay CLI ready result:
+HTTP ready result:
+Operation-specific manifest or evidence:
+Rollback decision:
+Open findings:
+Evidence classification:
+Secret and identifier review:
+Final decision:
+```
+
+For release work, additionally record whether the evidence is local development, rehearsal, independent inspection, privileged reference-host qualification, or formal soak. These classifications are not interchangeable.
+
+## 16. Non-goals
+
+This runbook does not define:
+
+- a resident networked storage service;
+- multi-node replication or failover;
+- container orchestration;
+- online migration with concurrent writers;
+- automatic backup scheduling or retention deletion;
+- a universal archive-to-active-storage restoration guarantee;
+- automatic secret rotation;
+- completion of the formal 72-hour soak;
+- completion of privileged reference-host qualification.
+
+## Related documents
+
+- [v1.0 Operator Runbook](./V1_0_OPERATOR_RUNBOOK.md)
+- [v1.0 Upgrade and Rollback](./V1_0_UPGRADE_AND_ROLLBACK.md)
+- [Storage Node Runtime](./STORAGE_NODE_RUNTIME.md)
+- [Storage Migration and Upgrade](./STORAGE_MIGRATION_AND_UPGRADE.md)
+- [Relay and Storage Separation](./RELAY_STORAGE_SEPARATION.md)
+- [Systemd Unit Templates](./SYSTEMD_UNIT_TEMPLATES.md)
+- [Observability](./OBSERVABILITY.md)
+- [Secret Management](./SECRET_MANAGEMENT.md)
+- [Access and Retention Policy](./ACCESS_RETENTION_POLICY.md)

@@ -42,6 +42,7 @@ NORMALIZED_OPERATION_DOCS = {
     "docs/operations/STORAGE_NODE_RUNTIME.md",
     "docs/operations/SUPPORTED_PLATFORMS.md",
     "docs/operations/SYSTEMD_UNIT_TEMPLATES.md",
+    "docs/operations/TECH_DECISION_ADR.md",
 }
 
 

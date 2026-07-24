@@ -38,6 +38,7 @@ NORMALIZED_OPERATION_DOCS = {
     "docs/operations/MIGRATION_AND_SCHEMA_VERSIONING.md",
     "docs/operations/NODE_LIFECYCLE_RUNBOOK.md",
     "docs/operations/OBSERVABILITY.md",
+    "docs/operations/OPERATIONAL_PREMISES_MEMO.md",
     "docs/operations/OPERATOR_CLI_CONTRACT.md",
     "docs/operations/RELAY_STORAGE_SEPARATION.md",
     "docs/operations/SECRET_MANAGEMENT.md",

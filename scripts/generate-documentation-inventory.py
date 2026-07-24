@@ -59,6 +59,7 @@ NORMALIZED_OPERATION_DOCS = {
     "docs/operations/QUARANTINE_REPLACEMENT_RECOVERY_RUNBOOK.md",
     "docs/operations/QUARANTINE_REPLACEMENT_RETENTION_POLICY.md",
     "docs/operations/QUARANTINE_REPLACEMENT_TRANSACTION.md",
+    "docs/operations/QUARANTINE_REPLACEMENT_V0_4_0_SMOKE_TEST.md",
     "docs/operations/RELAY_STORAGE_SEPARATION.md",
     "docs/operations/SECRET_MANAGEMENT.md",
     "docs/operations/STORAGE_MIGRATION_AND_UPGRADE.md",

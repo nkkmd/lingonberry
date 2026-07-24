@@ -1,138 +1,237 @@
 # Knowledge Object Publish Quickstart
 
-**Status: draft** | **Last updated: 2026-06-23**
+**Status: v1.0 pre-release normative**
 
-## 目的
+This quickstart exercises the implemented Lingonberry publication path. English is normative.
 
-この文書は、初めて Lingonberry を触る人が、`git clone` から `cargo run` で `knowledge object` を publish するところまでを、1 本で追えるようにまとめます。  
-まずは最小の publish 経路を通し、そのあとで必要に応じて HTTP carrier や `storage node` 側の文書へ進める構成にします。
+## 1. Release boundary
 
-## 1. 事前に必要なもの
+This document describes the checked-in v1.0 candidate behavior. It does not publish or redefine the candidate.
 
-- `git`
-- Rust toolchain
-- `cargo`
-- `curl` か同等の HTTP クライアント
+- latest public release: `v0.9.0`
+- fixed v1.0 candidate: `f9543019f2c219aea3b085ff90f2da201b268a48`
+- v1.0.0: not released
+- formal 72-hour soak: not performed
+- privileged reference-host qualification: incomplete
+- version update, tag, and GitHub Release: not performed
 
-Rust が入っていない場合は、公式の `rustup` を使う前提で進めます。
+## 2. Prerequisites
 
-## 2. リポジトリを取得する
+Required:
+
+- Git;
+- a Rust toolchain with Cargo;
+- `curl` or an equivalent HTTP client for the HTTP example.
+
+Clone the repository and enter the workspace:
 
 ```bash
-git clone git@github.com:nkkmd/lingonberry.git lingonberry
+git clone https://github.com/nkkmd/lingonberry.git
 cd lingonberry
 ```
 
-## 3. Rust を導入する
-
-Rust が未導入なら、`rustup` で入れます。
+For an exact candidate walkthrough, check out the fixed candidate explicitly:
 
 ```bash
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-source "$HOME/.cargo/env"
+git checkout f9543019f2c219aea3b085ff90f2da201b268a48
 ```
 
-導入できたか確認します。
+Documentation or tooling commits after that SHA do not redefine the candidate.
+
+Verify the toolchain and workspace:
 
 ```bash
 rustc --version
 cargo --version
-```
-
-既に Rust が入っているなら、この手順は飛ばしてかまいません。
-
-## 4. リポジトリの位置を確認する
-
-```bash
-pwd
-```
-
-必要なら、ワークスペースの情報を確認します。
-
-```bash
 cargo metadata --no-deps
 ```
 
-## 5. publish の入口を確認する
+## 3. Understand the request boundary
 
-`knowledge object` の publish は、まず `relay` の publish 経路で試します。  
-最小の確認として、relay の能力を見ます。
+Publication accepts a versioned HTTP publish-request envelope containing:
+
+- `object`: a protocol-native knowledge object;
+- `publisher.publicKey`: the required lowercase hexadecimal publisher public key;
+- `publisher.signature`: the required lowercase hexadecimal signature.
+
+The checked-in fixture is:
+
+```text
+fixtures/http-publish-request/minimal-request.json
+```
+
+Its object uses knowledge-object schema version `0.1.0`. The HTTP publish-request schema version is also `0.1.0`.
+
+Do not edit a signed fixture without generating a matching signature. The signature covers the canonical signing payload defined by [HTTP Publish Signature](../protocols/HTTP_PUBLISH_SIGNATURE.md). The relay does not issue publisher keys and does not possess the publisher private key.
+
+The v1.0 request validator requires the checked-in hexadecimal key representation. This quickstart does not promise `npub` decoding, alternate key encodings, remote key enrollment, or an authentication handshake.
+
+## 4. Inspect local capabilities
+
+Run the relay capability command:
 
 ```bash
 cargo run -p lingonberry-relay -- capabilities
 ```
 
-## 5.1 publish request の署名方法
+This prints the generated local capability manifest. Capability discovery is descriptive. It does not perform runtime negotiation, automatic fallback, dynamic downgrade, or a remote handshake.
 
-publish request の `publisher` に入れる鍵は、このリポジトリや relay が発行するものではありません。  
-publisher 側で Ed25519 の鍵ペアを用意し、`publicKey` を request に載せます。`signature` は `publisher.signature` を除いた canonicalized request payload に対して作ります。
+## 5. Publish through the local relay command
 
-relay は秘密鍵を持たずに、受け取った `publicKey` と `signature` の整合性を検証します。  
-`signature` は公開情報なので、公開 API には載せない運用にしても、request 本体や raw log には残ります。
-
-## 6. まず 1 件 publish する
-
-fixture を使って、最小の publish を通します。
+Use the signed fixture:
 
 ```bash
 cargo run -p lingonberry-relay -- publish fixtures/http-publish-request/minimal-request.json
 ```
 
-このコマンドは、`http-publish-request` envelope を入力にして、`knowledge object` を publish する基本経路を確認するためのものです。
+The command routes the request through the same core stages used by HTTP publication:
 
-## 7. HTTP carrier で試す
+1. parse the request JSON;
+2. validate the publish-request envelope and knowledge object;
+3. verify publisher signature and identity rules;
+4. evaluate the configured acceptance policy;
+5. defer eligible requests to quarantine, reject invalid requests, or continue;
+6. finalize the knowledge object;
+7. append through the configured storage backend;
+8. classify the result.
 
-HTTP carrier を起動して確認したい場合は、別端末で次を実行します。
+A successful command is not limited to a single generic `ok` outcome. Inspect the versioned ingestion result.
+
+## 6. Interpret the ingestion result
+
+The ingestion-result contract version is `1`. The response contains the common fields:
+
+- `contractVersion`;
+- `status`;
+- `code`;
+- `stored`;
+- `duplicate`;
+- `errors`.
+
+Depending on the outcome, it may also contain:
+
+- `canonicalId`;
+- `identityKey`;
+- `carrierIdentity`;
+- `storedAt`;
+- `object`;
+- `quarantineId`.
+
+The implemented statuses are:
+
+| Status | Meaning |
+|---|---|
+| `stored` | a new canonical object was stored |
+| `duplicate` | the same publication was already stored; this is idempotent success |
+| `deferred` | acceptance policy placed the request in quarantine; canonical storage did not occur |
+| `rejected` | validation, signature, identity, or acceptance requirements rejected the request |
+| `conflict` | the canonical identity conflicts with different stored content |
+| `failed` | an operational or storage failure occurred |
+
+Do not infer successful canonical storage from process completion alone. Check `status`, `stored`, `duplicate`, and any `quarantineId` or `errors`.
+
+## 7. Publish through HTTP
+
+Start the public HTTP carrier on a loopback address:
 
 ```bash
 cargo run -p lingonberry-relay -- serve-http 127.0.0.1:8787
 ```
 
-起動後は、capabilities を確認できます。
+In another terminal, inspect capabilities and readiness:
 
 ```bash
 curl -sS http://127.0.0.1:8787/v1/capabilities
-```
-
-readiness も確認できます。
-
-```bash
 curl -sS http://127.0.0.1:8787/v1/ready
 ```
 
-publish 自体を HTTP 経由で試す場合は、`POST /v1/objects` に `http-publish-request` envelope を送ります。  
-request の中身と `publisher` の扱いは [HTTP Carrier Contract](./HTTP_CARRIER_CONTRACT.md) と [Protocol-Native Wire Format](../protocols/PROTOCOL_NATIVE_WIRE_FORMAT.md) を参照してください。
+Publish the signed fixture without rewriting its bytes:
 
-## 8. publish 後に見るもの
+```bash
+curl -sS \
+  -H 'content-type: application/json' \
+  --data-binary @fixtures/http-publish-request/minimal-request.json \
+  http://127.0.0.1:8787/v1/objects
+```
 
-publish 後は、少なくとも次を確認します。
+The implemented HTTP status mapping is:
 
-- `status`
-- `id`
-- `identityKey`
-- `canonical`
-- `rawRef`
+| Ingestion status | HTTP status |
+|---|---:|
+| `stored` | `201 Created` |
+| `duplicate` | `200 OK` |
+| `deferred` | `202 Accepted` |
+| most `rejected` outcomes | `400 Bad Request` |
+| unsupported identity rule | `422 Unprocessable Entity` |
+| `conflict` | `409 Conflict` |
+| `failed` | `500 Internal Server Error` |
 
-`canonical` は canonical view、`rawRef` は raw / wire 側の参照です。  
-両方が保持されていることが、このプロトコルでは重要です。
+Clients must inspect both the HTTP status and the versioned JSON body. A `202` response means deferred quarantine, not canonical storage.
 
-## 9. storage node が必要なとき
+## 8. Verify retrieval and persistence
 
-publish の後に保存・再構成・再取得を deeper に確認したい場合は、別途 `storage node` を立てます。  
-その場合は [Storage Node Quickstart](./STORAGE_NODE_QUICKSTART.md) を参照してください。
+For a stored or duplicate result, use the returned `canonicalId` with the checked-in retrieval route:
 
-## 10. つまずきやすい点
+```bash
+curl -sS 'http://127.0.0.1:8787/v1/objects/<canonical-id>'
+```
 
-- `cargo` が見つからない場合は、`source "$HOME/.cargo/env"` を実行してから再試行します
-- `serve-http` が bind 失敗する場合は、`127.0.0.1:8787` が他プロセスに使われていないか確認します
-- `publish` が validation error になる場合は、fixture が壊れていないか、schema version が合っているかを確認します
-- 初回ビルドは時間がかかることがあります
+Replace `<canonical-id>` with the exact returned value and preserve URL encoding as required by the client.
 
-## 参照
+Readiness is a service-level signal. It does not prove backup integrity, migration readiness, privileged disk-pressure behavior, archive qualification, or reference-host qualification.
 
-- [Relay Quickstart](./RELAY_QUICKSTART.md)
+For deeper storage and replay checks, use:
+
+- [Storage Node Quickstart](./STORAGE_NODE_QUICKSTART.md);
+- [Storage Node Runtime](./STORAGE_NODE_RUNTIME.md);
+- [File/Archive Carrier Contract](./FILE_ARCHIVE_CARRIER_CONTRACT.md).
+
+## 9. Common failure modes
+
+### Invalid or modified fixture
+
+A modified signed fixture normally fails signature validation unless the signature is regenerated from the exact canonical signing payload.
+
+### `rejected`
+
+Read `code` and `errors`. Rejection is distinct from conflict and operational failure.
+
+### `deferred`
+
+Read `quarantineId`. The request entered quarantine and was not canonically stored.
+
+### `duplicate`
+
+This is idempotent success. It does not create a second canonical object.
+
+### `conflict`
+
+The same canonical identity is associated with different content. Do not retry it as though it were a transient server failure.
+
+### Bind failure
+
+Choose an unused local address and port. Internet-facing deployment requires the reverse-proxy and operational controls described by [HTTP Carrier Contract](./HTTP_CARRIER_CONTRACT.md).
+
+## 10. Non-guarantees
+
+This quickstart does not establish or guarantee:
+
+- network pub/sub delivery;
+- remote subscription handshake or acknowledgement;
+- runtime capability negotiation;
+- dynamic carrier fallback or version downgrade;
+- federated synchronization;
+- production TLS termination or denial-of-service protection;
+- formal 72-hour soak completion;
+- privileged reference-host qualification;
+- v1.0.0 publication.
+
+## References
+
+- [HTTP Carrier Contract](./HTTP_CARRIER_CONTRACT.md)
+- [HTTP Publish Signature](../protocols/HTTP_PUBLISH_SIGNATURE.md)
+- [Protocol-Native Wire Format](../protocols/PROTOCOL_NATIVE_WIRE_FORMAT.md)
+- [Acceptance Policy](./ACCEPTANCE_POLICY.md)
+- [Carrier Capability Discovery and Compatibility](./CARRIER_CAPABILITY_NEGOTIATION.md)
 - [Storage Node Quickstart](./STORAGE_NODE_QUICKSTART.md)
 - [Node Lifecycle Runbook](./NODE_LIFECYCLE_RUNBOOK.md)
-- [HTTP Carrier Contract](./HTTP_CARRIER_CONTRACT.md)
-- [Protocol-Native Wire Format](../protocols/PROTOCOL_NATIVE_WIRE_FORMAT.md)
-- [運用準備ロードマップ](../roadmap/OPERATIONAL_READINESS_ROADMAP.md)

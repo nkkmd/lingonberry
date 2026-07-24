@@ -6,7 +6,7 @@
 ## Status
 
 - Tracked Markdown files: **170**
-- Release-blocking review entries: **98**
+- Release-blocking review entries: **97**
 - Classification totals: BILINGUAL_REQUIRED: 6, BILINGUAL_SCOPED: 3, ENGLISH_ONLY: 161
 - Governing policy: [`DOCUMENTATION_POLICY.md`](./DOCUMENTATION_POLICY.md)
 - Tracking issue: [#144](https://github.com/nkkmd/lingonberry/issues/144)
@@ -57,7 +57,7 @@ Every tracked Markdown file must appear below. `yes` in the final column means t
 | `docs/operations/MULTI_NODE_CONFLICT_POLICY.md` | `ENGLISH_ONLY` | `MERGE_OR_ENGLISH_NORMALIZATION` | yes |
 | `docs/operations/MULTI_NODE_DISCOVERY_AND_TOPOLOGY.md` | `ENGLISH_ONLY` | `MERGE_OR_ENGLISH_NORMALIZATION` | yes |
 | `docs/operations/MULTI_NODE_SYNC_CONTRACT.md` | `ENGLISH_ONLY` | `MERGE_OR_ENGLISH_NORMALIZATION` | yes |
-| `docs/operations/NODE_LIFECYCLE_RUNBOOK.md` | `ENGLISH_ONLY` | `MERGE_OR_ENGLISH_NORMALIZATION` | yes |
+| `docs/operations/NODE_LIFECYCLE_RUNBOOK.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
 | `docs/operations/OBSERVABILITY.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
 | `docs/operations/OPERATIONAL_PREMISES_MEMO.md` | `ENGLISH_ONLY` | `MERGE_OR_ENGLISH_NORMALIZATION` | yes |
 | `docs/operations/OPERATOR_CLI_CONTRACT.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |

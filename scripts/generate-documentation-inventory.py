@@ -31,6 +31,7 @@ NORMALIZED_OPERATION_DOCS = {
     "docs/operations/CADDY_RELAY_PUBLICATION.md",
     "docs/operations/CARRIER_CAPABILITY_NEGOTIATION.md",
     "docs/operations/CARRIER_DECISION_MEMO.md",
+    "docs/operations/CONTAINER_EXECUTION_TEMPLATES.md",
     "docs/operations/FILE_ARCHIVE_CARRIER_CONTRACT.md",
     "docs/operations/HTTP_CARRIER_CONTRACT.md",
     "docs/operations/KNOWLEDGE_OBJECT_PUBLISH_QUICKSTART.md",

@@ -1,21 +1,48 @@
 # Quarantine Replacement Preview Runbook
 
-**Status: v0.3.0 operator procedure** | **Last updated: 2026-07-15**
+**Status: implemented** | **v1.0 pre-release normative operator procedure**
 
-This runbook executes and verifies the non-mutating policy-v2 replacement preview. It does not authorize or apply a ledger rewrite by itself.
+This runbook generates, verifies, and reviews a non-mutating policy-v2 quarantine replacement preview. A verified preview is input to later transaction preparation; it does not authorize or perform mutation.
 
-## 1. Preconditions
+## Preconditions
 
-Use a quiescent or controlled runtime state and prepare:
+Prepare:
 
-- the runtime state directory;
-- a verified complete backup with version `lingonberry-quarantine-backup/v2`;
-- a new or empty proof output directory;
-- the `lingonberry-quarantine-maintenance` binary from Lingonberry v0.3.0 or a later reviewed compatible build.
+- the runtime quarantine state directory;
+- a verified archive-inclusive backup with version `lingonberry-quarantine-backup/v2`;
+- a new empty proof output directory;
+- the reviewed `lingonberry-quarantine-maintenance` binary; and
+- an evidence directory outside the runtime state directory.
 
-The command rejects an unverified backup, backup v1, a non-empty output directory, corrupt archive segments, duplicate terminal keys, and runtime-state changes detected during the scan.
+Quiesce public ingestion, administrator mutation routes, scheduled maintenance, operator CLI writers, and any other process that can change managed ledgers, segments, indexes, generations, or pointers.
 
-## 2. Generate the preview
+Preview does not acquire the mutation lock. The before/after runtime fingerprint check detects observed changes during the scan but does not provide a transactional snapshot.
+
+Record before execution:
+
+```bash
+git rev-parse HEAD
+lingonberry-quarantine-maintenance status
+```
+
+Also retain the binary identity, runtime-state location, backup-manifest digest, segment verification output, operator identity, and start time.
+
+## Verify source inputs
+
+Verify the archive segments and backup before preview. Stop on any error.
+
+The input backup must be v2. Backup v1 is not archive-inclusive and is not accepted for replacement preview.
+
+Do not proceed when:
+
+- a segment or manifest is corrupt;
+- the backup does not verify;
+- the backup version is unsupported;
+- the output directory is non-empty;
+- the runtime is not quiescent; or
+- the runtime path is ambiguous or resolves to an unintended state directory.
+
+## Generate the preview
 
 ```bash
 lingonberry-quarantine-maintenance replacement-preview \
@@ -23,9 +50,9 @@ lingonberry-quarantine-maintenance replacement-preview \
   <empty-proof-dir>
 ```
 
-The runtime state and backup are read-only inputs. Only the proof directory may be written.
+Runtime state and backup are read-only inputs. Only the supplied output directory may be written.
 
-Expected artifacts:
+Expected final artifacts:
 
 ```text
 quarantine-replacement-plan.json
@@ -34,81 +61,142 @@ quarantine-replacement-proof.json
 quarantine-replacement-proof.digest
 ```
 
-A successful report must state:
+A successful proof must report:
 
 ```text
 mutationAllowed = false
 rewritePerformed = false
 ```
 
-## 3. Verify the generated proof
+File presence alone is not success. Require command success and independent artifact verification.
+
+## Verify the proof
 
 ```bash
 lingonberry-quarantine-maintenance verify-replacement-proof \
   <proof-dir>
 ```
 
-Verification checks both artifact digests, supported versions, exact managed-ledger membership, logical ordinals, immutable-ledger retention, replacement-key uniqueness, one-to-one provenance, source/replacement value equivalence, and all required semantic-equivalence dimensions.
+Verification checks digest pairs, supported versions, exact managed-ledger membership, immutable-ledger restrictions, logical ordinals, replacement-key uniqueness, one-to-one provenance, parsed-value equivalence, aggregate counts, ordering, and required semantic-equivalence fields.
 
-Do not continue when verification fails. Preserve the runtime state, backup, proof directory, command output, and error code for diagnosis.
+Artifact verification does not re-read the runtime state or original backup. It does not prove the runtime still matches the recorded fingerprint and does not authorize apply.
 
-## 4. Review the plan
+Stop when verification fails. Preserve the runtime state, verified backup, complete proof directory, stdout, stderr, exit status, and stable error code. Do not edit the artifacts manually.
 
-For immutable evidence ledgers, every entry must be:
+## Review the plan
+
+For immutable evidence ledgers, all decisions must preserve bytes:
 
 ```text
-retain-byte-for-byte
+quarantine.jsonl
+quarantine-annotations.jsonl
+admin-auth-audit.jsonl
 ```
 
-For terminal single-event ledgers, the only permitted decisions are:
+For terminal single-event ledgers, only these decisions are permitted:
 
 ```text
 retain-byte-for-byte
 canonical-json-representation
 ```
 
-`canonical-json-representation` may change JSON text representation only. It must not change the parsed JSON value, logical order, terminal state, metrics, eligibility, reader behavior, or idempotency.
+Canonical representation may alter insignificant whitespace, object-key order, and line termination only. It must preserve the parsed JSON value, logical order, terminal state, state-derived metrics, promotion eligibility, reader behavior, and idempotent/conflicting action results.
 
-Reject the preview if it proposes deletion, deduplication, merging, splitting, conflict resolution, schema migration, default insertion, unknown-field removal, retention cleanup, or archive-boundary movement.
+Reject the preview if it proposes or implies:
 
-## 5. Reproducibility check
+- deletion or retention cleanup;
+- deduplication;
+- event merging or splitting;
+- conflict resolution by choosing a winner;
+- schema migration or default insertion;
+- unknown-field removal;
+- immutable-ledger replacement;
+- archive-boundary movement; or
+- a replacement outside the exact managed-ledger set.
 
-Run the preview twice against the same verified runtime state and backup, using two different empty output directories.
+Review source locations and line numbers for a sample that includes active-ledger and archived-segment entries. Confirm that each terminal replacement maps to one exact source line.
 
-The following files must be byte-identical:
+## Reproducibility check
+
+With writers still quiesced, run preview again against the same state and verified backup using another empty output directory.
+
+These files must be byte-identical:
 
 ```text
 quarantine-replacement-plan.json
 quarantine-replacement-plan.digest
 ```
 
-The proof may contain a different `generatedAt` value. Generated timestamps are outside the deterministic plan digest boundary.
+The proof may have a different generation timestamp. The timestamp is outside the deterministic plan digest.
 
-## 6. Error handling
+A reproducibility mismatch is a stop condition. Preserve both artifact directories and do not select either result for apply preparation.
 
-Stable error-code families:
+## Error handling
 
-```text
-LB_QUARANTINE_REPLACEMENT_BACKUP
-LB_QUARANTINE_REPLACEMENT_CHANGED
-LB_QUARANTINE_REPLACEMENT_CONFLICT
-LB_QUARANTINE_REPLACEMENT_CORRUPT
-LB_QUARANTINE_REPLACEMENT_POLICY
-LB_QUARANTINE_REPLACEMENT_PROOF
-LB_QUARANTINE_REPLACEMENT_SEMANTICS
-```
+Use the stable `LB_QUARANTINE_REPLACEMENT_*` error family for classification. Human-readable messages are diagnostic and must not be the sole automation contract.
 
-Treat every failure as fail-closed. Do not manually edit plan/proof artifacts and do not retry against a runtime state that changed without producing a new verified backup.
+Common stop conditions include:
 
-## 7. Safety boundary
+- `BACKUP`: backup verification or version failure;
+- `CHANGED`: runtime fingerprint changed during preview;
+- `CONFLICT` or `CORRUPT`: duplicate or conflicting terminal state;
+- `POLICY`: unsupported or forbidden transformation;
+- `PROOF`: malformed, incomplete, or digest-mismatched artifact; and
+- `SEMANTICS`: equivalence check failed.
 
-The preview/proof phase stops after verified plan/proof publication. It does not:
+Treat every failure as fail closed. Do not retry with an old backup after runtime state changes. Produce and verify a new backup, then repeat the procedure from the beginning.
 
-- rewrite active ledgers;
-- rewrite archive segments;
-- publish staging ledgers;
-- create a transaction journal;
+Partial or conflicting final artifact sets require manual review or removal before retry. Do not infer success from temporary files or a subset of final files.
+
+## Evidence bundle
+
+Retain:
+
+- application commit and binary identity;
+- source state identity and path;
+- verified backup v2 and manifest;
+- segment verification output;
+- both command invocations and exit statuses;
+- plan, proof, and digest files;
+- reproducibility comparison result;
+- pre/post status output;
+- stdout and stderr;
+- stable error codes, if any;
+- operator identity and timestamps; and
+- review decision and selected proof-directory identity.
+
+Do not place credentials or secret-bearing environment dumps in the evidence bundle.
+
+## Handoff to apply preparation
+
+A preview is eligible for handoff only when:
+
+1. both preview and verification commands succeeded;
+2. the artifact set is complete;
+3. `mutationAllowed` and `rewritePerformed` are false;
+4. manual policy review found no forbidden transformation;
+5. the reproducibility check passed; and
+6. the evidence bundle is complete.
+
+Apply preparation must independently revalidate the proof, backup, segments, runtime fingerprint, and transaction preconditions. The preview procedure does not keep writers locked between preview and apply.
+
+## Safety boundary
+
+This procedure does not:
+
+- rewrite active or archived ledgers;
+- stage replacement ledgers;
+- create or advance a replacement transaction;
+- seal or publish a generation;
+- switch the current-generation pointer;
 - perform rollback or recovery;
-- delete retained evidence.
+- authorize retention cleanup; or
+- establish formal soak or privileged reference-host qualification.
 
-Transactional application and recovery are separate v0.3.0 operations governed by the replacement transaction and recovery runbooks. A verified preview/proof alone never mutates runtime state.
+## Related documents
+
+- [`QUARANTINE_REPLACEMENT_PREVIEW.md`](./QUARANTINE_REPLACEMENT_PREVIEW.md)
+- [`QUARANTINE_REPLACEMENT_POLICY.md`](./QUARANTINE_REPLACEMENT_POLICY.md)
+- [`QUARANTINE_REPLACEMENT_TRANSACTION.md`](./QUARANTINE_REPLACEMENT_TRANSACTION.md)
+- [`QUARANTINE_REPLACEMENT_RECOVERY_RUNBOOK.md`](./QUARANTINE_REPLACEMENT_RECOVERY_RUNBOOK.md)
+- [`QUARANTINE_BACKUP_RESTORE.md`](./QUARANTINE_BACKUP_RESTORE.md)

@@ -72,6 +72,7 @@ NORMALIZED_OPERATION_DOCS = {
 }
 NORMALIZED_PROTOCOL_DOCS = {
     "docs/protocols/CANONICALIZATION.md",
+    "docs/protocols/EFFECTIVE_VIEW_DIAGNOSTICS.md",
 }
 
 

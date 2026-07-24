@@ -1,214 +1,245 @@
 # Migration and Schema Versioning
 
-**Status: draft** | **Last updated: 2026-06-20**
+**Status: v1.0 pre-release normative**
 
-## 目的
+This document defines the implemented version and migration boundaries of the Lingonberry v1.0 reference implementation. English is normative.
 
-この文書は、Lingonberry における migration と schema versioning の運用方針を定義します。
+## 1. Scope
 
-ここでの migration は、protocol semantic を壊さずに wire / storage / archive の表現を更新していくための手順です。  
-schema versioning は、その更新を追跡可能にするための version contract です。
+Lingonberry has several independent versioned contracts. They must not be treated as interchangeable:
 
-## 原則
+- protocol version;
+- knowledge-object schema version;
+- HTTP publish-request schema version;
+- publish-ingestion result contract version;
+- capability manifest version;
+- archive layout version;
+- storage schema and migration state.
 
-- schema version は versioned である
-- migration は決定的である
-- canonicalization と replay を壊さない
-- carrier ごとの差分は framing と capability に閉じる
-- schema の更新は protocol semantic の更新と同じではない
+A version match does not by itself authorize publication, prove storage health, or make two nodes operationally equivalent. Protocol validation, local acceptance policy, storage classification, and operator qualification remain separate checks.
 
-## 0. 現行ベースライン
+## 2. Implemented v1.0 pre-release baseline
 
-現在の参照点は次の通りです。
+| Contract | Implemented value | Authority |
+|---|---:|---|
+| protocol | `0.1.0` | `PROTOCOL_VERSION` |
+| knowledge object | `0.1.0` | `KNOWLEDGE_OBJECT_SCHEMA_VERSION` and the checked-in schema |
+| HTTP publish request | `0.1.0` | `HTTP_PUBLISH_REQUEST_SCHEMA_VERSION` and the checked-in schema |
+| publish-ingestion result | `1` | `PUBLISH_INGESTION_CONTRACT_VERSION` |
+| capability manifest | `1` | `CAPABILITY_VERSION` |
+| archive layout | `1` | `ARCHIVE_VERSION` |
 
-- `knowledge-object.schema.json` の `schemaVersion` は `0.1.0`
-- `http-publish-request.schema.json` は request envelope として別 schema document で管理する
-- `identityClaim.schemaVersion` は `1` で、object schema 内の別契約として扱う
+The identity-claim substructure has its own checked-in validation rules. Its version must not be substituted for the knowledge-object or HTTP request version.
 
-この文書では、`schemaVersion` を payload 側の contract version として扱い、`$id` や file path の version は schema document の所在を示す補助情報として扱います。
+The repository does not implement runtime selection among multiple protocol or schema versions. The generated capability manifest currently advertises one preferred version for each implemented schema family.
 
-### 0.1 照合項目
+## 3. Version semantics
 
-schema version の baseline を更新するときは、次を同時に見直します。
+### 3.1 Protocol version
 
-- `schemas/knowledge-object.schema.json`
-- `schemas/http-publish-request.schema.json`
-- `schemas/README.md`
-- `fixtures/README.md`
-- `fixtures/knowledge-object/*.json`
-- `fixtures/http-publish-request/*.json`
+The protocol version identifies the top-level semantic contract shared by validation, finalization, storage, archive processing, and capability publication.
 
-## 1. Version 層
+Changing it may affect:
 
-### 1.1 Protocol version
+- accepted wire semantics;
+- canonicalization or identifier derivation;
+- provenance and `rawRef` preservation;
+- replay results;
+- cross-node compatibility.
 
-protocol 全体の互換境界です。
+A protocol-version change requires an explicit compatibility decision. The v1.0 implementation does not automatically downgrade or translate between protocol versions.
 
-- wire semantics の大きな変化を表す
-- carrier 間の互換性判断に使う
-- backwards compatibility の前提を明示する
+### 3.2 Schema versions
 
-### 1.2 Schema version
+The knowledge-object and HTTP publish-request schemas are separate contracts, even though both currently use `0.1.0`.
 
-個別 schema の contract を表します。
+The knowledge object carries `schemaVersion` in the payload. The HTTP request envelope is validated against the checked-in request schema and contains the knowledge object plus publisher material.
 
-- `knowledge-object` schema の version
-- `http-publish-request` schema の version
-- archive manifest の version
-- capability manifest の version
+A schema change must be evaluated against actual validator and finalizer behavior. A filename or JSON Schema `$id` change alone does not create runtime compatibility.
 
-schema version は原則として semver 相当の bump で扱います。
+### 3.3 Publish-ingestion result version
 
-- backward-compatible な追加は minor bump
-- breaking change は major bump
-- 説明文の補足や例の更新だけでは bump しない
+Publication returns the versioned ingestion-result contract. Contract version `1` includes machine-readable outcomes such as:
 
-判断例:
+- `stored`;
+- `duplicate`;
+- `deferred`;
+- `rejected`;
+- `conflict`;
+- `failed`.
 
-- `contexts` に新しい任意キーを足しても、既存 object がそのまま通るなら minor bump
-- `rawRef` を必須から外す、または `type` の enum を縮めるなら major bump
+This response contract is independent from the request schema version. Clients must not infer request compatibility solely from the response contract version.
 
-`schemaVersion` を payload に持たない envelope は、文書単位の version として `$id` と file path を追跡します。
+### 3.4 Capability version
 
-### 1.3 Carrier version
+Capability version `1` describes the shape of generated capability manifests. The manifest publishes the implemented protocol version, schema versions, carrier kinds, object types, content types, auth modes, validation/finalization constraints, and policy hints.
 
-carrier 固有の framing や response contract の version です。
+Capability publication is discovery, not negotiation. The v1.0 implementation does not provide:
 
-- HTTP request / response contract
-- archive layout
-- discovery payload
+- automatic mutual-version selection;
+- schema conversion;
+- dynamic fallback;
+- protocol downgrade;
+- signed remote negotiation;
+- a migration-path registry.
 
-### 1.4 Archive version
+### 3.5 Archive version
 
-archive carrier の version です。
+Archive version `1` identifies the implemented archive bundle layout. Export writes:
 
-- archive manifest の contract
-- archive layout の contract
-- replay 互換の境界
+- `manifest.json`;
+- `wire-log.jsonl`;
+- `canonical-catalog.jsonl`.
 
-## 2. Migration policy
+At manifest validation time, archive import enforces the exact implemented:
 
-### 2.1 変換の原則
+- `archiveVersion`;
+- `protocolVersion`;
+- `carrierKind` of `archive`.
 
-- validate -> normalize -> finalize の順を壊さない
-- 変換で semantic を足しすぎない
-- lossless でない migration は明示する
+The current manifest-stage validator does not enforce every descriptive manifest field. In particular, documentation must not claim that `capabilityVersion`, schema-version metadata, policy metadata, paths, creation time, or item count are all independently enforced at that stage.
 
-### 2.2 破壊的変更
+After manifest validation, imported records still pass through parsing, protocol validation, local acceptance policy, finalization, and storage classification. A valid manifest therefore does not guarantee that every record will be stored.
 
-破壊的変更を入れる場合は、次を明示します。
+## 4. Implemented migration boundaries
 
-- どの version からどの version へ移すか
-- 既存 object を replay できるか
-- canonical id / identity key に影響があるか
-- rawRef / provenance に影響があるか
+### 4.1 Wire and request migration
 
-### 2.3 後方互換
+The v1.0 reference implementation validates the versions it implements. It does not contain a generic migration engine that accepts arbitrary older payloads and upgrades them to the current schema.
 
-後方互換を維持する場合は、古い object を受け入れたあとに新しい canonical 表現へ正規化します。
+The safe processing order is:
 
-- 旧 schema を受け入れる
-- normalize で新しい representation に揃える
-- finalize 後の canonical state は新しい contract に従う
+1. parse the request or archive record;
+2. validate the implemented request and object contracts;
+3. verify publisher identity and signature rules where applicable;
+4. evaluate the local acceptance policy;
+5. finalize the object;
+6. append through the configured storage backend;
+7. classify stored, duplicate, conflict, deferred, rejected, or failed outcomes.
 
-後方互換として許容するのは、原則として次のような変更です。
+Documentation and clients must not assume a hidden `validate -> migrate -> normalize` compatibility layer when no such path is checked in.
 
-- 任意 field の追加
-- 既存 field の意味を壊さない補助情報の追加
-- validate で古い表現と新しい表現の両方を受けられる調整
+### 4.2 Storage migration
 
-許容しない変更は、次のようなものです。
+Storage migration is an operator-controlled backend concern. It is distinct from protocol/schema migration.
 
-- 必須 field の削除
-- 既存 field の意味変更
-- enum の縮小
-- replay や provenance を壊す表現変更
+The checked-in SQLite runtime and storage tooling define their own initialization, verification, backup, restore, migration, and rollback procedures. Operators must follow the storage migration and upgrade runbook rather than editing database metadata or tables manually.
 
-## 3. Migration の適用先
+Storage migration does not authorize changes to canonicalization, identifiers, provenance, `rawRef`, duplicate classification, or conflict behavior. If a storage change would alter those semantics, it is also a protocol compatibility change and requires separate review.
 
-### 3.1 Wire object
+The public readiness endpoint is not evidence that backup, restore, migration, rollback, disk-pressure, or crash-recovery qualification has been completed.
 
-wire object の migration は、parse 時の schema compatibility と normalize 時の表現調整です。
+### 4.3 Archive migration
 
-wire object の変更は、最初に schema で受けられるかを確認し、次に normalize で canonical 表現へ寄せます。
+The reference implementation imports only the exact archive and protocol versions accepted by the manifest validator. It does not automatically rewrite an unsupported archive version into version `1`.
 
-### 3.2 Storage
+An archive produced by an incompatible implementation must be converted by a separately specified and tested tool before import. No generic archive converter is part of the v1.0 contract.
 
-storage migration は、raw log、canonical catalog、replay metadata の更新です。
+Conversion must preserve or explicitly account for:
 
-storage migration は、wire object の contract と独立に、保存形式の更新として扱います。
+- original wire records;
+- canonical identifiers and identity keys;
+- provenance;
+- `rawRef`;
+- record ordering needed for deterministic replay;
+- duplicate and conflict semantics;
+- evidence of the source and destination versions.
 
-### 3.3 Archive
+## 5. Compatibility policy
 
-archive migration は、manifest version と wire-log 互換性の更新です。
+### 5.1 Exact-version behavior
 
-archive migration は、archive bundle の再投入と replay が壊れないことを最優先にします。
+The v1.0 reference implementation is exact-version oriented. Producers and consumers should verify the advertised and checked-in versions before exchanging data.
 
-## 4. Replay 要件
+A consumer may perform a local compatibility check against a capability manifest. That check does not cause the remote node to negotiate, migrate, or switch carriers.
 
-migration は replay を壊してはいけません。
+### 5.2 Additive changes
 
-- 古い archive から canonical state を再構成できること
-- 変換履歴を追えること
-- `rawRef` が有効であること
-- provenance が保持されること
+A proposed additive schema change is compatible only when all of the following remain true:
 
-## 5. Capability との関係
+- existing valid payloads remain valid under the actual validator;
+- canonicalization and identifier derivation are unchanged for existing payloads;
+- provenance and `rawRef` semantics are unchanged;
+- replay produces the same canonical state;
+- existing clients can safely ignore the addition;
+- capability and conformance fixtures are updated consistently.
 
-carrier capability は、利用可能な version と migration 境界を公開するために使えます。
+The label `minor` is not sufficient evidence by itself.
 
-返すべき情報の例:
+### 5.3 Breaking changes
 
-- supported protocol version
-- supported schema versions
-- supported archive versions
-- supported migration path
-- archive version に対する互換境界
+A change is breaking when it changes any required field, accepted value, signing bytes, canonicalization rule, identifier derivation, provenance rule, replay result, archive boundary, or machine-readable response relied on by existing consumers.
 
-## 6. 運用手順
+A breaking change requires:
 
-1. 互換境界を version で明示する
-2. 新旧 version の両方を受ける期間を決める
-3. normalize で canonical 表現へ寄せる
-4. replay で旧 archive を再構成できるか確認する
-5. 非互換のタイミングを capability に反映する
+1. a new explicitly versioned contract;
+2. implementation and conformance fixtures for each supported version;
+3. a defined coexistence or cutover policy;
+4. archive and storage impact analysis;
+5. migration or rejection behavior that is explicit and tested;
+6. updated capability publication;
+7. operator upgrade and rollback instructions.
 
-## 7. 未決事項
+## 6. Deprecation and removal
 
-次は実装と運用の進行に応じて詰めます。
+The current implementation does not advertise deprecated alternate schema versions. Future deprecation support must not be documented as implemented until the validator, capability manifest, fixtures, and tests support it.
 
-1. protocol major version の上げ方
-2. schema version の命名規則
-3. archive migration の保持期間
-4. deprecated schema の受け入れ終了条件
+Before removing a supported version, maintainers must establish evidence that:
 
-### 補足方針
+- no required publisher or importer still depends on it;
+- replay and archive recovery remain possible;
+- a conversion path exists where preservation is required;
+- the capability manifest no longer advertises it;
+- unsupported input fails closed with a stable machine-readable result;
+- upgrade and rollback procedures have been exercised.
 
-- protocol major version は semantic change の互換境界に使う
-- schema version は individual schema の contract 変更に使う
-- archive migration の保持期間は policy と storage cost を見て決める
-- deprecated schema の受け入れ終了は capability と runbook に反映する
+## 7. Required change procedure
 
-### deprecated schema の終了条件
+For any protocol, schema, response, capability, archive, or storage-version change:
 
-deprecated schema を終了する場合は、次の順で運用します。
+1. identify the exact contract being changed;
+2. compare validator, finalizer, signing, storage, archive, and response behavior;
+3. determine whether canonical IDs, identity keys, provenance, `rawRef`, replay, duplicates, or conflicts change;
+4. update constants, schemas, fixtures, tests, and conformance material together;
+5. update capability publication only for behavior that is implemented;
+6. define unsupported-version behavior explicitly;
+7. add migration tooling only in a separate implementation change with its own tests;
+8. update operator backup, upgrade, rollback, and evidence procedures;
+9. run the frozen candidate walkthrough and applicable qualification suites;
+10. preserve the fixed release-candidate boundary unless a separate release decision replaces it.
 
-1. capability で deprecated 状態を明示する
-2. 既存 client に移行期間を与える
-3. validate では受けても、finalize では新しい contract に寄せる期間を決める
-4. 移行期間が終わったら `supported schema versions` から削除する
-5. 削除後は旧 version を fail closed にする
+## 8. Non-guarantees
 
-終了時には、少なくとも次を確認します。
+The v1.0 pre-release implementation does not guarantee:
 
-- 旧 version の publish / import が残っていない
-- replay と archive 再投入に必要な互換性が保たれている
-- capability と runbook が同じ結論を返す
-- 旧 version を受ける理由が policy 上も残っていない
+- transparent migration from arbitrary historical schemas;
+- simultaneous acceptance of multiple knowledge-object or request versions;
+- automatic archive conversion;
+- automatic database downgrade;
+- online zero-downtime schema migration;
+- protocol or schema fallback;
+- cross-node migration orchestration;
+- semantic translation between incompatible versions;
+- compatibility merely because version strings resemble semantic versioning.
 
-## 関連
+## 9. Release boundary
 
+Documentation and tooling commits after the fixed candidate do not redefine the candidate.
+
+- fixed candidate: `f9543019f2c219aea3b085ff90f2da201b268a48`;
+- latest public release: `v0.9.0`;
+- `v1.0.0`: unreleased;
+- formal 72-hour soak: not performed;
+- privileged reference-host qualification and rehearsal: incomplete;
+- version update, release PR, tag, and GitHub Release: incomplete.
+
+Routine CI, documentation walkthroughs, archive tests, and non-privileged rehearsals must not be reported as the formal soak or privileged reference-host qualification.
+
+## 10. Related documents
+
+- [Storage Migration and Upgrade](./STORAGE_MIGRATION_AND_UPGRADE.md)
 - [HTTP Carrier Contract](./HTTP_CARRIER_CONTRACT.md)
 - [File / Archive Carrier Contract](./FILE_ARCHIVE_CARRIER_CONTRACT.md)
-- [Carrier Capability Negotiation](./CARRIER_CAPABILITY_NEGOTIATION.md)
+- [Carrier Capability Discovery and Compatibility](./CARRIER_CAPABILITY_NEGOTIATION.md)
 - [Technical Decision ADR](./TECH_DECISION_ADR.md)
+- [Knowledge Object Publish Quickstart](./KNOWLEDGE_OBJECT_PUBLISH_QUICKSTART.md)

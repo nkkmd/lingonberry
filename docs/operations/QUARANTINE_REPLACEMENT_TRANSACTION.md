@@ -1,104 +1,90 @@
-# Quarantine Replacement Transaction and Recovery
+# Quarantine Replacement Transaction and Recovery Contract
 
-**Status: implementation contract for QL-5C3C** | **Last updated: 2026-07-14**
+**Status: implemented** | **v1.0 pre-release normative operations contract**
 
-This document defines the safety boundary and transaction model for applying a verified policy-v2 replacement plan. It extends the read-only preview and proof contract in `QUARANTINE_REPLACEMENT_PREVIEW.md`; it does not broaden the approved replacement semantics.
+This document defines the mutation-capable quarantine replacement transaction. It consumes a verified policy-v2 preview and proof, stages a complete generation, verifies it, publishes it through the current-generation pointer, and records durable recovery state. It does not broaden the replacement semantics approved by the replacement policy.
 
-## 1. Safety boundary
+## Safety boundary
 
-QL-5C3C may apply only a plan that passes the QL-5C3B replacement-proof verifier.
+A transaction may apply only the one-to-one canonical representation changes described by a verified replacement plan.
 
-The transaction must never:
+It must never:
 
-- overwrite an existing ledger in place;
-- modify immutable evidence ledgers;
+- overwrite an active ledger in place;
+- modify immutable-evidence ledgers semantically;
 - rewrite or delete archive segments;
 - perform retention deletion;
-- deduplicate records or collapse events;
-- resolve conflicts;
-- migrate schemas;
-- move records across archive boundaries;
-- reinterpret policy-v1 behavior.
+- deduplicate, merge, split, or collapse events;
+- select a winner for conflicting terminal state;
+- migrate schemas or insert defaults;
+- move events across archive boundaries; or
+- reinterpret policy-v1 compaction behavior.
 
-All failures are fail-closed.
+All failures are fail closed.
 
-## 2. Required inputs
+## Commands
 
-```text
-verified backup v2 directory
-verified replacement proof directory
-new or empty transaction directory
-current runtime state
-```
+The maintenance CLI exposes replacement apply, status, resume, and rollback operations. Exact argument syntax is defined by the checked-in CLI help for the reviewed binary.
 
-The transaction must bind the following values into its journal:
+Conceptually:
 
 ```text
-backup manifest digest
-segment manifest digest
-replacement plan digest
-replacement proof digest
-policy version
-plan version
-proof version
-runtime fingerprint
+replacement-apply <backup-v2> <proof-dir> <transaction-dir>
+replacement-status <transaction-dir>
+replacement-recover <transaction-dir> --resume
+replacement-recover <transaction-dir> --rollback
 ```
 
-A mismatched or unverifiable input aborts before staging.
+Operators must capture the actual command, binary identity, exit status, stdout, and stderr used for evidence.
 
-## 3. Proposed CLI
+## Required inputs
 
-```bash
-lingonberry-quarantine-maintenance replacement-apply \
-  <verified-backup-v2-dir> \
-  <verified-proof-dir> \
-  <transaction-dir>
+A new transaction requires:
 
-lingonberry-quarantine-maintenance replacement-status \
-  <transaction-dir>
+- verified archive-inclusive quarantine backup v2;
+- verified replacement plan and proof artifacts;
+- current runtime state;
+- a new transaction workspace; and
+- the same-host quarantine operation lock.
 
-lingonberry-quarantine-maintenance replacement-recover \
-  <transaction-dir> --resume
+The transaction binds the relevant input versions, plan and proof digests, backup-manifest digest, optional segment-manifest digest, runtime fingerprint, transaction ID, and staged/publication metadata in versioned artifacts.
 
-lingonberry-quarantine-maintenance replacement-recover \
-  <transaction-dir> --rollback
-```
+A mismatch or unverifiable input aborts before a generation is activated.
 
-The existing policy-v1 commands and QL-5C3B preview/proof commands remain unchanged.
+## Same-host lock
 
-## 4. Pre-apply gates
+Apply, resume, and rollback use the quarantine operation lock. The lock coordinates writers using the same state directory and lock path on one host.
 
-Before writing staged output, the implementation must:
+It is not:
 
-1. acquire the existing same-host operation lock;
+- a distributed lock;
+- leader election;
+- a network-filesystem consensus mechanism; or
+- protection against another process using a different state-directory alias.
+
+Operators must quiesce external writers that do not participate in this lock contract.
+
+## Pre-apply gates
+
+Before staging, transaction preparation must:
+
+1. acquire the operation lock;
 2. verify archive segments;
-3. verify the supplied backup and require `lingonberry-quarantine-backup/v2`;
-4. run the QL-5C3B replacement-proof verifier;
-5. require exact plan/proof digest agreement;
-6. recompute the current runtime fingerprint and compare it with the plan;
-7. reject stale index, stale proof, unknown managed ledgers, duplicate terminal keys, unsupported versions, and semantic verification failures;
-8. require a new or empty transaction directory;
-9. durably create the initial transaction journal;
-10. abort without publishing any ledger on failure.
+3. verify the supplied backup and require v2;
+4. verify the replacement plan and proof;
+5. require exact digest and version agreement;
+6. compare current runtime fingerprint with the plan input;
+7. reject corrupt lifecycle state, duplicate terminal keys, unsupported versions, and failed semantic expectations;
+8. require a new transaction workspace; and
+9. durably publish the initial transaction journal and input binding.
 
-The runtime fingerprint must be recomputed immediately before publication. Any change aborts publication.
+Preparation must not activate a generation.
 
-## 5. Transaction state machine
+## Durable state machine
 
-Normative states:
+The implemented transaction uses versioned journal states representing preparation, staging, verification, publication, terminal completion, rollback, and recovery-required conditions.
 
-```text
-prepared
-writing
-staged
-verified
-publishing
-committed
-rolled-back
-recovery-required
-```
-
-Normal path:
+The normal lifecycle is:
 
 ```text
 prepared
@@ -109,202 +95,208 @@ prepared
 → committed
 ```
 
-Recovery path:
+An interrupted or failed non-terminal transaction may transition to `recovery-required` where required by the implementation. `committed` and `rolled-back` are terminal states.
+
+Transitions must follow the checked-in state-transition validator. Skipped, backward, unsupported, duplicated, or contradictory transitions are errors. The next externally observable mutation must not occur before the preceding durable transition and required filesystem synchronization succeed.
+
+The journal is replaced through its checked-in durable publication path and accompanied by its integrity digest. The digest detects byte changes; it is not a signature, trusted timestamp, or authorization token.
+
+## Transaction workspace
+
+The transaction workspace contains the durable journal, bound inputs, staging data, generation publication artifacts, publication intent, completion evidence when terminal, and any recovery evidence produced by the implementation.
+
+An existing non-empty or conflicting workspace must not be silently reused as a new transaction. Operators must inspect it through status/recovery procedures.
+
+Transaction IDs and paths must pass the implementation's path-safety checks. Symbolic-link or unexpected-file conditions must fail closed where the corresponding artifact verifier requires regular files.
+
+## Staging
+
+Staging builds the complete managed-ledger set inside the transaction workspace. It does not patch active ledger files.
+
+Staging must:
+
+- retain immutable evidence according to the plan;
+- apply only approved canonical representation replacements;
+- preserve parsed values, logical order, terminal states, replacement keys, and provenance;
+- record present/absent ledger metadata, byte counts, line counts, replacement counts, and digests;
+- synchronize staged files and directories; and
+- reject missing or unexpected files.
+
+A partial staged set must never be activated.
+
+## Staged verification
+
+Before generation sealing, the staged set is verified against the plan, proof, and exact managed-ledger membership.
+
+Verification covers:
+
+- immutable-evidence retention;
+- canonical replacement values;
+- logical order and record identity;
+- terminal-state and lifecycle behavior;
+- status and state-derived metrics;
+- promotion eligibility;
+- idempotent and conflicting action outcomes;
+- ordered reader results;
+- corruption behavior;
+- one-to-one provenance; and
+- duplicate terminal-key absence.
+
+The transaction may enter the verified state only after all required checks succeed.
+
+## Generation sealing
+
+A verified transaction seals a transaction-local `publication/` directory containing:
 
 ```text
-prepared | writing | staged | verified | publishing
-→ recovery-required
-→ resumed or rolled-back
+quarantine-replacement-generation.json
+quarantine-replacement-generation.digest
+managed ledger files
 ```
 
-`committed` and `rolled-back` are terminal. Unknown, skipped, duplicated, or contradictory transitions are corruption.
+The generation manifest binds the transaction ID and exact ledger metadata. Sealing verifies the staged source again and synchronizes the publication directory.
 
-Every transition must be written and fsynced before the next externally observable mutation.
+Sealing does not make the generation active.
 
-## 6. Transaction journal
+If generation durability fails, the implementation removes incomplete publication output where possible and records `recovery-required` when the durable journal permits that transition.
 
-The journal must be versioned and append-safe or atomically replaceable. It must contain enough information to classify the filesystem state without guessing.
+## Publication intent and activation
 
-Minimum fields:
+Before switching the active generation, the transaction records and verifies publication intent and revalidates current state according to the implementation.
+
+Activation uses the versioned current-generation pointer. The reader-visible local switch is the checked-in pointer publication operation, not a claim that several independent ledger renames are collectively atomic.
+
+The pointer binds:
 
 ```text
-journal version
-transaction ID
-state
-created-at and updated-at timestamps
-policy / plan / proof versions
-plan and proof digests
-backup and segment-manifest digests
-pre-transaction runtime fingerprint
-expected staged generation digest
-old active generation references
-staged file paths and digests
-publication progress
-recovery classification
-last durable transition
+version
+transactionId
+generationDigest
 ```
 
-Timestamps are operational metadata and must not alter the replacement-plan digest.
+After a valid pointer is present, readers and writers resolve managed ledgers through the referenced generation. They must not silently fall back to root-level legacy ledgers when the pointer or referenced generation is invalid.
 
-## 7. Staging
+A local atomic rename does not provide cross-host atomicity, distributed consensus, or replicated-storage guarantees.
 
-Staging occurs only inside the transaction directory and on the same filesystem required for atomic rename.
+## Commit boundary
 
-Rules:
+A transaction is committed only after the publication path, active generation, journal state, and required verification steps succeed.
 
-- construct complete staged ledgers; never patch active ledgers;
-- copy immutable evidence ledgers byte-for-byte when the publication model requires a complete generation;
-- apply only approved `canonical-json-representation` replacements;
-- preserve logical ordinal, replacement key, terminal state, logical order, parsed JSON value, and one-to-one provenance;
-- fsync each staged file;
-- fsync the staging directory;
-- record staged file digests in the journal;
-- never publish incomplete staged output.
+The implementation must not infer commit solely from:
 
-## 8. Staged verification
+- a generation directory existing;
+- the pointer file existing;
+- temporary artifacts disappearing; or
+- one publication step succeeding.
 
-Before publication, verify:
+The durable journal and verified filesystem state together determine the result.
 
-```text
-exact managed-ledger membership
-immutable-ledger byte identity
-replacement-plan conformance
-source/replacement value equivalence
-logical order equivalence
-terminal-state equivalence
-status-count equivalence
-Prometheus-metric equivalence
-promotion-eligibility equivalence
-single-operation idempotency equivalence
-batch-operation idempotency equivalence
-reader-result equivalence
-corruption-detection equivalence
-complete one-to-one provenance
-duplicate terminal-key absence
-```
+Committed transactions are terminal. A committed generation may be superseded only by another verified replacement transaction; it is not rolled back by editing the pointer manually.
 
-The journal may enter `verified` only after every required check succeeds.
+## Completion evidence
 
-## 9. Publication model
+Terminal replacement completion evidence is a separate versioned artifact bound to the journal terminal state and generation digest where applicable.
 
-Publication must use fsync and atomic rename. The implementation must not claim that several independent renames are collectively atomic.
+Completion evidence supports retention evaluation but does not authorize cleanup by itself. Missing, partial, conflicting, future-dated, or mismatched evidence fails closed for retention purposes.
 
-Preferred design:
+## Status and interruption classification
 
-```text
-generation directory or equivalent indirection
-→ fsynced complete staged generation
-→ one atomic namespace switch
-```
+`replacement-status` reads the durable journal and relevant artifacts to classify transaction state. Operators must use status before retrying an interrupted command.
 
-If current reader compatibility requires per-ledger path replacement, the implementation must define a journaled publication sequence and recovery invariant proving that a mixed generation cannot be accepted as healthy.
+Possible operational outcomes include:
 
-Before the first publication rename:
+- a normal non-terminal state that can be resumed;
+- committed;
+- rolled back;
+- recovery required; or
+- corrupt/contradictory state requiring manual investigation.
 
-1. verify journal integrity;
-2. verify staged digests;
-3. recompute runtime fingerprint;
-4. verify the QL-5C3B proof again or verify its journal-bound digest and validity;
-5. fsync all staged content and parent directories.
+Do not infer success from absent temporary files or partial publication.
 
-After publication:
+## Resume
 
-1. fsync affected parent directories;
-2. rebuild and verify the derived index;
-3. verify runtime semantics against the contract;
-4. write and fsync `committed`.
+Resume acquires the operation lock, verifies durable journal and filesystem state, and repeats only idempotent unfinished steps permitted for the current state.
 
-## 10. Backup and rollback
+Resume must not:
 
-Verified backup v2 is mandatory. The journal binds rollback to the exact backup manifest and segment-manifest digests used before apply.
+- start a second transaction;
+- accept changed input bindings;
+- skip required verification;
+- overwrite conflicting final artifacts; or
+- convert contradictory state into success.
 
-Rollback must:
+Repeated resume invocations are safe only to the extent explicitly provided by the state machine and idempotent publication functions.
 
-- acquire the same-host operation lock;
-- verify the journal and bound backup;
-- restore only the exact pre-transaction generation;
-- use staged restoration plus fsync and atomic rename;
-- preserve archive segments and immutable evidence;
-- verify restored runtime fingerprint and index;
-- be idempotent;
-- write and fsync `rolled-back` only after verification.
+## Rollback
 
-A missing or mismatched backup makes rollback fail closed.
+Rollback is available only for states where the checked-in transaction contract permits it. It acquires the operation lock and restores the exact previously active pointer/generation reference recorded by the transaction.
 
-## 11. Resume and recovery
+When no previous pointer existed, rollback may reactivate the legacy root layout by restoring the recorded absence of a pointer. It must not reconstruct history from guesses.
 
-Recovery must inspect the journal and filesystem state and classify the transaction as:
+Rollback must preserve archive segments and immutable evidence, verify the restored active state, and record `rolled-back` only after successful durable completion.
 
-```text
-committed
-rolled-back
-resumable
-rollback-only
-recovery-required
-corrupt
-```
+Rollback is not advertised after `committed`. A committed transaction requires a new forward replacement transaction or a separately reviewed recovery procedure.
 
-Resume may repeat only idempotent unfinished steps. It must not infer success from absent temporary files or partial publication.
+A missing, mismatched, or unverifiable bound input causes rollback to fail closed where that input is required by the implementation.
 
-Ambiguous, contradictory, or unverifiable state is `corrupt` and must not be automatically repaired.
+## Recovery-required and corruption
 
-## 12. Idempotency and concurrency
+State is recovery-required when the implementation cannot safely complete the current step automatically but retains sufficient durable evidence for an operator to inspect and resume or roll back.
 
-- apply, resume, and rollback require the existing same-host operation lock;
-- the lock is not a distributed lock;
-- applying an already committed transaction performs no second rewrite;
-- repeated resume and rollback calls are idempotent;
-- a changed runtime fingerprint outside the journaled transaction aborts;
-- policy-v1 behavior remains compatible.
+Contradictory journal state, digest mismatch, mixed generation data, unknown files, path-safety violations, or ambiguous pointer/publication state must not be automatically repaired.
 
-## 13. Stable error-code families
+For such incidents:
 
-```text
-LB_QUARANTINE_REPLACEMENT_TRANSACTION
-LB_QUARANTINE_REPLACEMENT_JOURNAL
-LB_QUARANTINE_REPLACEMENT_STAGING
-LB_QUARANTINE_REPLACEMENT_PUBLICATION
-LB_QUARANTINE_REPLACEMENT_RECOVERY
-LB_QUARANTINE_REPLACEMENT_ROLLBACK
-```
+1. stop further writers and replacement commands;
+2. preserve the transaction workspace and runtime state;
+3. capture status, directory listings, digests, and errors without editing artifacts;
+4. verify the backup, segments, journal, generation, pointer, and completion evidence independently; and
+5. follow the recovery runbook or escalate for manual review.
 
-Existing replacement backup, changed, conflict, corrupt, policy, proof, and semantics families remain applicable.
+## Derived indexes and readers
 
-## 14. Required tests
+Managed-ledger generation activation and derived index maintenance are separate concerns. Any derived index required by the runtime must be rebuilt or verified according to its own contract before the deployment is declared healthy.
 
-```text
-valid verified apply
-proof tampering rejection before staging
-backup mismatch rejection
-stale runtime fingerprint rejection
-runtime change before publication rejection
-immutable-ledger byte identity
-approved canonical replacement only
-staged semantic verification failure
-fsync failure injection at each durable boundary
-rename failure injection at each publication step
-crash after each journal transition
-resume from every resumable state
-rollback from every rollback-capable state
-repeated apply/resume/rollback idempotency
-contradictory journal rejection
-missing staged file rejection
-mixed-generation rejection
-post-commit index rebuild and verification
-post-commit semantic-equivalence verification
-policy-v1 regression
-```
+A successful pointer switch alone is not evidence that all external consumers, caches, replicas, or indexes have converged.
 
-## 15. Non-goals
+## Operational evidence
 
-- retention deletion;
-- deduplication;
-- event collapse;
+Retain:
+
+- application commit and binary identity;
+- exact commands and operator identity;
+- verified backup v2 and segment evidence;
+- replacement plan/proof and digests;
+- transaction inputs and journal history;
+- staging manifests and verification reports;
+- generation manifest and digest;
+- publication intent and pointer evidence;
+- completion evidence;
+- pre/post status and state-derived metrics;
+- stdout, stderr, exit status, and timestamps; and
+- all resume, rollback, or recovery decisions.
+
+Evidence completeness does not establish formal soak or privileged reference-host qualification unless those procedures were separately executed and recorded.
+
+## Non-goals
+
+The replacement transaction does not provide:
+
+- retention deletion or automatic cleanup;
+- conflict repair or deduplication;
 - schema migration;
-- conflict resolution;
-- archive mutation;
-- immutable evidence mutation;
-- distributed locking;
-- remote storage;
-- cryptographic signing;
+- archive-segment mutation;
+- distributed locking or leader election;
+- multi-host atomic publication;
+- remote storage orchestration;
+- cryptographic signing; or
 - general-purpose data migration.
+
+## Related documents
+
+- [`QUARANTINE_REPLACEMENT_POLICY.md`](./QUARANTINE_REPLACEMENT_POLICY.md)
+- [`QUARANTINE_REPLACEMENT_PREVIEW.md`](./QUARANTINE_REPLACEMENT_PREVIEW.md)
+- [`QUARANTINE_REPLACEMENT_GENERATION.md`](./QUARANTINE_REPLACEMENT_GENERATION.md)
+- [`QUARANTINE_REPLACEMENT_RECOVERY_RUNBOOK.md`](./QUARANTINE_REPLACEMENT_RECOVERY_RUNBOOK.md)
+- [`QUARANTINE_REPLACEMENT_COMPLETION_EVIDENCE.md`](./QUARANTINE_REPLACEMENT_COMPLETION_EVIDENCE.md)
+- [`QUARANTINE_REPLACEMENT_CLEANUP_RUNBOOK.md`](./QUARANTINE_REPLACEMENT_CLEANUP_RUNBOOK.md)

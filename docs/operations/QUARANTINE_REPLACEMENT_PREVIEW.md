@@ -1,24 +1,24 @@
 # Quarantine Replacement Preview and Proof
 
-**Status: implementation contract for QL-5C3B** | **Last updated: 2026-07-13**
+**Status: implemented** | **v1.0 pre-release normative operations contract**
 
-This document defines the implementation boundary for the non-mutating policy-v2 replacement preview approved by `QUARANTINE_REPLACEMENT_POLICY.md`.
+This document defines the non-mutating replacement-preview boundary for quarantine compaction policy v2. Preview produces a deterministic replacement plan and verification proof. It does not authorize staging, publication, pointer switching, retention deletion, or cleanup.
 
-## 1. Safety boundary
+## Safety boundary
 
-The preview is read-only. It must not rewrite, replace, truncate, delete, rename, rotate, publish, or otherwise mutate runtime ledger state.
-
-The preview may write only into a caller-supplied empty output directory.
+Preview is read-only for runtime quarantine state and the supplied backup. It may write only into a caller-supplied empty output directory.
 
 ```text
 runtime state: read-only
 verified backup v2: read-only
-proof output directory: write-only publication target
+proof output directory: newly published artifacts only
 ```
 
-QL-5C3B does not authorize application of a replacement plan. Transactional application remains QL-5C3C.
+Preview must not rewrite, truncate, rotate, rename, delete, publish, or otherwise mutate a managed ledger, segment, index, generation, pointer, or transaction workspace.
 
-## 2. Proposed CLI
+Preview does not acquire the same-host quarantine mutation lock. Operators using it for qualification or maintenance evidence must quiesce writers. Runtime fingerprints are compared before and after the logical scan, but a matching pair is not a transactional snapshot guarantee.
+
+## Commands
 
 ```bash
 lingonberry-quarantine-maintenance replacement-preview \
@@ -28,17 +28,17 @@ lingonberry-quarantine-maintenance verify-replacement-proof \
   <proof-dir>
 ```
 
-The existing policy-v1 commands remain supported without behavior changes.
+Policy-v1 compaction preview and proof remain separate commands and formats.
 
-## 3. Versions and files
+## Versions and artifacts
 
 ```text
 policy: lingonberry-quarantine-compaction-policy/v2
-proof: lingonberry-quarantine-replacement-proof/v1
 plan: lingonberry-quarantine-replacement-plan/v1
+proof: lingonberry-quarantine-replacement-proof/v1
 ```
 
-Output directory:
+Preview publishes:
 
 ```text
 quarantine-replacement-plan.json
@@ -47,24 +47,28 @@ quarantine-replacement-proof.json
 quarantine-replacement-proof.digest
 ```
 
-The plan contains deterministic inputs and decisions. The proof contains verification results and may contain a generated timestamp. Generated timestamps are excluded from the plan digest boundary.
+The plan is canonical JSON and contains deterministic input bindings and per-ledger decisions. The proof is canonical JSON and records verification results and aggregate counts. `generatedAt` belongs to the proof and is outside the plan digest.
 
-## 4. Preconditions
+## Preconditions
 
-Before scanning runtime state, the implementation must:
+Before publishing artifacts, preview must:
 
-1. verify archive segments;
-2. verify the supplied backup;
+1. verify the archive-segment manifest and referenced immutable segments;
+2. verify the supplied quarantine backup;
 3. require backup version `lingonberry-quarantine-backup/v2`;
 4. require an empty output directory;
-5. compute a runtime fingerprint;
-6. reject unknown managed ledgers or files presented as managed input.
+5. compute an initial runtime fingerprint;
+6. require the exact managed-ledger set;
+7. parse every logical ledger line; and
+8. reject duplicate terminal replacement keys.
 
-After scanning and before publishing output, the runtime fingerprint must be recomputed. Any difference fails with no published proof.
+After scanning, preview recomputes the runtime fingerprint. A mismatch fails with `LB_QUARANTINE_REPLACEMENT_CHANGED`, and no artifact set may be accepted as valid.
 
-## 5. Managed-ledger policy
+The backup-manifest digest and optional segment-manifest digest bind manifest bytes. They do not independently prove that backup contents equal live runtime state; runtime fingerprint and apply-time revalidation are separate checks.
 
-### Immutable evidence
+## Managed-ledger classification
+
+Immutable evidence ledgers are:
 
 ```text
 quarantine.jsonl
@@ -72,15 +76,9 @@ quarantine-annotations.jsonl
 admin-auth-audit.jsonl
 ```
 
-Required decision:
+They are retained as immutable evidence. Preview must not emit representation-replacement entries for them.
 
-```text
-retain-byte-for-byte
-```
-
-No replacement entry may refer to these ledgers.
-
-### Terminal single-event representation
+Terminal single-event ledgers are:
 
 ```text
 quarantine-resolutions.jsonl
@@ -88,181 +86,127 @@ quarantine-dismissals.jsonl
 quarantine-rejections.jsonl
 ```
 
-Allowed decision per logical record:
+For each valid logical line, preview chooses:
 
 ```text
 retain-byte-for-byte
 canonical-json-representation
 ```
 
-`canonical-json-representation` is permitted only when parsing the source line and replacement line produces exactly the same JSON value.
+Canonical representation may change insignificant whitespace, object-key ordering, and the line terminator. The parsed JSON value must remain identical.
 
-## 6. Deterministic logical scan
+## Archive-aware logical scan
 
-Logical read order remains:
+The authoritative order is:
 
 ```text
-verified archive segments in manifest sequence
+verified archive segments in manifest order
 → active ledger
 ```
 
-Each logical record receives a zero-based `logicalOrdinal` scoped to its managed ledger.
+Each event receives a zero-based `logicalOrdinal` scoped to its ledger. Provenance records the active-ledger marker or immutable segment location and the source line number within that physical file.
 
-For each terminal record, the preview computes:
+The terminal replacement key follows the replacement-policy contract. A duplicate key in the complete archive-aware stream is corruption, not a deduplication opportunity.
 
-```text
-replacementKey = quarantineId
-sourceLineDigest
-sourceValueDigest
-canonicalLine
-canonicalLineDigest
-canonicalValueDigest
-```
+## Plan entries
 
-The preview must reject duplicate `replacementKey` values within a terminal ledger. A duplicate is corruption, not a deduplication opportunity.
+A terminal plan entry binds:
 
-## 7. Plan entry
+- ledger name and logical ordinal;
+- replacement key and decision;
+- source location and line number;
+- source-line and source-value digests;
+- replacement-line and replacement-value digests; and
+- transformation identifier.
 
-A replacement-plan entry has the following normative fields:
-
-```json
-{
-  "ledger": "quarantine-resolutions.jsonl",
-  "logicalOrdinal": 0,
-  "replacementKey": "q-123",
-  "decision": "canonical-json-representation",
-  "source": {
-    "location": "active-ledger",
-    "lineNumber": 1,
-    "lineDigest": "...",
-    "valueDigest": "..."
-  },
-  "replacement": {
-    "lineDigest": "...",
-    "valueDigest": "..."
-  },
-  "transformation": "canonical-json-representation"
-}
-```
-
-For archived input, `source.location` identifies the immutable segment and `lineNumber` is scoped to that segment.
-
-A byte-identical canonical line may use `retain-byte-for-byte` and must not be counted as a replacement.
-
-## 8. Plan digest boundary
-
-The plan digest is computed from canonical JSON over:
+The replacement transformation identifier is:
 
 ```text
-plan version
-policy version
-source backup manifest digest
-source segment manifest digest
-runtime fingerprint
-ordered managed-ledger plans
-semantic-equivalence expectations
+canonical-json-representation
 ```
 
-The following are excluded:
+Source-value and replacement-value digests are computed from canonical serialization of parsed values and must match. An already byte-identical canonical line is retained and is not counted as a replacement.
+
+## Plan digest boundary
+
+The canonical plan binds:
+
+- plan and policy versions;
+- source backup-manifest digest;
+- optional segment-manifest digest;
+- runtime fingerprint;
+- ordered managed-ledger plans; and
+- semantic-equivalence expectations.
+
+It excludes output paths, hostnames, process IDs, elapsed duration, and proof-generation time. Identical verified inputs must produce identical canonical plan bytes and the same digest.
+
+## Proof contents
+
+The proof binds the plan digest and records:
 
 ```text
-generatedAt
-output paths
-hostnames
-process IDs
-wall-clock duration
+mutationAllowed: false
+rewritePerformed: false
+sourceLines
+replacementLines
+retainedLines
+semanticEquivalence
 ```
 
-Identical verified inputs must produce identical canonical plan bytes and the same digest.
+All required semantic-equivalence fields must be true. They cover record identity, terminal state, logical order, status and state-derived metrics, promotion eligibility, idempotent terminal operations, conflict outcomes, batch classification, ordered reader results, corruption behavior, and complete one-to-one provenance.
 
-## 9. Semantic-equivalence report
+Matching line counts, byte counts, or digests alone is insufficient.
 
-The verifier must machine-check:
+## Artifact verification boundary
 
-```text
-record identity equivalence
-terminal state equivalence
-logical order equivalence
-status-count equivalence
-Prometheus-metric equivalence
-promotion-eligibility equivalence
-single-operation idempotency equivalence
-batch-operation idempotency equivalence
-reader-result equivalence
-corruption-detection equivalence
-complete one-to-one provenance
-```
+`verify-replacement-proof` checks the artifact directory: digest pairs, supported versions, exact ledger structure, immutable-ledger restrictions, entry mapping, canonical replacement values, aggregate counts, ordering, and declared semantic-equivalence fields.
 
-A report is successful only when every required dimension is `true`.
+It does not re-read runtime state, re-verify the original backup directory, prove that runtime still matches the fingerprint, authorize mutation, or authenticate the artifact author. Apply preparation must revalidate plan inputs against current state under the transaction and lock contract.
 
-Line count, byte count, or digest equality alone is insufficient.
+## Publication behavior
 
-## 10. Proof verification
+The output directory must be empty. Preview writes temporary artifacts, verifies generated values, and publishes final names through the checked-in artifact path.
 
-Verification must reject:
+The four files are not one cross-file atomic object. A partial or conflicting set is invalid. File presence alone is not success; later commands must require the complete verified artifact set.
 
-- plan or proof digest mismatch;
-- unsupported plan, proof, or policy version;
+## Digest boundary
+
+Plan and proof digests use the repository integrity-digest implementation. They detect accidental or uncoordinated byte changes. They are not digital signatures, trusted timestamps, authorization tokens, or independent provenance attestations.
+
+## Fail-closed conditions
+
+Preview or verification must fail for:
+
+- unsupported backup, plan, proof, or policy version;
+- backup or segment verification failure;
+- a non-empty output directory;
 - missing, unknown, or duplicate managed-ledger entries;
-- a replacement entry for an immutable ledger;
-- missing or duplicate provenance mapping;
-- source and replacement parsed-value mismatch;
-- changed `replacementKey` or `logicalOrdinal`;
-- changed terminal state or logical order;
-- duplicate terminal keys;
-- any deletion, collapse, merge, or retention operation;
-- any failed semantic-equivalence dimension;
-- non-deterministic fields inside the plan digest boundary.
+- malformed logical JSON;
+- duplicate terminal replacement keys;
+- replacement targeting immutable evidence;
+- incomplete, duplicate, or non-bijective provenance;
+- changed parsed values, logical order, counts, or semantic-equivalence results;
+- runtime fingerprint change during preview;
+- digest mismatch;
+- partial or conflicting artifacts; or
+- deletion, merge, collapse, deduplication, retention, or conflict-repair decisions.
 
-## 11. Atomic proof publication
+Errors remain distinguishable through stable `LB_QUARANTINE_REPLACEMENT_*` families. Human-readable messages are diagnostic and are not the sole programmatic contract.
 
-The implementation writes temporary files inside the output directory, verifies all generated artifacts, and then renames them to final names.
+## Operational evidence
 
-A failed preview must not leave a valid-looking final plan/proof pair.
+Retain the application commit and binary identity, verified backup v2 and manifest, segment verification output, command and exit status, plan/proof and digest files, runtime fingerprint and manifest digests, pre/post status, operator identity, timestamp, and recovery notes.
 
-## 12. Error-code families
+Preview evidence does not establish formal soak or privileged reference-host qualification unless those procedures were separately executed and recorded.
 
-Proposed stable families:
+## Non-goals
 
-```text
-LB_QUARANTINE_REPLACEMENT_BACKUP
-LB_QUARANTINE_REPLACEMENT_CHANGED
-LB_QUARANTINE_REPLACEMENT_CONFLICT
-LB_QUARANTINE_REPLACEMENT_CORRUPT
-LB_QUARANTINE_REPLACEMENT_POLICY
-LB_QUARANTINE_REPLACEMENT_PROOF
-LB_QUARANTINE_REPLACEMENT_SEMANTICS
-```
+Preview does not provide replacement application, transaction creation, generation sealing or publication, pointer switching, rollback, resume, retention deletion, writer exclusion, a transactional snapshot, distributed locking, remote backup storage, or cryptographic signing.
 
-Messages may add detail, but callers should branch only on the stable code.
+## Related documents
 
-## 13. Required tests
-
-```text
-valid canonical representation replacement
-already-canonical no-op
-deterministic plan bytes and digest
-duplicate terminal-key rejection
-semantic-change rejection
-immutable-ledger replacement rejection
-unknown-ledger rejection
-incomplete provenance rejection
-proof and plan tampering rejection
-runtime-fingerprint change rejection
-backup-v1 rejection
-policy-v1 proof verification regression
-output-directory atomicity
-```
-
-The approved JSON vectors under `docs/operations/fixtures/quarantine-replacement-policy/` are normative test inputs.
-
-## 14. Non-goals
-
-- rewrite application;
-- transaction journal;
-- staging-ledger publication;
-- rollback or resume;
-- retention deletion;
-- distributed locking;
-- remote backup or archive storage;
-- cryptographic signing.
+- [`QUARANTINE_REPLACEMENT_POLICY.md`](./QUARANTINE_REPLACEMENT_POLICY.md)
+- [`QUARANTINE_REPLACEMENT_PREVIEW_RUNBOOK.md`](./QUARANTINE_REPLACEMENT_PREVIEW_RUNBOOK.md)
+- [`QUARANTINE_REPLACEMENT_TRANSACTION.md`](./QUARANTINE_REPLACEMENT_TRANSACTION.md)
+- [`QUARANTINE_REPLACEMENT_GENERATION.md`](./QUARANTINE_REPLACEMENT_GENERATION.md)
+- [`QUARANTINE_BACKUP_RESTORE.md`](./QUARANTINE_BACKUP_RESTORE.md)

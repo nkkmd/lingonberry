@@ -1,176 +1,236 @@
-# 技術決定 ADR
+# Technical Decision ADR
 
-**Status: draft** | **Last updated: 2026-06-19**
+**Status: v1.0 pre-release normative**
 
-## 目的
+This ADR records the implemented technical boundaries of the Lingonberry v1.0 reference implementation. English is normative.
 
-この文書は、Lingonberry の `relay`、`storage node`、`API`、`CLI` に関する技術選定を最終決定する ADR です。  
-あわせて `storage backend` の方針も扱い、実装境界を 1 枚にまとめます。
+## 1. Decision
 
-## 前提
+The v1.0 reference implementation uses Rust for the protocol, identity, validation, core storage behavior, indexing, relay/runtime, and storage tooling.
 
-Lingonberry は次を満たす必要があります。
+The checked-in Cargo workspace contains:
 
-- 誰でも `relay` を立てられる
-- 誰でも `storage node` を立てられる
-- 誰でも `knowledge object` を publish できる
-- append-only と replayable を壊さない
-- canonicalization と provenance を決定的に扱う
+- `packages/protocol`;
+- `packages/identity`;
+- `packages/validation`;
+- `packages/core`;
+- `packages/indexer`;
+- `packages/relay`;
+- `packages/storage`.
 
-そのため、実装言語と基盤技術には、単なる開発速度だけでなく、保存・再構成・検証の厳密さが求められます。
+The implementation does not contain separate `packages/api`, `packages/cli`, or `packages/codecs` workspace members. Public HTTP and command-line behavior are implemented through the relay/runtime package, while storage-specific commands are implemented through the storage package.
 
-## 決定
+The primary interactive carrier is HTTP. Local relay/runtime commands and file/archive export and import are also implemented carrier surfaces. This ADR does not claim that a network pub/sub protocol, federated synchronization, runtime carrier negotiation, or remote handshake exists.
 
-### 採用するもの
+## 2. Storage decision
 
-- **core protocol / relay / storage node:** Rust
-- **CLI:** Rust
-- **API サーバ:** Rust
-- **最初の正規 carrier:** HTTP publish API
-- **Toitoi の application profile / edge UI:** Toitoi 側の既存スタック
-- **raw log:** local filesystem
-- **canonical catalog:** SQLite
-- **derived index:** SQLite
+The default runtime storage backend is SQLite under the configured Lingonberry state directory.
 
-### 保留するもの
+The runtime preserves distinct representations for:
 
-- `indexer` の内部実装
-  - core と独立した派生構造として扱い、後で最適化する
-- `storage backend` の詳細パラメータ
-  - log record の具体フォーマット
-  - snapshot の間隔
-  - retention policy
-  - archive relay で object storage を使うかどうか
-  - PostgreSQL へ移行する条件
-- `access / retention policy` の詳細
-  - carrier ごとの公開境界
-  - retention の既定値
-  - export 時の scrub 方針
+- the original publish-request material required for replay and carrier identity;
+- finalized canonical knowledge objects;
+- derived index state;
+- quarantine and resolution records where applicable.
 
-### 採用しないもの
+The implementation also retains file-backed helpers and emits JSONL archive material, but the production runtime selected by the reference relay is not accurately described as a simple filesystem raw log plus an unrelated SQLite catalog.
 
-- `relay` と `storage node` の中核を TypeScript/Node.js に置く案
-  - 実装速度は魅力だが、長期運用での厳密性と replay の統制を優先した
-- core を Toitoi 側の技術に寄せ切る案
-  - Toitoi を application profile に留める設計方針と合わないため
-- PostgreSQL を MVP の default storage backend にする案
-  - 将来の選択肢としては残すが、初期運用には重い
+File/archive export writes:
 
-## 決定理由
+- `manifest.json`;
+- `wire-log.jsonl`;
+- `canonical-catalog.jsonl`.
 
-### 1. canonicalization を厳密に扱うため
+Archive import validates its implemented manifest boundary, validates imported objects, applies the local acceptance policy, finalizes objects, and appends through the configured storage backend.
 
-Lingonberry の core では、同じ wire object から同じ canonical object を再構成できることが重要です。  
-Rust は型と所有権の仕組みを使って、不変条件を保ちやすいです。
+## 3. Protocol and validation decision
 
-### 2. relay / storage node の運用性を確保するため
+Protocol-native JSON is the shared semantic representation across implemented carriers.
 
-誰でもノードを立てられることが目標なので、配布しやすく、依存が少ない実行形が向いています。  
-Rust は単一バイナリ運用と相性がよく、server runtime としても扱いやすいです。
+The current implementation fixes these identifiers:
 
-### 3. replay と provenance を壊しにくいため
+| Identifier | Value |
+|---|---|
+| protocol version | `0.1.0` |
+| knowledge-object schema version | `0.1.0` |
+| HTTP publish-request schema version | `0.1.0` |
+| capability version | `1` |
+| archive version | `1` |
 
-append-only log、identity resolution、rawRef、provenance の取り扱いは、後から曖昧にすると取り返しがつきにくいです。  
-core を厳密に実装できる言語を最初に選ぶ方が安全です。  
-storage も raw log と catalog を分けて持つと、再構成の見通しがよくなります。
+Validation, acceptance, finalization, and storage classification are separate stages:
 
-### 4. Toitoi を application profile として保つため
+1. parse the request or object;
+2. validate structural, schema, signature, identity, and semantic invariants;
+3. evaluate the configured acceptance policy;
+4. accept, reject, or defer;
+5. finalize the knowledge object;
+6. classify storage as new, duplicate, conflict, or operational failure.
 
-Toitoi は重要な利用例ですが、core protocol そのものではありません。  
-edge や UI は Toitoi 側の都合に合わせ、core は Lingonberry の共通基盤として保ちます。
+A successful compatibility check does not guarantee acceptance. Acceptance does not guarantee that storage will not detect a conflict or operational failure.
 
-### 5. MVP の storage を軽く保つため
+## 4. Carrier decision
 
-filesystem-first + SQLite catalog は、replay 可能性、運用の軽さ、実装しやすさのバランスがよいです。  
-raw log、canonical store、derived index を分けやすく、初期の publish 経路を小さく始められます。
+### 4.1 HTTP
 
-## 実装範囲
+HTTP is the primary interactive ingress and retrieval carrier.
 
-### Rust で持つもの
+The public listener provides the checked-in versioned routes, including the core surfaces:
 
-- `packages/protocol/`
-- `packages/core/`
-- `packages/codecs/`
-- `packages/relay/`
-- `packages/storage/`
-- `packages/indexer/`
-- `packages/api/`
-- `packages/cli/`
+- `POST /v1/objects`;
+- `GET /v1/objects/<canonical-id>`;
+- `GET /v1/capabilities`;
+- `GET /v1/ready`.
 
-### storage backend で持つもの
+The HTTP server contains a bounded HTTP/1.1 parser suitable for the checked-in contract tests. It is not a production reverse proxy, TLS terminator, streaming server, or general-purpose web framework.
 
-- raw wire log
-- canonical object catalog
-- derived index
-- replay metadata
-- snapshot / compaction
+Internet-facing operation requires an appropriate reverse proxy and the operator controls documented by the deployment runbooks.
 
-### Toitoi 側に残すもの
+### 4.2 Relay/runtime CLI
 
-- UI
-- application profile
-- domain-specific vocabulary
-- domain-specific curation / trust rule
+The relay/runtime binary provides local commands for validation, publication, retrieval, listing, subscription-like filtering over stored records, replay, capability output, archive operations, index operations, and quarantine workflows.
 
-## 代替案
+The local `subscribe` and `replay` commands do not establish a network subscription protocol. They do not provide remote delivery acknowledgements, ordering negotiation, resumable sessions, or federated synchronization.
 
-### 代替案 A: Go 中心
+### 4.3 File/archive
 
-Go は、`relay` や `storage node` の初速を上げやすいです。  
-ただし、Lingonberry では canonicalization、identity、provenance、replay の決定性を強く求めるため、今回の ADR では第一選択にしません。
+File/archive export and import are implemented operational carriers. They are not merely deferred design options.
 
-### 代替案 B: TypeScript/Node.js 中心
+Archive portability does not imply automatic remote synchronization, semantic translation, dynamic downgrade, or compatibility negotiation.
 
-TypeScript は Toitoi 側との接続がしやすい一方で、core の保存・再構成・検証の中核に置くには、運用上の注意が増えます。  
-そのため、API クライアントや edge では有用でも、relay / storage node の中心技術にはしません。
+## 5. Capability decision
 
-### 代替案 C: PostgreSQL を default にする
+The implementation generates capability manifests for the relay/runtime CLI and public HTTP endpoint. Archive export writes a separate archive-specific manifest.
 
-複数プロセスや強い query 要件には向きますが、MVP では重くなりやすいです。  
-まずは filesystem + SQLite で始め、必要時に移行条件を明確化します。
+Capability discovery is descriptive. The implementation does not provide:
 
-## 影響
+- runtime client/server negotiation;
+- automatic mutually supported version selection;
+- dynamic carrier fallback;
+- protocol or schema downgrade;
+- remote signed handshakes;
+- semantic translation between incompatible contracts.
 
-### 良い影響
+Consumers are responsible for compatibility checks for the fields on which they depend. Protocol validation and local acceptance policy remain independent of capability discovery.
 
-- 実装の不変条件をコードで守りやすい
-- relay と storage node の責務が明確になる
-- replay と canonicalization のテストが組みやすい
-- 長期運用での事故を減らしやすい
-- storage backend の初期運用が軽い
+## 6. Identity and provenance decision
 
-### 注意点
+Publisher signatures, protocol identity claims, provenance, administrator authentication, and authorization are distinct mechanisms.
 
-- 初期実装の学習コストはやや高い
-- Toitoi 側の技術スタックとの境界設計が必要
-- carrier の拡張順や追加 carrier の要件は別文書で詰める必要がある
+The HTTP publish-request validator requires the checked-in lowercase hexadecimal public-key and signature encodings. The v1.0 implementation does not promise ingress conversion from `npub` or other external encodings.
 
-## 関連する未決事項
+A valid publisher signature does not establish the truth of object content and does not bypass schema validation, identity validation, acceptance policy, quarantine, conflict detection, or storage failures.
 
-この ADR で決めても、次の点はまだ別途決める必要があります。
+Administrator credentials apply only to the separately authenticated administrative listener and do not replace publisher signatures.
 
-1. `storage backend` の詳細パラメータ
-2. `indexer` の保存方式
-3. `api` の公開範囲
-4. `access / retention policy` の carrier 別既定値
+## 7. Access and retention decision
 
-## 実施計画
+The implemented defaults are:
 
-1. 初期の未決事項を確定する
-2. Rust で最小 publish 経路を実装する
-3. relay / storage node を分離する
-4. identity / provenance を実用化する
-5. access / retention policy を運用層として切り出す
-6. 必要なら Go や TypeScript を周辺ツールに限定して使う
+- access scope: `public`;
+- retention hint: `long-lived`.
 
-## 関連
+Access scopes and retention hints are policy metadata. They do not themselves implement confidentiality, private-route authorization, automatic expiry, deletion, or archival enforcement.
 
+The archive manifest reports `privateEnabled: false` and operator-controlled scrubbing. Operators must use the access, retention, backup, and archive runbooks rather than infer enforcement from manifest vocabulary.
+
+## 8. Indexing decision
+
+Indexing is implemented as derived state. It does not replace the canonical stored object or original request material.
+
+The checked-in `packages/indexer` package builds queryable snapshots and graph views from stored canonical records. Index rebuilds must remain reproducible from authoritative storage.
+
+The v1.0 reference implementation does not guarantee PostgreSQL, an external search service, distributed index replication, or a separately deployed indexer service.
+
+## 9. Deployment and process boundaries
+
+The reference implementation supports local process execution and documented systemd-oriented operation. Public HTTP, administrative HTTP, and storage verification have separate operational responsibilities.
+
+Readiness of the public HTTP listener does not prove:
+
+- storage verification;
+- backup validity;
+- migration completion;
+- quarantine consistency;
+- privileged disk-pressure qualification;
+- reference-host qualification;
+- formal soak completion.
+
+Those claims require their own runbooks and evidence.
+
+## 10. Alternatives not selected for v1.0
+
+The v1.0 reference implementation does not use the following as its core runtime:
+
+- a TypeScript or Node.js relay/storage implementation;
+- a Go-based protocol core;
+- PostgreSQL as the default storage backend;
+- a Toitoi-specific transport as the Lingonberry protocol core;
+- an unversioned semantic translation gateway;
+- a network pub/sub carrier inferred solely from the word `relay`.
+
+These may be evaluated in future versions only through explicit compatibility, migration, and operational review.
+
+## 11. Consequences
+
+The selected architecture provides:
+
+- one Rust workspace for the implemented protocol and runtime components;
+- deterministic protocol and validation behavior;
+- a shared ingestion pipeline across HTTP, local runtime, and archive import;
+- explicit separation of compatibility, validation, acceptance, and storage outcomes;
+- reproducible archive and index workflows;
+- a small deployable reference surface.
+
+The costs include:
+
+- Rust implementation and review complexity;
+- responsibility for explicit reverse-proxy and system-service configuration;
+- limited dynamic interoperability in v1.0;
+- no automatic downgrade, fallback, or federated synchronization;
+- required operator discipline for backup, migration, quarantine, and evidence handling.
+
+## 12. Change control
+
+A compatibility or architecture review is required before changing:
+
+- workspace package boundaries that expose public behavior;
+- protocol, schema, capability, or archive identifiers;
+- canonicalization or identity rules;
+- signature encoding or signing bytes;
+- public versus administrative listener placement;
+- storage authority or replay material;
+- archive manifest enforcement;
+- acceptance-policy responsibility;
+- duplicate and conflict semantics;
+- default storage backend;
+- release qualification requirements.
+
+Documentation-only clarification must not redefine the selected release candidate or claim qualification that has not occurred.
+
+## 13. Release boundary
+
+For the current v1.0.0 release process:
+
+- v1.0.0 is not released;
+- the fixed candidate is `f9543019f2c219aea3b085ff90f2da201b268a48`;
+- documentation and tooling commits do not redefine that candidate;
+- formal 72-hour soak has not been performed;
+- privileged reference-host qualification and rehearsal are incomplete;
+- version update has not been performed;
+- the release tag has not been created;
+- the GitHub Release has not been created.
+
+Normal CI, documentation walkthroughs, local rehearsals, and non-privileged tests are not substitutes for formal soak or privileged reference-host qualification.
+
+## Related documents
+
+- [Carrier Decision Memo](./CARRIER_DECISION_MEMO.md)
+- [Carrier Capability Discovery and Compatibility](./CARRIER_CAPABILITY_NEGOTIATION.md)
+- [HTTP Carrier Contract](./HTTP_CARRIER_CONTRACT.md)
+- [File / Archive Carrier Contract](./FILE_ARCHIVE_CARRIER_CONTRACT.md)
+- [Relay / Storage Separation](./RELAY_STORAGE_SEPARATION.md)
+- [Storage Node Runtime](./STORAGE_NODE_RUNTIME.md)
+- [Storage Migration and Upgrade](./STORAGE_MIGRATION_AND_UPGRADE.md)
+- [Acceptance Policy](./ACCEPTANCE_POLICY.md)
 - [Access and Retention Policy](./ACCESS_RETENTION_POLICY.md)
-
-## 見直し条件
-
-この ADR を見直す条件は次です。
-
-- core の不変条件を Rust で保ちづらいことが判明したとき
-- Toitoi 側との統合で別言語の方が明らかに優位になったとき
-- carrier や storage の要件が大きく変わったとき
+- [Secret Management](./SECRET_MANAGEMENT.md)

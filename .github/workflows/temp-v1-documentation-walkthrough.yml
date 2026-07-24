@@ -1,8 +1,9 @@
 name: temporary v1 documentation walkthrough
 on:
-  push:
-    branches:
-      - agent/normalize-canonicalization
+  pull_request:
+    paths:
+      - '.github/workflows/temp-v1-documentation-walkthrough.yml'
+      - 'docs/protocols/CANONICALIZATION.md'
 permissions:
   contents: read
 jobs:

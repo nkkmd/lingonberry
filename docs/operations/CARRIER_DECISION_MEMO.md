@@ -1,247 +1,75 @@
 # Carrier Decision Memo
 
-**Status: draft** | **Last updated: 2026-06-23**
+**Status: v1.0 pre-release normative**
 
-## 目的
+This memo records the carrier decisions implemented by the Lingonberry v1.0 reference implementation. English is normative.
 
-この文書は、Lingonberry の最初の正規 carrier をどう選ぶかを整理します。  
-ここでの目的は、複数 carrier を否定することではなく、MVP で最初に実装すべき carrier を決めることです。  
-あわせて、最初の HTTP carrier schema の基本方針も含めます。
+## 1. Decision
 
-## 決定
+The reference implementation uses protocol-native JSON across three implemented carrier surfaces:
 
-**HTTP publish API** を最初の正規 carrier に決定します。
+1. an HTTP request/response carrier for interactive publication, retrieval, capability discovery, and readiness;
+2. a local relay/runtime command surface backed by the same protocol, validation, acceptance, and storage layers;
+3. a file/archive export and import carrier for portable replay material.
 
-その上で、後続 carrier として次を位置づけます。
+HTTP remains the primary interactive ingress. File/archive export and import are implemented operational carriers rather than merely future options. The relay/runtime exposes local subscription and replay commands, but v1.0 does not implement a network pub/sub protocol, a remote subscription handshake, delivery acknowledgements, or federated carrier synchronization.
 
-- `relay-based pub/sub`
-- `file/archive ingest`
-- 将来の `federated sync` / `offline sync`
+The carrier choice does not change protocol semantics. Carriers transport protocol-native objects and route them into shared validation, acceptance, finalization, storage, and indexing behavior.
 
-つまり、最初は **HTTP を入口にして、core の wire semantics を固定する** のがよいです。
+## 2. Implemented carrier surfaces
 
-## なぜ HTTP を最初にするか
+| Carrier surface | Implemented entry points | v1.0 role |
+|---|---|---|
+| HTTP | `POST /v1/objects`, `GET /v1/objects/<canonical-id>`, `GET /v1/capabilities`, `GET /v1/ready` and checked-in versioned read surfaces | primary interactive publication and retrieval carrier |
+| relay/runtime CLI | `publish`, `get`, `raw`, `list`, `subscribe`, `replay`, `capabilities`, archive commands, and operator commands | local process and operator-facing access to the shared runtime |
+| file/archive | `export-archive`, `import-archive`, `manifest.json`, `wire-log.jsonl`, `canonical-catalog.jsonl` | portable export/import and replay evidence |
 
-### 1. 実装と検証がしやすい
+Administrative quarantine HTTP operations use a separately authenticated listener. They are not part of the public HTTP carrier merely because they use HTTP framing.
 
-HTTP は、publish と retrieve の最小ループを作りやすいです。  
-最初の `knowledge object` を受け取り、validate / normalize / finalize し、canonical object を返す流れを構成しやすいです。
+## 3. Why HTTP is the primary interactive ingress
 
-### 2. relay と API を分けやすい
+HTTP is retained as the primary interactive ingress because it provides a small, testable publication and retrieval loop while preserving protocol-native semantics.
 
-HTTP publish は、`relay` の外側にある単なる変換層ではなく、carrier の 1 形として扱えます。  
-そのうえで、relay は append-only log と配信を担い、API は canonical view を返す、という分離を作りやすいです。
+The implemented flow is:
 
-### 3. Toitoi との接続がしやすい
+1. accept a bounded HTTP request;
+2. parse the versioned publish-request envelope;
+3. validate the envelope and contained knowledge object;
+4. verify publisher signature and identity rules;
+5. evaluate the local acceptance policy;
+6. defer eligible requests to quarantine or reject failures;
+7. finalize the knowledge object;
+8. append through the configured storage backend;
+9. classify stored, duplicate, conflict, or operational failure;
+10. return the versioned ingestion result.
 
-Toitoi 側の edge や UI から見ると、HTTP は最も扱いやすい接続点です。  
-application profile は Toitoi 側に残しつつ、Lingonberry core への入口をシンプルにできます。
+HTTP does not provide a semantic adapter, authoring profile, alternative canonicalization rule, or authorization bypass.
 
-### 4. capability negotiation に進みやすい
+## 4. Protocol-native request boundary
 
-HTTP から始めると、後から `carrier capability`、`content negotiation`、`versioning` を足しやすいです。  
-最初の wire semantics を固定する入口として扱いやすいです。
-
-## 候補比較
-
-### HTTP publish API
-
-向いている点:
-
-- 実装が分かりやすい
-- テストしやすい
-- Toitoi から接続しやすい
-- 初期の operational friction が低い
-
-注意点:
-
-- push 型の分散配信そのものではない
-- pub/sub をやるには別の機構が必要になる
-
-### relay-based pub/sub
-
-向いている点:
-
-- 分散 relay モデルに自然に合う
-- subscription と replay を扱いやすい
-- push での配信に向く
-
-注意点:
-
-- 最初の実装としては HTTP より重い
-- handshake、ordering、delivery semantics を先に詰める必要がある
-
-### file/archive ingest
-
-向いている点:
-
-- 再現性が高い
-- export/import に向く
-- archive relay と相性がよい
-
-注意点:
-
-- 日常的な publish 入口としてはやや間接的
-- interactive な利用には HTTP より向かない
-
-### federated sync / offline sync
-
-向いている点:
-
-- 将来の分散同期に向く
-- carrier 間の相互運用性を高められる
-
-注意点:
-
-- 初期版には重い
-- identity / provenance / conflict policy を先に固める必要がある
-
-## 採用方針
-
-### 第一候補
-
-- **HTTP publish API**
-
-### 第二候補
-
-- **file/archive ingest**
-
-### 第三候補
-
-- **relay-based pub/sub**
-
-この順にすると、最初の MVP を小さく始めながら、後で分散配信へ拡張しやすくなります。
-
-## HTTP carrier schema
-
-### 前提
-
-- HTTP は carrier であり、protocol の外側にある翻訳層ではない
-- request body は protocol-native な knowledge object をそのまま運ぶ
-- publish 主体は password ではなく公開鍵署名ベースで扱う
-- author / actor の同定は object 本体ではなく request envelope と provenance で扱う
-- publish 主体の public key は canonical には lowercase hex で扱う
-- `npub` 形式は ingress で受けてもよいが、保存前に hex へ正規化する
-- response は canonical view と metadata を返す
-- error は carrier 固有の失敗ではなく、できるだけ protocol 的に扱えるようにする
-
-### 入口
-
-#### 1. Publish
-
-- `POST /v1/objects`
-
-##### Request body
+The HTTP publish request contains:
 
 ```json
 {
   "object": {
-    "...": "knowledge object"
+    "...": "protocol-native knowledge object"
   },
   "publisher": {
-    "publicKey": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-    "signature": "..."
+    "publicKey": "64-character lowercase hexadecimal public key",
+    "signature": "128-character lowercase hexadecimal signature"
   }
 }
 ```
 
-##### 使い方
+The exact schema and signing bytes are defined by the checked-in schema and [HTTP Publish Signature](../protocols/HTTP_PUBLISH_SIGNATURE.md).
 
-- `object` に protocol-native な `knowledge object` を入れる
-- `publisher.publicKey` には publisher 側で用意した Ed25519 の公開鍵を入れる
-- `publisher.signature` には `publisher.signature` を除いた canonicalized request payload への署名を入れる
-- `publisher.signature` は Ed25519 の 64-byte 署名を lowercase hex で表現する
-- `publisher.publicKey` は canonical には hex で扱う
-- HTTP 側で semantic adapter を挟まない
-- 受け取る object は `id`, `schemaVersion`, `type`, `createdAt`, `body`, `provenance`, `rawRef` を満たす
-- 受け取った object は validate / normalize / finalize に渡す
-- `publisher` は wire object そのものではなく request envelope に属する
+The implemented request boundary does not accept `npub` as an alternative canonical publisher-key encoding. The validator requires the checked-in lowercase hexadecimal representation. Documentation must not describe unimplemented ingress conversion as a v1.0 feature.
 
-##### 成功時の応答
+The publisher envelope is not copied into the knowledge object as an author field. Signature verification, object provenance, identity claims, and acceptance policy remain distinct concerns.
 
-```json
-{
-  "status": "ok",
-  "id": "lb:obj:...",
-  "identityKey": "lb:key:...",
-  "canonical": {
-    "...": "canonical knowledge object"
-  },
-  "rawRef": {
-    "...": "raw reference"
-  }
-}
-```
+## 5. HTTP response decision
 
-##### 期待する性質
-
-- publish 後すぐ `id` を返せる
-- canonical view を返せる
-- rawRef を保持できる
-- identityKey を必要に応じて返せる
-- publisher の public key を provenance に引き渡せる
-- `identityClaims` はあれば返してよいが、publish の必須応答にはしない
-
-#### 2. Retrieve
-
-- `GET /v1/objects/{id}`
-
-##### 成功時の応答
-
-```json
-{
-  "status": "ok",
-  "canonical": {
-    "...": "canonical knowledge object"
-  },
-  "rawRef": {
-    "...": "raw reference"
-  }
-}
-```
-
-##### 期待する性質
-
-- canonical id で取得できる
-- carrier 固有の詳細を response から隠せる
-- canonical object を安定して返せる
-- rawRef を含む canonical representation を返せる
-
-#### 3. Capability discovery
-
-- `GET /v1/capabilities`
-
-##### 応答の目的
-
-carrier が何を受けられるか、どこまで互換かを公開します。
-
-##### 返すべき情報
-
-- protocol version
-- supported object types
-- supported schema version
-- supported auth mode
-- supported content type
-- validation / finalize の制約
-
-### 4. Access / retention hint
-
-HTTP carrier では、運用上の access / retention hint を capability に載せてもよいです。
-
-ただし、次は protocol semantic にしません。
-
-- public / curated / private の最終決定
-- retention の既定値
-- export 時の scrub 方針
-- authentication / authorization の強制有無
-
-これらは [Access and Retention Policy](./ACCESS_RETENTION_POLICY.md) で運用ポリシーとして扱います。
-
-### 推奨 response 形
-
-HTTP carrier の response は、なるべく次の 3 種類に絞ると扱いやすいです。
-
-#### 1. Success
+The draft-era generic response envelopes are not the v1.0 contract. In particular, clients must not require:
 
 ```json
 {
@@ -250,99 +78,186 @@ HTTP carrier の response は、なるべく次の 3 種類に絞ると扱いや
 }
 ```
 
-#### 2. Validation error
+or assume that publication returns a wrapper containing only `id`, `canonical`, and `rawRef`.
 
-```json
-{
-  "status": "error",
-  "error": {
-    "type": "validation_error",
-    "message": "..."
-  }
-}
+Publication uses the versioned ingestion-result contract. Its stable semantic outcomes are:
+
+- `stored`;
+- `duplicate`;
+- `deferred`;
+- `rejected`;
+- `conflict`;
+- `failed`.
+
+Clients must inspect both the HTTP status and the response body. Duplicate publication is idempotent success, deferred publication is not canonical storage, conflict is distinct from validation rejection, and operational failure is not acceptance-policy rejection.
+
+Retrieval returns the implemented stored-object representation. It does not use the obsolete illustrative `status: ok` / `canonical` / `rawRef` wrapper unless those fields are present in the checked-in route contract.
+
+## 6. HTTP parsing and deployment boundary
+
+The reference relay contains a bounded HTTP/1.1 parser sufficient for the checked-in contract tests. It is not a production reverse proxy.
+
+An Internet-facing deployment requires an appropriate reverse proxy for TLS termination and external publication policy. The carrier decision does not imply built-in guarantees for:
+
+- TLS termination;
+- HTTP/2 or HTTP/3;
+- compression;
+- streaming publication;
+- universal CORS behavior;
+- proxy trust configuration;
+- production denial-of-service protection.
+
+The reverse proxy must preserve the request method, path, body, and signature material required by the carrier contract.
+
+## 7. Capability discovery boundary
+
+The public HTTP carrier implements `GET /v1/capabilities`. The relay/runtime also implements the `capabilities` command.
+
+These surfaces publish generated capability manifests. They support discovery; they do not perform runtime negotiation.
+
+The v1.0 implementation does not provide:
+
+- a client/server negotiation request;
+- automatic selection of a mutually supported version;
+- dynamic fallback to another carrier;
+- protocol or schema downgrade;
+- a signed remote capability handshake;
+- semantic translation between incompatible contracts.
+
+Consumer compatibility checks, protocol validation, acceptance policy, and storage classification are separate responsibilities. See [Carrier Capability Discovery and Compatibility](./CARRIER_CAPABILITY_NEGOTIATION.md).
+
+## 8. File/archive carrier decision
+
+File/archive export and import are implemented.
+
+Archive export writes:
+
+- `manifest.json`;
+- `wire-log.jsonl`;
+- `canonical-catalog.jsonl`.
+
+The archive manifest identifies the archive version, capability version, protocol version, archive carrier kind, schema versions, policy metadata, paths, creation time, and item count.
+
+Archive import currently enforces the manifest's:
+
+- `archiveVersion`;
+- `protocolVersion`;
+- `carrierKind`.
+
+It then parses each wire-log record, validates the contained object, applies the local acceptance policy, finalizes the object, and appends it through the configured storage backend.
+
+The archive carrier is not an authorization boundary, encrypted backup format, automatic scrubber, or remote synchronization protocol. `privateEnabled: false` and `scrubMode: operator-controlled` must be interpreted as archive policy metadata, not as implemented confidentiality or automatic redaction.
+
+## 9. Relay and subscription boundary
+
+The runtime implements local `subscribe` and `replay` commands over stored records. These are process-level query and replay surfaces.
+
+They do not establish a v1.0 network pub/sub protocol. The following remain outside the implemented guarantee:
+
+- remote subscriber registration;
+- long-lived push delivery;
+- delivery acknowledgement;
+- redelivery scheduling;
+- ordering across nodes;
+- remote backpressure negotiation;
+- network handshake semantics;
+- federated relay synchronization.
+
+Documentation must not infer those features from the words `relay`, `subscribe`, `replay`, or from descriptive entries in the capability manifest.
+
+## 10. Shared semantic boundary
+
+All implemented carriers must preserve the shared protocol boundary:
+
+- protocol-native knowledge objects remain protocol-native;
+- carriers do not invent domain-specific semantic translations;
+- validation and finalization use the checked-in protocol and validation layers;
+- canonical identity is not derived from an HTTP status or archive filename;
+- provenance and raw references remain object-level protocol data;
+- duplicate and conflict classification belongs to ingestion and storage;
+- acceptance policy remains local runtime policy;
+- application profiles remain outside the core carrier contract.
+
+A Toitoi or other application profile may use HTTP as its connection surface, but domain-specific routing, presentation, and curation remain profile concerns.
+
+## 11. Access and retention boundary
+
+The generated capability manifest reports:
+
+- default access scope `public`;
+- default retention hint `long-lived`;
+- additional supported policy vocabulary.
+
+The archive manifest reports corresponding archive policy metadata.
+
+These values do not implement confidentiality, private authorization, automatic expiration, deletion authorization, or retention enforcement. Those operational meanings are governed by [Access and Retention Policy](./ACCESS_RETENTION_POLICY.md) and the actual storage and administrator contracts.
+
+## 12. Authentication and authorization boundary
+
+Publisher signature verification is implemented for the HTTP publish-request contract. It establishes that the request carries a valid signature under the checked-in signing contract; it is not administrator authentication and does not prove the truth of the published content.
+
+Administrator authentication and role authorization are separate and apply only to the authenticated administrator listener and implemented administrative operations.
+
+A valid publisher signature does not bypass:
+
+- schema validation;
+- identity validation;
+- acceptance policy;
+- duplicate/conflict classification;
+- quarantine rules;
+- storage failures.
+
+## 13. Rejected alternatives for v1.0
+
+The v1.0 reference implementation does not introduce:
+
+- a custom binary carrier;
+- a Toitoi-specific transport contract;
+- a gateway carrier that depends on semantic translation;
+- a remote federated-sync protocol;
+- an automatic carrier-selection protocol.
+
+These would add compatibility and operational boundaries that are not qualified by the fixed candidate.
+
+## 14. Compatibility review triggers
+
+A carrier change requires explicit compatibility review when it alters:
+
+- route paths or methods;
+- request schema or signing bytes;
+- publish-ingestion result contract;
+- semantic statuses or classified codes;
+- HTTP status mapping;
+- retrieval response shape;
+- capability identifiers;
+- archive layout or enforced manifest fields;
+- public versus administrator listener placement;
+- authentication or role requirements;
+- storage append, duplicate, conflict, or replay behavior.
+
+A documentation clarification must not redefine the selected release candidate or claim that formal qualification has occurred.
+
+## 15. Release boundary
+
+This memo describes the implemented carrier decision. It does not establish that v1.0.0 has been published.
+
+The fixed v1.0.0 candidate remains:
+
+```text
+f9543019f2c219aea3b085ff90f2da201b268a48
 ```
 
-#### 3. Not found / unavailable
+Later documentation or tooling commits do not redefine that candidate.
 
-```json
-{
-  "status": "error",
-  "error": {
-    "type": "not_found",
-    "message": "..."
-  }
-}
-```
+Normal CI, documentation walkthroughs, local archive tests, or non-privileged rehearsals are not the formal 72-hour soak and do not establish privileged reference-host qualification.
 
-## carrier に求める条件
+## Related documents
 
-最初の carrier は、次を満たすべきです。
-
-- protocol object をそのまま載せられる
-- semantic adapter を不要にする
-- wire object と canonical object を別プロトコルにしない
-- validate / normalize / finalize に接続できる
-- rawRef と provenance を保持できる
-- replay 可能性を損なわない
-
-## どの carrier を選ばないか
-
-### 今は選ばないもの
-
-- 独自バイナリプロトコル
-- Toitoi 固有の transport
-- semantic translation を前提にした gateway 専用 carrier
-
-理由:
-
-- core の wire semantics を複雑にしやすい
-- 実装コストが上がる
-- MVP の検証速度が落ちる
-
-## 実装境界
-
-### HTTP carrier で持つもの
-
-- publish
-- retrieve
-- validation error
-- capability discovery
-- request / response schema
-
-### relay / storage が持つもの
-
-- append-only log
-- replay
-- provenance
-- canonical catalog
-
-### profile 側に残すもの
-
-- domain-specific ルーティング
-- domain-specific UI
-- domain-specific curation rule
-
-## 未決事項
-
-次は別途決めます。
-
-1. publish 成功時の返却形式
-2. error model
-3. authentication / authorization を初期版に含めるか
-4. file/archive ingest の具体フォーマット
-5. relay-based pub/sub の handshake と delivery semantics
-6. HTTP carrier の response code と `status` のどちらを主にするか
-
-## 見直し条件
-
-この判断は、次のときに見直します。
-
-- push 型配信が MVP の中心要件になったとき
-- file/archive ingest が先に必要になったとき
-- public relay の trust model が HTTP より別 carrier に向いたとき
-- carrier 間同期の要件が早期に必要になったとき
-- access / retention policy の運用が carrier ごとに大きく分岐したとき
-
-## 関連
-
+- [HTTP Carrier Contract](./HTTP_CARRIER_CONTRACT.md)
+- [File / Archive Carrier Contract](./FILE_ARCHIVE_CARRIER_CONTRACT.md)
+- [Carrier Capability Discovery and Compatibility](./CARRIER_CAPABILITY_NEGOTIATION.md)
 - [Access and Retention Policy](./ACCESS_RETENTION_POLICY.md)
+- [Relay / Storage Separation](./RELAY_STORAGE_SEPARATION.md)
+- [Acceptance Policy](./ACCEPTANCE_POLICY.md)
+- [HTTP Publish Signature](../protocols/HTTP_PUBLISH_SIGNATURE.md)
+- [Protocol-Native Wire Format](../protocols/PROTOCOL_NATIVE_WIRE_FORMAT.md)

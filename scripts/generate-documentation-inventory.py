@@ -51,6 +51,7 @@ NORMALIZED_OPERATION_DOCS = {
     "docs/operations/QUARANTINE_PERMANENT_REJECTIONS.md",
     "docs/operations/QUARANTINE_REPLACEMENT_CLEANUP_RUNBOOK.md",
     "docs/operations/QUARANTINE_REPLACEMENT_COMPLETION_EVIDENCE.md",
+    "docs/operations/QUARANTINE_REPLACEMENT_GENERATION.md",
     "docs/operations/QUARANTINE_REPLACEMENT_POLICY.md",
     "docs/operations/RELAY_STORAGE_SEPARATION.md",
     "docs/operations/SECRET_MANAGEMENT.md",

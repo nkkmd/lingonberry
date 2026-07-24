@@ -1,198 +1,243 @@
 # Quarantine Replacement Operations Hardening
 
-**Status: implementation contract for QL-5C3D** | **Last updated: 2026-07-14**
+**Status: normative v1.0 pre-release operations contract** | **Last reviewed: 2026-07-24**
 
-This document defines the operations, observability, failure-injection, retention-inspection, and release-hardening boundary for the generation-directory replacement transaction implemented by QL-5C3C.
+This document defines the implemented observability, audit, failure-injection, recovery-classification, generation-inspection, retention, cleanup, and operator-evidence boundary for quarantine replacement transactions.
+
+Operations hardening must not broaden replacement semantics or evidence-deletion authority.
 
 ## 1. Safety boundary
 
-QL-5C3D must not broaden replacement semantics or evidence-deletion authority.
+The replacement operations layer must never:
 
-It must never:
-
-- overwrite managed ledgers in place;
+- overwrite active managed ledgers in place;
 - modify immutable evidence ledgers;
-- rewrite or delete archive segments;
+- rewrite or delete archive segments as part of replacement;
+- infer a successful transaction from directory or pointer existence alone;
+- classify contradictory state as healthy;
 - automatically delete generations or transaction workspaces;
-- perform retention deletion;
-- deduplicate or collapse events;
-- resolve conflicts;
+- deduplicate, collapse, or resolve conflicting events;
 - migrate schemas;
-- expose secrets, filesystem paths, transaction IDs, record IDs, or user-controlled values as unbounded metric labels;
-- treat same-host locking as distributed coordination;
-- classify ambiguous or corrupt state as healthy.
+- expose transaction IDs, generation digests, filesystem paths, record IDs, secrets, or user-controlled values as unbounded metric labels;
+- treat host-local locking as distributed coordination.
 
-All operations and observability failures are fail-closed.
+Status, audit, metrics, retention inspection, and recovery failures are fail-closed.
 
-## 2. Structured transaction status
+## 2. Versioned transaction status
 
-The canonical status representation must be versioned and machine-readable.
+`replacement-status <transaction-dir>` returns canonical JSON using:
 
-Minimum fields:
+```text
+lingonberry-quarantine-replacement-status/v1
+```
+
+The implemented fields are:
 
 ```text
 version
+transactionId
 state
 classification
+activeGeneration
 activeGenerationPresent
 targetGenerationActive
+generationDigest
 recoveryRequired
 terminal
 publicationPhase
-indexVerified
-segmentsVerified
-lastOperationOutcome
 ```
 
-Transaction IDs, generation digests, and paths may be present in explicit CLI status output when required for operator diagnosis, but they must not be reused as Prometheus label values.
+`transactionId`, `activeGeneration`, and `generationDigest` are explicit diagnostic fields in CLI status output. They must not be reused as Prometheus label values.
 
-Required classifications include:
+`terminal` is true only for:
+
+```text
+committed
+rolled-back
+```
+
+`recoveryRequired` is true only when the journal state is `recovery-required`.
+
+The bounded publication phase is derived from durable state and classification:
 
 ```text
 prepared
 writing
 staged
 verified
-resumable-before-switch
-resumable-after-switch
-recovery-required
+materialized
+switched
 committed
 rolled-back
-corrupt
+recovery-required
 ```
 
-Unknown journal state, invalid pointer, unrelated pointer, missing generation, digest mismatch, or contradictory publication intent is an error rather than an `unknown` success state.
+An invalid journal, pointer, manifest, digest, generation, input binding, or publication-intent relationship is an error. The status command does not convert corrupt state into a successful `unknown` report.
 
-## 3. Prometheus metrics
+## 3. Replacement metrics
 
-Metrics must use a bounded label set.
+`replacement-metrics <transaction-dir>` derives Prometheus text from a successfully classified transaction status. Metric collection is read-only with respect to transaction state.
 
-Proposed families:
+The implemented metric families are:
 
 ```text
 lingonberry_quarantine_replacement_transactions{state="..."}
-lingonberry_quarantine_replacement_active_generation{layout="legacy|generation"}
+lingonberry_quarantine_replacement_active_generation{layout="legacy|generation",target="active"}
 lingonberry_quarantine_replacement_recovery_required
-lingonberry_quarantine_replacement_last_operation{operation="apply|resume|rollback|status",outcome="success|rejected|failed"}
-lingonberry_quarantine_replacement_publication_phase{phase="none|prepared|materialized|switched|committed"}
+lingonberry_quarantine_replacement_publication_phase{phase="..."}
 ```
 
 Rules:
 
-- no transaction ID labels;
-- no generation digest labels;
-- no filesystem path labels;
-- no quarantine record ID labels;
-- no free-form error labels;
-- stable error families may be represented only through a bounded allowlist if needed;
-- corrupt state must not disappear from metrics because a reader returned early;
-- metric collection must not mutate transaction state.
+- state, layout, target, and phase values come from bounded implementation enums or fixed values;
+- transaction IDs are not metric labels;
+- generation digests are not metric labels;
+- filesystem paths are not metric labels;
+- quarantine record IDs are not metric labels;
+- free-form errors are not metric labels;
+- metric generation must not mutate the journal, pointer, generation, index, or archive state;
+- a corrupt status causes metric generation to fail rather than emit a healthy zero snapshot.
 
-## 4. Secret-free audit events
+The metrics output is transaction-local. It does not aggregate every transaction directory automatically and does not replace external scrape-target configuration.
 
-Replacement operations must emit append-only audit events without secrets.
+## 4. Replacement operation audit ledger
 
-Required event types:
+Replacement CLI operations append canonical JSON lines to:
 
 ```text
-replacement-apply-started
-replacement-apply-rejected
-replacement-staging-verified
-replacement-publication-prepared
+<state-dir>/quarantine-replacement-audit.jsonl
+```
+
+The event version is:
+
+```text
+lingonberry-quarantine-replacement-audit/v1
+```
+
+Implemented event types are:
+
+```text
+replacement-operation-started
+replacement-operation-completed
+replacement-operation-rejected
+replacement-recovery-required
 replacement-generation-switched
 replacement-committed
-replacement-resume-started
-replacement-resume-completed
-replacement-rollback-started
 replacement-rolled-back
-replacement-recovery-required
 replacement-status-corrupt
 ```
 
-Minimum fields:
+Implemented operations are:
+
+```text
+apply
+resume
+rollback
+status
+```
+
+Implemented outcomes are:
+
+```text
+started
+success
+rejected
+failed
+```
+
+Each event contains:
 
 ```text
 version
+occurredAt
 eventType
 operation
 outcome
 transactionState
 classification
 boundedErrorCode
-timestamp
 ```
 
-Audit events must not contain:
+The ledger intentionally omits transaction IDs, generation digests, full paths, raw ledger records, backup contents, proof contents, environment values, credentials, bearer tokens, and free-form error text.
 
-- bearer tokens, credentials, or authorization headers;
-- full filesystem paths;
-- raw ledger lines or object payloads;
-- unbounded error messages;
-- environment-variable contents;
-- backup or proof contents.
+`classification` is restricted to an implementation allowlist. `boundedErrorCode` must start with `LB_`, contain only uppercase ASCII letters, digits, or underscores, and remain within the configured length bound.
 
-Transaction IDs may be represented only if the existing audit threat model accepts them as non-secret operational identifiers. Otherwise use a bounded presence flag or stable digest prefix policy documented separately.
+Audit append uses a dedicated host-local quarantine lock, append mode, file sync, and parent-directory sync. This provides same-state-directory local serialization only; it is not a distributed audit service.
 
-## 5. Deterministic failure injection
+An audit append failure is returned to the caller. It is not silently discarded.
 
-Failure injection must be test-only or explicitly opt-in and impossible to activate accidentally in production.
+## 5. Failure injection contract
 
-Durable boundaries requiring injection coverage:
+Replacement failure injection is disabled by default and requires both:
 
 ```text
-journal write
-journal fsync
-staged ledger write
-staged ledger fsync
-staging directory fsync
-generation manifest write
-generation directory materialization
-publication intent write
-current-generation pointer temporary write
-current-generation pointer rename
-state directory fsync
-index rebuild
-index verification
-segment verification
-committed transition
-rollback pointer restoration
-rolled-back transition
+LINGONBERRY_ENABLE_REPLACEMENT_FAILURE_INJECTION=1
+LINGONBERRY_REPLACEMENT_FAILURE_POINT=<registered-point>
 ```
 
-Each injection point must have a stable identifier and deterministic one-shot behavior.
+Injection is one-shot per process. Production launch configuration must not set either variable unintentionally.
 
-Tests must verify:
+The machine-readable registry is:
 
-- active readers never accept a partial generation;
-- pre-switch failure preserves the old active generation;
-- post-switch/pre-commit failure is classified as resumable-after-switch or recovery-required;
-- resume completes only idempotent unfinished steps;
-- rollback restores only the exact previous pointer and is unavailable after commit;
+```text
+docs/operations/quarantine-replacement-crash-points.v1.json
+```
+
+Its version is:
+
+```text
+lingonberry-quarantine-replacement-crash-points/v1
+```
+
+Registered boundaries include:
+
+```text
+journal.write
+journal.fsync
+staging.ledger-write
+staging.ledger-fsync
+staging.directory-fsync
+generation.manifest-write
+generation.manifest-fsync
+publication.generation-materialize-rename
+publication.intent-write
+publication.pointer-temporary-write
+publication.pointer-rename
+publication.state-directory-fsync
+publication.index-rebuild
+publication.index-verification
+publication.segment-verification
+publication.commit-transition
+rollback.pointer-restore
+rollback.rolled-back-transition
+```
+
+The registry binds each point to its durable boundary, reader-visible target state, expected journal state, expected classification, allowed recovery actions, and test name.
+
+Failure injection is a test and rehearsal mechanism. It is not a production recovery control and does not itself prove reference-host qualification.
+
+## 6. Crash and recovery invariants
+
+Tests and rehearsals must preserve these invariants:
+
+- before pointer switch, readers continue to resolve the previous generation or legacy root layout;
+- after pointer switch, readers may resolve the target generation even if the transaction has not reached `committed`;
+- post-switch failures are classified as resumable or rollback-capable according to the durable state;
+- resume repeats only idempotent unfinished steps;
+- rollback restores only the exact previous pointer or the recorded legacy-root absence;
+- rollback is unavailable after `committed`;
 - immutable evidence remains byte-identical;
 - archive segments remain unchanged;
-- repeated recovery does not create a second generation or duplicate journal transition.
+- repeated recovery does not create a second generation or duplicate a journal transition;
+- contradictory pointer, intent, journal, or digest relationships fail closed.
 
-## 6. Crash-point matrix
+The crash-point registry is authoritative for the expected classification and allowed action at each registered injected boundary.
 
-A machine-readable or table-driven crash matrix must cover at least:
+## 7. Generation inspection
 
-| Crash point | Expected pointer | Expected state | Allowed action |
-|---|---|---|---|
-| before staging | previous | prepared / writing | resume or rollback |
-| after staged write | previous | writing / staged | resume or rollback |
-| after staged verification | previous | verified | resume or rollback |
-| after generation materialization | previous | publishing | resume or rollback |
-| after atomic switch | target | publishing / recovery-required | resume or rollback |
-| after index rebuild | target | publishing | resume |
-| after committed journal | target | committed | status only / new transaction |
+`replacement-inspect-generations [transaction-dir ...]` is a read-only inspection surface. It classifies the active layout and explicitly supplied transaction directories for retention review.
 
-Contradictory pointer states are corrupt and must not be automatically repaired.
-
-## 7. Generation retention and cleanup policy
-
-QL-5C3D may specify and inspect retention state but must not automatically delete evidence.
-
-Classification categories:
+Relevant classifications include:
 
 ```text
 active-committed-generation
@@ -204,92 +249,114 @@ legacy-root-layout
 unknown-or-corrupt
 ```
 
-A read-only cleanup-candidate report may include:
+Inspection evidence may include bounded classification, pointer and journal references, terminal state, verification status, durable age evidence, and manual-review requirements.
+
+Inspection must not:
+
+- delete, rename, truncate, or rewrite a generation;
+- repair a pointer or journal;
+- convert orphan or corrupt state into an eligible cleanup subject;
+- infer deletion authority from age alone.
+
+## 8. Retention and cleanup separation
+
+The implemented retention policy evaluates exact generation IDs only. A retention decision report is non-destructive classification evidence.
+
+A cleanup operation requires additional independently verified layers:
+
+1. exact generation inspection;
+2. retention-policy evaluation;
+3. complete cleanup plan and proof binding;
+4. apply-time state and inventory revalidation;
+5. a dedicated cleanup transaction journal;
+6. reversible tomb preparation;
+7. explicit destructive-action acknowledgement;
+8. irreversible deletion progress evidence;
+9. committed, rolled-back, recovery-required, or partially-deleted terminal handling.
+
+Eligibility does not authorize automatic deletion. Replacement transaction workspaces and cleanup transaction workspaces remain outside the current retention-policy subject model.
+
+## 9. CLI contract
+
+Implemented replacement observability and recovery commands include:
 
 ```text
-classification
-referencedByPointer
-referencedByJournal
-terminalTransactionState
-verificationStatus
-manualReviewRequired
-```
-
-It must not delete, rename, truncate, or rewrite any artifact.
-
-Any future deletion feature requires a separate approved policy, explicit operator confirmation, backup verification, and a dedicated issue.
-
-## 8. CLI contract
-
-Existing commands remain stable:
-
-```text
-replacement-apply
-replacement-status
-replacement-recover --resume
-replacement-recover --rollback
-```
-
-QL-5C3D may add read-only commands such as:
-
-```text
+replacement-apply <backup-v2-dir> <proof-dir> <transaction-dir>
+replacement-status <transaction-dir>
 replacement-metrics <transaction-dir>
-replacement-inspect-generations
-replacement-smoke-check <transaction-dir>
+replacement-inspect-generations [transaction-dir ...]
+replacement-recover <transaction-dir> --resume|--rollback
 ```
 
-Final command names must match CLI help, runbooks, tests, and release notes.
+Proof and maintenance commands used by the wider workflow include:
 
-No command may silently repair a pointer, journal, generation, or backup binding.
+```text
+replacement-preview <backup-v2-dir> <output-dir>
+verify-replacement-proof <proof-dir>
+verify-index
+verify-segments
+```
 
-## 9. Operational smoke test
+CLI help, tests, and operator runbooks must use the checked-in command names and argument ordering. No command may silently repair a pointer, journal, generation, proof, backup binding, or cleanup state.
 
-The recorded smoke test must exercise:
+## 10. Operator smoke and rehearsal evidence
+
+An operator smoke or rehearsal should exercise, in isolated state directories:
 
 ```text
 legacy root-ledger state
-→ verified backup v2 export and verify
-→ policy-v2 replacement preview and proof verify
-→ replacement apply
-→ committed status
-→ generation-aware read/write
-→ index verify
-→ segment verify
-→ repeated apply/resume idempotency
-→ injected post-switch failure in a separate fixture
-→ successful resume
-→ pre-commit rollback in a separate fixture
+verified backup v2 export and verification
+policy-v2 replacement preview and proof verification
+replacement apply
+committed status
+generation-aware read and write
+index verification
+segment verification
+idempotent status or recovery behavior
+injected pre-switch failure
+injected post-switch failure
+successful resume
+eligible pre-commit rollback
+retention inspection without deletion
 ```
 
-The smoke test must record commands, expected bounded outputs, and evidence-retention requirements without embedding secrets or environment-specific absolute paths.
+Evidence should retain:
 
-## 10. Release gates
+- exact binary or commit identity;
+- command lines with secrets removed;
+- canonical status output;
+- bounded metrics output;
+- relevant audit lines;
+- failure-injection point and expected classification;
+- pointer, journal, manifest, and digest evidence;
+- index and segment verification results;
+- state-directory identity;
+- operator and host identity recorded outside secret-bearing configuration.
 
-QL-5C3D is complete only when:
+Ordinary smoke tests, CI, and documentation walkthroughs are not the formal 72-hour soak and are not privileged reference-host qualification.
 
-- structured status is versioned and tested;
-- metrics use bounded cardinality and are tested;
-- audit output is secret-free and append-only;
-- failure-injection coverage spans every durable boundary approved for v0.3.0;
-- crash-state classification and recovery tests pass;
-- generation retention policy is explicit and non-destructive;
-- CLI help and operator documentation agree;
-- legacy root-layout upgrade behavior is tested;
-- the v0.3.0 release checklist is complete;
-- the v0.3.0 release note reflects final behavior;
-- all Rust and JavaScript release gates pass.
+## 11. Stable error handling
 
-## 11. Stable error families
+Callers must branch on stable error codes, not free-form messages.
 
-Existing transaction error families remain authoritative:
+Replacement-related error families include transaction, journal, staging, publication, recovery, rollback, audit, retention-policy, cleanup-preview, cleanup-transaction, tomb, and cleanup-execution families defined by the implementation.
 
-```text
-LB_QUARANTINE_REPLACEMENT_TRANSACTION
-LB_QUARANTINE_REPLACEMENT_JOURNAL
-LB_QUARANTINE_REPLACEMENT_STAGING
-LB_QUARANTINE_REPLACEMENT_PUBLICATION
-LB_QUARANTINE_REPLACEMENT_RECOVERY
-LB_QUARANTINE_REPLACEMENT_ROLLBACK
-```
+Audit events accept only bounded `LB_...` codes. Metrics do not expose error messages as labels.
 
-Operations hardening may add bounded families for observability or inspection, but callers must not branch on free-form messages.
+## 12. Non-goals
+
+Operations hardening does not provide:
+
+- distributed locking or consensus;
+- automatic corruption repair;
+- automatic generation or workspace deletion;
+- secure erase;
+- remote backup retrieval;
+- centralized audit replication;
+- cryptographic authentication of FNV-1a digests;
+- operator identity binding to local CLI execution;
+- formal soak completion;
+- privileged reference-host qualification;
+- release authorization.
+
+The fixed v1.0.0 candidate remains `f9543019f2c219aea3b085ff90f2da201b268a48`. Documentation normalization and ordinary CI or walkthrough checks do not redefine that candidate or satisfy the outstanding formal release gates.

@@ -43,6 +43,7 @@ NORMALIZED_OPERATION_DOCS = {
     "docs/operations/QUARANTINE_ADMIN_HTTP.md",
     "docs/operations/QUARANTINE_ANNOTATIONS.md",
     "docs/operations/QUARANTINE_BACKUP_RESTORE.md",
+    "docs/operations/QUARANTINE_COMPACTION_PROOF.md",
     "docs/operations/QUARANTINE_CONCURRENCY.md",
     "docs/operations/QUARANTINE_DISMISSALS.md",
     "docs/operations/QUARANTINE_JSONL_MAINTENANCE.md",

@@ -1,245 +1,284 @@
 # Quarantine Replacement Retention Policy
 
-**Status: draft for v0.4.0** | **Policy version: `lingonberry-quarantine-replacement-retention-policy/v1`** | **Tracking issue: #62**
+**Status: normative v1.0 pre-release operations contract** | **Policy version: `lingonberry-quarantine-replacement-retention-policy/v1`** | **Last reviewed: 2026-07-24**
 
-## 1. Purpose
+This document defines the implemented authorization boundary for selecting inactive quarantine replacement generations for cleanup. A retention decision report is classification evidence only. It does not delete data, create a cleanup transaction, or authorize irreversible deletion by itself.
 
-This document defines the authorization boundary for removing inactive quarantine replacement generations and terminal replacement transaction workspaces.
+The v1 policy evaluates **generation subjects only**. It does not select or authorize deletion of replacement transaction workspaces, cleanup transaction workspaces, archive segments, legacy root ledgers, or unrelated runtime files.
 
-A retention report is evidence for classification, not authorization for deletion. A subject becomes eligible only when every policy predicate, proof binding, runtime revalidation, and operator-consent requirement succeeds.
+## 1. Policy model
 
-## 2. Managed subjects
+The implementation evaluates a normalized policy with these fields:
 
-The policy recognizes two independent subject types:
+```text
+minimumPreviousCommittedGenerations
+minimumAgeSeconds
+allowPreviousCommittedGenerations
+allowRolledBackGenerations
+selectedGenerationIds
+```
 
-- `generation`: a directory under `quarantine-generations/<transaction-id>/`
-- `transaction-workspace`: a replacement transaction directory supplied explicitly by the operator
+The policy version is fixed by the implementation as:
 
-Generation cleanup and workspace cleanup must remain separately selectable and separately evidenced. Eligibility of one does not imply eligibility of the other.
-
-## 3. Required normalized policy inputs
-
-A cleanup policy instance must contain:
-
-```json
-{
-  "version": "lingonberry-quarantine-replacement-retention-policy/v1",
-  "minimumPreviousCommittedGenerations": 1,
-  "minimumAgeSeconds": 604800,
-  "allowPreviousCommittedGenerations": true,
-  "allowRolledBackGenerations": true,
-  "allowCommittedTransactionWorkspaces": true,
-  "allowRolledBackTransactionWorkspaces": true,
-  "selectedSubjects": []
-}
+```text
+lingonberry-quarantine-replacement-retention-policy/v1
 ```
 
 Rules:
 
-- `minimumPreviousCommittedGenerations` must be at least `1` in v0.4.0.
-- `minimumAgeSeconds` must be non-negative and must be evaluated from bound durable protocol metadata.
-- `selectedSubjects` must identify exact subject type and transaction ID.
-- wildcard, prefix, glob, implicit "all", and directory discovery selections are forbidden for apply.
-- policy normalization must be deterministic before digest calculation.
+- `minimumPreviousCommittedGenerations` must be at least `1`;
+- `minimumAgeSeconds` is an unsigned duration;
+- `selectedGenerationIds` must contain at least one exact generation ID;
+- duplicate selections are rejected;
+- empty IDs, `.`, `..`, path separators, wildcards, glob syntax, and bracket expressions are rejected;
+- selection is exact and deterministic; there is no prefix, wildcard, discovery, or implicit-all mode;
+- generation and workspace cleanup are not interchangeable.
 
-## 4. Eligibility predicates
+## 2. Candidate model
 
-A selected subject is eligible only when all applicable predicates succeed.
+Each retention candidate contains:
 
-### 4.1 Common predicates
+```text
+generationId
+classification
+terminalTransactionState
+verificationStatus
+durableAgeSeconds
+```
 
-- the subject was explicitly selected by the operator
-- the subject resolves below the expected managed root
-- every path component is a real directory entry and not a symbolic link
-- the subject name is valid UTF-8 and exactly matches its bound transaction ID
-- the subject appears exactly once in the plan
-- the active pointer, journals, manifests, digests, inventories, and runtime fingerprint match the verified proof
-- the same-host operation lock is held
-- no replacement or cleanup transaction is concurrently mutating managed state
-- minimum age is satisfied using bound durable metadata
+Candidate generation IDs must be unique. Duplicate candidate IDs make the evaluation fail closed.
 
-### 4.2 Generation predicates
+The implemented classifications are:
 
-`previous-committed-generation` is eligible only when:
+```text
+previous-committed-generation
+rolled-back-generation
+active-committed-generation
+incomplete-transaction-generation
+orphan-unreferenced-generation
+unknown-or-corrupt
+legacy-root-layout
+```
 
-- the journal state is `committed`
-- generation manifest and generation digest verify completely
-- it is not referenced by the active pointer
-- removing it does not violate `minimumPreviousCommittedGenerations`
-- no selected workspace or retained evidence requires the generation for recovery explanation
+Unsupported classifications are ineligible.
 
-`rolled-back-generation` is eligible only when:
+## 3. Eligible classifications
 
-- the journal state is `rolled-back`
-- generation manifest and generation digest verify completely
-- it is not referenced by the active pointer
-- rollback and audit evidence remain available after cleanup
+### 3.1 Previous committed generation
 
-The following classifications are categorically ineligible:
+A `previous-committed-generation` is provisionally eligible only when:
 
-- `active-committed-generation`
-- `incomplete-transaction-generation`
-- `orphan-unreferenced-generation`
-- `unknown-or-corrupt`
-- `legacy-root-layout`
+- `allowPreviousCommittedGenerations` is true;
+- `terminalTransactionState` is exactly `committed`;
+- `verificationStatus` is exactly `verified`;
+- durable age evidence is present;
+- `durableAgeSeconds` is at least `minimumAgeSeconds`.
 
-### 4.3 Transaction workspace predicates
+After provisional evaluation, the retention floor is applied across the complete candidate set. The evaluator counts every candidate classified as `previous-committed-generation` and permits removal of no more than:
 
-A committed workspace is eligible only when:
+```text
+previous committed total - minimumPreviousCommittedGenerations
+```
 
-- its journal is terminal `committed`
-- its committed generation is present and verifies, or later policy explicitly documents a safely retained equivalent evidence source
-- no recovery operation can validly consume the workspace
-- required audit and journal evidence is preserved outside the removable payload
+The selected generation IDs are normalized into sorted order. When more selected previous committed generations are provisionally eligible than the retention floor permits, only the first permitted IDs in that deterministic order remain eligible; the rest receive:
 
-A rolled-back workspace is eligible only when:
+```text
+minimum-retention-floor
+```
 
-- its journal is terminal `rolled-back`
-- rollback evidence remains sufficient after cleanup
-- no generation or active pointer references workspace-local data
+The retention floor protects previous committed generations only. It does not imply that rolled-back generations are safe to remove.
 
-Non-terminal, unreadable, duplicate-ID, missing-journal, or ambiguous workspaces are ineligible.
+### 3.2 Rolled-back generation
 
-## 5. Durable age source
+A `rolled-back-generation` is eligible only when:
 
-Filesystem creation, modification, and access timestamps are not authoritative retention evidence.
+- `allowRolledBackGenerations` is true;
+- `terminalTransactionState` is exactly `rolled-back`;
+- `verificationStatus` is exactly `verified`;
+- durable age evidence is present;
+- `durableAgeSeconds` is at least `minimumAgeSeconds`.
 
-For v0.4.0, age must be derived from a versioned durable timestamp already bound to verified transaction or generation metadata. The preview must identify the exact source field used for each subject. Apply must reject the proof if that source is absent, malformed, inconsistent, or changed.
+Rolled-back generations are not included in `minimumPreviousCommittedGenerations`.
 
-If no acceptable durable timestamp exists for a subject, the subject is ineligible. Implementations must not fall back to filesystem timestamps.
+## 4. Categorically ineligible classifications
 
-## 6. Managed path inventory
+The evaluator rejects:
 
-The proof must contain a complete, deterministic inventory for each selected subject.
+| Classification | Reason code |
+|---|---|
+| `active-committed-generation` | `active-generation` |
+| `incomplete-transaction-generation` | `non-terminal-transaction` |
+| `orphan-unreferenced-generation` | `orphan-requires-manual-review` |
+| `unknown-or-corrupt` | `unknown-or-corrupt` |
+| `legacy-root-layout` | `legacy-root-layout` |
+| unsupported classification | `unsupported-classification` |
 
-Each entry binds:
+A missing selected candidate is represented by an ineligible decision with:
 
-- normalized relative path
-- entry type
-- byte length for regular files
-- content digest for regular files
-- directory membership
+```text
+subject-not-found
+```
 
-Rules:
+The policy must not convert orphan, incomplete, corrupt, unknown, or legacy-root state into an automatically deletable subject.
 
-- absolute paths are forbidden in portable proof content
-- `.` and `..` path components are forbidden
-- symbolic links, hard-link ambiguity, devices, sockets, FIFOs, and unknown entry types are forbidden
-- any extra, missing, changed, or reordered semantic inventory entry causes rejection
-- apply must open and inspect entries without following symbolic links
+## 5. Other rejection reasons
 
-## 7. Plan and proof
+The evaluator uses stable reason codes including:
 
-The cleanup preview produces:
+```text
+classification-disabled-by-policy
+terminal-state-mismatch
+generation-not-verified
+durable-age-evidence-missing
+minimum-age-not-satisfied
+minimum-retention-floor
+eligible
+```
 
-- `lingonberry-quarantine-replacement-cleanup-plan/v1`
-- `lingonberry-quarantine-replacement-cleanup-proof/v1`
+Eligibility is all-or-nothing per selected generation. Age alone never establishes eligibility.
 
-The plan describes requested actions. The proof establishes that each requested action was eligible against an exact state snapshot.
+## 6. Durable age evidence
 
-The proof must bind at least:
+Filesystem creation, modification, and access timestamps are not authoritative policy inputs.
 
-- normalized policy and policy digest
-- state layout
-- active pointer bytes and digest, or explicit verified absence
-- retention report version and normalized subject classifications
-- journals and journal digests
-- generation manifests and generation digests
-- managed path inventories
-- durable age sources
-- runtime fingerprint
-- plan digest
-- proof digest
+`durableAgeSeconds` must be derived by the generation inspection and evidence pipeline from durable transaction or completion metadata. The retention evaluator consumes the supplied value; it does not independently inspect filesystem timestamps or reconstruct provenance.
 
-A proof is single-purpose. It may not authorize additional subjects or a different policy.
+When durable age evidence is absent, the candidate is ineligible. The evaluator does not fall back to file metadata.
 
-## 8. Apply-time revalidation
+## 7. Decision report
 
-Before the first mutation, apply must:
+Evaluation produces:
 
-1. acquire the same-host operation lock
-2. verify proof and plan digests
-3. resolve every subject without following symbolic links
-4. re-read and compare the active pointer
-5. re-read and compare all bound journals
-6. reverify manifests and generation digests
-7. rebuild and compare path inventories
-8. recompute retention-floor eligibility across the complete current generation set
-9. recompute durable age eligibility
-10. compare the runtime fingerprint
+```text
+lingonberry-quarantine-replacement-retention-decision-report/v1
+```
 
-Any mismatch is a preflight rejection. No partial selection is allowed: the entire apply request fails before mutation.
+Each decision contains:
 
-## 9. Mutation boundary
+```text
+generationId
+classification
+eligible
+reasonCode
+```
 
-Cleanup mutation must use a dedicated transaction and journal.
+The report includes one decision for every exact selected generation ID. It is evidence for the next preview stage, not deletion authority.
 
-The reversible phase may:
+The report does not contain a cleanup transaction, path inventory, destructive acknowledgement, tomb manifest, deletion progress, or secure-erasure claim.
 
-- create a transaction-local tomb directory on the same filesystem
-- rename selected subjects into the tomb directory
-- fsync renamed subjects, tomb directory, managed parent directories, and journal state
+## 8. Cleanup preview binding
 
-The irreversible phase begins before the first file or directory entry is deleted from the sealed tomb set.
+The cleanup preview accepts a retention decision report only when its policy version matches the implemented v1 policy.
 
-After the irreversible phase begins:
+The plan builder requires at least one eligible generation. It also requires the supplied subject set to bind the **entire eligible generation set** exactly:
 
-- rollback must not be advertised
-- interruption must resume deletion or report `recovery-required` / `partially-deleted`
-- missing tomb entries must be reconciled against the sealed inventory, never assumed successful
+- a subject not marked eligible is rejected;
+- duplicate subjects are rejected;
+- omission of any eligible generation is rejected;
+- subject order is normalized by generation ID;
+- each subject binds its classification, transaction journal digest, generation digest, completion evidence digest, and exact managed-path inventory;
+- all digests use the implemented `fnv1a64:<16 hex>` integrity format.
 
-## 10. Evidence preservation
+A retention decision report therefore cannot be reused to authorize a different subset after preview construction.
 
-Cleanup must preserve enough append-only evidence to answer:
+## 9. State-backed preview verification
 
-- which operator-triggered transaction requested cleanup
-- which policy and proof authorized it
-- which exact subjects were selected
-- which state snapshot was verified
-- which durable boundaries completed
-- whether deletion committed, rolled back, requires recovery, or partially completed
+The state-backed preview builder requires:
 
-For v0.4.0, a terminal cleanup transaction workspace is retained without automatic expiry. This includes the terminal journal and digest, sealed tomb inventory and digest, and path-level progress evidence for `committed`, `rolled-back`, and `partially-deleted` outcomes. No API in v0.4.0 may automatically remove, truncate, compact, or recycle these workspaces. A future policy version must define an explicit minimum age, minimum retained count, and independent operator authorization before workspace retirement can be implemented.
+- a real state directory;
+- a regular current-generation pointer file;
+- a real, unique transaction directory for each selected generation;
+- exact transaction ID and generation ID agreement;
+- terminal journal state matching the classification;
+- active transaction ID and active generation digest exclusion;
+- bound journal and completion-evidence digest files;
+- completion evidence verification;
+- exact managed-path inventory without symlinks or unsupported file types;
+- normalized relative paths only.
 
-Metrics and audit records must not expose secrets, full paths, transaction IDs as unbounded labels, or free-form error text.
+For a `previous-committed-generation`, the sealed generation is verified and its digest must match the expected generation digest.
 
-## 11. Operator consent
+For a `rolled-back-generation`, the builder verifies the rolled-back journal state, completion evidence, bound digest, active-pointer exclusion, and exact managed inventory. It does not claim that the rolled-back generation is an active or committed generation.
 
-v0.4.0 requires explicit double opt-in:
+The preview binds:
 
-- a verified proof naming exact subjects
-- a separate apply invocation containing an explicit destructive-action acknowledgement
+```text
+stateIdentity
+activePointerDigest
+runtimeFingerprint
+policyVersion
+subjects
+```
 
-Interactive confirmation alone is insufficient for automation safety. A command must be unambiguously non-destructive unless the destructive acknowledgement is present.
+The plan and proof formats are:
+
+```text
+lingonberry-quarantine-replacement-cleanup-plan/v1
+lingonberry-quarantine-replacement-cleanup-proof/v1
+```
+
+## 10. Apply-time boundary
+
+A verified retention report and cleanup proof remain insufficient by themselves for deletion.
+
+Cleanup apply must separately enforce the cleanup transaction contract, including:
+
+- the host-local operation lock;
+- proof and plan verification;
+- active-pointer and runtime-state revalidation;
+- exact managed-path inventory revalidation;
+- generation and completion-evidence bindings;
+- a dedicated cleanup journal;
+- a reversible tomb-preparation phase;
+- explicit destructive acknowledgement before irreversible deletion;
+- progress evidence and fail-closed recovery.
+
+No partial selection may be silently skipped and reported as global success.
+
+## 11. Transaction workspace retention
+
+Replacement transaction workspaces and cleanup transaction workspaces are outside the implemented retention-policy subject model.
+
+This policy does not define fields such as:
+
+```text
+allowCommittedTransactionWorkspaces
+allowRolledBackTransactionWorkspaces
+selectedWorkspaces
+```
+
+Terminal workspaces, journals, completion evidence, cleanup proofs, tomb inventories, and path-level deletion progress remain retained unless a separate future policy and implementation explicitly authorize their retirement.
 
 ## 12. Forbidden behavior
 
-Implementations must not:
+The retention policy and its consumers must not:
 
-- delete the active generation
-- delete archive segments
-- mutate immutable evidence ledgers
-- delete unknown, corrupt, orphan, incomplete, or legacy-root state
-- infer eligibility from age alone
-- follow symbolic links
-- accept wildcard subject selection for apply
-- apply stale or partially matching proofs
-- silently skip failed subjects and report global success
-- combine cleanup with replacement apply/resume/rollback
-- enable background scheduled deletion in v0.4.0
-- remove terminal cleanup transaction workspaces in v0.4.0
-- promise secure erase semantics
+- select or delete the active generation;
+- delete archive segments or mutate immutable evidence ledgers;
+- treat legacy root layout as a generation cleanup subject;
+- automatically delete orphan, unknown, corrupt, incomplete, or unsupported state;
+- infer eligibility from age alone;
+- follow symbolic links;
+- accept wildcard or implicit-all selection;
+- use a decision report for subjects not fully bound into its cleanup preview;
+- combine replacement apply, resume, rollback, and cleanup into one transaction;
+- schedule background deletion as an implied consequence of eligibility;
+- promise secure erase semantics;
+- treat FNV-1a digests as signatures, MACs, or trusted provenance.
 
-## 13. Review gate before destructive implementation
+## 13. Non-goals
 
-Destructive implementation may begin only after review accepts:
+The v1 retention policy does not provide:
 
-- the subject model
-- eligibility predicates
-- retention floor
-- durable age source
-- inventory and symlink rules
-- proof binding
-- apply-time revalidation
-- reversible and irreversible boundaries
-- partial deletion evidence semantics
+- transaction-workspace retirement;
+- cleanup-workspace retirement;
+- archive retention or compaction;
+- automated orphan repair;
+- distributed cleanup coordination;
+- remote storage deletion;
+- cryptographic operator authorization;
+- retention scheduling;
+- secure deletion;
+- release qualification or release authorization.
+
+The fixed v1.0.0 candidate remains `f9543019f2c219aea3b085ff90f2da201b268a48`. Documentation normalization and ordinary walkthrough checks do not redefine that candidate or satisfy the outstanding formal release gates.

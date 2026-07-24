@@ -33,6 +33,7 @@ NORMALIZED_OPERATION_DOCS = {
     "docs/operations/FILE_ARCHIVE_CARRIER_CONTRACT.md",
     "docs/operations/HTTP_CARRIER_CONTRACT.md",
     "docs/operations/KNOWLEDGE_OBJECT_PUBLISH_QUICKSTART.md",
+    "docs/operations/MIGRATION_AND_SCHEMA_VERSIONING.md",
     "docs/operations/NODE_LIFECYCLE_RUNBOOK.md",
     "docs/operations/OBSERVABILITY.md",
     "docs/operations/OPERATOR_CLI_CONTRACT.md",

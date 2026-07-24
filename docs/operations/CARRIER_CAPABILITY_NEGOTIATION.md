@@ -1,62 +1,47 @@
-# Carrier Capability Negotiation
+# Carrier Capability Discovery and Compatibility
 
-**Status: draft** | **Last updated: 2026-06-22**
+**Status: v1.0 pre-release normative**
 
-## 目的
+This document defines the implemented carrier capability discovery surface and the compatibility boundaries that consumers must apply for the Lingonberry v1.0 reference implementation. English is normative.
 
-この文書は、複数 carrier の差分を扱うための capability negotiation を定義します。
+## 1. Scope
 
-capability negotiation は、carrier ごとの違いを semantic model に持ち込まずに、どの実装がどこまで通るかを明示するための仕組みです。
+The v1 reference implementation publishes a capability manifest for discovery. The manifest describes implemented identifiers, supported schema versions, supported object types, carrier vocabulary, policy defaults, and selected helper surfaces.
 
-## 原則
+The implementation does not perform runtime capability negotiation, automatic fallback, dynamic downgrade, remote handshakes, or semantic translation between incompatible versions. Consumers must treat discovery, compatibility evaluation, request validation, and local acceptance policy as separate responsibilities.
 
-- capability は中央 registry に依存しない
-- capability は carrier 固有の framing と option に閉じる
-- capability は protocol semantic を上書きしない
-- capability は advisory であり、意味論の source of truth ではない
+## 2. Implemented discovery surfaces
 
-## 参照面
+The implemented discovery surfaces are:
 
-capability は、次の場所から取得できる想定です。
+- the relay CLI command `lingonberry capabilities`;
+- `GET /v1/capabilities` on the public HTTP listener;
+- the archive export `manifest.json`, which carries archive-specific compatibility metadata.
 
-- HTTP carrier の `GET /v1/capabilities`
-- archive carrier の `manifest.json`
-- 署名付き manifest
-- relay 上の discovery endpoint
+The CLI capability command builds a relay manifest. The HTTP endpoint builds an HTTP manifest. Archive export writes a different archive manifest and archive import validates only the archive fields described in this document.
 
-## 最小語彙
+The v1 implementation does not implement:
 
-### protocol version
+- a registry-backed discovery protocol;
+- a signed remote capability exchange;
+- a client/server negotiation request;
+- selection of a mutually supported version at runtime;
+- retry against another carrier after incompatibility;
+- automatic downgrade to an older protocol or schema;
+- a remote handshake that establishes a session contract.
 
-protocol の互換境界を表します。
+Manifest fields named under discovery helpers are descriptive vocabulary. Their presence is not proof that the corresponding remote protocol is implemented.
 
-### archive version
+## 3. Capability manifest shape
 
-archive carrier の論理 layout と replay contract の version を表します。
-
-### carrier kind
-
-`http`、`archive`、`relay` のような carrier 種別を表します。
-
-### supported object types
-
-受け入れ可能な semantic type の一覧です。
-
-### supported schema versions
-
-validate 可能な schema version の一覧です。
-
-返却時は、少なくとも schema ごとに分けて示します。
-
-- schema 名
-- 受け入れ可能な version の範囲
-- 現行の推奨 version
-- 破壊的変更の有無
-
-例:
+The relay and HTTP discovery surfaces return a generated JSON object with this implemented shape:
 
 ```json
 {
+  "capabilityVersion": "1",
+  "protocolVersion": "0.1.0",
+  "carrierKind": "http",
+  "supportedCarrierKinds": ["http", "archive", "relay"],
   "supportedSchemaVersions": [
     {
       "schema": "knowledge-object",
@@ -70,135 +55,262 @@ validate 可能な schema version の一覧です。
       "preferred": "0.1.0",
       "breaking": false
     }
-  ]
+  ],
+  "supportedObjectTypes": [
+    "inquiry",
+    "observation",
+    "claim",
+    "evidence",
+    "annotation",
+    "synthesis",
+    "translation",
+    "reference",
+    "concept"
+  ],
+  "supportedContentTypes": ["application/json"],
+  "supportedAuthModes": [
+    "public-key-signature",
+    "relay-trusted-signature"
+  ],
+  "validationConstraints": [
+    "required-fields",
+    "schema-version-match",
+    "identity-consistency"
+  ],
+  "finalizeConstraints": [
+    "canonical-id-resolution",
+    "rawref-preservation",
+    "provenance-preservation"
+  ],
+  "supportedAccessScopes": ["public", "curated", "private"],
+  "supportedRetentionHints": ["long-lived", "long-term", "ephemeral"],
+  "multiNode": {},
+  "defaults": {
+    "accessScope": "public",
+    "retentionHint": "long-lived"
+  }
 }
 ```
 
-### supported auth modes
+The `carrierKind` value depends on the surface:
 
-publish / retrieve に使える認証方式です。
+| Surface | `carrierKind` |
+|---|---|
+| `lingonberry capabilities` | `relay` |
+| `GET /v1/capabilities` | `http` |
 
-HTTP の場合は、たとえば次のような値を返せます。
+`capabilityVersion` is the version of this discovery object. It is not the protocol version, a schema version, an archive version, or a negotiated session version.
 
-- `public-key-signature`
-- `relay-trusted-signature`
+## 4. Version identifiers
 
-### supported content types
+The checked-in v1 candidate implementation currently uses:
 
-受け入れ可能な media type や framing です。
+| Identifier | Implemented value | Meaning |
+|---|---|---|
+| capability version | `1` | generated capability-manifest format |
+| protocol version | `0.1.0` | protocol compatibility identifier |
+| knowledge object schema version | `0.1.0` | accepted `knowledge-object` schema version |
+| HTTP publish request schema version | `0.1.0` | accepted `http-publish-request` schema version |
+| archive version | `1` | archive layout and import contract identifier |
 
-HTTP の場合は、たとえば次のような値を返せます。
+These values are independent compatibility boundaries. A consumer must not substitute one for another.
 
-- `application/json`
-- `application/jose`
+The capability manifest advertises only the single implemented knowledge-object schema version and the single implemented HTTP publish-request schema version. The `preferred` member repeats the implemented version. The `breaking` member is descriptive metadata; the runtime validators do not use it to negotiate compatibility.
 
-### validation constraints
+## 5. Carrier kind and supported carrier kinds
 
-validate 時に確認できる制約です。
+`carrierKind` identifies the surface that produced the manifest. `supportedCarrierKinds` is a vocabulary list containing `http`, `archive`, and `relay`.
 
-HTTP の場合は、たとえば次のような値を返せます。
+The list does not mean that one running endpoint can dynamically switch among those carriers, proxy them, or downgrade from one to another. Carrier selection is made by the caller or operator before invoking the corresponding surface.
 
-- `required-fields`
-- `schema-version-match`
-- `identity-consistency`
+The relay CLI manifest and the HTTP manifest share most fields because both use the same manifest builder. Archive export does not reuse that full object.
 
-### finalize constraints
+## 6. HTTP capability discovery
 
-finalize 時に確認できる制約です。
+`GET /v1/capabilities` returns the generated capability manifest with:
 
-HTTP の場合は、たとえば次のような値を返せます。
+- `carrierKind` set to `http`;
+- default access scope set to `public`;
+- default retention hint set to `long-lived`.
 
-- `canonical-id-resolution`
-- `rawref-preservation`
-- `provenance-preservation`
+The endpoint is discovery only. It does not:
 
-### supported access scopes
+- authorize a publish request;
+- prove readiness of the storage backend;
+- select a schema version for the caller;
+- create a negotiated session;
+- guarantee that every advertised policy vocabulary value is operationally enabled;
+- bypass request validation or acceptance policy.
 
-公開範囲や参照範囲の制約です。
+Consumers must still submit the implemented HTTP publish-request shape and inspect the actual route result.
 
-HTTP の場合は、たとえば次のような値を返せます。
+## 7. Archive manifest
 
-- `public`
-- `curated`
-- `private`
+Archive export writes `manifest.json` with an archive-specific shape. Its principal fields are:
 
-access scope は protocol semantic ではなく、[Access and Retention Policy](./ACCESS_RETENTION_POLICY.md) に従う運用語彙として扱います。
+```json
+{
+  "archiveVersion": "1",
+  "capabilityVersion": "1",
+  "protocolVersion": "0.1.0",
+  "carrierKind": "archive",
+  "createdAt": "...",
+  "itemCount": 0,
+  "schemaVersions": {
+    "knowledgeObject": "0.1.0",
+    "httpPublishRequest": "0.1.0"
+  },
+  "policy": {
+    "defaultAccess": "public",
+    "defaultRetention": "long-lived",
+    "privateEnabled": false,
+    "scrubMode": "operator-controlled"
+  },
+  "paths": {
+    "manifest": "manifest.json",
+    "wireLog": "wire-log.jsonl",
+    "catalog": "canonical-catalog.jsonl"
+  }
+}
+```
 
-### supported retention hints
+The archive manifest is not the HTTP capability manifest serialized to disk. Field names and enforcement behavior differ.
 
-保持方針のヒントです。
+Archive import currently enforces only:
 
-HTTP の場合は、たとえば次のような値を返せます。
+- `archiveVersion` exists and equals `1`;
+- `protocolVersion` exists and equals `0.1.0`;
+- `carrierKind` exists and equals `archive`.
 
-- `long-lived`
-- `long-term`
-- `ephemeral`
+Archive import does not currently reject an archive solely because `capabilityVersion`, `schemaVersions`, `policy`, `paths`, `createdAt`, or `itemCount` is absent or differs. After manifest validation, imported records are parsed, validated, evaluated under the local acceptance policy, finalized, and appended through the storage backend.
 
-retention hint も protocol semantic ではなく、[Access and Retention Policy](./ACCESS_RETENTION_POLICY.md) と整合させる運用語彙として扱います。
+Consumers and operators must distinguish fields that are present in the archive manifest from fields that the archive importer enforces.
 
-### replay support
+## 8. Manifest description versus enforced validation
 
-archive や relay log から再構成可能かどうかを表します。
+The discovery manifest describes more than the consumer path automatically validates.
 
-### supported archive versions
+The protocol validators enforce the actual knowledge-object and publish-request contracts, including required fields, exact knowledge-object schema version, supported object type, publisher material, signature verification, identity rules, and additional structural constraints.
 
-受け入れ可能な archive version の範囲です。
+The archive importer separately enforces the three archive manifest fields listed above. It then applies local object validation and local acceptance policy to each imported record.
 
-## Negotiation の進め方
+No generic capability-manifest validator currently rejects a remote HTTP manifest based on all advertised fields. A client that depends on a field must implement and test its own compatibility check before using the remote surface.
 
-1. client は自分の必須条件を列挙する
-2. server は公開された capability を返す
-3. 共通部分を取る
-4. 必須条件が欠ける場合は fail closed にする
-5. 成立した framing と version を明示する
+In particular, these advertised values are not equivalent to runtime authorization or policy enablement:
 
-## 判定ルール
+- `supportedAuthModes`;
+- `supportedAccessScopes`;
+- `supportedRetentionHints`;
+- `validationConstraints`;
+- `finalizeConstraints`;
+- helper entries under `multiNode`.
 
-- major protocol version が合わない場合は原則拒否する
-- 必須 object type がない場合は拒否する
-- replay が必要な場面で replay support がない場合は拒否する
-- 必須 archive version がない場合は拒否する
-- 互換性が曖昧な場合は、semantic translation ではなく拒否を優先する
-- `supported schema versions` は、schema ごとに version 範囲を明示できない場合は fail closed にする
+## 9. Compatibility evaluation
 
-## 新 carrier の追加時
+Compatibility evaluation belongs to the consumer of a discovered manifest. A conservative consumer should:
 
-新しい carrier を追加するときは、carrier 固有の都合を semantic model に持ち込まないように、次の順で確認します。
+1. require a recognized `capabilityVersion` before interpreting the object;
+2. require the expected `carrierKind` for the selected surface;
+3. compare `protocolVersion` with the protocol version it implements;
+4. locate the required schema entries by schema name;
+5. require an exact implemented schema version unless the consumer has an independently tested compatibility rule;
+6. require every object type, content type, or authentication mode that its operation actually depends on;
+7. reject missing or ambiguous required fields;
+8. avoid inferring fallback, downgrade, or translation support from the manifest.
 
-1. carrier kind を決める
-2. その carrier が公開する capability の取得面を決める
-3. supported object types と supported schema versions を決める
-4. supported auth modes と supported content types を決める
-5. validation constraints と finalize constraints を決める
-6. supported access scopes と supported retention hints を policy と突き合わせる
-7. replay support と supported archive versions を必要に応じて明示する
-8. capability が欠ける場合に fail closed にする条件を決める
-9. 追加 carrier に対する追加 validation を、semantic translation ではなく framing / option の差として説明する
-10. [Node Lifecycle Runbook](./NODE_LIFECYCLE_RUNBOOK.md) から確認順に辿れるようにする
+For the v1 reference implementation, exact equality is the safest rule for protocol and schema identifiers. The implementation does not provide a semver range evaluator or a negotiated downgrade path.
 
-このとき、次のどれかが曖昧なら追加 carrier はまだ受け入れません。
+Compatibility evaluation answers whether a consumer can attempt the operation using a known contract. It does not answer whether a particular object will be accepted.
 
-- protocol version
-- supported schema versions
-- supported object types
-- supported auth modes
-- supported content types
-- supported access scopes
-- supported retention hints
-- replay support
-- supported archive versions
+## 10. Acceptance policy boundary
 
-追加 carrier の受け入れ判断は、capability の不足を semantic translation で埋めず、互換境界を明示して fail closed にすることを優先します。
+Acceptance policy is local runtime policy applied after structural and identity validation. It may accept, reject, or defer an otherwise parseable request.
 
-## 期待する性質
+Capability discovery and compatibility evaluation must not be used to predict or replace acceptance policy. A compatible publish-request contract can still be:
 
-- carrier が増えても semantic model は変わらない
-- capability の不一致が早く見つかる
-- offline / archive / HTTP の差分を説明できる
+- rejected for validation or identity errors;
+- deferred to quarantine by local policy;
+- rejected by a local policy profile;
+- classified as a duplicate or conflict by storage;
+- failed by an operational dependency.
 
-## 関連
+Conversely, acceptance policy must not reinterpret an incompatible protocol or schema version as compatible.
 
-- [Carrier Decision Memo](./CARRIER_DECISION_MEMO.md)
+The responsibility split is:
+
+| Concern | Responsible layer |
+|---|---|
+| describe the local surface | capability manifest producer |
+| decide whether a known client contract can be attempted | consumer compatibility check |
+| validate request and object structure | protocol and validation layers |
+| decide accept, reject, or defer | local acceptance policy |
+| classify duplicate, conflict, or storage failure | storage and ingestion layers |
+
+## 11. Defaults and policy vocabulary
+
+The generated manifest reports:
+
+- `defaults.accessScope = public`;
+- `defaults.retentionHint = long-lived`.
+
+The supported lists also contain `curated`, `private`, `long-term`, and `ephemeral`. These are policy vocabulary, not proof that confidentiality, private authorization, automatic expiry, deletion, or retention enforcement is enabled.
+
+The archive manifest additionally reports `privateEnabled: false` and `scrubMode: operator-controlled`.
+
+Consumers must use [Access and Retention Policy](./ACCESS_RETENTION_POLICY.md) and the actual carrier contract to interpret these values.
+
+## 12. Non-goals for v1.0
+
+The v1.0 reference implementation does not guarantee:
+
+- bidirectional runtime capability negotiation;
+- automatic selection from version ranges;
+- dynamic fallback to another carrier;
+- dynamic protocol or schema downgrade;
+- semantic translation between incompatible objects;
+- signed remote handshakes;
+- central-registry coordination;
+- universal enforcement of every manifest field;
+- authorization derived from capability discovery.
+
+Adding any of these behaviors requires a separate implementation change, tests, compatibility review, and documentation update. It must not be introduced by documentation wording alone.
+
+## 13. Operator verification
+
+For a controlled checkout:
+
+1. run `lingonberry capabilities` and record the relay manifest;
+2. start the public HTTP listener;
+3. request `GET /v1/capabilities` and confirm `carrierKind` is `http`;
+4. compare both outputs with the constants and manifest builder in the checked-in implementation;
+5. export an archive and inspect `manifest.json`;
+6. verify archive import rejects mismatched `archiveVersion`, `protocolVersion`, and `carrierKind`;
+7. verify imported records still pass local validation and acceptance policy;
+8. confirm no test or runtime path claims automatic negotiation, fallback, downgrade, or remote handshake;
+9. record the exact commit, commands, fixtures, and resulting evidence.
+
+A local or CI verification run is not formal 72-hour soak evidence and is not privileged reference-host qualification.
+
+## 14. Release boundary
+
+This document describes the fixed v1.0 candidate implementation. Documentation or tooling commits after candidate selection do not redefine the candidate.
+
+Until separate evidence exists, the following remain incomplete:
+
+- formal 72-hour soak;
+- privileged reference-host qualification and rehearsal;
+- version update;
+- release pull request;
+- tag creation;
+- GitHub Release publication.
+
+## Related documents
+
 - [HTTP Carrier Contract](./HTTP_CARRIER_CONTRACT.md)
 - [File / Archive Carrier Contract](./FILE_ARCHIVE_CARRIER_CONTRACT.md)
-- [Distributed Knowledge Commons Architecture](../architecture/DISTRIBUTED_KNOWLEDGE_COMMONS_ARCHITECTURE.md)
+- [Acceptance Policy](./ACCEPTANCE_POLICY.md)
+- [Access and Retention Policy](./ACCESS_RETENTION_POLICY.md)
+- [Node Lifecycle Runbook](./NODE_LIFECYCLE_RUNBOOK.md)
+- [Protocol-Native Wire Format](../protocols/PROTOCOL_NATIVE_WIRE_FORMAT.md)
+- [`knowledge-object` schema](../../schemas/knowledge-object.schema.json)
+- [`http-publish-request` schema](../../schemas/http-publish-request.schema.json)

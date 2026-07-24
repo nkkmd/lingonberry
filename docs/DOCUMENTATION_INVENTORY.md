@@ -6,7 +6,7 @@
 ## Status
 
 - Tracked Markdown files: **170**
-- Release-blocking review entries: **70**
+- Release-blocking review entries: **69**
 - Classification totals: BILINGUAL_REQUIRED: 6, BILINGUAL_SCOPED: 3, ENGLISH_ONLY: 161
 - Governing policy: [`DOCUMENTATION_POLICY.md`](./DOCUMENTATION_POLICY.md)
 - Tracking issue: [#144](https://github.com/nkkmd/lingonberry/issues/144)
@@ -78,7 +78,7 @@ Every tracked Markdown file must appear below. `yes` in the final column means t
 | `docs/operations/QUARANTINE_REPLACEMENT_PREVIEW.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
 | `docs/operations/QUARANTINE_REPLACEMENT_PREVIEW_RUNBOOK.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
 | `docs/operations/QUARANTINE_REPLACEMENT_RECOVERY_RUNBOOK.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
-| `docs/operations/QUARANTINE_REPLACEMENT_RETENTION_POLICY.md` | `ENGLISH_ONLY` | `MERGE_OR_ENGLISH_NORMALIZATION` | yes |
+| `docs/operations/QUARANTINE_REPLACEMENT_RETENTION_POLICY.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
 | `docs/operations/QUARANTINE_REPLACEMENT_TRANSACTION.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
 | `docs/operations/QUARANTINE_REPLACEMENT_V0_4_0_SMOKE_TEST.md` | `ENGLISH_ONLY` | `MERGE_OR_ENGLISH_NORMALIZATION` | yes |
 | `docs/operations/QUARANTINE_SCHEDULER.md` | `ENGLISH_ONLY` | `MERGE_OR_ENGLISH_NORMALIZATION` | yes |

@@ -1,96 +1,151 @@
 # Canonicalization
 
-**Status: draft** | **Last updated: 2026-07-11**
+**Status: normative v1.0 pre-release protocol contract** | **Rule version: `lb.canonical.json.v1`** | **Last reviewed: 2026-07-25**
 
-## 1. 目的
+This document defines the checked-in canonical JSON behavior used by Lingonberry protocol code, identity-key derivation, publish-request signatures, archive and evidence serialization, and conformance fixtures.
 
-この文書は、Lingonberry protocol object から決定的な canonical JSON bytes を生成する規則を定義します。
+The v1 rule describes the existing Rust and JavaScript reference implementations. It is not a claim of full RFC 8785 compliance.
 
-canonicalization は次の基盤です。
+## 1. Canonicalization boundary
 
-- archive replay
-- semantic identity key
-- publish request signature
-- object deduplication
-- conformance testing
-- 異なる言語で実装された node 間の相互運用
+Canonicalization receives an already parsed JSON value and emits one JSON text without insignificant whitespace or a trailing newline.
 
-同じ JSON value を入力した適合実装は、同じ UTF-8 byte sequence を生成しなければなりません。
+```text
+JSON text
+  -> implementation parser
+  -> parsed JSON value
+  -> recursive object-key ordering
+  -> compact JSON serialization
+  -> UTF-8 bytes
+```
 
-## 2. Rule version
+Canonicalization does not validate a knowledge-object schema, add defaults, remove optional fields, normalize timestamps or language tags, sort arrays semantically, or choose a cryptographic hash algorithm.
 
-初期規則は次の名前で参照します。
+## 2. Rule identifier
+
+The frozen rule identifier is:
 
 ```text
 lb.canonical.json.v1
 ```
 
-この version は、現在の Rust および JavaScript 参照実装の既存挙動を仕様として固定するものです。
+Changing output for values already covered by this rule requires a new rule identifier. A future rule must not silently reinterpret existing v1 identity keys, signatures, digests, or fixtures.
 
-## 3. Canonicalization pipeline
+## 3. Reference implementations
+
+The checked-in implementations are:
+
+| Runtime | Parse and value model | Canonical operation |
+|---|---|---|
+| Rust | `packages/protocol/src/lib.rs` custom parser and `JsonValue` | `normalize_json` and `to_canonical_json` |
+| JavaScript | `JSON.parse` and native JavaScript values | `sortKeys` and `JSON.stringify` |
+
+The shared fixture is under:
 
 ```text
-JSON input
-  -> parse
-  -> recursively order object members
-  -> serialize without insignificant whitespace
-  -> UTF-8 encode
-  -> canonical bytes
+conformance/canonicalization/
 ```
 
-### 3.1 Parse
+The current fixture covers object-key ordering, nested objects, preserved array order, non-ASCII strings, compact output, and idempotence.
 
-入力は RFC 8259 JSON として解析します。
+## 4. Object ordering
 
-不正な JSON、重複 member、実装が安全に表現できない number は、canonicalization より前に reject して構いません。重複 member の扱いを実装依存にしないため、publisher は重複 member を含む object を生成してはいけません。
+Every object is serialized with keys in ascending implementation string order. The operation is recursive for nested objects, including objects contained in arrays.
 
-### 3.2 Object member ordering
+Rust stores object members in `BTreeMap<String, JsonValue>`. JavaScript applies:
 
-すべての JSON object について、member name を Unicode scalar value の辞書順で昇順に並べます。
+```text
+Object.keys(value).sort()
+```
 
-この処理は root object だけでなく、nested object にも再帰的に適用します。
+The checked-in fixture uses keys for which both implementations produce the same order. Protocol producers must not assume that untested edge cases involving supplementary Unicode key characters are interoperable merely because each runtime is internally deterministic.
 
-例:
+Example:
 
 ```json
 {"z":1,"a":{"z":2,"a":3}}
 ```
 
-は次になります。
+becomes:
 
 ```json
 {"a":{"a":3,"z":2},"z":1}
 ```
 
-### 3.3 Array ordering
+## 5. Arrays
 
-array element の順序は変更しません。
+Array element order is preserved exactly.
 
-array の各 element が object の場合、その object の member ordering だけを再帰的に適用します。
+Canonicalization recursively orders object members inside array elements, but it does not:
 
-### 3.4 Strings
+- sort array values;
+- remove duplicates;
+- normalize relation order;
+- normalize label order;
+- treat arrays as sets.
 
-string value と member name は UTF-8 として出力します。
+Any semantic array normalization must occur in a separately versioned rule before canonicalization.
 
-次の character は JSON escape を使用します。
+## 6. Strings and UTF-8
 
-- quotation mark
-- reverse solidus
-- U+0000 から U+001F の control characters
+Canonical output is encoded as UTF-8.
 
-`lb.canonical.json.v1` では Unicode normalization を行いません。NFC と NFD は異なる byte sequence として扱います。この点は将来の rule version で変更できますが、既存 version の意味を変更してはいけません。
+The Rust serializer emits ordinary Unicode scalar values directly and escapes:
 
-### 3.5 Numbers
+```text
+quotation mark
+reverse solidus
+backspace
+form feed
+line feed
+carriage return
+tab
+other U+0000 through U+001F control characters
+```
 
-number は JSON number として出力し、文字列へ変換しません。
+Other control characters use lowercase four-digit `\u` escapes. Solidus is not escaped on output.
 
-`lb.canonical.json.v1` の複数言語実装で安全に一致させるため、protocol schema は identity や signature の対象となる field で、実装間に表現差が生じる極端な数値を避けるべきです。
+No Unicode normalization is performed. Canonically equivalent NFC and NFD strings remain different byte sequences.
 
-将来、number normalization を強化する場合は新しい canonicalization rule version を定義します。
+The Rust parser rejects invalid UTF-8 and unescaped control characters. Its current `\u` parser accepts one Unicode scalar value per escape and rejects surrogate code units rather than combining surrogate pairs. Producers that require Rust and JavaScript interoperability must emit valid UTF-8 scalar values directly and must not rely on escaped surrogate pairs.
 
-### 3.6 Booleans and null
+## 7. Numbers
 
-次の lowercase token を使用します。
+`lb.canonical.json.v1` does not define a cross-runtime mathematical number normalization algorithm.
+
+Rust stores a parsed number as its validated source lexeme and emits that lexeme unchanged. Therefore these may remain byte-distinct in Rust:
+
+```text
+1
+1.0
+1e0
+1E+0
+```
+
+JavaScript parses numbers into the native `Number` type and `JSON.stringify` selects its own output representation. Consequently, arbitrary JSON number lexemes are not guaranteed to produce identical Rust and JavaScript canonical bytes.
+
+Protocol schemas, identity bases, signed payloads, and conformance fixtures must restrict numeric values to an interoperability-safe subset that has been tested across both implementations. A stronger number-normalization algorithm requires a new canonicalization rule version.
+
+Non-finite JavaScript values are outside the JSON input model and must not enter canonicalization.
+
+## 8. Duplicate object members
+
+The two parsers do not expose duplicate members as a preserved sequence.
+
+The current Rust parser inserts members into a `BTreeMap`; a later duplicate member replaces the earlier value. `JSON.parse` likewise exposes only one resulting property value.
+
+Because duplicate-member provenance is lost and parser behavior is not a safe protocol distinction:
+
+- conforming producers must never emit duplicate object member names;
+- signed, hashed, or identity-bearing input with duplicate members is unsupported;
+- validators or ingress layers may reject duplicate members before the reference parser;
+- canonical output must not be used to prove which duplicate occurrence appeared in the original JSON text.
+
+This is a producer prohibition, not a claim that the current Rust parser detects duplicates.
+
+## 9. Booleans and null
+
+The exact lowercase tokens are:
 
 ```text
 true
@@ -98,97 +153,136 @@ false
 null
 ```
 
-### 3.7 Whitespace
+## 10. Whitespace and line termination
 
-object member、array element、colon、comma の前後に空白を追加しません。
+Canonical output contains no insignificant whitespace around object members, array elements, colons, or commas.
 
-canonical JSON の末尾に改行を追加しません。
+The canonical string has no trailing newline. JSONL writers that append `\n` do so outside the canonicalization function as a record-framing operation.
 
-### 3.8 Missing values and empty values
+## 11. Missing and empty values
 
-欠落 field と、明示的な `null`、空 object、空 array、空 string は区別します。
-
-canonicalization は optional field を追加・削除しません。default value の補完が必要な場合は、canonicalization の前段となる versioned normalization rule で処理します。
-
-## 4. Canonical bytes API
-
-参照実装は、少なくとも次の操作を公開または内部的に一意に実行できる必要があります。
+Canonicalization preserves the distinction among:
 
 ```text
-canonical_json(value) -> string
-canonical_bytes(value) -> UTF-8 bytes
+missing member
+null
+empty string
+empty array
+empty object
 ```
 
-現行参照実装では次が対応します。
+It does not add, remove, or replace fields. Default insertion and semantic normalization belong to separately versioned schema or normalization logic.
 
-| 実装 | 操作 |
-|---|---|
-| Rust | `normalize_json` + `to_canonical_json` |
-| JavaScript | `sortKeys` + `JSON.stringify` |
+## 12. Parser limits and accepted input
 
-## 5. Identity and signing
-
-identity key または署名 payload を生成するときは、対象となる JSON value を先に canonicalize します。
+The Rust reference parser enforces:
 
 ```text
-semantic basis
-  -> lb.canonical.json.v1
-  -> canonical UTF-8 bytes
-  -> hash or signature
+maximum input size: 1,048,576 bytes
+maximum nesting depth: 128
+no trailing non-whitespace content
+valid JSON number grammar
+valid UTF-8
 ```
 
-canonicalization rule version は、identity rule version および signature rule version から参照できるようにします。
+These are parser limits, not properties of the emitted canonical JSON format. Another implementation may impose stricter resource limits, but protocol-facing limits must be documented and must fail closed.
 
-## 6. Compatibility
+## 13. Identity-key basis
 
-`lb.canonical.json.v1` の出力を変更してはいけません。
-
-規則変更が必要な場合は、たとえば次のような新しい version を作ります。
+Identity-key derivation does not canonicalize the complete knowledge object indiscriminately. The checked-in v1 identity basis selects these members when present:
 
 ```text
-lb.canonical.json.v2
+type
+createdAt
+body
+contexts
+relations
+status
+lineage
+attachments
+labels
 ```
 
-node capability は、対応する canonicalization rule version を宣言できるべきです。
+The selected object is then serialized canonically and hashed by the identity-key rule. Fields outside the basis, including `id`, provenance, raw references, identity claims, and metadata, do not enter this specific v1 basis.
 
-## 7. Conformance fixtures
+Canonicalization supplies deterministic bytes; it does not define which fields belong to an identity basis.
 
-共通 fixture は次に置きます。
+## 14. Publish-request signature payload
+
+The publish-request signature payload is a canonical object containing:
 
 ```text
-conformance/canonicalization/
+object
+publisher
 ```
 
-各 test case は、少なくとも input JSON と expected canonical JSON を持ちます。
+Before canonicalization, `publisher.signature` is removed. The publisher public key remains in the payload.
 
-適合実装は次を確認します。
+The canonical UTF-8 bytes are passed to Ed25519 verification. Canonicalization does not authenticate the key, authorize the publisher, or establish provenance independently of signature verification and policy checks.
 
-1. input を parse できる
-2. expected と完全に同じ canonical string を生成する
-3. canonical string の UTF-8 bytes が一致する
-4. canonical output を再度 canonicalize しても結果が変わらない
+## 15. Canonicalization and digests
 
-## 8. 初期 test case
+Canonical bytes are often inputs to hashes or integrity digests, but this rule does not choose or strengthen the digest algorithm.
 
-`object-key-order` は次を検証します。
+In particular:
 
-- root object member ordering
-- nested object member ordering
-- array ordering preservation
-- array 内 object の member ordering
-- non-ASCII UTF-8 string
-- whitespace removal
-- idempotence
+- FNV-1a integrity digests used by some operational artifacts are not signatures or MACs;
+- canonical output does not establish trusted time;
+- canonical output does not prove the original formatting of parsed JSON;
+- canonical output does not preserve duplicate-member occurrence or original number spelling in JavaScript;
+- canonical equality is not automatically semantic equality for every application profile.
 
-## 9. 非目標
+## 16. Conformance requirements
 
-この version では次を行いません。
+A conformance case should contain at least:
 
-- semantic field の追加や削除
-- timestamp の timezone 変換
-- language tag の case normalization
-- Unicode NFC normalization
-- relation や label array の semantic sorting
-- cryptographic hashing algorithm の変更
+```text
+input JSON
+expected canonical JSON
+```
 
-これらは normalization、identity、application profile の別仕様で扱います。
+For every supported case, an implementation must verify:
+
+1. the input is accepted by that implementation;
+2. the emitted canonical string exactly matches the expected file;
+3. the UTF-8 bytes match exactly;
+4. canonicalizing the parsed canonical output is idempotent;
+5. array order is preserved;
+6. nested object ordering is recursive.
+
+Cross-runtime claims must be limited to shared fixtures that both runtimes execute successfully. Untested numeric lexemes, duplicate members, escaped surrogate pairs, and Unicode key-order edge cases are outside the demonstrated interoperability set.
+
+## 17. Compatibility and versioning
+
+`lb.canonical.json.v1` output for covered values is frozen.
+
+A behavior change involving any of the following requires explicit compatibility analysis and normally a new version such as `lb.canonical.json.v2`:
+
+- number normalization;
+- duplicate-member rejection in the core parser;
+- Unicode normalization;
+- surrogate-pair handling;
+- object-key ordering semantics;
+- string escaping;
+- semantic array ordering;
+- default-field insertion or removal.
+
+Capability declarations may advertise supported canonicalization rule identifiers, but advertisement does not replace conformance testing.
+
+## 18. Non-goals
+
+This rule does not perform:
+
+- schema validation;
+- semantic field insertion or deletion;
+- timestamp timezone conversion;
+- language-tag case normalization;
+- Unicode NFC normalization;
+- relation or label sorting;
+- duplicate-event resolution;
+- canonical ID assignment;
+- signature creation or key authorization;
+- cryptographic algorithm migration;
+- release qualification or release authorization.
+
+The fixed v1.0.0 candidate remains `f9543019f2c219aea3b085ff90f2da201b268a48`. Documentation normalization and ordinary walkthrough checks do not redefine that candidate or satisfy the outstanding formal release gates.

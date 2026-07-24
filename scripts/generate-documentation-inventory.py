@@ -32,6 +32,7 @@ NORMALIZED_OPERATION_DOCS = {
     "docs/operations/CARRIER_DECISION_MEMO.md",
     "docs/operations/FILE_ARCHIVE_CARRIER_CONTRACT.md",
     "docs/operations/HTTP_CARRIER_CONTRACT.md",
+    "docs/operations/KNOWLEDGE_OBJECT_PUBLISH_QUICKSTART.md",
     "docs/operations/NODE_LIFECYCLE_RUNBOOK.md",
     "docs/operations/OBSERVABILITY.md",
     "docs/operations/OPERATOR_CLI_CONTRACT.md",
@@ -85,7 +86,32 @@ def render(paths: list[str]) -> str:
         blockers += blocker == "yes"
         rows.append(f"| `{path}` | `{category}` | `{action}` | {blocker} |")
     summary = ", ".join(f"{key}: {counts[key]}" for key in sorted(counts))
-    return f"""# Documentation Inventory\n\n> English is normative. This inventory is generated from tracked Markdown files.\n> 英語を正本とします。この一覧は追跡対象のMarkdownファイルから生成されます。\n\n## Status\n\n- Tracked Markdown files: **{len(paths)}**\n- Release-blocking review entries: **{blockers}**\n- Classification totals: {summary}\n- Governing policy: [`DOCUMENTATION_POLICY.md`](./DOCUMENTATION_POLICY.md)\n- Tracking issue: [#144](https://github.com/nkkmd/lingonberry/issues/144)\n\n## English\n\nEvery tracked Markdown file must appear below. `yes` in the final column means the listed action must be resolved before v1.0.0 publication. Classification does not claim that translation or normalization is already complete.\n\n## 日本語\n\n追跡対象のMarkdownファイルは、すべて以下に掲載されなければなりません。最終列が`yes`の項目は、v1.0.0公開前に記載された作業を完了する必要があります。分類済みであることは、翻訳や正規化が完了済みであることを意味しません。\n\n## Inventory\n\n| Current path | Classification | Required action | v1.0 blocker |\n|---|---|---|---|\n""" + "\n".join(rows) + "\n"
+    return f"""# Documentation Inventory
+
+> English is normative. This inventory is generated from tracked Markdown files.
+> 英語を正本とします。この一覧は追跡対象のMarkdownファイルから生成されます。
+
+## Status
+
+- Tracked Markdown files: **{len(paths)}**
+- Release-blocking review entries: **{blockers}**
+- Classification totals: {summary}
+- Governing policy: [`DOCUMENTATION_POLICY.md`](./DOCUMENTATION_POLICY.md)
+- Tracking issue: [#144](https://github.com/nkkmd/lingonberry/issues/144)
+
+## English
+
+Every tracked Markdown file must appear below. `yes` in the final column means the listed action must be resolved before v1.0.0 publication. Classification does not claim that translation or normalization is already complete.
+
+## 日本語
+
+追跡対象のMarkdownファイルは、すべて以下に掲載されなければなりません。最終列が`yes`の項目は、v1.0.0公開前に記載された作業を完了する必要があります。分類済みであることは、翻訳や正規化が完了済みであることを意味しません。
+
+## Inventory
+
+| Current path | Classification | Required action | v1.0 blocker |
+|---|---|---|---|
+""" + "\n".join(rows) + "\n"
 
 
 def main() -> int:

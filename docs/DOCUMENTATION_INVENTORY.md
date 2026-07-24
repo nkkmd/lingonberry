@@ -6,7 +6,7 @@
 ## Status
 
 - Tracked Markdown files: **170**
-- Release-blocking review entries: **83**
+- Release-blocking review entries: **82**
 - Classification totals: BILINGUAL_REQUIRED: 6, BILINGUAL_SCOPED: 3, ENGLISH_ONLY: 161
 - Governing policy: [`DOCUMENTATION_POLICY.md`](./DOCUMENTATION_POLICY.md)
 - Tracking issue: [#144](https://github.com/nkkmd/lingonberry/issues/144)
@@ -63,7 +63,7 @@ Every tracked Markdown file must appear below. `yes` in the final column means t
 | `docs/operations/OPERATOR_CLI_CONTRACT.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
 | `docs/operations/QUARANTINE_ADMIN_HTTP.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
 | `docs/operations/QUARANTINE_ANNOTATIONS.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
-| `docs/operations/QUARANTINE_BACKUP_RESTORE.md` | `ENGLISH_ONLY` | `MERGE_OR_ENGLISH_NORMALIZATION` | yes |
+| `docs/operations/QUARANTINE_BACKUP_RESTORE.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
 | `docs/operations/QUARANTINE_COMPACTION_PROOF.md` | `ENGLISH_ONLY` | `MERGE_OR_ENGLISH_NORMALIZATION` | yes |
 | `docs/operations/QUARANTINE_CONCURRENCY.md` | `ENGLISH_ONLY` | `MERGE_OR_ENGLISH_NORMALIZATION` | yes |
 | `docs/operations/QUARANTINE_DISMISSALS.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |

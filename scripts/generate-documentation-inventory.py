@@ -28,6 +28,7 @@ NORMALIZED_OPERATION_DOCS = {
     "docs/operations/ACCEPTANCE_POLICY.md",
     "docs/operations/ACCESS_RETENTION_AUDIT_CHECKLIST.md",
     "docs/operations/ACCESS_RETENTION_POLICY.md",
+    "docs/operations/CADDY_RELAY_PUBLICATION.md",
     "docs/operations/CARRIER_CAPABILITY_NEGOTIATION.md",
     "docs/operations/CARRIER_DECISION_MEMO.md",
     "docs/operations/FILE_ARCHIVE_CARRIER_CONTRACT.md",

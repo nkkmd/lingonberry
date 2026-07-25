@@ -85,6 +85,7 @@ NORMALIZED_PROTOCOL_DOCS = {
     "docs/protocols/INDEX_GENERATION_DIGEST.md",
     "docs/protocols/LAST_KNOWN_GOOD_EFFECTIVE_VIEW.md",
     "docs/protocols/ORPHAN_TRANSITIONS.md",
+    "docs/protocols/PROTOCOL_CONTRACT.md",
 }
 
 

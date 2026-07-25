@@ -1,26 +1,31 @@
-# Protocol identifier grammar
+# Protocol Identifier Contract
 
-**Rule version:** `lb.protocol.id.ascii.v1`  
-**Status:** draft for v0.6.0
+**Status:** normative for the v1.0.0 pre-release implementation  
+**Rule version:** `lb.protocol.id.ascii.v1`
 
-## Purpose
+## 1. Purpose
 
-Protocol identifiers are opaque machine identifiers, not display text. This rule fixes a cross-language ASCII grammar and bounded byte lengths so validation, lexical ordering, storage, indexing, and logging costs remain deterministic.
+Protocol identifiers are case-sensitive machine identifiers. They are not display text, file paths, URLs, authorization tokens, signatures, or collision-resistant digests.
 
-## Grammar
+This document distinguishes the complete identifier grammar defined by the checked-in JSON Schemas from the weaker validation performed by some runtime paths.
 
-Protocol-generated canonical identifiers MUST use one of the registered prefixes and a non-empty ASCII-safe suffix.
+## 2. Registered identifier classes
+
+The registered protocol prefixes are:
 
 ```text
-object ID:      lb:obj:<suffix>
-transition ID:  lb:transition:<suffix>
-identity key:   lb:key:<suffix>
+Knowledge Object ID:  lb:obj:<suffix>
+Transition Object ID: lb:transition:<suffix>
+identity key:         lb:key:<suffix>
+```
 
-suffix character set:
+For identifiers governed by `lb.protocol.id.ascii.v1`, `<suffix>` MUST be non-empty and contain only:
+
+```text
 A-Z a-z 0-9 . _ ~ : -
 ```
 
-Equivalent regular expressions are:
+Equivalent complete regular expressions are:
 
 ```text
 ^lb:obj:[A-Za-z0-9._~:-]+$
@@ -28,44 +33,138 @@ Equivalent regular expressions are:
 ^lb:key:[A-Za-z0-9._~:-]+$
 ```
 
-Whitespace, control characters, percent escapes, path separators, query delimiters, fragment delimiters, and non-ASCII Unicode code points are not valid protocol-ID characters.
+Whitespace, control characters, percent escapes, `/`, `\\`, `?`, `#`, and non-ASCII Unicode code points are outside this rule.
 
-## Length limits
+## 3. Length limits
 
-Limits include the registered prefix and are measured over the literal UTF-8 representation. Because valid identifiers are ASCII-only, byte length equals character count.
+Limits include the prefix and are measured over the literal UTF-8 representation.
 
 ```text
-object ID:      maximum 255 bytes
-transition ID:  maximum 255 bytes
-identity key:   maximum 512 bytes
+Knowledge Object ID:  maximum 255 bytes
+Transition Object ID: maximum 255 bytes
+identity key:         maximum 512 bytes
 ```
 
-A consumer MUST reject an over-limit identifier before canonical storage, graph insertion, indexing, or effective-view evaluation. It MUST NOT truncate, hash, or otherwise rewrite an over-limit identifier into a valid one.
+Because conforming identifiers are ASCII-only, character count and UTF-8 byte count are equal for values that already satisfy the grammar.
 
-## Comparison and ordering
+A validating path MUST reject an over-limit identifier. It MUST NOT truncate, case-fold, hash, percent-decode, Unicode-normalize, or otherwise rewrite the supplied identifier into a different valid identifier.
 
-Protocol IDs are compared as their literal ASCII bytes. For `supersedesTransitionIds`, producers and consumers sort IDs by ascending unsigned ASCII byte value before deriving `lb.transition.identity.v1`.
+## 4. Checked-in schema enforcement
 
-Because every permitted character is a single ASCII byte, ASCII byte ordering and Unicode code-point ordering produce the same result for valid IDs. Locale-aware collation MUST NOT be used.
+The checked-in Knowledge Object schema enforces:
 
-## Preservation
+- `id`: `^lb:obj:[A-Za-z0-9._~:-]+$`, maximum 255 characters;
+- identity-claim `identityKey`: `^lb:key:[A-Za-z0-9._~:-]+$`, maximum 512 characters;
+- identity-claim `canonicalId`: the Knowledge Object grammar, maximum 255 characters.
 
-Consumers MUST preserve the exact valid ID spelling. They MUST NOT lowercase, uppercase, Unicode-normalize, percent-decode, trim, truncate, or otherwise rewrite an ID.
+The checked-in Transition Object schema enforces:
 
-IDs are case-sensitive. `lb:obj:Example` and `lb:obj:example` are distinct identifiers.
+- `id`: the Transition Object grammar, maximum 255 characters;
+- `targetId` and `replacementId`: the Knowledge Object grammar, maximum 255 characters;
+- every `supersedesTransitionIds` entry: the Transition Object grammar, maximum 255 characters;
+- non-empty and unique `supersedesTransitionIds` when the field is present.
 
-## Compatibility
+Schema acceptance establishes identifier shape only. It does not establish uniqueness, authenticity, ownership, authority, existence, retrievability, or collision resistance.
 
-Existing IDs that satisfy both the grammar and length limits remain valid. A pre-v0.6 record containing a non-ASCII or over-limit protocol ID may be retained as legacy evidence, but it MUST NOT be emitted as a conforming v0.6 protocol ID or used as a newly generated transition parent.
+## 5. Runtime enforcement boundaries
 
-Legacy retention does not imply acceptance into a v0.6 effective view. Implementations MUST report the unsupported identifier rule explicitly rather than silently rewriting the identifier.
+### 5.1 Transition HTTP path
 
-## Conformance
+The checked-in transition ingestion implementation enforces the ASCII suffix grammar and 255-byte limit for:
 
-The conformance corpus includes:
+- the transition `id`;
+- `targetId`;
+- `replacementId` for a `replace` transition;
+- every `supersedesTransitionIds` entry.
 
-- valid object, transition, and identity-key examples using the safe character classes;
-- rejection of Japanese and full-width Unicode characters;
-- exact 255/256-byte boundaries for object and transition IDs;
+It also rejects:
+
+- an empty parent array;
+- duplicate parent identifiers;
+- self-supersession.
+
+The transition path therefore implements the principal Transition Object identifier constraints described by this document.
+
+### 5.2 Rust Knowledge Object validator
+
+The checked-in Rust `is_lb_object_id` helper currently verifies only that a value:
+
+- starts with `lb:obj:`; and
+- contains no whitespace.
+
+That helper does **not** by itself enforce the complete ASCII suffix allowlist or the 255-byte limit. Consequently, a runtime path that invokes only this helper MUST NOT be described as enforcing the complete `lb.protocol.id.ascii.v1` Knowledge Object grammar.
+
+A path requiring the complete contract must invoke equivalent schema-strength validation before canonical storage, indexing, graph insertion, or effective-view evaluation.
+
+This documentation change does not add missing runtime enforcement.
+
+## 6. Identity-key formats
+
+The generic Knowledge Object finalizer currently emits a v1 identity key in this fixed form:
+
+```text
+lb:key:lb.identity.key.v1:fnv1a64:<16-lowercase-hex>
+```
+
+The repository also implements `lb.identity.key.v2`, whose digest component is derived with SHA-256. Generic finalization does not currently select v2 by default.
+
+The `lb:key:` prefix identifies an identity-key namespace. It does not make an arbitrary suffix cryptographically secure. In particular, FNV-1a values MUST NOT be used as signatures, authentication proofs, authorization tokens, or adversarial collision-resistant digests.
+
+Unknown identity-rule versions MUST be reported as unsupported by version-aware verification. They MUST NOT be silently interpreted using v1 or v2.
+
+## 7. Comparison, ordering, and preservation
+
+Identifiers are compared literally and are case-sensitive.
+
+```text
+lb:obj:Example != lb:obj:example
+```
+
+Conforming ASCII identifiers are ordered by ascending unsigned byte value where a rule explicitly requires lexical ordering. Locale-aware collation MUST NOT be used.
+
+For `lb.transition.identity.v1`, a valid copy of `supersedesTransitionIds` is sorted before identity derivation. This rule does not authorize mutation or reordering of the stored Transition Object array.
+
+Consumers MUST preserve the exact accepted spelling. They MUST NOT:
+
+- lowercase or uppercase it;
+- trim it;
+- Unicode-normalize it;
+- percent-decode it;
+- interpret it as a path or URL;
+- infer authority or semantic meaning from undocumented suffix components.
+
+## 8. Storage and security boundaries
+
+An identifier may be used as a lookup key only after the receiving component applies the validation required by that path.
+
+Implementations MUST NOT concatenate an unvalidated identifier directly into a filesystem path. A node-local path key, filename digest, cursor prefix, or FNV-derived storage key is an implementation detail and MUST NOT be exposed as the protocol identifier itself.
+
+Identifier equality does not prove content equality. Duplicate and immutable-content conflict handling must compare the canonical content required by the relevant storage or API contract.
+
+## 9. Legacy evidence
+
+A node may retain historical evidence containing a value that does not satisfy the current grammar. Retention does not make the value conforming and does not authorize its use as:
+
+- a newly generated object or transition identifier;
+- a new transition target or parent;
+- a new identity claim;
+- a newly accepted canonical object.
+
+A path that encounters unsupported legacy identifier syntax must fail closed for any new semantic effect. It must not silently rewrite the identifier.
+
+## 10. Conformance expectations
+
+Identifier conformance should cover at least:
+
+- valid examples for all three registered prefixes;
+- rejection of empty suffixes;
+- rejection of whitespace, controls, path separators, query and fragment delimiters, percent escapes, and non-ASCII Unicode;
+- exact 255/256-byte boundaries for object and transition identifiers;
 - exact 512/513-byte boundaries for identity keys;
-- transition parent-set sorting over valid ASCII IDs.
+- case-sensitive comparison;
+- deterministic parent-set ordering for transition identity derivation;
+- a negative test demonstrating that the weak Rust Knowledge Object helper is not equivalent to schema-strength validation.
+
+## 11. Release boundary
+
+This contract describes the checked-in v1.0.0 pre-release implementation and its known enforcement differences. It does not redefine the fixed release candidate, complete the formal 72-hour soak, complete privileged reference-host qualification, update the release version, create a release tag, or publish a GitHub Release.

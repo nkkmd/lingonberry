@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# CI retrigger marker
 from __future__ import annotations
 
 import argparse

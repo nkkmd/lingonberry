@@ -1,164 +1,252 @@
 # Lingonberry Protocol Contract
 
-**Status: draft for v0.6.0** | **Contract series: protocol v1 candidate** | **Last updated: 2026-07-20**
+**Status: normative for the v1.0.0 pre-release implementation**  
+**Protocol version: `0.1.0`**  
+**Knowledge Object schema version: `0.1.0`**
 
 ## 1. Purpose
 
-This document defines the external contract required to implement a Lingonberry-compatible producer or consumer without depending on the Rust implementation.
+This document defines the checked-in external contract for Lingonberry protocol objects, canonical bytes, validation, identifiers, signatures, transitions, and conformance.
 
-Normative requirements use **MUST**, **MUST NOT**, **SHOULD**, **SHOULD NOT**, and **MAY** in their ordinary standards sense.
+Normative terms such as **MUST**, **MUST NOT**, **SHOULD**, **SHOULD NOT**, and **MAY** apply only to behavior explicitly described as implemented or required by the referenced versioned rule. Future design goals are identified separately and are not current runtime guarantees.
 
-## 2. Contract boundaries
+## 2. Version and representation boundaries
 
-Lingonberry separates the following representations and versions.
+The implementation separates:
 
-1. **Wire representation**: carrier-specific request or event representation.
-2. **Canonical protocol object**: validated semantic JSON object.
-3. **Canonical bytes**: deterministic UTF-8 bytes produced by a named canonicalization rule.
-4. **Storage representation**: node-internal durable representation.
-5. **API representation**: versioned read/write response representation.
+1. carrier or request representation;
+2. parsed JSON values;
+3. schema-valid protocol objects;
+4. canonical JSON bytes;
+5. node-local storage records;
+6. HTTP API request and response representations;
+7. independently versioned identity, signature, transition, digest, and diagnostic rules.
 
-A storage, journal, proof, or API version MUST NOT be interpreted as a protocol version.
+The following checked-in version constants are distinct:
 
-## 3. Canonical envelope
+- protocol version: `0.1.0`;
+- Knowledge Object schema version: `0.1.0`;
+- HTTP publish-request schema version: `0.1.0`;
+- archive format version: `1`;
+- capability manifest version: `1`.
 
-A canonical knowledge object MUST be a JSON object.
+A storage, archive, journal, capability, API, identity, signature, transition, or diagnostic version MUST NOT be interpreted as the protocol version.
 
-The protocol v1 candidate requires these fields:
+## 3. Parser limits and JSON model
 
-- `id`
-- `schemaVersion`
-- `type`
-- `createdAt`
-- `body`
-- `provenance`
-- `rawRef`
+The Rust protocol parser accepts one JSON value followed only by JSON whitespace.
 
-The following fields are optional protocol extensions when permitted by the selected schema:
+Current limits are:
 
-- `contexts`
-- `relations`
-- `status`
-- `lineage`
-- `attachments`
-- `labels`
-- `meta`
-- `identityClaims`
+- maximum UTF-8 input length: 1,048,576 bytes;
+- maximum nesting depth: 128.
 
-Unknown fields MUST be handled according to the selected schema version. An implementation MUST NOT silently reinterpret an unknown protocol or schema version as a known version.
+The checked-in Rust JSON model stores number tokens as their original lexical strings. Canonicalization does not numerically normalize them.
 
-## 4. Canonical serialization
+Object members are stored in a `BTreeMap<String, JsonValue>`. Duplicate JSON member names are therefore collapsed with the last parsed value winning. Producers MUST NOT rely on duplicate-member behavior, and duplicate members are outside the interoperable protocol contract.
 
-Canonical bytes are produced by `lb.canonical.json.v1`, defined in [CANONICALIZATION.md](./CANONICALIZATION.md).
+The parser does not currently accept escaped UTF-16 surrogate-pair composition as a portable interoperability feature. Producers SHOULD emit Unicode scalar values directly as UTF-8 where possible.
 
-A conforming implementation MUST:
+## 4. Knowledge Object envelope
 
-- recursively sort object member names;
-- preserve array order;
-- serialize without insignificant whitespace;
-- emit UTF-8 bytes without a trailing newline;
-- preserve the distinction between missing, `null`, empty string, empty array, and empty object;
-- avoid locale- or platform-dependent ordering.
+A Knowledge Object MUST be a JSON object with these required root fields:
 
-The output bytes of an existing rule version MUST NOT change.
+- `id`;
+- `schemaVersion`;
+- `type`;
+- `createdAt`;
+- `body`;
+- `provenance`;
+- `rawRef`.
 
-## 5. Identifier and identity rules
+The current schema permits these optional root fields:
 
-The canonical `id` is an opaque protocol identifier. Consumers MUST NOT infer semantics from undocumented substrings.
+- `contexts`;
+- `relations`;
+- `status`;
+- `lineage`;
+- `identityClaims`;
+- `attachments`;
+- `labels`;
+- `meta`.
 
-Identity claims are versioned independently from the protocol and schema. `lb.identity.key.v2` derives a SHA-256 identity key from the canonical JSON serialization of these semantic fields when present:
+Unknown root fields are rejected. The implementation does not silently reinterpret an unknown schema version as `0.1.0`.
 
-- `type`
-- `createdAt`
-- `body`
-- `contexts`
-- `relations`
-- `status`
-- `lineage`
-- `attachments`
-- `labels`
+`id` MUST begin with `lb:obj:` and MUST contain no whitespace. This validation does not prove uniqueness, authenticity, ownership, or collision resistance.
 
-Transport and provenance fields are excluded from the v2 semantic identity basis.
+The supported `type` values are:
 
-Unknown identity rule versions MUST be reported as unsupported. They MUST NOT be accepted using a fallback rule.
+- `inquiry`;
+- `observation`;
+- `claim`;
+- `evidence`;
+- `annotation`;
+- `synthesis`;
+- `translation`;
+- `reference`;
+- `concept`.
 
-## 6. Digest and signature targets
+`createdAt` MUST pass the checked-in RFC 3339 date-time validator. Canonicalization preserves the accepted timestamp text; it does not silently change timezone, fractional precision, or lexical representation.
 
-Every digest or signature operation MUST identify:
+## 5. Canonical serialization
 
-- the rule version;
-- the exact JSON value or byte sequence covered;
-- the canonicalization rule version;
-- the hash or signature algorithm;
-- the key, digest, and signature encoding.
+Canonical bytes are produced by `lb.canonical.json.v1`, as defined in [CANONICALIZATION.md](./CANONICALIZATION.md).
 
-An implementation MUST NOT sign a parsed object using runtime map iteration order. It MUST sign the bytes defined by the selected signature rule.
+The rule:
 
-Changing the covered fields, canonicalization rule, algorithm, or encoding requires a new rule version.
+- orders object keys using the checked-in string ordering;
+- preserves array order;
+- emits no insignificant whitespace;
+- emits UTF-8 without a trailing newline;
+- preserves number lexemes in the Rust implementation;
+- preserves distinctions among missing values, `null`, empty strings, empty arrays, and empty objects.
 
-## 7. Timestamp semantics
+`lb.canonical.json.v1` is not a claim of RFC 8785 compatibility. Cross-runtime compatibility is limited to the shared conformance fixtures and the value domain supported by every participating implementation.
 
-`createdAt` is part of the semantic object and identity basis where the selected identity rule includes it.
+The output bytes of an existing rule version MUST NOT be changed in place. Any change to ordering, escaping, number treatment, covered fields, or encoding requires a new rule version.
 
-A producer MUST emit the timestamp form required by the selected schema. Canonicalization MUST NOT silently change timezone, precision, or textual representation. Timestamp normalization, when introduced, MUST be a separately versioned rule applied before canonical serialization.
+## 6. Finalization and identity
 
-## 8. Relations, lineage, replacement, and withdrawal
+`finalize_knowledge_object`:
 
-`relations` represents semantic statements between objects. `lineage` represents derivation or revision history. Implementations MUST NOT collapse the two concepts.
+1. validates the Knowledge Object;
+2. recursively normalizes it into the checked-in JSON model;
+3. produces canonical JSON;
+4. returns the object `id` as `canonical_id`;
+5. derives the default identity key.
 
-Replacement and withdrawal are represented by dedicated append-only Transition Objects defined in [TRANSITION_OBJECT.md](./TRANSITION_OBJECT.md). Publishing a transition MUST NOT physically overwrite or delete the target Knowledge Object.
+The current default identity derivation is `lb.identity.key.v1`, using FNV-1a 64-bit over the canonical JSON of its semantic basis. The returned form is:
 
-Transition authority is classified by `lb.transition.authority.v1`. Structurally valid signed transitions remain retained, but only `authorized` transitions may affect an effective view.
+```text
+lb:key:lb.identity.key.v1:fnv1a64:<16-lowercase-hex>
+```
 
-Transition conflicts are projected by `lb.transition.supersession.v1`, defined in [TRANSITION_SUPERSESSION.md](./TRANSITION_SUPERSESSION.md). Multiple authorized heads are `ambiguous` unless a later authorized transition explicitly supersedes every current head through `supersedesTransitionIds`.
+`lb.identity.key.v2` is also implemented and documented, but generic Knowledge Object finalization does not currently select it by default. Implementations MUST NOT describe a v1-derived key as v2.
 
-The parent array is semantically a set. Duplicate entries are invalid. For `lb.transition.identity.v1` derivation only, a valid parent array is copied and sorted lexically before canonical serialization. General array-order semantics and stored object bytes remain unchanged.
+Identity claims are independently versioned. The checked-in verifier validates the declared rule version, recomputed identity key, and enclosing-object `canonicalId` consistency. It does not by itself establish issuer authority, signature authenticity, trusted issuance time, provenance authenticity, or source retrievability.
 
-An ambiguous or invalid transition graph MUST fail closed and MUST NOT select a replacement, hide the original object, or mutate canonical storage.
+See [IDENTITY_AND_PROVENANCE.md](./IDENTITY_AND_PROVENANCE.md).
 
-## 9. Validation levels
+## 7. HTTP publish-request envelope and signature
 
-A conforming implementation distinguishes at least these levels:
+The HTTP publish-request root object permits exactly:
 
-1. **Parse validation**: valid JSON and safe representability.
-2. **Envelope validation**: carrier/request framing.
-3. **Schema validation**: fields and structural constraints.
-4. **Semantic validation**: cross-field and protocol rules.
-5. **Identity validation**: identifier and identity claim rules.
-6. **Signature validation**: signature target and cryptographic verification.
-7. **Acceptance classification**: accept, reject, quarantine, duplicate, or conflict.
+- `object`;
+- `publisher`.
 
-Passing an earlier level MUST NOT imply that later levels passed. An object that fails required validation MUST NOT enter canonical storage.
+`publisher` permits exactly:
 
-## 10. Error and acceptance behavior
+- `publicKey`: 64 lowercase hexadecimal characters;
+- `signature`: 128 lowercase hexadecimal characters.
 
-Results MUST be deterministic and machine-readable. Human-readable messages are supplemental.
+The protocol library validator performs Knowledge Object validation and publish-request signature verification. The signature target and field exclusion rule are defined in [HTTP_PUBLISH_SIGNATURE.md](./HTTP_PUBLISH_SIGNATURE.md).
 
-Implementations MUST distinguish:
+A syntactically valid key or signature string is not sufficient. Verification MUST succeed where the validating path invokes cryptographic verification.
 
-- invalid input;
-- unsupported version;
-- cryptographic failure;
-- duplicate;
-- conflict;
-- quarantined input;
-- storage or I/O failure;
-- contradictory internal state.
+Other ingestion paths MUST be assessed independently. A path that does not invoke the verifier MUST NOT be described as authenticated merely because the object contains signature-shaped fields.
 
-Corruption, unsupported versions, and contradictory state MUST fail closed.
+## 8. Relations, lineage, transitions, and effective views
 
-## 11. Conformance
+`relations` represents semantic statements between objects. `lineage` represents derivation or revision history. They are not interchangeable.
 
-The normative fixture corpus is rooted at `conformance/` and described by `conformance/manifest.v1.json`.
+Replacement and withdrawal are represented by append-only Transition Objects. Publishing a transition does not overwrite or delete the target Knowledge Object.
 
-A producer conformance implementation MUST reproduce canonical bytes, identifiers, digest inputs, and signature inputs where fixtures provide them.
+The checked-in HTTP transition path validates its request, verifies its signature, appends a canonical transition record, and separately appends a reevaluation intent. Those writes are not atomic. A queue-write failure can occur after the transition is durable.
 
-A consumer conformance implementation MUST reproduce the expected validation and acceptance classification.
+The current effective-view authority implementation primarily compares the target publisher key with the transition publisher key. The broader delegation, revocation, and authorization-time model described by transition authority documents is not fully implemented in this path.
 
-The standalone JavaScript runner in `conformance/run.mjs` is a reference implementation, not the specification itself.
+Transition supersession and graph projection fail closed. Missing, corrupt, unreadable, conflicting, or ambiguous evidence MUST NOT be converted into a newly authorized replacement or withdrawal.
 
-## 12. Compatibility
+Derived effective-view state does not mutate canonical Knowledge Objects or Transition Objects.
 
-Compatibility is defined in [VERSIONING_AND_COMPATIBILITY.md](./VERSIONING_AND_COMPATIBILITY.md).
+See:
 
-No implementation detail in a Rust crate, JavaScript package, database schema, or journal file overrides this external contract.
+- [TRANSITION_OBJECT.md](./TRANSITION_OBJECT.md);
+- [TRANSITION_AUTHORITY.md](./TRANSITION_AUTHORITY.md);
+- [TRANSITION_SUPERSESSION.md](./TRANSITION_SUPERSESSION.md);
+- [ORPHAN_TRANSITIONS.md](./ORPHAN_TRANSITIONS.md);
+- [EFFECTIVE_VIEW_READ_API.md](./EFFECTIVE_VIEW_READ_API.md).
+
+## 9. Validation and acceptance boundaries
+
+The repository contains distinct checks for:
+
+1. JSON parsing and resource limits;
+2. request-envelope shape;
+3. Knowledge Object or Transition Object schema constraints;
+4. cross-field semantic rules;
+5. canonical identifier and identity consistency;
+6. signature verification where invoked;
+7. duplicate and immutable-content conflict classification;
+8. storage and I/O outcomes;
+9. quarantine or rejection behavior in paths that support them.
+
+Passing one layer does not imply that later layers passed.
+
+A path MUST NOT report cryptographic authentication unless it actually ran the relevant verifier successfully. A path MUST NOT report durable storage if its required durable write failed. Partial persistence boundaries, such as transition append followed by queue failure, MUST be documented rather than hidden.
+
+## 10. Errors and fail-closed behavior
+
+Machine-readable codes are the stable integration surface where a specific API defines them. Human-readable messages are supplemental and may change.
+
+The implementation distinguishes, in the relevant paths:
+
+- malformed or invalid input;
+- unsupported schema or rule versions;
+- signature failure;
+- exact duplicate;
+- immutable-content conflict;
+- quarantine or rejection outcomes;
+- storage and I/O failure;
+- incomplete, corrupt, unreadable, or ambiguous transition evidence;
+- contradictory or unavailable derived state.
+
+Not every API exposes every category or uses the same HTTP status. Clients MUST follow the contract for the specific endpoint rather than infer a universal mapping from this overview.
+
+Unsupported versions, corrupt evidence, ambiguous graphs, and contradictory derived state fail closed. Fail closed means that the implementation does not invent authority or a new semantic transition effect; it does not necessarily mean that every operation returns an HTTP error.
+
+## 11. Capability manifests
+
+The capability manifest reports protocol version `0.1.0`, supported schema versions, object types, carrier kinds, content types, auth modes, validation constraints, defaults, and multi-node policy metadata.
+
+Capability metadata is descriptive. It MUST NOT be treated as proof that every advertised policy is fully enforced by every active runtime path. Endpoint-level behavior and checked-in tests remain necessary when evaluating an implementation.
+
+## 12. Conformance
+
+The fixture corpus is rooted at `conformance/` and described by `conformance/manifest.v1.json`.
+
+A producer claiming conformance MUST reproduce the expected canonical bytes, identifiers, digest inputs, or signature inputs for the fixtures that apply to its claimed feature set.
+
+A consumer claiming conformance MUST reproduce the expected validation or acceptance outcomes for those fixtures.
+
+The JavaScript runner in `conformance/run.mjs` is a reference implementation and test harness. It does not override this contract or the versioned rule documents.
+
+Conformance to a fixture set does not establish operational durability, multi-node safety, formal soak completion, or reference-host qualification.
+
+## 13. Compatibility and change control
+
+Compatibility is governed by [VERSIONING_AND_COMPATIBILITY.md](./VERSIONING_AND_COMPATIBILITY.md).
+
+A behavior change requires a new rule, schema, protocol, or API version when it changes any externally observable element such as:
+
+- accepted field set;
+- canonical bytes;
+- identifier or identity derivation;
+- signature target;
+- validation result;
+- transition authority or supersession result;
+- response shape or machine-readable code.
+
+Documentation MUST describe checked-in behavior accurately. It MUST NOT convert an unimplemented design requirement into a claim about the current runtime.
+
+## 14. Release boundary
+
+This document and its checks do not constitute the formal 72-hour soak or privileged reference-host qualification.
+
+The fixed v1.0.0 candidate remains:
+
+```text
+f9543019f2c219aea3b085ff90f2da201b268a48
+```
+
+Later documentation, inventory, and tooling commits do not redefine that candidate.

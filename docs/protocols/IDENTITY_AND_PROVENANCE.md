@@ -1,182 +1,299 @@
 # Identity and Provenance
 
-**Status: draft** | **Last updated: 2026-07-11**
+**Status: normative v1.0 pre-release protocol contract** | **Last reviewed: 2026-07-25**
 
-## 目的
+This document defines the implemented responsibilities and boundaries of the Lingonberry identity key, identity claims, provenance, and `rawRef` fields.
 
-この文書は、Lingonberry における `identity key`、`identity claim`、`provenance`、`rawRef` の役割分担と、identity key v1 から v2 への移行規則を定義します。
+Identity keys are semantic comparison keys. They are not object identifiers, signatures, authorization proofs, lineage identifiers, storage addresses, or carrier identities.
 
-## 1. Identity key
+## 1. Identity-key rule versions
 
-`identity key` は、carrier をまたいで同じ semantic object を比較するための照合キーです。Object ID や lineage identity の代替ではありません。
+The implemented identity-key rules are:
 
-### 1.1 Rule versions
+| Rule version | Digest | Encoding | Current role |
+|---|---|---|---|
+| `lb.identity.key.v1` | FNV-1a 64-bit | `lb:key:lb.identity.key.v1:fnv1a64:<16 lowercase hex>` | legacy and current default finalization output |
+| `lb.identity.key.v2` | SHA-256 | `lb:key:lb.identity.key.v2:sha256:<64 lowercase hex>` | implemented stronger rule and claim-verification option |
 
-| Rule | Hash | Status |
-|---|---|---|
-| `lb.identity.key.v1` | FNV-1a 64-bit | legacy / compatibility |
-| `lb.identity.key.v2` | SHA-256 | recommended |
+The v1 output remains stable for compatibility with stored objects, fixtures, and callers of the protocol finalization API. FNV-1a is an integrity fingerprint, not a collision-resistant cryptographic identity.
 
-v1 の出力は既存 object と fixture の検証に必要なため変更しません。新しく生成する identity claim では v2 を推奨します。
+The v2 rule hashes the same canonical semantic basis with SHA-256.
 
-### 1.2 Derived basis
+The current implementation does **not** automatically migrate a v1 claim to v2, rewrite an existing claim, or make v2 the default `FinalizedKnowledgeObject.identity_key`. New producers may emit v2 claims, but consumers must continue to recognize both implemented rule versions.
 
-identity key は次の semantic field から導出します。
+## 2. Semantic basis
 
-- `type`
-- `createdAt`
-- `body`
-- `contexts`
-- `relations`
-- `status`
-- `lineage`
-- `attachments`
-- `labels`
-
-次は含めません。
-
-- `id`
-- `schemaVersion`
-- `provenance`
-- `rawRef`
-- `identityClaims`
-- `meta`
-
-この分離により、保存場所、carrier、取得元、attestation が異なっても、semantic basis が同じ object を照合できます。
-
-### 1.3 Canonicalization
-
-導出 basis は [`lb.canonical.json.v1`](./CANONICALIZATION.md) により canonical UTF-8 bytes へ変換します。
+Both v1 and v2 derive from exactly these root fields when they are present:
 
 ```text
-semantic fields
+type
+createdAt
+body
+contexts
+relations
+status
+lineage
+attachments
+labels
+```
+
+Fields absent from the object are absent from the basis. Default values are not inserted solely for identity-key derivation.
+
+The following fields are excluded:
+
+```text
+id
+schemaVersion
+provenance
+rawRef
+identityClaims
+meta
+```
+
+Unknown fields are not part of the implemented basis. Knowledge Object validation rejects unknown root fields before normal finalization.
+
+For a non-object input, the standalone identity-key basis helper produces an empty object. Normal protocol finalization first requires a valid Knowledge Object, so this behavior is not permission to finalize a non-object value.
+
+## 3. Canonicalization and derivation
+
+The basis is serialized with `lb.canonical.json.v1` and encoded as UTF-8.
+
+```text
+selected semantic fields
   -> lb.canonical.json.v1
   -> UTF-8 bytes
-  -> versioned hash
-  -> identity key
+  -> version-selected digest
+  -> versioned identity key
 ```
 
-### 1.4 v1 encoding
+Rust v2 derivation uses `to_canonical_json` and SHA-256. JavaScript v2 derivation uses recursively sorted keys, `JSON.stringify`, UTF-8 input, and SHA-256. Cross-runtime interoperability is established by the checked-in conformance vectors, not by assuming that arbitrary JSON implementations serialize identically.
+
+## 4. Current finalization behavior
+
+The protocol and validation finalization paths:
+
+1. validate the Knowledge Object;
+2. normalize JSON object ordering;
+3. serialize the complete object canonically;
+4. retain the object's `id` as `canonical_id`;
+5. derive and return the **v1** identity key;
+6. preserve the normalized object and complete canonical JSON.
+
+Therefore, the `identity_key` returned by current generic finalization is:
 
 ```text
-lb:key:lb.identity.key.v1:fnv1a64:<16 lowercase hex>
+lb:key:lb.identity.key.v1:fnv1a64:...
 ```
 
-v1 は後方互換性のために維持しますが、暗号学的な衝突耐性を提供しません。
+The existence of v2 support does not change that default.
 
-### 1.5 v2 encoding
+## 5. Identity claim schema
+
+An `identityClaims` field, when present, must be an array. Each schema-valid claim contains:
 
 ```text
-lb:key:lb.identity.key.v2:sha256:<64 lowercase hex>
+schemaVersion
+claimType
+ruleVersion
+identityKey
+canonicalId
+issuer
+issuedAt
+verification
 ```
 
-v2 は canonical bytes の SHA-256 digest を使用します。
+The current JSON Schema requires:
 
-### 1.6 性質
+- `schemaVersion` to equal `1`;
+- `claimType` to equal `identity`;
+- `ruleVersion` to be a non-empty string;
+- `identityKey` to match the bounded `lb:key:` shape;
+- `canonicalId` to match the bounded `lb:obj:` shape;
+- `issuer` to contain `protocol` and `sourceId`, with optional `signerId`;
+- `issuedAt` to be a date-time string;
+- `verification` to contain `method` and a `sha256:<64 lowercase hex>` payload hash;
+- optional `verification.signature` to be non-empty;
+- optional `verification.status` to be `pending`, `verified`, or `rejected`;
+- no additional claim, issuer, or verification properties.
 
-- carrier-neutral
-- relay URL に非依存
-- storage hint に非依存
-- deterministic
-- rule version と hash algorithm を文字列から識別可能
-- v2 は暗号学的衝突耐性を持つ
+Schema validation establishes shape. It does not establish that the issuer exists, the stated signature verifies, the payload hash identifies the intended bytes, or the verification status is trustworthy.
 
-## 2. Migration
+## 6. Version-aware claim verification
 
-### 2.1 Generation
+The version-aware identity validator independently evaluates each array entry.
 
-- 新規実装は v2 を生成する
-- 既存 object の v1 claim を書き換えない
-- migration のために新しい v2 claim を追加してよい
-- v1 と v2 は同じ semantic basis を使用する
+For each claim, it:
 
-### 2.2 Verification
+1. requires the claim to be an object;
+2. requires a non-empty string `ruleVersion`;
+3. selects the implemented v1 or v2 derivation rule;
+4. recomputes the expected identity key from the enclosing object;
+5. requires string `identityKey` to equal the expected value;
+6. when both the enclosing object ID and a string claim `canonicalId` are available, requires them to match.
 
-移行期間の verifier は次を行います。
+Unsupported rules produce a distinct error containing:
 
-1. `ruleVersion` と identity key prefix の整合を確認する
-2. 宣言された rule version で identity key を再計算する
-3. 未対応 rule version を「不一致」ではなく「unsupported」として扱えるようにする
-4. 複数 claim がある場合は claim ごとに独立して検証する
+```text
+ruleVersion is unsupported
+```
 
-### 2.3 Deprecation
+The validation facade separates unsupported identity rules from ordinary mismatches through `IdentityValidationStatus::Unsupported`.
 
-v1 の読み取りサポートを停止する時期は、protocol version だけで暗黙に決めず、別の migration specification で定義します。
+The version-aware validator itself does not additionally verify:
 
-## 3. Identity claim
+- `schemaVersion` or `claimType`;
+- issuer authority;
+- issuer signatures;
+- `issuedAt` trust or freshness;
+- `verification.method` semantics;
+- `verification.payloadHash` against a reconstructed payload;
+- `verification.signature`;
+- `verification.status` provenance.
 
-`identity claim` は、identity key と canonical ID の対応を示す検証可能な主張です。
+Those fields are shape-checked by the Knowledge Object schema. A future cryptographic claim verifier requires a separate versioned contract.
 
-### 3.1 必須項目
+## 7. Validation and acceptance behavior
 
-- `schemaVersion`
-- `claimType`
-- `ruleVersion`
-- `identityKey`
-- `canonicalId`
-- `issuer`
-- `issuedAt`
-- `verification`
+Full Knowledge Object validation combines:
 
-### 3.2 Rules
+- structural and semantic schema validation;
+- version-aware identity claim validation;
+- classification of unsupported identity rule versions.
 
-- `claimType` は `identity`
-- `ruleVersion` は対応する identity key rule を示す
-- identity key prefix の rule version と `ruleVersion` は一致する
-- `canonicalId` は enclosing object の `id` と一致する
-- `identityKey` は宣言された rule から導出した値と一致する
-- `issuer` は publisher、relay、other attestor を表せる
-- `verification` は署名や検証状態を保持できる
+The validation facade removes legacy schema messages that hard-code v1-only behavior, then applies the version-aware v1/v2 validator. This prevents a valid v2 claim from being rejected merely because older schema validation text expected v1.
 
-### 3.3 責務分離
+The resulting identity status is:
 
-- identity claim: semantic identity と canonical ID の対応に関する主張
-- provenance: 出所と変換履歴
-- rawRef: raw payload の再取得・監査参照
+```text
+valid
+invalid
+unsupported
+not-present
+```
 
-## 4. Provenance
+Acceptance policy determines whether unsupported rules are rejected or deferred. Unsupported does not mean the claim is a valid match, and it must not be silently treated as verified.
 
-`provenance` は、knowledge object がどこから来て、誰が主張し、どう変換されたかを記録します。
+An object with no non-empty `identityClaims` array has status `not-present`. Identity claims are optional unless deployment acceptance policy requires them.
 
-最低限、source、author / actor、observed / issued time、transform chain、verification state を表現できる必要があります。
+## 8. Separation from publisher signatures
 
-provenance は identity key の導出 basis に含めません。
+An identity claim and an HTTP publisher signature are different evidence layers.
 
-## 5. rawRef
+- The identity key compares the selected semantic basis.
+- The identity claim states that a versioned identity key corresponds to a canonical object ID.
+- The HTTP publisher signature covers a versioned publish-request payload.
+- Provenance describes asserted sources and observations.
+- `rawRef` points to source material or a retrieval locator.
 
-`rawRef` は carrier 上の raw object または raw payload への参照です。
+A valid HTTP signature does not automatically verify an identity claim. A valid identity-key recomputation does not prove that the claim issuer authorized the object. Neither proves authorization to mutate an effective view.
 
-用途:
+## 9. Provenance contract
 
-- 再取得
-- 再 canonicalize
-- 監査
-- 再現
+Knowledge Objects require a `provenance` object containing a non-empty `sources` array.
 
-rawRef は provenance と別責務であり、identity key の導出 basis に含めません。
+Each schema-valid source contains:
 
-## 6. Validation
+```text
+protocol
+sourceId
+```
 
-identity / provenance の検証では、少なくとも次を確認します。
+and may contain:
 
-- identity claim の `canonicalId` が object の `id` と一致する
-- `ruleVersion` と identity key prefix が一致する
-- 対応 rule で再計算した identity key と一致する
-- `provenance` と `rawRef` が失われていない
-- 可能な場合は `rawRef` から raw payload を再取得できる
+```text
+authorId
+observedAt
+```
 
-## 7. Reference implementations
+No additional provenance-source properties are allowed by the checked-in schema.
+
+Provenance is excluded from the identity-key basis. Two objects with the same semantic basis but different provenance therefore derive the same identity key.
+
+Current validation checks provenance structure, required source fields, allowed properties, and supported timestamp shape through the protocol validator and schema fixtures. It does not contact the named source, verify `authorId`, authenticate the source protocol, or reconstruct a transformation chain.
+
+## 10. `rawRef` contract
+
+Knowledge Objects require a `rawRef` object containing:
+
+```text
+protocol
+sourceId
+```
+
+and may contain:
+
+```text
+locator
+payloadHash
+```
+
+No additional `rawRef` properties are allowed by the checked-in schema.
+
+`rawRef` is excluded from the identity-key basis. Its presence preserves a reference to source material without making transport location part of semantic identity.
+
+Current validation does not retrieve `locator`, verify that the referenced content still exists, interpret `payloadHash`, or prove that the raw payload canonicalizes to the enclosing object.
+
+## 11. Preservation boundary
+
+Normal finalization preserves `provenance`, `rawRef`, and `identityClaims` in the normalized complete object and canonical JSON. They are excluded only from the identity-key basis.
+
+Carrier, archive, and replay paths must not discard those fields when preserving the canonical object or signed wire request.
+
+Identity-key equality alone must not be used to merge, overwrite, or deduplicate objects whose canonical IDs or complete canonical bytes differ. Duplicate and conflict classification is a separate storage contract.
+
+## 12. Migration rules
+
+For v1-to-v2 migration:
+
+- existing v1 claims remain immutable;
+- a producer may append a new v2 claim only by publishing a new valid object representation under the applicable append-only and identity rules;
+- consumers verify each claim according to its declared rule version;
+- unsupported versions remain unsupported rather than being coerced to v1 or v2;
+- removal of v1 verification support requires a separately reviewed compatibility and migration specification;
+- the current generic finalization API remains v1 until an explicit versioned implementation change is made.
+
+Adding a v2 claim changes the complete canonical object bytes even when the semantic identity basis remains unchanged.
+
+## 13. Security properties and non-goals
+
+Implemented v2 SHA-256 derivation provides collision resistance appropriate to a digest-based comparison key, subject to the canonicalization and selected-field contract. It does not provide:
+
+- issuer authentication;
+- authorization;
+- non-repudiation;
+- proof of possession of a private key;
+- freshness or replay protection;
+- trusted timestamps;
+- source availability;
+- source-content verification;
+- transformation-chain verification;
+- confidentiality;
+- uniqueness of the semantic concept represented by an object.
+
+V1 FNV-1a must not be used where cryptographic collision resistance is required.
+
+## 14. Reference implementations and conformance
+
+Reference implementations are:
 
 | Language | Location |
 |---|---|
 | Rust | `packages/identity/src/lib.rs` |
 | JavaScript | `packages/identity/identity-key.mjs` |
+| Rust v1 derivation and protocol validation | `packages/protocol/src/lib.rs` |
+| Validation facade | `packages/validation/src/lib.rs` |
 
-共通 test vector は `conformance/identity-key-v2/` に置きます。
+Relevant vectors and fixtures include:
 
-## 8. Existing fixtures
+```text
+conformance/identity-key-v2/
+conformance/identity-claims/
+fixtures/knowledge-object/with-identity-claim.json
+fixtures/knowledge-object/invalid-identity-claim-mismatch.json
+fixtures/http-publish-request/with-identity-claim.json
+fixtures/http-publish-request/invalid-identity-claim-mismatch.json
+```
 
-- [knowledge-object/with-identity-claim.json](../../fixtures/knowledge-object/with-identity-claim.json)
-- [knowledge-object/invalid-identity-claim-mismatch.json](../../fixtures/knowledge-object/invalid-identity-claim-mismatch.json)
-- [http-publish-request/with-identity-claim.json](../../fixtures/http-publish-request/with-identity-claim.json)
-- [http-publish-request/invalid-identity-claim-mismatch.json](../../fixtures/http-publish-request/invalid-identity-claim-mismatch.json)
+Any change to the selected basis, canonicalization, digest, key encoding, claim schema, version dispatch, unsupported-rule classification, or default finalization rule requires compatibility review and updated conformance vectors.
+
+The fixed v1.0.0 candidate remains `f9543019f2c219aea3b085ff90f2da201b268a48`. Documentation normalization and ordinary walkthrough checks do not redefine that candidate or satisfy the outstanding formal release gates.

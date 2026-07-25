@@ -86,6 +86,7 @@ NORMALIZED_PROTOCOL_DOCS = {
     "docs/protocols/LAST_KNOWN_GOOD_EFFECTIVE_VIEW.md",
     "docs/protocols/ORPHAN_TRANSITIONS.md",
     "docs/protocols/PROTOCOL_CONTRACT.md",
+    "docs/protocols/PROTOCOL_IDENTIFIERS.md",
 }
 
 

@@ -79,6 +79,7 @@ NORMALIZED_PROTOCOL_DOCS = {
     "docs/protocols/EFFECTIVE_VIEW_DIAGNOSTIC_READ_GUARD_HEARTBEAT.md",
     "docs/protocols/EFFECTIVE_VIEW_DIAGNOSTIC_RETENTION.md",
     "docs/protocols/EFFECTIVE_VIEW_READ_API.md",
+    "docs/protocols/HTTP_PUBLISH_SIGNATURE.md",
 }
 
 

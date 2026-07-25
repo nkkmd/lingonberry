@@ -83,6 +83,7 @@ NORMALIZED_PROTOCOL_DOCS = {
     "docs/protocols/HTTP_TRANSITION_API.md",
     "docs/protocols/IDENTITY_AND_PROVENANCE.md",
     "docs/protocols/INDEX_GENERATION_DIGEST.md",
+    "docs/protocols/LAST_KNOWN_GOOD_EFFECTIVE_VIEW.md",
 }
 
 

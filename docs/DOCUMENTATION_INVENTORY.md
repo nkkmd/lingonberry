@@ -6,7 +6,7 @@
 ## Status
 
 - Tracked Markdown files: **170**
-- Release-blocking review entries: **51**
+- Release-blocking review entries: **50**
 - Classification totals: BILINGUAL_REQUIRED: 6, BILINGUAL_SCOPED: 3, ENGLISH_ONLY: 161
 - Governing policy: [`DOCUMENTATION_POLICY.md`](./DOCUMENTATION_POLICY.md)
 - Tracking issue: [#144](https://github.com/nkkmd/lingonberry/issues/144)
@@ -113,7 +113,7 @@ Every tracked Markdown file must appear below. `yes` in the final column means t
 | `docs/protocols/LAST_KNOWN_GOOD_EFFECTIVE_VIEW.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
 | `docs/protocols/ORPHAN_TRANSITIONS.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
 | `docs/protocols/PROTOCOL_CONTRACT.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
-| `docs/protocols/PROTOCOL_IDENTIFIERS.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
+| `docs/protocols/PROTOCOL_IDENTIFIERS.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
 | `docs/protocols/PROTOCOL_NATIVE_WIRE_FORMAT.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
 | `docs/protocols/README.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
 | `docs/protocols/TIMESTAMP_SEMANTICS.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |

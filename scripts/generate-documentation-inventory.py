@@ -74,6 +74,7 @@ NORMALIZED_PROTOCOL_DOCS = {
     "docs/protocols/CANONICALIZATION.md",
     "docs/protocols/EFFECTIVE_VIEW_DIAGNOSTICS.md",
     "docs/protocols/EFFECTIVE_VIEW_DIAGNOSTIC_CURSOR_LEASE.md",
+    "docs/protocols/EFFECTIVE_VIEW_DIAGNOSTIC_PAGINATION.md",
 }
 
 

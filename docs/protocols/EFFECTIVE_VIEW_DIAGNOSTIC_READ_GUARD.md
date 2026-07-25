@@ -1,48 +1,80 @@
 # Effective View Diagnostic Read Guard
 
-## Status
+**Status: normative v1.0 pre-release protocol contract with an explicit implementation gap** | **Rule version: `lb.http.effective-view.diagnostic-read-guard.v1`** | **Last reviewed: 2026-07-25**
 
-Normative foundation for v0.6.0 diagnostic page-read protection.
+This document defines the in-flight snapshot protection required when a relay claims support for effective-view diagnostic read guards.
 
-Rule version: `lb.http.effective-view.diagnostic-read-guard.v1`
+The checked-in relay does **not** currently implement this rule. Its diagnostic page operation loads one target snapshot, validates the retained generation, slices an in-memory diagnostic array, and returns a page. It has no persisted guard record, guard expiry, atomic acquisition against garbage collection, release operation, or guard recovery after restart.
 
-## Purpose
+## 1. Capability boundary
 
-A valid diagnostic cursor lease protects a client's right to continue pagination. It does not by itself prove that a snapshot cannot be garbage-collected between lease validation and page materialization.
-
-A relay therefore acquires a short-lived read guard before reading a diagnostic page.
-
-## Acquisition
-
-Guard acquisition MUST be atomic with all of the following checks:
-
-1. cursor structure and integrity are valid;
-2. target binding matches the request;
-3. generation binding matches the request;
-4. cursor lease is unexpired;
-5. requested limit is valid;
-6. the exact derived snapshot is retained and readable;
-7. no garbage-collection delete claim has already committed for that snapshot.
-
-The acquisition transaction MAY also extend the cursor idle expiry under `lb.http.effective-view.diagnostic-cursor-lease.v1`.
-
-A successful acquisition records a guard bound to exactly:
-
-- target ID;
-- evidence generation;
-- snapshot identity;
-- page operation identity;
-- guard issuance time;
-- guard absolute expiry.
-
-Guard identifiers and operation identities are relay-internal and MUST NOT appear in public cursors or responses.
-
-## Lifetime
-
-Initial v0.6.0 parameters:
+A relay may advertise:
 
 ```text
-guard lifetime = 120 seconds
+lb.http.effective-view.diagnostic-read-guard.v1
+```
+
+only when it implements every required acquisition, lifetime, release, retention, and failure condition in this document.
+
+Stateless page reads may still be generation-bound, but they must not be described as read-guard protected.
+
+## 2. Purpose
+
+A cursor or cursor lease binds a client request to a target, generation, and page position. It does not by itself prevent a retention worker from deleting the bound snapshot after cursor validation but before page materialization.
+
+A read guard protects one in-flight page operation. It provides the serialization point between:
+
+- a reader that intends to materialize a page from one retained generation; and
+- a retention operation that intends to commit deletion of that snapshot.
+
+A read guard is not a long-lived pagination lease and is not authorization to read otherwise protected data.
+
+## 3. Acquisition requirements
+
+Guard acquisition must be atomic, transactional, or equivalently serialized with all of these checks:
+
+1. the target identifier is valid;
+2. the requested generation is valid;
+3. the cursor is valid for the target, generation, and requested page position;
+4. any required cursor lease is active;
+5. the requested limit is valid;
+6. the exact diagnostic snapshot is retained and readable;
+7. the snapshot identity matches the requested generation;
+8. no committed delete claim already covers the snapshot;
+9. the snapshot is eligible to be opened by this operation;
+10. a unique guard can be recorded without overwriting another operation's state.
+
+When a cursor-lease capability is also implemented, idle-lease extension may occur in the same serialized operation, but only under the cursor-lease contract. Guard acquisition alone must not reset an absolute cursor lifetime.
+
+## 4. Guard binding
+
+A successful guard is bound to exactly:
+
+```text
+targetId
+evidenceGeneration
+snapshotIdentity
+pageOperationIdentity
+guardIssuedAt
+guardExpiresAt
+read-guard rule version
+```
+
+The binding must prevent:
+
+- a guard for one target from protecting another;
+- a guard for one generation from protecting another;
+- one page operation from releasing another operation's guard;
+- a stale operation identity from reactivating an expired guard.
+
+Guard identifiers and operation identities are relay-internal. They must not appear in public cursors or page responses.
+
+## 5. Lifetime
+
+The v1 initial guard lifetime is:
+
+```text
+120 seconds
 ```
 
 A guard is active only while:
@@ -51,74 +83,184 @@ A guard is active only while:
 now < guardExpiresAt
 ```
 
-Equality with `guardExpiresAt` is expired.
+At exact equality, the guard is expired.
 
-A normal page operation SHOULD complete within one guard lifetime. The initial v0.6.0 contract does not permit unbounded sliding renewal.
+`guardExpiresAt` is fixed at acquisition unless the separately versioned heartbeat extension is implemented. The base read-guard rule does not authorize unbounded sliding renewal.
 
-## Page read
+The implementation should use a monotonic process clock for active-operation decisions. Durable wall-clock fields may support recovery and audit, but wall-clock rollback must not extend a guard.
 
-After guard acquisition, the relay reads only the exact guarded snapshot and generation.
+## 6. Page materialization
 
-A page response MUST NOT be returned when:
+After acquisition, the reader must open and read only the exact guarded snapshot.
 
-- the guard was not acquired;
-- the guard expired before the snapshot read completed;
-- the guarded snapshot identity no longer matches the opened snapshot;
-- a different generation was read;
-- the page was only partially materialized after a storage error.
+A successful page requires:
 
-The implementation MUST either return one complete generation-consistent page or return an error without a partial diagnostic page.
+- the guard remains active through trustworthy page materialization, or a separately conformant heartbeat has extended it;
+- the opened snapshot identity matches the guard;
+- every diagnostic belongs to the guarded generation;
+- page ordering and boundaries follow the pagination contract;
+- the complete page is materialized without a storage or serialization error.
 
-## Release and crash recovery
+The implementation must return either:
 
-A guard SHOULD be released after the page response is fully materialized or after the page operation fails.
+- one complete, generation-consistent page; or
+- an error without a partial diagnostic page.
 
-Release is idempotent.
+It must not silently switch generations, continue from a replacement snapshot, or splice records from two snapshots.
 
-If a process crashes before release, the guard expires automatically at its absolute expiry. Restart MUST NOT reset or extend the original guard expiry.
+## 7. Response delivery boundary
 
-Expired guards are ignored by garbage collection and MAY be deleted by reconciliation.
+A guard protects snapshot materialization, not indefinite network delivery.
 
-## Garbage collection
+The relay should complete storage reads and construct the response body while the guard is active, then release the guard before or immediately after handing the complete body to the HTTP layer.
 
-Garbage collection MAY delete a derived snapshot only when, in the same atomic decision:
+The implementation must not hold a long database transaction, filesystem lock, or retention serialization lock for the full duration of slow client network delivery.
 
-- the snapshot is not current observation;
-- the snapshot is not the semantic checkpoint;
-- no unexpired cursor lease protects it;
-- no unexpired read guard protects it;
-- it is outside the hybrid recent-generation policy;
-- no prior reader has already acquired a guard that covers the deletion decision.
+If the response body is fully materialized under the guard and network delivery later fails, the storage read itself may still be recorded as complete. That failure must not cause the guard to be renewed indefinitely.
 
-Guard acquisition and garbage-collection claim creation MUST use transaction, compare-and-swap, or an equivalent serialization mechanism so that exactly one of these outcomes occurs:
+## 8. Release
 
-1. reader acquires the guard and GC does not delete the snapshot until the guard expires or releases; or
-2. GC commits the delete claim and the reader fails guard acquisition.
+A guard should be released after:
 
-A reader MUST NOT succeed against a snapshot whose delete claim already committed.
+- successful page materialization; or
+- any page-operation failure that no longer needs the snapshot.
 
-## Error behavior
+Release must be idempotent.
 
-When guard acquisition loses to a committed garbage-collection claim or the generation is otherwise unavailable:
+A release request must verify the guard's target, generation, snapshot, and operation identity. It must not release another reader's guard.
+
+Failure to delete an already expired guard record must not reactivate it or extend its lifetime.
+
+## 9. Crash and restart behavior
+
+If a process crashes before release, the guard expires at its original `guardExpiresAt`.
+
+Restart must not:
+
+- reset the guard issue time;
+- extend the guard expiry;
+- convert an expired guard into an active guard;
+- trust incomplete or contradictory guard state;
+- create a new guard solely because an old guard record exists.
+
+Expired guards may be removed by reconciliation. When durable guard state cannot be trusted, retention must fail closed or conservatively preserve the snapshot until the conflict is resolved. It must not claim both successful deletion and successful protection for the same serialization point.
+
+## 10. Garbage-collection serialization
+
+A retention operation may commit a delete claim for a diagnostic snapshot only when, in one serialized decision:
+
+- the snapshot is not the current observation when the retention policy protects it;
+- the snapshot is not another protected checkpoint;
+- no active cursor lease protects it;
+- no active read guard protects it;
+- it satisfies the separately defined retention policy;
+- no earlier reader has already acquired a guard covering the deletion decision.
+
+Guard acquisition and delete-claim creation must produce exactly one outcome:
+
+1. the reader acquires a guard, and deletion cannot commit until the guard releases or expires; or
+2. deletion commits its claim, and the reader fails guard acquisition.
+
+A reader must not succeed against a snapshot whose delete claim already committed.
+
+## 11. Error behavior
+
+When guard acquisition loses to a committed delete claim, the generation is absent, or the snapshot cannot be protected, return:
 
 ```text
 409 LB_DIAGNOSTIC_GENERATION_UNAVAILABLE
 ```
 
-When storage fails after acquisition but before a trustworthy complete page is materialized:
+When storage, serialization, identity verification, or guard state fails after acquisition and before a trustworthy complete page is materialized, a conforming implementation returns a stable server error such as:
 
 ```text
 500 LB_DIAGNOSTIC_PAGE_READ_FAILED
 ```
 
-The relay MUST NOT silently switch generation or return a partial page.
+The checked-in relay currently does not emit `LB_DIAGNOSTIC_PAGE_READ_FAILED` from a read-guard implementation because no such implementation exists. Capability documentation must not imply otherwise.
 
-## Safety requirements
+Unknown internal exceptions must not be copied into public error codes or messages.
 
-- Do not hold a long database transaction for network response delivery.
-- Do not treat a cursor lease alone as an in-flight read guard.
-- Do not allow expired guards to pin snapshots permanently.
-- Do not renew guards indefinitely.
-- Do not release or expire a guard for one target or generation using another operation.
-- Do not permit both a committed GC claim and a successful new guard acquisition for the same snapshot.
-- Do not expose guard IDs, storage paths, row IDs, process IDs, or lease records publicly.
+## 12. Heartbeat interaction
+
+A separately versioned heartbeat rule may extend a guard for a legitimately long page read.
+
+The base read-guard rule requires that any heartbeat:
+
+- prove ownership of the exact active guard;
+- preserve target, generation, snapshot, and operation binding;
+- fail after guard expiry;
+- use a bounded absolute extension policy;
+- serialize against deletion claims;
+- stop when the page completes or fails.
+
+A heartbeat is not a cursor-lease renewal and must not extend unrelated guards.
+
+## 13. Current checked-in implementation
+
+The current implementation in `packages/relay/src/effective_view_v2.rs`:
+
+- loads the currently retained snapshot for one target;
+- verifies its observation generation equals the requested generation;
+- clones the stored diagnostic array;
+- validates a cursor offset;
+- slices the array and returns the page;
+- fails generation mismatch with `LB_DIAGNOSTIC_GENERATION_UNAVAILABLE`.
+
+It does not:
+
+- create a read-guard record;
+- coordinate atomically with retention;
+- track guard issue or expiry time;
+- release or reconcile guards;
+- implement heartbeat;
+- prove snapshot pinning across a retention race.
+
+The current implementation therefore provides stateless generation checking, not `lb.http.effective-view.diagnostic-read-guard.v1` conformance.
+
+## 14. Public-data boundary
+
+Public responses and cursors must not expose:
+
+- guard identifiers;
+- operation identities;
+- guard issue or expiry records unless a separate public contract defines them;
+- database row IDs, table names, or storage paths;
+- process, worker, thread, or host identifiers;
+- lock tokens, lease records, MAC keys, bearer tokens, or signing material;
+- raw storage or transaction errors.
+
+## 15. Conformance requirements
+
+A conforming implementation must test at least:
+
+1. successful atomic guard acquisition;
+2. rejection after a committed delete claim;
+3. retention blocked by an active guard;
+4. exact-expiry behavior;
+5. idempotent release;
+6. cross-target and cross-generation release rejection;
+7. process crash without expiry reset;
+8. restart with corrupt guard state;
+9. complete page materialization under the guard;
+10. storage failure without a partial page;
+11. snapshot identity mismatch;
+12. no generation switch;
+13. reader-versus-retention race serialization;
+14. bounded heartbeat integration when advertised;
+15. no public guard-state disclosure.
+
+## 16. Non-goals
+
+This rule does not provide:
+
+- a durable cursor lease by itself;
+- indefinite snapshot retention;
+- client-controlled guard duration;
+- long-lived network connection protection;
+- distributed consensus unless separately implemented;
+- authorization to read otherwise restricted diagnostics;
+- secure cursor authentication in the checked-in implementation;
+- formal release qualification, soak evidence, or reference-host qualification.
+
+The fixed v1.0.0 candidate remains `f9543019f2c219aea3b085ff90f2da201b268a48`. Documentation normalization and ordinary walkthrough checks do not redefine that candidate or satisfy the outstanding formal release gates.

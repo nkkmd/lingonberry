@@ -31,6 +31,9 @@ HISTORICAL_OPERATION_DOCS = {
     "docs/operations/V0_8_OPERATOR_RUNBOOK.md",
     "docs/operations/V0_8_UPGRADE_AND_ROLLBACK.md",
 }
+NORMALIZED_ARCHITECTURE_DOCS = {
+    "docs/architecture/DISTRIBUTED_KNOWLEDGE_COMMONS_ARCHITECTURE.md",
+}
 NORMALIZED_OPERATION_DOCS = {
     "docs/operations/ACCEPTANCE_POLICY.md",
     "docs/operations/ACCESS_RETENTION_AUDIT_CHECKLIST.md",
@@ -122,7 +125,7 @@ def classify(path: str) -> tuple[str, str, str]:
         return "BILINGUAL_SCOPED", "REVIEW_SCOPE_BEFORE_V1", "yes"
     if path in HISTORICAL_OPERATION_DOCS:
         return "ENGLISH_ONLY", "KEEP_HISTORICAL", "no"
-    if path in NORMALIZED_OPERATION_DOCS or path in NORMALIZED_PROTOCOL_DOCS:
+    if path in NORMALIZED_ARCHITECTURE_DOCS or path in NORMALIZED_OPERATION_DOCS or path in NORMALIZED_PROTOCOL_DOCS:
         return "ENGLISH_ONLY", "KEEP_ENGLISH", "no"
     if path.startswith("docs/roadmap/RELEASE_0_"):
         return "ENGLISH_ONLY", "ARCHIVE_REVIEW", "no"

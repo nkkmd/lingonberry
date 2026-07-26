@@ -95,6 +95,7 @@ NORMALIZED_PROTOCOL_DOCS = {
     "docs/protocols/TRANSITION_OBJECT.md",
     "docs/protocols/TRANSITION_REEVALUATION_COALESCING.md",
     "docs/protocols/TRANSITION_REEVALUATION_QUEUE.md",
+    "docs/protocols/TRANSITION_SUPERSESSION.md",
 }
 
 

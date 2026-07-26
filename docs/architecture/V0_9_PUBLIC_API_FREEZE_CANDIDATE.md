@@ -1,263 +1,217 @@
-# v0.9 Public API Freeze Candidate
+# v0.9.0 Public API Freeze Candidate Record
 
-**Status: draft freeze candidate** | **Target release: v0.9.0** | **Last updated: 2026-07-22**
+**Status: historical freeze record**  
+**Original target: v0.9.0**  
+**Current role: evidence for the v1.0 compatibility audit**
 
 ## 1. Purpose
 
-This document classifies the externally observable Rust, protocol, command, HTTP, storage, and operational surfaces that must be reviewed before Lingonberry v1.0.0.
+This document records the public-surface classification used during the v0.9.0 freeze review. It is retained as historical audit evidence.
 
-The objective is not to promise stability for every currently `pub` Rust item. The objective is to distinguish intentional public contracts from implementation details and to prevent accidental public surface from becoming a v1.x compatibility burden.
+It is not the current v1.0 compatibility declaration, does not redefine the v1.0 release candidate, and does not make every Rust item marked `pub` a supported third-party API.
 
-## 2. Stability classes
+For current interpretation, use the checked-in protocol, schema, runtime, conformance, operator, storage, and compatibility documents. Later audit documents take precedence where this record and a current contract differ.
+
+## 2. Historical decision model
+
+The v0.9.0 review used four classes.
 
 ### Frozen candidate
 
-A surface intended to become a v1.0 compatibility commitment. Breaking changes require release-blocker review during v0.9.0.
+An externally observable surface considered for a v1.0 compatibility commitment.
 
-### Supported internal boundary
+### Behavior-frozen or supported internal boundary
 
-A cross-crate boundary used by the workspace and covered by tests, but not promised as a stable third-party Rust API. Refactoring is permitted when externally observable behavior remains compatible.
+A workspace boundary whose externally observable behavior was intended to remain compatible even when Rust types, modules, or helper functions changed.
 
 ### Implementation detail
 
-A surface that should be private, crate-private, test-only, or explicitly unstable before v1.0.
+A representation, helper, module path, parser decomposition, temporary-file layout, or internal algorithm that remained refactorable.
 
 ### Operator contract
 
-A CLI, HTTP, filesystem, diagnostic, exit-code, configuration, or runbook behavior relied on by operators rather than Rust callers.
+A CLI, HTTP, filesystem, diagnostic, exit-code, configuration, backup, restore, or runbook behavior relied on by operators rather than Rust callers.
 
-## 3. Freeze candidates
+These classes were review inputs. A candidate became an actual compatibility commitment only when supported by a checked-in specification, implementation, fixture, test, or later audit disposition.
 
-### 3.1 Protocol contract
+## 3. Surfaces considered for freezing
 
-The following are frozen candidates:
+### 3.1 Protocol behavior
 
-- canonical Knowledge Object envelope and required fields
-- canonical serialization and deterministic object-key ordering
-- Knowledge Object identifier syntax
-- identity-key derivation rule version
-- digest and signature payload definition
-- publish-request envelope
-- protocol and schema version axes
-- supported object types
-- relation, lineage, provenance, raw-reference, attachment, label, and metadata validation semantics
-- duplicate and conflict classification
-- validation failure codes exposed through public APIs
-- valid, invalid, boundary, legacy, digest, and signature conformance fixtures
+The review treated the following as compatibility-sensitive:
 
-The Rust representation used to implement these behaviors is not automatically frozen merely because an item is declared `pub`.
+- the canonical Knowledge Object envelope and required fields;
+- deterministic canonical serialization;
+- Knowledge Object identifier syntax;
+- identity-rule versioning and identity-key derivation;
+- digest and signature payload definitions;
+- publish-request validation;
+- protocol, schema, capability, archive, and identity version axes;
+- supported object types;
+- relation, lineage, provenance, raw-reference, attachment, label, and metadata validation;
+- duplicate and conflict classification;
+- machine-readable validation failures; and
+- conformance fixtures for valid, invalid, boundary, legacy, digest, and signature cases.
 
-### 3.2 Public read/write behavior
+The Rust representation implementing these behaviors was not automatically frozen.
 
-The following externally observable behavior is a frozen candidate:
+### 3.2 Public read and write behavior
 
-- publish request acceptance and rejection semantics
-- validation-before-storage ordering
-- identity and signature verification ordering
-- canonical storage result
-- duplicate-safe success behavior
-- conflict rejection without overwrite
-- object retrieval by canonical identifier
-- basic query and index behavior
-- restart persistence
-- storage-authoritative index rebuild and verification
+The review considered these observable behaviors compatibility-sensitive:
+
+- validation before canonical storage;
+- identity and signature verification ordering;
+- accepted, duplicate, deferred, quarantined, and rejected outcomes where implemented;
+- duplicate-safe success without mutation;
+- conflict rejection without overwrite;
+- retrieval by canonical identifier;
+- documented query and index behavior;
+- restart persistence; and
+- index verification and rebuild from canonical storage.
 
 ### 3.3 Operator CLI
 
-The v0.8 operator command surface is a frozen candidate:
+The review covered the documented operator command surface, including commands for serving, configuration inspection, health, readiness, status, diagnostics, verification, metrics, backup, restore, and index maintenance.
 
-- `serve`
-- `config`
-- `health`
-- `ready`
-- `status`
-- `doctor`
-- `verify`
-- `metrics`
-- `backup create`
-- `backup verify`
-- `restore plan`
-- `restore apply`
-- `index verify`
-- `index rebuild`
+Compatibility-sensitive parts included:
 
-For these commands, command names, required arguments, machine-readable output, diagnostic codes, severity, exit status, and fail-closed behavior are compatibility-relevant.
+- command and subcommand names;
+- required arguments;
+- machine-readable output;
+- diagnostic and error codes;
+- severity;
+- exit status; and
+- fail-closed behavior.
 
-### 3.4 HTTP and administration contracts
+A command named in this historical record is not current merely because it appears here. Current operator documentation and executable help are authoritative.
 
-The following are compatibility-relevant where already documented and tested:
+### 3.4 HTTP and administration behavior
 
-- public publish and retrieval endpoints
-- health and readiness semantics
-- bounded-cardinality metrics
-- quarantine administration behavior
-- role and authorization ordering
-- stable machine-readable error responses
+Where documented and tested, the review treated these as compatibility-sensitive:
 
-Endpoint implementation structure and internal handler composition remain implementation details.
+- publish and retrieval endpoints;
+- health and readiness semantics;
+- bounded-cardinality metrics;
+- quarantine administration;
+- authentication and authorization ordering; and
+- stable machine-readable error responses.
 
-### 3.5 Storage and recovery contracts
+Handler composition and runtime wiring remained implementation details.
 
-The following are frozen candidates:
+### 3.5 Storage and recovery behavior
 
-- storage format manifest and version semantics
-- unknown-newer-format rejection
-- migration inspect, plan, verified-backup, apply, verify, commit, resume, and rollback semantics
-- canonical storage as the semantic source of truth
-- index as derived and rebuildable state
-- generation pointer publication rules
-- journal, proof, inventory, archive, and evidence integrity rules
-- backup verification requirements
-- isolated restore target requirements
-- replacement and cleanup proof binding
-- contradictory-state and partial-state rejection
+The review treated these as compatibility-sensitive:
 
-Internal Rust type names, helper modules, and file-local algorithms are not frozen unless explicitly referenced by a public specification.
+- storage-format manifest and version semantics;
+- unknown-newer-format rejection;
+- migration inspection, planning, backup, apply, verification, commit, resume, and rollback semantics;
+- canonical storage as the semantic source of truth;
+- derived-state rebuildability;
+- generation publication rules;
+- journal, proof, inventory, archive, and evidence integrity;
+- backup verification;
+- isolated restore targets;
+- replacement and cleanup proof binding; and
+- rejection of corrupt, contradictory, unknown, or partial state.
 
-## 4. Rust crate classification
+Internal type names and file-local algorithms remained refactorable unless encoded into a versioned external format.
 
-### `lingonberry-protocol`
+## 4. Rust API interpretation
 
-Intended stable behavior:
+The v0.9.0 review covered these workspace crates:
 
-- parse rejection and canonical serialization semantics
-- Knowledge Object validation and finalization behavior
-- identity-key derivation
-- publish-request canonical payload and signature verification behavior
-- protocol, schema, capability, and identity-rule version constants
+- `lingonberry-protocol`;
+- `lingonberry-identity`;
+- `lingonberry-validation`;
+- `lingonberry-core`;
+- `lingonberry-indexer`;
+- `lingonberry-relay`; and
+- `lingonberry-storage`.
 
-Audit concern:
+The intended freeze boundary was behavioral first:
 
-- the crate currently exposes parser representation types and helpers directly
-- public data fields may allow callers to depend on implementation representation
-- error text should not be treated as stable where a versioned error code exists or should exist
+- canonical parsing, validation, finalization, identity, and signature outcomes;
+- append, duplicate, conflict, quarantine, retrieval, and query semantics;
+- deterministic indexing and rebuild behavior;
+- public HTTP and operator behavior;
+- durable storage, migration, backup, restore, and recovery outcomes.
 
-Freeze action:
+The following were not stable by default:
 
-- retain behavioral compatibility
-- document which functions are supported entry points
-- classify raw parser representation and incidental helpers as unstable unless required by conformance consumers
+- internal module paths;
+- helper names;
+- parser representation types;
+- transaction and staging helpers;
+- handler decomposition;
+- debug formatting;
+- temporary-file or subprocess layout; and
+- unversioned error prose.
 
-### `lingonberry-identity`
+The detailed exported-item inventory is maintained separately in [`V0_9_RUST_API_INVENTORY.md`](./V0_9_RUST_API_INVENTORY.md). The later v1.0 audit and compatibility policy determine the current disposition.
 
-Intended stable behavior:
+## 5. Compatibility review rules retained from v0.9.0
 
-- identity claims and identity-key consistency
-- digest/signature input binding
-- deterministic verification outcome
+The following rules remain useful review principles, but current normative documents control their application:
 
-Freeze action:
+1. Changes to canonical bytes, identifier derivation, signature payloads, accepted input, durable formats, endpoints, commands, diagnostic codes, or exit statuses require compatibility review.
+2. Newly accepted data requires security and conformance review.
+3. Newly rejected previously valid data requires fixture-impact analysis and an explicit migration or compatibility disposition.
+4. Machine-readable codes, not incidental prose, are the compatibility mechanism unless a document explicitly freezes prose.
+5. Rust visibility alone does not create a supported external API.
+6. Security corrections may change behavior but require compatibility and migration notes where relevant.
+7. Unknown, corrupt, contradictory, and partial state remains fail closed unless a more specific contract defines a safe recovery path.
 
-- preserve verification semantics and version identifiers
-- avoid freezing implementation-specific cryptographic process invocation or temporary-file layout
+## 6. Historical audit outputs
 
-### `lingonberry-validation`
+The v0.9.0 freeze process required:
 
-Intended stable behavior:
+- an exported-item inventory for each library crate;
+- identification of exports used by conformance consumers;
+- identification of accidental public fields, helpers, and re-exports;
+- classification of supported Rust entry points;
+- mapping of supported behavior to tests or fixtures;
+- mapping of operator contracts to documentation and acceptance coverage;
+- mapping of durable artifacts to version axes; and
+- explicit disposition of intentional breaking corrections.
 
-- validation level ordering
-- deterministic error classification
-- rejection of unknown, malformed, inconsistent, and unsupported objects
-
-Freeze action:
-
-- stabilize machine-readable codes and ordering requirements
-- keep internal validator composition refactorable
-
-### `lingonberry-core`
-
-Intended stable behavior:
-
-- append, duplicate, conflict, quarantine, promotion, replacement, cleanup, retrieval, and query semantics
-- durable evidence and authorization boundaries
-
-Freeze action:
-
-- treat operation results and durable artifacts as compatibility-relevant
-- treat transaction helper modules and staging internals as supported internal boundaries
-
-### `lingonberry-indexer`
-
-Intended stable behavior:
-
-- deterministic indexing
-- checkpoint and catch-up semantics
-- verification and rebuild from canonical storage
-
-Freeze action:
-
-- freeze observable query and consistency behavior
-- keep index representation and segment implementation internal unless part of storage format v1
-
-### `lingonberry-relay`
-
-Intended stable behavior:
-
-- public HTTP and operator behavior
-- authorization order
-- health, readiness, diagnostics, and metrics contracts
-
-Freeze action:
-
-- endpoint and diagnostic contracts are compatibility-relevant
-- runtime wiring, handler modules, and command dispatch internals remain implementation details
-
-### `lingonberry-storage`
-
-Intended stable behavior:
-
-- storage format inspection
-- migration and recovery classification
-- backup and restore verification
-- unknown/corrupt/contradictory-state rejection
-
-Freeze action:
-
-- freeze durable format and recovery outcomes
-- keep parser/helper type layout internal unless encoded into an external file format
-
-## 5. Compatibility rules
-
-During v0.9.0:
-
-1. A change to protocol acceptance, canonical bytes, identifier derivation, signature payload, durable format, public endpoint, command, diagnostic code, or exit status requires compatibility review.
-2. A change that newly accepts previously invalid data requires security and conformance review.
-3. A change that newly rejects previously valid data requires fixture impact analysis and explicit disposition.
-4. Error prose is not stable unless a document explicitly declares it stable; machine-readable codes are the compatibility mechanism.
-5. Internal Rust module paths and helper names are not stable by default.
-6. Critical and high security fixes may change behavior, but must include migration or compatibility notes where relevant.
-7. Unknown, corrupt, contradictory, and partial state remains fail closed.
-
-## 6. Required audit outputs
-
-Before v0.9.0 release candidate completion:
-
-- [ ] enumerate exported items in each library crate
-- [ ] identify exports used by external conformance clients
-- [ ] identify accidental public fields, helpers, and re-exports
-- [ ] document supported Rust entry points
-- [ ] map each public entry point to tests or fixtures
-- [ ] map each operator contract to documentation and acceptance coverage
-- [ ] map each durable artifact to a version axis and compatibility policy
-- [ ] record any intentional breaking correction as a release blocker decision
+Completion status must be read from the later audit records, not inferred from this historical checklist.
 
 ## 7. Non-goals
 
-This freeze candidate does not promise:
+This record does not promise:
 
-- stability of every Rust `pub` item
-- stable internal module paths
-- stable debug formatting or unversioned error prose
-- distributed or multi-node behavior
-- Kubernetes, remote backup, vector search, or AI integration contracts
-- compatibility for undocumented manual mutation of durable state
+- stability of every Rust `pub` item;
+- stable internal module paths;
+- stable debug output or unversioned error prose;
+- multi-node replication, consensus, or distributed ordering;
+- Kubernetes, remote-backup, vector-search, or AI-integration contracts;
+- compatibility for undocumented manual mutation of durable state; or
+- publication of v1.0.0.
 
-## 8. Exit criteria
+## 8. Current release boundary
 
-This document becomes the v1.0 public API compatibility declaration only after:
+The fixed v1.0 release candidate remains:
 
-- the exported-item audit is complete
-- accidental public surface has been reduced or explicitly classified
-- protocol, API, CLI, and storage candidates agree with their specifications and fixtures
-- release-candidate tests exercise each frozen behavior
-- no unresolved critical or high severity finding affects a frozen surface
+`f9543019f2c219aea3b085ff90f2da201b268a48`
+
+This documentation normalization does not redefine that candidate.
+
+The following release gates remain separate and incomplete until evidenced elsewhere:
+
+- the formal 72-hour soak;
+- privileged reference-host qualification;
+- version preparation;
+- the release pull request;
+- the v1.0.0 tag; and
+- the GitHub Release.
+
+## 9. Precedence
+
+When this historical record conflicts with a current artifact, use the more specific current source in this order:
+
+1. versioned schemas and conformance fixtures;
+2. checked-in protocol and storage contracts;
+3. runtime behavior covered by tests;
+4. the v1.0 Rust API audit and compatibility policy;
+5. operator documentation; and
+6. this historical v0.9.0 record.

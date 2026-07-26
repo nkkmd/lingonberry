@@ -6,7 +6,7 @@
 ## Status
 
 - Tracked Markdown files: **170**
-- Release-blocking review entries: **31**
+- Release-blocking review entries: **30**
 - Classification totals: BILINGUAL_REQUIRED: 6, BILINGUAL_SCOPED: 3, ENGLISH_ONLY: 161
 - Governing policy: [`DOCUMENTATION_POLICY.md`](./DOCUMENTATION_POLICY.md)
 - Tracking issue: [#144](https://github.com/nkkmd/lingonberry/issues/144)
@@ -35,7 +35,7 @@ Every tracked Markdown file must appear below. `yes` in the final column means t
 | `docs/architecture/README.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
 | `docs/architecture/TOITOI_REFERENCE_CHECKLIST.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
 | `docs/architecture/V0_9_PUBLIC_API_FREEZE_CANDIDATE.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
-| `docs/architecture/V0_9_RUST_API_INVENTORY.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
+| `docs/architecture/V0_9_RUST_API_INVENTORY.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
 | `docs/architecture/V1_0_RUST_API_AUDIT.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
 | `docs/architecture/V1_COMPATIBILITY_POLICY.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
 | `docs/concepts/CARRIER.md` | `BILINGUAL_SCOPED` | `REVIEW_SCOPE_BEFORE_V1` | yes |

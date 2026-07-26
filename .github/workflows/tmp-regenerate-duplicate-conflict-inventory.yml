@@ -1,0 +1,30 @@
+name: temporary regenerate duplicate conflict inventory
+
+on:
+  push:
+    branches:
+      - agent/close-duplicate-conflict-inventory
+    paths:
+      - '.github/workflows/tmp-regenerate-duplicate-conflict-inventory.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  regenerate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/close-duplicate-conflict-inventory
+          fetch-depth: 0
+      - name: Regenerate inventory
+        run: python3 scripts/generate-documentation-inventory.py
+      - name: Commit generated inventory
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add docs/DOCUMENTATION_INVENTORY.md
+          git diff --cached --quiet && exit 0
+          git commit -m 'docs: regenerate documentation inventory'
+          git push origin HEAD:agent/close-duplicate-conflict-inventory

@@ -88,6 +88,7 @@ NORMALIZED_PROTOCOL_DOCS = {
     "docs/protocols/PROTOCOL_CONTRACT.md",
     "docs/protocols/PROTOCOL_IDENTIFIERS.md",
     "docs/protocols/PROTOCOL_NATIVE_WIRE_FORMAT.md",
+    "docs/protocols/README.md",
 }
 
 

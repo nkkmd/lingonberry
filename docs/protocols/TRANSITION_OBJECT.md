@@ -1,57 +1,98 @@
 # Transition Object Contract
 
-**Status: draft for v0.6.0** | **Schema version: `0.1.0`** | **Identity rule: `lb.transition.identity.v1`** | **Last updated: 2026-07-20**
+## Status
+
+Normative protocol contract for the v1.0.0 pre-release documentation set.
+
+- Transition schema version: `0.1.0`
+- Transition identity rule: `lb.transition.identity.v1`
+- Canonical JSON rule: `lb.canonical.json.v1`
+- HTTP transition signature rule: `lb.http.publish.signature.v1`
+
+This document describes the intended protocol contract and records the narrower validation currently performed by the reference relay. It does not change the fixed v1.0.0 release candidate.
 
 ## 1. Purpose
 
-A transition object records a replacement or withdrawal without mutating the original canonical knowledge object.
+A Transition Object records a replacement or withdrawal without mutating the original canonical Knowledge Object.
 
-Transition objects are append-only protocol objects. They have their own canonical ID, provenance, raw reference, identity, publisher signature, authority classification, and conflict history.
+Transitions are append-only protocol objects. Their immutable content, signed publish request, carrier evidence, authority classification, supersession relationships, and derived effective-view effect are related but distinct concepts.
 
-## 2. Required fields
+A stored transition does not by itself prove that it is authorized or that it affects the effective view.
+
+## 2. Object shape
+
+The schema is [`schemas/transition-object.schema.json`](../../schemas/transition-object.schema.json).
+
+Required fields:
 
 | Field | Contract |
 |---|---|
-| `id` | `lb:transition:` identifier |
-| `schemaVersion` | `0.1.0` |
-| `objectType` | `transition` |
+| `id` | Bounded ASCII `lb:transition:` identifier |
+| `schemaVersion` | Exactly `0.1.0` |
+| `objectType` | Exactly `transition` |
 | `transitionType` | `replace` or `withdraw` |
-| `targetId` | canonical knowledge-object ID affected by the transition |
-| `issuedAt` | `lb.timestamp.rfc3339.utc.v1` timestamp |
-| `provenance` | origin evidence, using the same source structure as knowledge objects |
-| `rawRef` | carrier/source reference |
+| `targetId` | Bounded ASCII `lb:obj:` identifier |
+| `issuedAt` | Zoned timestamp; conforming producers emit the UTC form defined by `lb.timestamp.rfc3339.utc.v1` |
+| `provenance` | Origin evidence using the Knowledge Object provenance structure |
+| `rawRef` | Carrier/source reference using the Knowledge Object raw-reference structure |
 
-Optional fields are `replacementId`, `supersedesTransitionIds`, `reason`, `identityClaims`, and `meta`.
+Optional fields:
+
+- `replacementId`
+- `supersedesTransitionIds`
+- `reason`
+- `identityClaims`
+- `meta`
+
+Unknown top-level fields are rejected by the JSON Schema and the reference relay ingest validator.
 
 ## 3. Type-specific invariants
 
-### Replace
+### 3.1 Replace
 
-A `replace` transition MUST include `replacementId`. `replacementId` MUST differ from `targetId`.
+A `replace` transition:
 
-### Withdraw
+- MUST contain `replacementId`;
+- MUST use a bounded ASCII `lb:obj:` replacement identifier;
+- MUST have `replacementId` different from `targetId`.
 
-A `withdraw` transition MUST NOT include `replacementId`.
+The last rule is fixed by the external conformance contract. At the current pre-release boundary, the JSON Schema and Rust relay ingest validator require a valid replacement identifier but do not independently reject `replacementId == targetId`. Deployments claiming full conformance must enforce the inequality before treating the transition as structurally valid.
 
-## 4. Explicit multi-parent supersession
+### 3.2 Withdraw
 
-`supersedesTransitionIds` is a non-empty array identifying earlier authorized transitions explicitly superseded by this transition.
+A `withdraw` transition MUST NOT contain `replacementId`.
 
-Every referenced transition MUST exist, target the same Knowledge Object, be structurally valid, and be authorized. A transition MUST NOT supersede itself. Duplicate parent IDs are invalid and MUST NOT be silently removed.
+## 4. Explicit supersession
 
-A transition can atomically resolve a fork only when it explicitly supersedes every currently authorized head. Partial parent coverage leaves the effective view `ambiguous`.
+`supersedesTransitionIds`, when present, is a non-empty array of bounded ASCII `lb:transition:` identifiers.
 
-Timestamp, input order, and identifier order do not create implicit supersession.
+Structural requirements:
 
-## 5. Identity
+- duplicate parent IDs are invalid;
+- a transition MUST NOT supersede itself;
+- input array order has no semantic precedence.
 
-`lb.transition.identity.v1` is:
+Graph requirements are evaluated separately from structural validation. For an authorized transition to supersede an earlier transition, the referenced parent must exist, target the same Knowledge Object, be structurally usable, and be authorized under the applicable authority rules.
+
+A transition resolves a fork atomically only when it explicitly supersedes every relevant authorized head. Partial coverage does not silently select a winner and leaves the effective view ambiguous.
+
+Timestamp order, ingestion order, lexical identifier order, and carrier receipt order do not create implicit supersession.
+
+## 5. Transition identity
+
+`lb.transition.identity.v1` is encoded as:
 
 ```text
-sha256(canonical-json(normalized-identity-basis))
+lb:key:lb.transition.identity.v1:sha256:<64-lowercase-hex>
 ```
 
-The identity basis contains, when present:
+The digest is:
+
+```text
+sha256(UTF-8(lb.canonical.json.v1(normalized identity basis)))
+```
+
+The identity basis includes only these fields when present:
 
 ```text
 objectType
@@ -63,45 +104,101 @@ issuedAt
 reason
 ```
 
-Before canonical JSON serialization, `supersedesTransitionIds` is copied and sorted lexically. This normalization is applied only to the identity basis; it does not rewrite the stored Transition Object or change general array-order semantics in `lb.canonical.json.v1`.
+Before canonical JSON serialization, a present `supersedesTransitionIds` array is copied and sorted lexically. This normalization applies only to the transition identity basis. It does not rewrite the stored Transition Object and does not change general array-order semantics in `lb.canonical.json.v1`.
 
-Consequently, permutations of the same valid parent set produce the same transition identity. Duplicate parent entries remain structurally invalid.
+Therefore, permutations of the same valid parent set produce the same transition identity. Duplicate parents remain structurally invalid rather than being normalized away.
 
-The encoded identity key is:
+The following are excluded from the transition identity basis:
 
-```text
-lb:key:lb.transition.identity.v1:sha256:<64-lowercase-hex>
+- canonical transition `id`;
+- provenance;
+- raw references;
+- transport and receipt metadata;
+- `identityClaims`;
+- `meta`;
+- publisher key and signature.
+
+The external conformance runner derives and checks this identity. The current Rust transition ingest path does not independently derive `lb.transition.identity.v1` or verify a supplied `identityClaims` entry against the transition content. An accepted signature or stored transition is therefore not evidence that an identity claim was validated.
+
+## 6. Publish envelope and signature
+
+Transitions are published to the transition-specific HTTP route using an envelope with exactly:
+
+```json
+{
+  "transition": {},
+  "publisher": {
+    "publicKey": "<64 lowercase hex>",
+    "signature": "<128 lowercase hex>"
+  }
+}
 ```
 
-Transport, provenance, raw references, metadata, canonical ID, and identity claims are excluded from the identity basis.
+The signature target is the complete request after removing only `publisher.signature`, serialized with canonical JSON. The Transition Object itself does not contain the publisher signature.
 
-## 6. Publish envelope
+Envelope validation, signature validation, transition structural validation, authority evaluation, and graph projection are separate stages.
 
-Transition objects use the existing HTTP publish envelope and `lb.http.publish.signature.v1`. The publisher signs the complete request after removing only `publisher.signature`.
+## 7. Validation boundaries
 
-## 7. Append-only behavior
+The normative contract covers:
 
-Publishing a transition never rewrites or deletes the target object. A consumer derives an effective view from the transition log.
+- required and allowed fields;
+- identifier classes and bounds;
+- transition-type invariants;
+- timestamp contract;
+- provenance and raw-reference structures;
+- transition identity derivation;
+- signature target construction;
+- append-only duplicate and conflict behavior.
 
-Exact duplicate transitions are idempotent. Authorized, unauthorized, unknown-authority, ambiguous, and disputed transitions remain retained.
+Current reference relay limitations include:
 
-## 8. Validation boundary
+- `issuedAt` is checked with the relay's zoned RFC 3339 shape validator, while conforming producers are expected to emit the uppercase-`Z` UTC profile;
+- `provenance` and `rawRef` are checked as objects during transition ingestion, but their full referenced schema is not revalidated in that Rust function;
+- `identityClaims` and `meta` are accepted by shape without transition-identity verification;
+- `replacementId != targetId` is not yet enforced by the Rust ingest validator;
+- structural ingest does not establish authority or effective-view applicability.
 
-Structural validation, identity validation, signature validation, and append-only persistence are protocol concerns.
+Consumers must not promote these implementation gaps into alternative protocol rules.
 
-Authorization and supersession projection are derived classifications. Only one unambiguous authorized head may affect the effective view.
+## 8. Append-only storage and duplicates
 
-## 9. Conformance
+Publishing a transition never rewrites or deletes the target Knowledge Object.
 
-The corpus fixes:
+For the reference relay:
+
+- the canonicalized complete signed request is stored in an append-only transition log;
+- an existing transition ID with exactly the same canonical request is idempotent and returns the duplicate result;
+- an existing transition ID with different immutable request content is a conflict;
+- a structurally and cryptographically accepted orphan transition may be retained before its target is available;
+- storage does not imply authorization.
+
+Authorized, unauthorized, unknown-authority, ambiguous, disputed, and orphan evidence may remain retained for audit and later re-evaluation. Only a valid, authorized, unambiguous derived result may affect the effective view.
+
+## 9. Conformance coverage
+
+The external corpus covers:
 
 - valid replacement and withdrawal transitions;
-- invalid type-specific field combinations;
+- missing replacement and forbidden replacement combinations;
+- duplicate and self-referencing parent rejection;
 - transition identity derivation;
 - parent-set order equivalence;
-- duplicate and self-referencing parent rejection;
-- original, delegated, unauthorized, and unknown authority;
-- one authorized head;
-- parallel authorized heads classified as `ambiguous`;
-- atomic full-fork supersession;
-- partial fork coverage remaining `ambiguous`.
+- original, delegated, unauthorized, and unknown authority classifications;
+- a single authorized head;
+- parallel authorized heads classified as ambiguous;
+- full-fork supersession;
+- partial fork coverage remaining ambiguous;
+- missing, cross-target, unauthorized, and cyclic supersession evidence.
+
+Conformance fixtures are executable reference evidence. They do not by themselves prove that every carrier, relay configuration, persistence path, or downstream consumer enforces every rule.
+
+## 10. Release boundary
+
+This normalization is documentation-only. The fixed v1.0.0 candidate remains:
+
+```text
+f9543019f2c219aea3b085ff90f2da201b268a48
+```
+
+The formal 72-hour soak, privileged reference-host qualification, version update, release PR, tag, and GitHub Release remain separate incomplete gates.

@@ -1,0 +1,39 @@
+name: temporary add transition evidence inventory
+
+on:
+  push:
+    branches:
+      - agent/close-transition-evidence-generation-inventory
+    paths:
+      - '.github/workflows/tmp-add-transition-evidence-inventory.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  update-generator:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/close-transition-evidence-generation-inventory
+          fetch-depth: 0
+      - name: Add normalized protocol document
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('scripts/generate-documentation-inventory.py')
+          text = p.read_text()
+          anchor = '    "docs/protocols/TRANSITION_AUTHORITY.md",\n'
+          entry = '    "docs/protocols/TRANSITION_EVIDENCE_GENERATION.md",\n'
+          assert entry not in text
+          assert anchor in text
+          p.write_text(text.replace(anchor, anchor + entry))
+          PY
+      - name: Commit generator only
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add scripts/generate-documentation-inventory.py
+          git commit -m 'docs: classify transition evidence generation'
+          git push origin HEAD:agent/close-transition-evidence-generation-inventory

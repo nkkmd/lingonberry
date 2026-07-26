@@ -129,7 +129,7 @@ def classify(path: str) -> tuple[str, str, str]:
     if path.startswith("packages/") or path == "AGENTS.md":
         return "ENGLISH_ONLY", "KEEP_ENGLISH", "no"
     if path == "CHANGELOG.md":
-        return "ENGLISH_ONLY", "KEEP_ENGLISH_ADD_BILINGUAL_V1_SUMMARY", "yes"
+        return "ENGLISH_ONLY", "KEEP_ENGLISH_ADD_BILINGUAL_V1_SUMMARY", "no"
     return "ENGLISH_ONLY", "REVIEW", "no"
 
 

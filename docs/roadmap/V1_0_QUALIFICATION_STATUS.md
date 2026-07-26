@@ -1,89 +1,71 @@
 # Lingonberry v1.0.0 Qualification Status
 
-**Status: pre-candidate qualification active** | **Target release: v1.0.0** | **Parent issue: #109** | **Last updated: 2026-07-23**
+**Status: candidate qualification, security review, compatibility review, and documentation walkthrough complete; formal soak and publication pending** | **Target release: v1.0.0** | **Parent issue: #109**
 
-## 1. Purpose
+## 1. Fixed candidate
 
-This document records the current execution state of the normative qualification plan in `V1_0_QUALIFICATION_PLAN.md`.
+```text
+f9543019f2c219aea3b085ff90f2da201b268a48
+```
 
-It does not replace the qualification plan, compatibility policy, soak plan, or final release evidence. Its purpose is to distinguish completed qualification infrastructure from evidence that must still be rerun against the designated final v1.0.0 candidate commit.
+The candidate was designated by the merge of PR #127 on 2026-07-23. Later documentation and inventory commits do not move it.
 
-## 2. Completed foundation work
-
-The following pre-candidate work is complete and merged to `main`:
+## 2. Completed candidate-bound work
 
 | Work item | Status | Evidence |
 |---|---|---|
-| Gate inventory and qualification plan | Complete | Issue #110, PR #111, `V1_0_QUALIFICATION_PLAN.md` |
-| Rust exported-surface audit | Complete | Issue #112, PR #115, `V1_0_RUST_API_AUDIT.md` |
-| Normative v1 compatibility policy | Complete | Issue #113, PR #116, `V1_COMPATIBILITY_POLICY.md` |
-| Qualification soak and telemetry contract | Plan complete; execution pending | Issue #114, PR #117, `V1_0_SOAK_PLAN.md` |
-| Candidate-bound qualification workflow | Complete and dry-run verified | Issue #118, PR #119, `v1-candidate-qualification.yml` |
-| Pre-candidate security diff review | Complete; final candidate verification pending | PR #121, `V1_0_SECURITY_DIFF_REVIEW.md` |
+| Candidate designation | Complete | PR #127 |
+| Candidate qualification | Passed | run `29971797941`, artifact `8549953270` |
+| Candidate binaries and digests | Recorded | `V1_0_RELEASE_EVIDENCE.md` |
+| Rust public API audit | Complete | `V1_0_RUST_API_AUDIT.md` |
+| Normative v1 compatibility policy | Complete | `V1_COMPATIBILITY_POLICY.md` |
+| Candidate security and compatibility review | Passed | `V1_0_SECURITY_DIFF_REVIEW.md` |
+| Candidate documentation walkthrough | Passed | run `29974169660`, artifact `8550809328`, 16 procedures |
+| Candidate documentation freeze | Passed for candidate execution | `V1_0_RELEASE_EVIDENCE.md` |
 
-## 3. Dry-run evidence boundary
+The candidate review records Critical 0, High 0, and release-blocking Medium 0. Candidate qualification and walkthrough evidence are checksummed and commit-bound.
 
-The candidate qualification workflow was dry-run successfully before final candidate selection.
+## 3. Remaining release-blocking work
 
-Dry-run evidence:
-
-- workflow run: `v1 candidate qualification` run 3
-- qualified commit: `a4bbc622c8be4c140a0042139660a4053bd39d7f`
-- artifact ID: `8535314810`
-- artifact digest: `sha256:649dc1a9ef3bab069b4d531e2edbc6d195e47053c2a8ec881798492d3e21e546`
-- result: 12 recorded gates passed and artifact checksums verified
-
-This proves that the orchestrator and evidence format work. It is not final v1.0.0 release evidence because the qualified commit predates the final candidate designation and the final soak.
-
-## 4. Current gate state
-
-| Gate family | Current state | Required next evidence |
+| Gate | State | Required completion |
 |---|---|---|
-| Stable compatibility declarations | Complete | Reconfirm no candidate diff contradicts the approved policy. |
-| Standard Rust, JavaScript, and external conformance | Infrastructure ready | Rerun against the designated final candidate. |
-| Lifecycle, migration, recovery, backup/restore, and index | Infrastructure ready | Rerun against the designated final candidate and retain the bundle. |
-| Replacement and cleanup crash matrix | Infrastructure ready | Rerun against the designated final candidate. |
-| Security regressions and release-blocker review | Pre-candidate diff reviewed; final disposition pending | Recompare the designated candidate, rerun regressions, review retained logs, and record final finding counts. |
-| Reference-platform operator acceptance | Infrastructure ready | Run against final candidate-built binaries and frozen documentation. |
-| Documentation review | Pending final candidate | Walk installation, configuration, operation, upgrade, rollback, recovery, and troubleshooting instructions. |
-| 72-hour qualification soak | Plan ready; not executed | Execute under `V1_0_SOAK_PLAN.md` and retain telemetry and logs. |
-| Version and release-document preparation | Blocked by pre-version gates | Begin only after candidate qualification, operator acceptance, security review, and soak are green. |
-| Publication | Not started | Requires reviewed release PR, merged-commit validation, tag, release, and final evidence. |
+| Formal 72-hour qualification soak | Not started / not completed | Execute the real-time systemd scheduler for at least 259,200 seconds and satisfy every workload, telemetry, crash-matrix, disk-pressure, and stop-threshold requirement. |
+| Privileged reference-host qualification | Pending | Complete the dedicated Ubuntu Server 24.04 x86_64 systemd host preparation and disk-pressure rehearsal without undocumented workarounds. |
+| Final residual-risk disposition | Pending | Review soak and reference-host evidence and record a release decision. |
+| Version preparation | Pending | Set version `1.0.0` and synchronize release checklist, notes, implementation status, and CHANGELOG. |
+| Reviewed release PR | Pending | Review the exact version-preparation diff and required checks. |
+| Merged-commit validation | Pending | Revalidate the merged release commit and preserve evidence. |
+| Annotated tag and GitHub Release | Pending | Publish only after all prior gates pass. |
+| Final publication evidence | Pending | Record tag, release, artifact, and digest identities. |
 
-## 5. Candidate designation rule
+## 4. Formal-soak readiness boundary
 
-A commit may be designated as the v1.0.0 qualification candidate only when:
+The scheduler, command map, crash-matrix driver, disk-pressure driver, and reference-host preparation documents exist and have rehearsal coverage. This is infrastructure readiness only.
 
-1. all intended runtime and contract changes are merged;
-2. no unrelated feature work is included;
-3. compatibility documents are frozen for candidate review;
-4. the candidate qualification workflow exists on that commit;
-5. resource ceilings and soak stop thresholds are fixed before execution;
-6. any change after designation is classified as runtime-affecting or evidence-only.
+The following do not satisfy the formal gate:
 
-A runtime-affecting change invalidates candidate-bound executable evidence and requires a new candidate designation and rerun.
+- mock-adapter runs;
+- virtual-time scheduler rehearsals;
+- CI-only disk-pressure or crash-matrix rehearsal;
+- bounded v0.9.0 hardening soak evidence;
+- candidate qualification runs shorter than the formal duration;
+- documentation statements without retained real-host evidence.
 
-## 6. Remaining execution order
+## 5. Current execution order
 
-1. Complete candidate-diff contradiction and security review.
-2. Freeze the candidate documentation set.
-3. Designate the final candidate commit.
-4. Run the candidate-bound qualification workflow.
-5. Run reference-platform operator acceptance from the frozen instructions.
-6. Execute the 72-hour qualification soak.
-7. Record deviations, residual risks, and final pass/fail disposition.
-8. Prepare version `1.0.0`, release checklist, release notes, and changelog.
-9. Validate the reviewed release PR and merged commit.
-10. Tag and publish only after all evidence points to the same commit and contract set.
+1. complete privileged reference-host preparation and rehearsal;
+2. freeze host-specific command-map and threshold inputs;
+3. execute the formal 72-hour soak against the fixed candidate binaries;
+4. verify the complete evidence bundle and workload floors;
+5. record deviations, residual risks, and final pass/fail disposition;
+6. prepare version `1.0.0` and release-specific documents;
+7. open and review the release PR;
+8. validate the merged release commit;
+9. create the annotated tag and GitHub Release;
+10. record final publication evidence.
 
-## 7. Release-blocking state
+## 6. Release boundary
 
-v1.0.0 remains blocked until all of the following are true:
+v1.0.0 remains unpublished. Candidate qualification success does not authorize version preparation, tagging, or publication while the formal soak and privileged reference-host qualification remain incomplete.
 
-- final candidate qualification is green;
-- final security disposition has no Critical, High, or release-blocking Medium finding;
-- reference-platform acceptance is green;
-- the 72-hour soak is green;
-- documentation review is complete;
-- `V1_0_RELEASE_EVIDENCE.md` contains commit-bound evidence for every mandatory gate;
-- release version, tag, notes, artifacts, and compatibility declarations identify the same release.
+The authoritative detailed record is [`V1_0_RELEASE_EVIDENCE.md`](./V1_0_RELEASE_EVIDENCE.md).

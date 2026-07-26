@@ -18,6 +18,7 @@ BILINGUAL_REQUIRED = {
 REVIEWED_BILINGUAL_REQUIRED = {
     "README.md",
     "docs/DOCUMENTATION_POLICY.md",
+    "docs/operations/README.md",
 }
 BILINGUAL_SCOPED = {
     "docs/concepts/GLOSSARY.md",
@@ -25,6 +26,8 @@ BILINGUAL_SCOPED = {
     "docs/protocols/VERSIONING_AND_COMPATIBILITY.md",
 }
 REVIEWED_BILINGUAL_SCOPED = {
+    "docs/concepts/CARRIER.md",
+    "docs/concepts/GLOSSARY.md",
     "docs/protocols/VERSIONING_AND_COMPATIBILITY.md",
 }
 HISTORICAL_OPERATION_DOCS = {
@@ -40,6 +43,7 @@ NORMALIZED_ARCHITECTURE_DOCS = {
     "docs/architecture/V0_9_PUBLIC_API_FREEZE_CANDIDATE.md",
     "docs/architecture/V0_9_RUST_API_INVENTORY.md",
     "docs/architecture/V1_0_RUST_API_AUDIT.md",
+    "docs/architecture/V1_COMPATIBILITY_POLICY.md",
 }
 NORMALIZED_OPERATION_DOCS = {
     "docs/operations/ACCEPTANCE_POLICY.md",

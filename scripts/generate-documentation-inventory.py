@@ -127,6 +127,11 @@ NORMALIZED_PROTOCOL_DOCS = {
 }
 NORMALIZED_ROADMAP_DOCS = {
     "docs/roadmap/ROADMAP_TO_V1_0.md",
+    "docs/roadmap/V1_0_CANDIDATE.md",
+    "docs/roadmap/V1_0_CRASH_MATRIX_DRIVER.md",
+    "docs/roadmap/V1_0_DISK_PRESSURE_DRIVER.md",
+    "docs/roadmap/V1_0_DOCUMENTATION_FREEZE_PLAN.md",
+    "docs/roadmap/V1_0_DOCUMENTATION_WALKTHROUGH.md",
 }
 
 

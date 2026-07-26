@@ -19,6 +19,7 @@ REVIEWED_BILINGUAL_REQUIRED = {
     "README.md",
     "docs/DOCUMENTATION_POLICY.md",
     "docs/operations/README.md",
+    "docs/operations/RELAY_QUICKSTART.md",
 }
 BILINGUAL_SCOPED = {
     "docs/concepts/GLOSSARY.md",
@@ -57,6 +58,10 @@ NORMALIZED_OPERATION_DOCS = {
     "docs/operations/HTTP_CARRIER_CONTRACT.md",
     "docs/operations/KNOWLEDGE_OBJECT_PUBLISH_QUICKSTART.md",
     "docs/operations/MIGRATION_AND_SCHEMA_VERSIONING.md",
+    "docs/operations/MULTI_NODE_CAPACITY_AND_PLACEMENT_POLICY.md",
+    "docs/operations/MULTI_NODE_CONFLICT_POLICY.md",
+    "docs/operations/MULTI_NODE_DISCOVERY_AND_TOPOLOGY.md",
+    "docs/operations/MULTI_NODE_SYNC_CONTRACT.md",
     "docs/operations/NODE_LIFECYCLE_RUNBOOK.md",
     "docs/operations/OBSERVABILITY.md",
     "docs/operations/OPERATIONAL_PREMISES_MEMO.md",

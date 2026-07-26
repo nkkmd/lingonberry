@@ -1,7 +1,7 @@
 # Lingonberry Documentation Policy / Lingonberry 文書方針
 
 **Status:** normative for the v1.0.0 documentation set  
-**English is normative. Japanese is a synchronized translation.**
+**English is the normative language. Japanese is a synchronized translation.**
 
 > If the English and Japanese sections differ, the English section takes precedence.
 >

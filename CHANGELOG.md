@@ -2,6 +2,66 @@
 
 All notable changes to Lingonberry are documented in this file. Detailed operational contracts and release notes are retained under `docs/`.
 
+English is normative for the unreleased v1.0.0 summary. The Japanese section is an operational translation and does not define an independent contract.
+
+## [Unreleased]
+
+### v1.0.0 preparation summary
+
+Lingonberry v1.0.0 is not released. The fixed pre-version qualification candidate remains `f9543019f2c219aea3b085ff90f2da201b268a48`. Documentation, evidence, and tooling changes made after that commit do not redefine the candidate or replace candidate-bound executable evidence.
+
+#### Completed preparation
+
+- Candidate qualification passed on Ubuntu 24.04 x86_64 with release-built storage and relay binaries, retained checksummed evidence, and recorded binary digests.
+- Security and compatibility review found no open Critical, High, or release-blocking Medium finding.
+- The candidate documentation walkthrough passed all recorded procedures.
+- Protocol, transition, effective-view, versioning, operator, storage, migration, recovery, and evidence contracts were reviewed and normalized without changing the fixed runtime candidate.
+- Documentation inventory and freeze checks track remaining release-blocking documentation work explicitly.
+
+#### Compatibility boundary
+
+- The production protocol and Knowledge Object schema remain `0.1.0` for the fixed candidate.
+- No post-candidate documentation or tooling commit changes the candidate's protocol behavior, durable storage format, public CLI/HTTP behavior, migration semantics, or release-built binaries.
+- Canonical storage remains authoritative; indexes and effective views remain derived and verifiable.
+- Unknown, unsupported, contradictory, corrupt, stale, or incomplete state continues to fail closed according to the applicable contract.
+
+#### Not yet completed
+
+- The formal continuous 72-hour qualification soak has not been performed.
+- Privileged reference-host qualification remains incomplete.
+- Workspace/package version preparation for `1.0.0` has not been performed.
+- The reviewed release PR, merged-release-commit validation, annotated tag, GitHub Release, and final publication evidence do not yet exist.
+
+The eventual `1.0.0` release entry must be created only after all mandatory gates pass. It must identify the merged release commit and publication date rather than treating this unreleased summary as release evidence.
+
+### v1.0.0 準備状況（日本語）
+
+Lingonberry v1.0.0 は、まだリリースされていません。固定されたversion準備前のqualification candidateは `f9543019f2c219aea3b085ff90f2da201b268a48` のままです。このcommit以後の文書・証跡・tooling変更はcandidateを再定義せず、candidateに紐づく実行証跡を置き換えません。
+
+#### 完了済みの準備
+
+- Ubuntu 24.04 x86_64上で、release buildされたstorage／relay binary、checksum付き保存証跡、記録済みbinary digestを用いたcandidate qualificationが成功しています。
+- Security／compatibility reviewでは、未解決のCritical、High、release-blocking Medium findingはありません。
+- Candidate documentation walkthroughは、記録対象の全procedureに成功しています。
+- Protocol、transition、effective view、versioning、operator、storage、migration、recovery、evidenceの各contractを、固定runtime candidateを変更せずに確認・正規化しました。
+- Documentation inventoryとfreeze checkにより、残るrelease-blocking文書作業を明示的に追跡しています。
+
+#### 互換性の境界
+
+- 固定candidateのproduction protocolおよびKnowledge Object schemaは`0.1.0`のままです。
+- Candidate以後の文書・tooling commitは、candidateのprotocol挙動、durable storage format、公開CLI／HTTP挙動、migration semantics、release build済みbinaryを変更しません。
+- Canonical storageが引き続き正本であり、indexとeffective viewは検証・再構築可能な派生状態です。
+- Unknown、unsupported、contradictory、corrupt、stale、incompleteな状態は、該当contractに従ってfail closedを維持します。
+
+#### 未完了
+
+- Formal continuous 72-hour qualification soakは未実施です。
+- Privileged reference-host qualificationは未完了です。
+- Workspace／packageの`1.0.0` version準備は未実施です。
+- Reviewed release PR、merged release commitの検証、annotated tag、GitHub Release、最終publication evidenceは未作成です。
+
+最終的な`1.0.0` release entryは、すべての必須gate成功後にのみ作成します。そのentryでは、この未リリース要約をrelease evidenceとして扱わず、merged release commitと公開日を明示しなければなりません。
+
 ## [0.9.0] - 2026-07-22
 
 ### Added

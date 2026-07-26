@@ -1,100 +1,77 @@
 # v0.9.0 Signature Verification Workspace Remediation
 
-**Status: implementation-ready** | **Finding: LB-SEC-009-001** | **Last updated: 2026-07-22**
+**Status: implemented and regression-tested; historical v0.9.0 record** | **Finding: LB-SEC-009-001** | **Last updated: 2026-07-22**
 
-この文書は、`packages/protocol/src/lib.rs` の `verify_publish_request_signature_with_openssl` が使用するtemporary workspaceを安全に管理するための実装契約です。
+## 1. Purpose
 
-## Goal
+This document preserves the implementation contract used to remediate temporary-workspace handling in `verify_publish_request_signature_with_openssl` under `packages/protocol/src/lib.rs`.
 
-署名検証の外部挙動とcanonical payloadを変更せず、temporary artifactの残留、path collision、symlink追従、過剰permissionを除去します。
+The remediation changed workspace safety only. It did not change the signature algorithm, canonical publish-request payload, OpenSSL verification contract, protocol schema, wire format, or externally visible verification result.
 
-## Non-goals
+## 2. Implemented workspace contract
 
-- signature algorithmの変更
-- canonical publish request payloadの変更
-- OpenSSL command contractの変更
-- public error messageへのpayload、public key、signatureの追加
-- protocol schemaまたはwire formatの変更
+### Exclusive creation
 
-## Required implementation shape
+The workspace remains beneath the operating-system temporary directory, but no existing candidate path is reused. Candidate names combine process identity, a process-local monotonic counter, and a time-derived value. The directory is created exclusively; path collisions, files, directories, and symlinks are rejected and retried only within a finite bound.
 
-### Workspace creation
+### Permissions and artifact creation
 
-workspace rootは引き続きOS temporary directoryを使用します。ただし、単一のtimestamp値をそのままdirectory名として信用しません。
-
-生成名には少なくとも次を含めます。
-
-- process id
-- monotonic process-local counter
-- current time由来の補助値
-
-候補pathは`create_dir`でexclusiveに作成します。`create_dir_all`は使用しません。既存path、symlink、file、directory collisionはいずれも再利用せず、有限回の再生成後にfail closedとします。
-
-### Permissions
-
-Unix reference platformでは、workspace作成直後にpermissionを`0o700`へ設定します。permission設定に失敗したworkspaceは使用せず、best-effort cleanup後に検証失敗として返します。
-
-workspace内のartifactは新規作成のみを許可します。
+On the Unix reference platform, the workspace uses owner-only permissions. Verification artifacts are created as new files only:
 
 - `public-key.der`
 - `signature.bin`
 - `message.bin`
 
-既存artifactをtruncateまたはoverwriteしません。`OpenOptions::create_new(true)`を使用します。
+Existing files are never truncated or overwritten. Artifact creation uses exclusive new-file semantics.
 
 ### Cleanup ownership
 
-workspace作成成功後は、単一のscope guardがworkspace ownershipを持ちます。関数のreturn pathに依存した手書きcleanupを複数箇所へ分散させません。
+A single RAII scope guard owns workspace cleanup. Best-effort removal runs for normal return paths including:
 
-scope guardの`Drop`で`remove_dir_all`をbest-effort実行します。これにより次の経路を同一契約で扱います。
+- signature success;
+- signature mismatch;
+- intermediate artifact-write failure;
+- OpenSSL spawn failure;
+- OpenSSL non-zero exit;
+- path-conversion failure.
 
-- signature success
-- signature mismatch
-- public-key write failure
-- signature write failure
-- message write failure
-- OpenSSL spawn failure
-- OpenSSL non-zero exit
-- UTF-8 path conversion failure
+The primary verification or setup result is not replaced by a cleanup failure. Diagnostics must remain bounded and must not expose canonical payloads, signatures, public-key material, or sensitive host paths.
 
-process abort、SIGKILL、host crashはscope cleanupの保証対象外です。残留workspaceはoperator diagnosticsとperiodic cleanup policyで扱います。
+Process abort, SIGKILL, kernel termination, and host power loss can bypass `Drop`; stale workspaces from those events remain an operational cleanup risk rather than a signature-verification bypass.
 
-### Error precedence
+## 3. Concurrency and filesystem safety
 
-署名検証のprimary resultをcleanup failureで置き換えません。
+Concurrent verification attempts must never share a workspace. Safety depends on exclusive filesystem creation, not merely on candidate-name unpredictability.
 
-- verification failureはverification failureとして返す
-- setup failureはsetup failureとして返す
-- cleanup failureはpayloadやsignatureを含まないbounded diagnosticとして記録する
+The implementation must not:
 
-現行crateに安全なdiagnostic sinkが存在しない場合、v0.9.0ではcleanupをbest-effortとし、error surfaceを拡張せず、残留workspace検出をsecurity regression testとoperator diagnostic backlogへ接続します。
+- follow a pre-existing symlink candidate;
+- reuse an existing directory;
+- overwrite an existing artifact;
+- depend on `create_dir_all` for verification workspace creation;
+- expose temporary artifact content through errors.
 
-## Concurrency contract
+## 4. Regression evidence
 
-同一processおよび複数processの並行検証がworkspaceを共有してはなりません。exclusive directory creationと`create_new` artifact creationの両方で保証します。
+Regression coverage verifies:
 
-workspace identifierはsecurity identityではありません。予測困難性だけに依存せず、filesystemのexclusive creationを正本とします。
+1. cleanup after valid-signature verification;
+2. cleanup after invalid-signature verification;
+3. cleanup after intermediate failures;
+4. refusal to reuse a pre-existing candidate path;
+5. refusal to follow candidate symlinks;
+6. preservation of existing files during artifact collisions;
+7. workspace isolation under concurrent verification;
+8. owner-only Unix permissions;
+9. stable canonical payload and verification semantics;
+10. standard formatting, clippy, and workspace-test success.
 
-## Regression tests
+The findings ledger records source commit `fe23c523f358cfa62aea396ec7481778a0915c2c` and regression-test commit `1083ab0348881aabba924f102151c5d4ed3da292`.
 
-最低限、次を自動検証します。
+## 5. Final disposition
 
-1. 有効な署名の検証後にworkspaceが残らない。
-2. 無効な署名の検証後にworkspaceが残らない。
-3. OpenSSL executableが利用できない経路でもworkspaceが残らない。
-4. pre-existing candidate pathを再利用しない。
-5. candidate pathがsymlinkの場合に追従しない。
-6. artifact collision時に既存fileを変更しない。
-7. 並行検証が異なるworkspaceを使用する。
-8. error messageへcanonical payload、signature、private materialを含めない。
+**Implemented, regression-tested, and closed for v0.9.0.**
 
-## Review checklist
+The fixed v1.0.0 candidate contains no later production runtime change to this implementation. Candidate applicability is reviewed in [`V1_0_SECURITY_DIFF_REVIEW.md`](./V1_0_SECURITY_DIFF_REVIEW.md).
 
-- [ ] `create_dir_all`をtemporary verification workspace生成に使用していない
-- [ ] workspace permissionがUnixで`0o700`
-- [ ] artifactが`create_new(true)`
-- [ ] cleanup ownershipが単一scope guardに集約されている
-- [ ] success／failure／intermediate errorの全経路をtestしている
-- [ ] canonical payloadとsignature verification resultが従来と一致する
-- [ ] standard CIが成功する
-- [ ] LB-SEC-009-001のfinding stateとevidenceを更新する
+This historical remediation record does not claim that the formal 72-hour soak, privileged reference-host qualification, release PR, tag, or GitHub Release is complete.

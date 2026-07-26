@@ -1,560 +1,193 @@
 # Lingonberry Protocol Evolution Proposal
 
-**Status: draft**  
-**Last updated: 2026-07-11**
+**Status: architecture proposal**  
+**Normative status: non-normative until adopted by an explicit specification change**
 
-## 1. 目的
+## 1. Purpose
 
-この文書は、Lingonberry を長期運用可能で相互運用性の高い分散知識コモンズ・プロトコルへ発展させるための改善方針を整理するものです。
+This document describes how Lingonberry may evolve after the current v1.0 release candidate. It is not a protocol contract, release checklist, or claim that the proposed capabilities already exist.
 
-Lingonberry はすでに、Knowledge Object、append-only、replayability、provenance、lineage、carrier-neutrality、application profile という強い設計軸を持っています。今後は機能を増やすこと以上に、次を厳密に固定する必要があります。
-
-1. protocol core の不変条件
-2. application profile、policy、実装へ委ねる範囲
-3. 異なる実装間の決定的な相互運用性
-4. 敵対的な公開ネットワークに対する安全性
-5. relay 間の効率的かつ検証可能な同期
-
----
-
-## 2. 最優先の改善項目
-
-### 2.1 Identity の暗号学的強化
-
-semantic identity fingerprint には、暗号学的ハッシュを使用します。
+The fixed v1.0 candidate remains:
 
 ```text
-lb:key:<rule-version>:<hash-algorithm>:<digest>
+f9543019f2c219aea3b085ff90f2da201b268a48
 ```
 
-候補:
-
-- SHA-256
-- SHA-512/256
-- BLAKE3
-- multihash / multibase
-
-同時に、hash input となる canonical byte representation を固定します。
-
-- UTF-8
-- Unicode 正規化方式
-- JSON canonicalization
-- field ordering
-- 数値表現
-- timestamp 表現
-- language tag の正規化
-- 欠落 field と空値の区別
-- relation、lineage、identityClaims の順序規則
-
-仕様の正本は「意味的に同じ JSON」ではなく、実装間で一致する **canonical bytes** とします。
-
-### 2.2 Identity の三層分離
-
-次の概念を明確に分けます。
-
-| 種類 | 役割 |
-|---|---|
-| Object ID | 個々に publish された object を識別する |
-| Semantic Identity Key | 内容上の同一性・重複候補を照合する |
-| Lineage Identity | revision をまたいだ同一系列を辿る |
-
-例:
-
-```json
-{
-  "id": "lb:object:...",
-  "identityKey": "lb:key:...",
-  "lineage": {
-    "root": "lb:object:...",
-    "previous": "lb:object:..."
-  }
-}
-```
-
-これにより、同じ内容の複製、別 carrier 上の同一 object、内容が更新された revision、同じ知識系列に属する異なる表現を区別できます。
-
-### 2.3 署名対象の固定
-
-公開鍵署名を相互運用可能にするには、署名対象となるバイト列を protocol level で固定します。
-
-```text
-canonical object bytes
-  -> cryptographic digest
-  -> domain-separated signature payload
-  -> signature
-```
-
-例:
-
-```text
-LINGONBERRY_OBJECT_V1 || digest
-```
-
-定義対象:
-
-- 対応署名アルゴリズム
-- 鍵 ID の形式
-- 鍵ローテーションと失効
-- 複数署名と組織署名
-- 代理署名と AI agent の署名
-- author、publisher、transformer、attestor、relay の役割分離
-
-署名は「送信者」と「知識の著者」を同一視しない設計にします。
-
-### 2.4 Conformance Test Suite
-
-文章仕様だけでなく、公式の適合試験を protocol の主要成果物として整備します。
-
-```text
-conformance/
-├── canonicalization/
-├── validation/
-├── identity/
-├── signatures/
-├── revisions/
-├── tombstones/
-├── archive-replay/
-├── carrier-http/
-├── synchronization/
-└── malformed-input/
-```
-
-各 test vector は、少なくとも input、expected canonical bytes、expected identity key、expected result を持ちます。
-
-主要試験項目:
-
-- field order、Unicode、timestamp の表記差
-- optional field と default の扱い
-- 不正署名と identity claim 不一致
-- rawRef 欠落
-- 循環 lineage
-- 未知 extension field
-- archive ordering の違い
-- 異なる relay から得た同一 object
-- 旧実装が将来 version を受信した場合
+Documentation commits made after that candidate do not redefine its runtime contents.
 
-Rust と TypeScript など、最低 2 つの独立実装が同じ test vector を通過することを仕様安定化の条件とします。
+## 2. Current baseline
 
-### 2.5 Relay 間同期
+The checked-in repository already defines and tests a production-oriented single-node baseline, including:
 
-複数ノードが効率的に同じ知識集合へ収束できる同期仕様を定義します。
+- versioned protocol and schema constants;
+- deterministic JSON canonicalization;
+- a versioned identity-key rule;
+- protocol-native wire formats;
+- HTTP publish and signature contracts;
+- append-only storage and archive replay;
+- duplicate and conflict classification;
+- quarantine and replacement workflows;
+- transition and effective-view semantics;
+- conformance fixtures and documentation walkthrough evidence.
 
-候補:
+The concrete schemas, runtime code, tests, and conformance fixtures are authoritative for that baseline. This proposal cannot override them.
 
-- cursor-based synchronization
-- time-range synchronization
-- hash inventory
-- Merkle tree / Merkle DAG
-- Bloom filter
-- set reconciliation
-- content-addressed archive chunk
-- partial replication
-
-想定 node profile:
-
-- full archive node
-- domain-specific node
-- recent-only relay
-- metadata-only indexer
-- attachment storage node
-- local community node
+## 3. Evolution principles
 
-capability manifest 例:
+Any protocol evolution should preserve these invariants unless a deliberately breaking migration is approved:
 
-```json
-{
-  "retention": "full",
-  "acceptedProfiles": ["..."],
-  "maxObjectSize": 1048576,
-  "supportsAttachments": true,
-  "syncMethods": ["cursor", "merkle-v1"],
-  "historyFrom": "2026-01-01T00:00:00Z"
-}
-```
-
----
-
-## 3. 知識プロトコルとしての意味論強化
-
-### 3.1 事実ではなく検証可能な主張を保存する
-
-Lingonberry core は内容を真実として認定しません。
-
-```text
-Actor A asserts X at time T
-Evidence B supports X
-Actor C disputes X
-Review D retracts X
-```
-
-relation vocabulary の候補:
-
-- `supports`
-- `contradicts`
-- `qualifies`
-- `retracts`
-- `reviews`
-- `replicates`
-- `fails_to_replicate`
-
-protocol が保証するのは真偽ではなく、主張者、時刻、来歴、関係、完全性です。
-
-### 3.2 Trust を単一スコアにしない
-
-信頼は次の独立した観点として扱います。
-
-- authenticity
-- integrity
-- provenance completeness
-- source reputation
-- evidence quality
-- review status
-- recency
-- contextual applicability
-
-protocol core は署名検証、改変検出、provenance、relation、lineage を扱い、評価は application profile、local policy、community trust graph、institution policy、user preference に委ねます。
-
-### 3.3 Revision、retraction、tombstone の分離
-
-| 操作 | 意味 |
-|---|---|
-| revision | 内容の更新版を追加する |
-| supersession | 新版を優先版として示す |
-| retraction | 主張を撤回する |
-| semantic tombstone | 通常表示から除外すべき状態を示す |
-| storage suppression | 特定 node が配信・保持しない |
-| legal removal | 法令や権利侵害に基づく運用上の削除 |
-| cryptographic erasure | 暗号鍵破棄により読めなくする |
-
-append-only を維持しつつ、実運用の削除要請に対応できるようにします。
-
----
-
-## 4. 永続参照と Attachment
-
-### 4.1 rawRef の content-addressed 化
-
-rawRef は URL だけに依存させず、content integrity と location を分離します。
-
-```json
-{
-  "rawRef": {
-    "digest": "sha256:...",
-    "mediaType": "application/json",
-    "size": 1234,
-    "locations": [
-      "https://relay-a.example/objects/...",
-      "lb-archive:..."
-    ]
-  }
-}
-```
-
-> URL は所在を示し、digest は内容を示す。
-
-これにより、移設、複製、監査、再取得、改変検出が容易になります。
-
-### 4.2 Attachment の分離
-
-画像、PDF、音声、データセットなどは Knowledge Object 本体へ埋め込まず、content-addressed blob として参照します。
-
-```json
-{
-  "attachments": [
-    {
-      "digest": "sha256:...",
-      "mediaType": "application/pdf",
-      "size": 245678,
-      "title": "調査報告書",
-      "locations": []
-    }
-  ]
-}
-```
-
-将来拡張:
-
-- chunking
-- resumable download
-- mirror discovery
-- license metadata
-- encryption metadata
-- malware scan metadata
-- thumbnail
-- retention policy
-
-Knowledge Object 本体は小さく保ち、metadata-only relay を可能にします。
-
----
-
-## 5. Application Profile と Extension
-
-### 5.1 Profile の自己記述化
-
-application profile 自身を署名付き Knowledge Object として配布できるようにします。
-
-```json
-{
-  "type": "application-profile",
-  "body": {
-    "name": "Toitoi Profile",
-    "version": "1.0.0",
-    "extends": [],
-    "schemas": [],
-    "vocabularies": [],
-    "requiredCapabilities": []
-  }
-}
-```
-
-profile の revision、fork、署名、互換性宣言を Lingonberry 上で管理します。中央 registry は必須にせず、複数の signed catalog を任意に運用できる形とします。
-
-### 5.2 Extension namespace
-
-field 名の衝突を避けるため、extension namespace を導入します。
-
-```json
-{
-  "extensions": {
-    "https://example.org/profiles/research/v1": {
-      "confidence": 0.8
-    }
-  }
-}
-```
-
-未知 extension を受け取った実装は、原則として object 全体を reject せず、extension を変更・欠落させずに再配信できる必要があります。semantic interpretation は任意とします。
-
----
-
-## 6. API と Protocol Core の境界
-
-```text
-Lingonberry Core
-├── Object Model
-├── Canonicalization
-├── Identity and Signatures
-├── Revision and Tombstone
-├── Carrier Semantics
-└── Replication Semantics
-
-Standard APIs
-├── Publish API
-├── Retrieval API
-├── Query API
-├── Sync API
-└── Capability API
-```
-
-core で標準化しやすい query:
-
-- canonical ID lookup
-- exact type filter
-- createdAt range
-- author key filter
-- relation traversal
-- lineage traversal
-- pagination
-- capability discovery
-
-全文検索、ranking、embedding search は実装差が大きいため、結果の完全一致を core requirement にしません。
-
----
-
-## 7. Security Model
-
-公開 relay は敵対的入力を前提とします。
-
-### 7.1 脅威
-
-- oversized object
-- publish flooding
-- deep nesting
-- excessive relations
-- cyclic lineage
-- canonicalization bomb
-- compression bomb
-- expensive signature verification
-- duplicate object flooding
-- timestamp manipulation
-- identity collision
-- replay spam
-- malicious profile / capability manifest
-- malicious archive import
-- attachment malware
-
-### 7.2 防御
-
-- maximum object size
-- maximum nesting depth
-- maximum relation / attachment count
-- signature verification budget
-- per-key rate limit / quota
-- canonicalization timeout
-- archive import sandbox
-- explicit protocol error codes
-- safe default limits
-
-安全制限は各実装の暗黙的な運用知識だけにせず、推奨値と拒否理由を仕様化します。
-
----
-
-## 8. Governance
-
-仕様変更を管理する proposal 制度を導入します。
-
-```text
-LBP-0001 Core Object Model
-LBP-0002 Canonicalization
-LBP-0003 Identity and Signatures
-LBP-0004 HTTP Carrier
-LBP-0005 Archive Format
-LBP-0006 Relay Synchronization
-LBP-0100 Toitoi Application Profile
-```
-
-各 proposal に含める項目:
-
-- Status: Draft / Experimental / Stable / Deprecated
-- Version
-- Authors
-- Motivation
-- Specification
-- Compatibility impact
-- Security considerations
-- Test vectors
-- Migration path
-
-推奨ルール:
-
-- core の Stable 化には複数実装を必要とする
-- Stable 仕様では破壊的変更を避ける
-- Experimental extension は独立に検証できる
-- security update 手続きを別途定義する
-- deprecated 仕様には移行期間を設ける
-
----
-
-## 9. 最初に完成させる垂直ユースケース
-
-Toitoi application profile を使い、次を end-to-end で動かします。
-
-```text
-inquiry を publish
-  -> observation を関連付ける
-  -> evidence を追加する
-  -> AI が synthesis を生成する
-  -> 人間が annotation / revision を追加する
-  -> 別 relay へ複製する
-  -> archive から replay する
-  -> provenance と lineage を viewer で確認する
-```
-
-必要な構成:
+1. **Determinism** — the same accepted evidence produces the same canonical and derived results.
+2. **Fail-closed ambiguity** — unknown versions, conflicting identities, invalid signatures, and unsupported semantics are not guessed through.
+3. **Append-only evidence** — semantic change is represented by additional evidence rather than silent mutation of signed or identity-bearing bytes.
+4. **Version separation** — release, protocol, schema, canonicalization, identity, signature, API, storage, and proof versions remain independent axes.
+5. **Replayability** — durable evidence remains sufficient to reconstruct supported derived state.
+6. **Authority separation** — signatures prove control of a key, not truth, correctness, or universal authorization.
+7. **Carrier clarity** — carrier framing and transport policy do not silently alter protocol meaning.
 
-- CLI または authoring client
-- 2 台以上の relay
-- storage node
-- indexer
-- archive export/import
-- provenance viewer
-- revision / relation graph viewer
+## 4. Proposal requirements
 
-単なる分散保存デモではなく、知識が関連付けられ、改訂され、検証され、成長することを示すデモにします。
+A change proposal should include:
 
----
+- motivation and non-goals;
+- affected version axes;
+- normative data and wire changes;
+- compatibility classification;
+- canonicalization and identity impact;
+- signature and authority impact;
+- migration and rollback behavior;
+- security and resource-exhaustion analysis;
+- test vectors and conformance changes;
+- operational observability requirements;
+- explicit behavior for unknown or unsupported versions.
 
-## 10. 推奨ロードマップ
+A proposal is not adopted merely because it appears in this document.
 
-### Phase A: 仕様基礎
+## 5. Compatibility classes
 
-1. canonical byte representation の固定
-2. 暗号学的 identity key への移行
-3. object / semantic / lineage identity の分離
-4. signature payload と verification の固定
-5. security threat model の作成
+Every proposed change should be classified before implementation.
 
-### Phase B: 相互運用性
+| Class | Meaning | Required treatment |
+|---|---|---|
+| Additive compatible | Existing accepted objects retain their meaning and old implementations can safely reject or preserve the addition | New tests and explicit unknown-field behavior |
+| Behaviorally compatible | Wire/schema shape is unchanged but deterministic processing is clarified | Golden vectors and replay comparison |
+| Migration-required | Existing durable state must be transformed or rebuilt | Versioned migration, backup, rollback, and proof |
+| Breaking semantic | Previously accepted evidence may acquire different meaning | New protocol/profile version and explicit coexistence policy |
+| Cryptographic breaking | Canonical bytes, identity inputs, signature payload, or key rules change | New rule version; never reinterpret existing signatures in place |
 
-1. conformance test suite
-2. Rust と TypeScript の独立実装
-3. archive replay golden tests
-4. protocol error code
-5. compatibility matrix
+Repository release version changes do not by themselves select any of these classes.
 
-### Phase C: 分散同期
+## 6. Candidate evolution areas
 
-1. relay discovery
-2. cursor sync
-3. hash inventory または Merkle-based sync
-4. partial replication
-5. signed capability manifest
-6. retention policy
+The following areas are candidates for future work. None are v1.0 guarantees.
 
-### Phase D: 知識表現
+### 6.1 Additional identity rules
 
-1. claim / evidence / contradiction model
-2. provenance viewer
-3. revision / relation graph
-4. AI-generated object provenance
-5. Toitoi application profile の安定化
+Future identity rules may use different cryptographic constructions or semantic inputs. Each rule must have a distinct identifier, deterministic byte definition, collision analysis, and conformance vectors.
 
-### Phase E: Ecosystem
+Existing identity-bearing evidence must retain the rule version under which it was created. A new rule must not silently rewrite old identifiers.
 
-1. Lingonberry Proposal 制度
-2. profile authoring guide
-3. SDK
-4. public test network
-5. interoperability testing event
-6. v1.0 compatibility policy
+### 6.2 Signature profiles and key lifecycle
 
----
+Possible extensions include:
 
-## 11. 成功条件
+- additional signature algorithms;
+- organization or threshold signatures;
+- delegated signing;
+- key rotation and revocation evidence;
+- explicit author, publisher, transformer, and attestor roles.
 
-### Protocol correctness
+Each profile needs domain separation, exact signed bytes, verification rules, authority scope, and failure semantics.
 
-- 同じ input からすべての適合実装が同じ canonical bytes を生成する
-- identity key と署名検証結果が一致する
-- archive replay で同じ canonical state を再構築できる
+### 6.3 Multi-node synchronization
 
-### Interoperability
+Possible synchronization mechanisms include cursor exchange, content inventories, Merkle structures, partial replication, and archive chunk transfer.
 
-- 独立した複数実装が object を交換できる
-- relay 間同期で同じ object set へ収束できる
-- 未知 extension を失わず中継できる
+Before adoption, a synchronization proposal must define:
 
-### Verifiability
+- the unit of replication;
+- duplicate and conflict behavior;
+- ordering assumptions;
+- retention and omission semantics;
+- proof of completeness or explicit absence of such a proof;
+- recovery after partial transfer;
+- behavior under malicious peers.
 
-- 誰が、いつ、何を主張したか確認できる
-- provenance、rawRef、lineage を辿れる
-- 派生 object と原資料の関係を検証できる
+Synchronization does not imply consensus, global ordering, or automatic conflict resolution.
 
-### Operational resilience
+### 6.4 Application profiles and extensions
 
-- node 障害から archive replay で復旧できる
-- 敵対的入力を安全に拒否できる
-- node policy と protocol semantics が混同されていない
+Application profiles may define domain vocabulary, validation rules, relation families, and policy requirements without changing the protocol core.
 
-### Domain independence
+A future extension mechanism must state whether unknown extensions are rejected, preserved opaquely, or ignored. The current strict schemas must not be treated as accepting arbitrary extension fields unless a new schema/profile version explicitly permits them.
 
-- Toitoi を自然に実装できる
-- Toitoi 固有語彙を core に持ち込まない
-- 他分野の profile を同じ core 上で定義できる
+### 6.5 Attachments and content-addressed blobs
 
----
+A future attachment contract may separate small protocol objects from large binary artifacts. Such a contract must cover digest algorithms, media type, size, location hints, authorization, malware handling, retention, and unavailable-content behavior.
 
-## 12. 結論
+A URL alone is not an integrity proof, and a digest alone is not an availability guarantee.
 
-Lingonberry の最も重要な価値は、情報を単に分散保存することではありません。
+### 6.6 Claim, review, and trust vocabularies
 
-> 誰が、いつ、どの根拠と来歴で知識を提示し、その知識がどのように改訂・翻訳・反論・統合されたかを、分散環境で検証可能にすること。
+The protocol may support richer statements such as support, contradiction, review, retraction, or replication evidence. These remain claims with provenance; the protocol does not certify truth.
 
-この価値を実現するためには、次の 4 点を最優先で固める必要があります。
+Trust ranking, reputation, and contextual applicability should remain application or local-policy concerns unless a narrowly scoped protocol contract is adopted.
 
-1. canonical bytes、identity、signature の暗号学的仕様
-2. 複数実装で共有する conformance test suite
-3. relay 間の差分同期と部分レプリケーション
-4. trust、revision、deletion、policy の責務境界
+## 7. Conformance and independent implementations
 
-これらが揃えば、Lingonberry は良い構想にとどまらず、長期運用可能な分散知識基盤へ発展できます。
+Every adopted semantic or cryptographic change should add machine-readable vectors covering:
+
+- valid and invalid inputs;
+- canonical bytes or canonical JSON where applicable;
+- identity and signature results;
+- unknown-version behavior;
+- migration and replay outcomes;
+- malformed and resource-exhaustion cases.
+
+Independent implementations are valuable evidence of specification clarity, but the current v1.0 release is not contingent on implementing every future proposal in a second language.
+
+## 8. Security requirements
+
+Evolution must assume hostile input and hostile peers. Proposals should bound object size, nesting, collection counts, verification cost, decompression, archive import, replay amplification, and synchronization work.
+
+Cryptographic integrity does not provide confidentiality, authorization, availability, malware safety, legal compliance, or correctness of assertions.
+
+## 9. Governance direction
+
+A future Lingonberry Proposal process may use identifiers such as `LBP-0001`, with states such as Draft, Experimental, Accepted, Stable, Deprecated, and Rejected.
+
+The process should require reviewable specification text, compatibility impact, security considerations, conformance evidence, and migration guidance. Emergency security fixes may require an expedited path, but must still document the resulting contract.
+
+No proposal identifier or lifecycle is currently a protocol feature merely because it is suggested here.
+
+## 10. Adoption sequence
+
+A conservative sequence for a future change is:
+
+1. write a narrowly scoped proposal;
+2. identify affected normative contracts and version axes;
+3. add fixtures and negative cases before or with implementation;
+4. implement without changing unrelated semantics;
+5. demonstrate deterministic replay and backend parity;
+6. document migration, rollback, and observability;
+7. run compatibility and security review;
+8. adopt the change through an explicit versioned release decision.
+
+## 11. Explicit v1.0 non-guarantees
+
+This proposal does not claim that v1.0 provides:
+
+- multi-relay convergence;
+- federation or consensus;
+- Merkle or set-reconciliation synchronization;
+- signed application-profile catalogs;
+- arbitrary extension preservation;
+- attachment/blob distribution;
+- key revocation infrastructure;
+- cross-implementation interoperability for every component;
+- protocol-level truth or trust scoring.
+
+## 12. Release boundary
+
+The formal 72-hour soak has not been performed. Privileged reference-host qualification remains incomplete. Version preparation, the release PR, tag creation, and GitHub Release publication remain incomplete.
+
+Those release gates are separate from this post-candidate architecture proposal.

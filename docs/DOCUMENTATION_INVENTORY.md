@@ -6,7 +6,7 @@
 ## Status
 
 - Tracked Markdown files: **170**
-- Release-blocking review entries: **12**
+- Release-blocking review entries: **7**
 - Classification totals: BILINGUAL_REQUIRED: 6, BILINGUAL_SCOPED: 3, ENGLISH_ONLY: 161
 - Governing policy: [`DOCUMENTATION_POLICY.md`](./DOCUMENTATION_POLICY.md)
 - Tracking issue: [#144](https://github.com/nkkmd/lingonberry/issues/144)
@@ -169,11 +169,11 @@ Every tracked Markdown file must appear below. `yes` in the final column means t
 | `docs/roadmap/V1_0_DISK_PRESSURE_DRIVER.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
 | `docs/roadmap/V1_0_DOCUMENTATION_FREEZE_PLAN.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
 | `docs/roadmap/V1_0_DOCUMENTATION_WALKTHROUGH.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
-| `docs/roadmap/V1_0_FORMAL_SOAK_COMMAND_MAP.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
-| `docs/roadmap/V1_0_FORMAL_SOAK_SCHEDULER.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
-| `docs/roadmap/V1_0_QUALIFICATION_PLAN.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
-| `docs/roadmap/V1_0_QUALIFICATION_STATUS.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
-| `docs/roadmap/V1_0_REFERENCE_HOST_REHEARSAL.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
+| `docs/roadmap/V1_0_FORMAL_SOAK_COMMAND_MAP.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
+| `docs/roadmap/V1_0_FORMAL_SOAK_SCHEDULER.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
+| `docs/roadmap/V1_0_QUALIFICATION_PLAN.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
+| `docs/roadmap/V1_0_QUALIFICATION_STATUS.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
+| `docs/roadmap/V1_0_REFERENCE_HOST_REHEARSAL.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
 | `docs/roadmap/V1_0_RELEASE_EVIDENCE.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
 | `docs/roadmap/V1_0_SOAK_PLAN.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
 | `docs/roadmap/V1_0_SOAK_REHEARSAL.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |

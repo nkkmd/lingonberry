@@ -1,117 +1,78 @@
 # v0.9.0 Security Findings
 
-**Status: closed for release** | **Release target: v0.9.0** | **Last updated: 2026-07-22**
+**Status: historical release record; closed for v0.9.0** | **Release target: v0.9.0** | **Last updated: 2026-07-22**
 
-この文書は、v0.9.0 security reviewで確認したfinding、severity、根拠、修正状態、release dispositionを追跡する正本です。
+## 1. Purpose and authority
 
-## Severity and release policy
+This document preserves the findings ledger used for the v0.9.0 security review. It is historical evidence, not the final security disposition for the fixed v1.0.0 candidate.
 
-- **Critical**: exploitまたは安全境界の破壊が現実的で、直ちにreleaseを停止する。
-- **High**: confidentiality、integrity、availability、authorization、durabilityの重大な破壊につながり、release前の修正を必須とする。
-- **Medium**: 防御層の不足、限定的なresource exhaustion、残留情報、運用上の安全性低下。原則としてv0.9.0で修正する。
-- **Low**: defense-in-depthまたはhardening improvement。未修正の場合は明示的なdispositionを必要とする。
+The candidate-bound v1 review is [`V1_0_SECURITY_DIFF_REVIEW.md`](./V1_0_SECURITY_DIFF_REVIEW.md). The v0.9.0 findings remain relevant because no production runtime implementation changed between v0.9.0 and the fixed candidate.
 
-v0.9.0 release candidateに未解決のCritical／High findingはなく、確認されたrelease-blocking Medium findingは修正・回帰テスト済みです。
+## 2. Severity and release policy
 
-## Finding LB-SEC-009-001
+- **Critical:** realistic compromise of a core security or durability boundary; immediate release stop.
+- **High:** major confidentiality, integrity, availability, authorization, or durability impact; remediation required before release.
+- **Medium:** incomplete defense layer, bounded resource exhaustion, residual data, or operational safety reduction; remediation or explicit release disposition required.
+- **Low:** defense-in-depth or hardening improvement; explicit disposition required when unresolved.
 
-### Summary
+v0.9.0 shipped with no unresolved Critical or High finding and no unresolved release-blocking Medium finding.
 
-Signature verification temporary artifacts are not removed after verification.
+## 3. Finding LB-SEC-009-001
 
-### Status
+### Signature verification temporary artifacts are not removed
 
-- Severity: **Medium**
-- State: **closed**
-- Owner: v0.9.0 hardening workstream
-- Release blocker: **resolved**
-- Affected component: `packages/protocol/src/lib.rs`
-- Affected function: `verify_publish_request_signature_with_openssl`
-- Source commit: `fe23c523f358cfa62aea396ec7481778a0915c2c`
-- Regression-test commit: `1083ab0348881aabba924f102151c5d4ed3da292`
+| Field | Value |
+|---|---|
+| Severity | Medium |
+| State | Closed |
+| Release blocker | Resolved |
+| Component | `packages/protocol/src/lib.rs` |
+| Function | `verify_publish_request_signature_with_openssl` |
+| Source commit | `fe23c523f358cfa62aea396ec7481778a0915c2c` |
+| Regression-test commit | `1083ab0348881aabba924f102151c5d4ed3da292` |
 
-### Observation
+The earlier implementation wrote the public key, signature, and canonical payload beneath the operating-system temporary directory and did not reliably remove the workspace after success or failure.
 
-旧実装はOS temporary directory配下に公開鍵、署名、canonical payloadを書き出し、成功・失敗のどちらでもworkspaceを削除していませんでした。
+The remediation:
 
-### Remediation
+- creates a collision-resistant candidate name from process ID, time, and a process-local atomic counter;
+- creates the workspace exclusively rather than reusing an existing path;
+- applies owner-only permissions on Unix;
+- creates artifacts with `create_new(true)`;
+- owns cleanup through an RAII guard covering normal return paths;
+- avoids placing payload, signature, or host paths in error messages.
 
-- process ID、timestamp、process-local atomic counterから候補pathを生成する。
-- `DirBuilder::create`でworkspaceをexclusiveに作成し、既存pathを再利用しない。
-- Unixではworkspaceを`0o700`で作成する。
-- artifactは`OpenOptions::create_new(true)`で作成し、既存fileを追従・上書きしない。
-- RAII guardの`Drop`でsuccess、verification failure、command failure、intermediate write failureの通常return pathをbest-effort cleanupする。
-- payload、signature、host pathをerror messageへ含めない。
+Regression tests cover workspace removal, Unix permissions, collision refusal, concurrent isolation, and cleanup after concurrent use.
 
-### Regression evidence
+Residual risk: a process crash, SIGKILL, kernel termination, or host power loss can bypass Rust `Drop` and leave a stale workspace. This is an operational cleanup risk, not evidence of signature bypass.
 
-`packages/protocol/src/lib.rs`のunit testで次を固定しました。
+**Disposition: fixed and regression-tested; closed for v0.9.0.**
 
-- workspace drop後の削除
-- Unix owner-only permission
-- existing artifact pathのfail-closed rejection
-- concurrent workspaceのpath isolation
-- concurrent workspace drop後のcleanup
+## 4. Finding LB-SEC-009-002
 
-formatting、library／binary／test-target clippy、workspace testsはtest適用workflowで成功しました。
+### Protocol JSON parsing lacked explicit input-size and nesting-depth limits
 
-### Residual risk
+| Field | Value |
+|---|---|
+| Severity | Medium |
+| State | Closed |
+| Release blocker | Resolved |
+| Component | `packages/protocol/src/lib.rs` |
+| Function | `parse_json` |
+| Source and test commit | `fe23c523f358cfa62aea396ec7481778a0915c2c` |
 
-process crash、host power loss、kernel terminationではRust `Drop`が実行されないため、workspaceが残る可能性があります。これは通常return pathのcleanupとは別のoperational residual riskであり、OS temporary-directory lifecycleまたは起動時のstale-workspace cleanupで扱います。v0.9.0ではsignature bypassや通常経路の残留を示す証拠はありません。
+The remediation introduced bounded parsing behavior for oversized and deeply nested untrusted JSON and retained deterministic failure semantics without partial canonical writes.
 
-### Release disposition
+Regression coverage verifies rejection of oversized and excessive-depth inputs and preserves the accepted canonical representation for valid inputs.
 
-**Fixed and regression-tested. Closed for v0.9.0.**
+**Disposition: fixed and regression-tested; closed for v0.9.0.**
 
-## Finding LB-SEC-009-002
+## 5. Final v0.9.0 disposition
 
-### Summary
+| Severity | Open | Release-blocking |
+|---|---:|---:|
+| Critical | 0 | 0 |
+| High | 0 | 0 |
+| Medium | 0 | 0 |
 
-The protocol JSON parser has no explicit input-size or nesting-depth limit.
-
-### Status
-
-- Severity: **Medium**
-- State: **closed**
-- Owner: v0.9.0 hardening workstream
-- Release blocker: **resolved**
-- Affected component: `packages/protocol/src/lib.rs`
-- Affected function: `parse_json`
-- Source and test commit: `fe23c523f358cfa62aea396ec7481778a0915c2c`
-
-### Observation
-
-旧実装のrecursive-descent parserには入力byte数上限とarray／object共通のnesting-depth上限がありませんでした。
-
-### Remediation
-
-- `MAX_JSON_INPUT_BYTES = 1 MiB`をpublic constantとして固定した。
-- `MAX_JSON_NESTING_DEPTH = 128`をpublic constantとして固定した。
-- oversized inputをparser state構築前に`JsonError`で拒否する。
-- object／arrayの共通depth counterを導入し、depth超過をpanicせず拒否する。
-- parse error後にもdepth counterを確実に復元するinner-method contractを導入した。
-
-### Regression evidence
-
-`packages/protocol/tests/parser_limits.rs`で次を固定しました。
-
-- 1 MiB超過のearly rejection
-- 1 MiBちょうどのvalid input受理
-- depth 128の受理
-- depth 129のpanic-free rejection
-- mixed object／array nestingの同一上限
-
-既存の`parser_baseline.rs`ではtrailing content、truncated structure、invalid number、canonical round-trip、determinism、depth 64互換性を継続検証します。
-
-### Release disposition
-
-**Fixed and regression-tested. Closed for v0.9.0.**
-
-## Release summary
-
-- Open Critical findings: **0**
-- Open High findings: **0**
-- Open release-blocking Medium findings: **0**
-- Closed findings: **2**
-
-新しいfindingを追加する場合はidentifier、summary、severity、state、affected component、evidence、security impact、remediation、acceptance criteria、release dispositionを必ず記録します。
+This ledger does not claim that the v1.0.0 formal soak, privileged reference-host qualification, release PR, tag, or GitHub Release is complete.

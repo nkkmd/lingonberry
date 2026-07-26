@@ -37,6 +37,7 @@ NORMALIZED_ARCHITECTURE_DOCS = {
     "docs/architecture/LINGONBERRY_PROTOCOL_EVOLUTION_PROPOSAL.md",
     "docs/architecture/README.md",
     "docs/architecture/TOITOI_REFERENCE_CHECKLIST.md",
+    "docs/architecture/V0_9_PUBLIC_API_FREEZE_CANDIDATE.md",
 }
 NORMALIZED_OPERATION_DOCS = {
     "docs/operations/ACCEPTANCE_POLICY.md",

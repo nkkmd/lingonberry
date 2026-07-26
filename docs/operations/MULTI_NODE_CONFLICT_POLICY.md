@@ -1,178 +1,110 @@
-# Multi-node Conflict Policy
+# Multi-node Conflict Handling
 
-**Status: draft** | **Last updated: 2026-06-22**
+**Status: non-normative future design note** | **v1.0 support: not implemented**
 
-## 目的
+## Purpose
 
-この文書は、Lingonberry の複数ノード運用における conflict / duplicate / revision の扱いを定義します。  
-Phase 11 の Issue 11.3 に対応し、同一 object 群を複数 node で扱うときに、上書きではなく append-only と lineage で扱う前提を固定します。
+This document records constraints for handling evidence received from multiple independently operated nodes. It is not a separate v1.0 conflict-resolution contract and does not authorize automatic merge, winner selection, replication conflict repair, or cross-node canonical-state reconciliation.
 
-## 範囲
+The current duplicate and conflict behavior is defined by the checked-in single-node implementation and [Duplicate and Conflict Contract](../architecture/DUPLICATE_AND_CONFLICT_CONTRACT.md). Multi-node transport does not replace or weaken that contract.
 
-この文書で扱うのは次です。
+## Current v1.0 boundary
 
-- exact duplicate の扱い
-- identity collision の扱い
-- conflicting re-publish の扱い
-- revision / supersession の扱い
-- unresolved conflict の保管方法
-- operator / application への返し方
+Lingonberry v1.0 does not provide:
 
-この文書で扱わないものは次です。
+- node-to-node conflict arbitration
+- last-writer-wins resolution
+- vector clocks or causal histories
+- quorum-based winner selection
+- automatic merge of canonical objects
+- globally authoritative identity claims
+- distributed quarantine resolution
+- globally consistent effective views
 
-- node discovery
-- node 間同期の具体契約
-- capacity placement
-- profile 固有の trust rule
-- domain-specific merge rule
+Operators may import evidence from another source, but each record is evaluated locally under the same validation and storage rules as any other ingestion.
 
-## 1. 基本方針
+## Required distinctions
 
-- conflict は protocol semantic ではない
-- 同一性が揺れる入力を無理に 1 つへ潰さない
-- append-only を壊す修正は受け入れない
-- provenance と rawRef を失わない
-- lineage は修正や派生を表す正規の経路として使う
-- 可能な限り exact duplicate は冪等に扱う
+Future multi-node work must keep these cases separate:
 
-## 2. 用語
+### Exact duplicate
 
-### 2.1 exact duplicate
+The canonical identifier, carrier binding, and canonical bytes match the already accepted record. This is an idempotent non-mutating success. It does not create a second semantic object or change the original `storedAt` value.
 
-同じ canonical identity を持ち、正規化後の内容も一致する object です。  
-この場合は、同一内容の再送として扱い、冪等に吸収できます。
+### Canonical-ID conflict
 
-### 2.2 conflicting re-publish
+The same canonical identifier is presented with different canonical bytes or incompatible identity binding. The existing record is not overwritten. The new input fails under the stable conflict contract.
 
-同じ canonical identity を持つが、正規化後の内容が異なる object です。  
-この場合は、同一 object の単純な再送ではなく conflict として扱います。
+### Cross-identity conflict
 
-### 2.3 identity collision
+A carrier identity, canonical identifier, or identity key attempts to bind inconsistently to an existing relationship. Equal content does not make an inconsistent identity rebinding safe.
 
-異なる canonical id なのに、同じ identity key や同じ外部主張に収束してしまう状態です。  
-この場合は、どちらかを自動的に勝たせず、検証可能な分岐として保持します。
+### Transition disagreement
 
-### 2.4 revision
+Nodes possess different accepted transition evidence or different bounded evidence sets. This is not resolved by rewriting the original object. Transition authority, supersession, orphan handling, and effective-view contracts remain controlling.
 
-`revises`、`supersedes`、`derived_from` などで明示された派生関係です。  
-revision は conflict ではなく lineage の一部として扱います。
+### Domain disagreement
 
-## 3. 判定順
+Two valid records make incompatible real-world claims. Lingonberry authenticity or provenance evidence does not establish which claim is true. Domain policy belongs to an application profile or external adjudication process.
 
-同期や publish の結果を判定するときは、次の順で見るのが基本です。
+## Prohibited resolution rules
 
-1. canonical id が同じか
-2. normalized payload が同じか
-3. identity key が同じか
-4. lineage 関係が明示されているか
-5. provenance と rawRef が整合しているか
+A future implementation must not choose a winner solely by:
 
-この順を崩すと、単なる再送と semantic collision を混同しやすくなります。
+- arrival order
+- wall-clock timestamp
+- node hostname
+- higher sequence number without a versioned authority rule
+- operator convenience
+- signature presence alone
+- majority count without an adopted consensus contract
 
-## 4. 取り扱い
+No hidden overwrite or silent merge is permitted.
 
-### 4.1 exact duplicate
+## Evidence preservation
 
-exact duplicate は受け入れます。  
-ただし保存は冪等にし、観測上は duplicate として記録してよいです。
+When conflicting input is retained for diagnosis or quarantine, the system must preserve enough immutable evidence to determine:
 
-期待する性質:
+- source and carrier identity
+- canonical identifier and canonical bytes
+- protocol and schema versions
+- signatures and verification result
+- local decision and machine-readable code
+- related transition or identity evidence
+- bounded evidence-set digest when applicable
 
-- 既存 object を壊さない
-- publish / sync の再試行で重複が増殖しない
-- carrier identity の違いだけで semantic を変えない
+Diagnostic retention must not cause rejected evidence to appear as accepted canonical state.
 
-### 4.2 conflicting re-publish
+## Future resolution proposal requirements
 
-conflicting re-publish は、自動上書きしません。  
-新しい revision を作らない限り、既存 object の semantic を置き換えません。
+Any proposal for cross-node resolution must define:
 
-処理方針:
+- conflict classes and authority boundaries
+- deterministic inputs and ordering
+- identity and key lifecycle assumptions
+- behavior under incomplete or contradictory evidence
+- authorization for manual decisions
+- audit log and rollback semantics
+- impact on canonical identifiers and signatures
+- conformance fixtures and security review
 
-- 受け入れは拒否または隔離とする
-- conflict 記録を残す
-- operator または application へ再送理由を返す
-- 必要なら新しい revision を作るよう促す
+A domain-specific merge policy must be implemented as an explicit application profile and must not silently alter the core protocol contract.
 
-### 4.3 identity collision
+## Non-guarantees
 
-identity collision は、自動マージしません。  
-`identity claim`、`provenance`、`lineage` を見て、別 object として保持します。
+Lingonberry does not currently guarantee:
 
-処理方針:
+- global conflict visibility
+- automatic convergence after partition
+- a globally preferred canonical record
+- cross-node quarantine synchronization
+- distributed operator decisions
+- deletion or erasure of conflicting remote evidence
 
-- 両方を保持する
-- collision の根拠を記録する
-- どちらを canonical と決めるかを運用で決める
-- 必要なら application profile 側で追加の検証を行う
+## References
 
-### 4.4 revision
-
-revision は conflict ではありません。  
-`revises`、`supersedes`、`derived_from` が明示されているなら、派生として扱います。
-
-処理方針:
-
-- lineage graph に接続する
-- 旧 object を破壊しない
-- 置換ではなく関係として表す
-
-## 5. 受け入れ判定
-
-### Accept
-
-- exact duplicate
-- 明示された revision
-- provenance と rawRef が整合している object
-
-### Reject
-
-- 同じ canonical id で内容が変わっているが revision がない object
-- provenance が破損していて再構成できない object
-- identity collision を隠蔽しようとする入力
-
-### Quarantine
-
-- identity collision の疑いがある object
-- provenance はあるが、運用上の解決が必要な object
-- carrier 側の再送か semantic conflict か判断が要る object
-
-## 6. 返却と観測
-
-同期や publish の結果では、次を分けて返せるとよいです。
-
-- accepted
-- duplicate
-- conflict
-- collision
-- deferred
-
-observability では、少なくとも次が追える必要があります。
-
-- duplicate flooding
-- identity collision
-- conflicting re-publish
-- unresolved conflict
-
-## 7. 運用上の原則
-
-- conflict を見たらまず同期契約と version を疑う
-- exact duplicate を conflict と混同しない
-- revision は運用上の解決策であって、隠れた上書きではない
-- unresolved conflict は可視化して残す
-- 競合の最終判断は domain truth と profile policy で行い、core semantic に埋め込まない
-
-## 8. Phase 11 との関係
-
-この文書は Phase 11 の Issue 11.3 に対応します。  
-Issue 11.4 以降では、この conflict policy を前提に capacity 分散と runbook 反映を行います。
-
-## 9. 関連
-
-- [Multi-node Sync Contract](./MULTI_NODE_SYNC_CONTRACT.md)
-- [Multi-node Discovery and Topology](./MULTI_NODE_DISCOVERY_AND_TOPOLOGY.md)
-- [Carrier Capability Negotiation](./CARRIER_CAPABILITY_NEGOTIATION.md)
-- [Migration and Schema Versioning](./MIGRATION_AND_SCHEMA_VERSIONING.md)
-- [GLOSSARY](../concepts/GLOSSARY.md)
-- [CONCEPT_MODEL](../concepts/CONCEPT_MODEL.md)
+- [Duplicate and Conflict Contract](../architecture/DUPLICATE_AND_CONFLICT_CONTRACT.md)
+- [Identity and Provenance](../protocols/IDENTITY_AND_PROVENANCE.md)
+- [Transition Authority](../protocols/TRANSITION_AUTHORITY.md)
+- [Transition Supersession](../protocols/TRANSITION_SUPERSESSION.md)
 - [Distributed Knowledge Commons Architecture](../architecture/DISTRIBUTED_KNOWLEDGE_COMMONS_ARCHITECTURE.md)

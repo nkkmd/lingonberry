@@ -92,6 +92,7 @@ NORMALIZED_PROTOCOL_DOCS = {
     "docs/protocols/TIMESTAMP_SEMANTICS.md",
     "docs/protocols/TRANSITION_AUTHORITY.md",
     "docs/protocols/TRANSITION_EVIDENCE_GENERATION.md",
+    "docs/protocols/TRANSITION_OBJECT.md",
 }
 
 

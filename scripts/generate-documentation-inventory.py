@@ -137,6 +137,15 @@ NORMALIZED_ROADMAP_DOCS = {
     "docs/roadmap/V1_0_QUALIFICATION_PLAN.md",
     "docs/roadmap/V1_0_QUALIFICATION_STATUS.md",
     "docs/roadmap/V1_0_REFERENCE_HOST_REHEARSAL.md",
+    "docs/roadmap/V1_0_RELEASE_EVIDENCE.md",
+    "docs/roadmap/V1_0_SOAK_PLAN.md",
+    "docs/roadmap/V1_0_SOAK_REHEARSAL.md",
+}
+NORMALIZED_SECURITY_DOCS = {
+    "docs/security/V0_9_SECURITY_FINDINGS.md",
+    "docs/security/V0_9_SECURITY_REVIEW.md",
+    "docs/security/V0_9_SIGNATURE_WORKSPACE_REMEDIATION.md",
+    "docs/security/V1_0_SECURITY_DIFF_REVIEW.md",
 }
 
 
@@ -156,7 +165,7 @@ def classify(path: str) -> tuple[str, str, str]:
         return "BILINGUAL_SCOPED", "REVIEW_SCOPE_BEFORE_V1", "yes"
     if path in HISTORICAL_OPERATION_DOCS:
         return "ENGLISH_ONLY", "KEEP_HISTORICAL", "no"
-    if path in NORMALIZED_ARCHITECTURE_DOCS or path in NORMALIZED_OPERATION_DOCS or path in NORMALIZED_PROTOCOL_DOCS or path in NORMALIZED_ROADMAP_DOCS:
+    if path in NORMALIZED_ARCHITECTURE_DOCS or path in NORMALIZED_OPERATION_DOCS or path in NORMALIZED_PROTOCOL_DOCS or path in NORMALIZED_ROADMAP_DOCS or path in NORMALIZED_SECURITY_DOCS:
         return "ENGLISH_ONLY", "KEEP_ENGLISH", "no"
     if path.startswith("docs/roadmap/RELEASE_0_"):
         return "ENGLISH_ONLY", "ARCHIVE_REVIEW", "no"

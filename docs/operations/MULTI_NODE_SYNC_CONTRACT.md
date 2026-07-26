@@ -1,170 +1,121 @@
-# Multi-node Sync Contract
+# Multi-node Synchronization
 
-**Status: draft** | **Last updated: 2026-06-22**
+**Status: non-normative future design note** | **v1.0 support: not implemented**
 
-## 目的
+## Purpose
 
-この文書は、Lingonberry の複数ノード運用における node 間同期の運用正本を定義します。  
-Phase 11 の Issue 11.2 に対応し、relay 間、storage node 間、archive との同期を、`subscription`、`replay`、`export / import` に分けて扱います。
+This document records constraints for possible future synchronization between independently operated Lingonberry nodes. It is not a v1.0 synchronization contract and does not claim that relay replication, storage replication, continuous subscription replication, or automatic archive exchange exists.
 
-## 範囲
+Lingonberry v1.0 supports deterministic single-node storage, replay, archive export/import, and derived-index reconstruction. Those capabilities may become building blocks for future synchronization, but they do not constitute a distributed consistency protocol.
 
-この文書で扱うのは次です。
+## Current v1.0 boundary
 
-- relay 間の近接同期
-- storage node 間の再構成同期
-- archive を介した持ち運び同期
-- 同期方式ごとの役割分離
-- capability による同期可否の説明
+Lingonberry v1.0 does not provide:
 
-この文書で扱わないものは次です。
+- automatic relay-to-relay replication
+- storage-node replication
+- cluster membership or peer discovery
+- replication cursors shared across nodes
+- global ordering or causal ordering
+- consensus, quorum writes, or leader election
+- automatic conflict resolution
+- exactly-once cross-node delivery
+- cross-node transactional atomicity
 
-- conflict resolution の詳細
-- capacity placement の詳細
-- discovery の詳細
-- profile 固有の routing rule
-- semantic translation
+Manual archive transfer is an operator action, not a live replication guarantee.
 
-## 1. 基本方針
+## Design invariants
 
-- 同期は protocol semantic ではない
-- 同期方式ごとに役割を分ける
-- 同じ object 群を複数 node に運ぶときも、意味の翻訳はしない
-- 失敗時は再試行可能であることを優先する
-- 互換境界は capability と version で説明する
-- 中央 registry に依存して同期先を決めない
+Any future synchronization mechanism must preserve these rules:
 
-## 2. 同期方式
+1. Accepted canonical evidence remains append-only.
+2. Canonical bytes and canonical identifiers are not rewritten to match another node.
+3. Duplicate, conflict, transition, and identity decisions use the checked-in protocol and storage contracts.
+4. Derived indexes and caches are rebuildable and are not replicated as semantic authority.
+5. Sync transport success does not establish semantic acceptance.
+6. Unknown versions, unsupported capabilities, contradictory checkpoints, and incomplete evidence fail closed.
+7. A synchronization mechanism must not weaken local validation, signature, authorization, or quarantine rules.
+8. Recovery must be deterministic from accepted durable evidence.
 
-### 2.1 subscription
+## Candidate transfer modes
 
-`subscription` は、relay が保持する wire object の配信経路です。  
-近接同期や継続配信に向きます。
+The following are planning categories, not implemented v1.0 APIs.
 
-使いどころ:
+### Incremental delivery
 
-- relay 間の継続的な追従
-- publish 直後の反映
-- ある条件に合う object 群の配信
+A future carrier may deliver newly observed evidence using an explicit, durable cursor. The contract must define cursor ownership, replay, expiry, retention, duplication, and gap detection.
 
-期待する性質:
+### Deterministic replay
 
-- append-only である
-- 冪等 delivery を目指せる
-- object type、author、時間範囲、relation target などで絞り込める
-- replay とは別の経路として扱える
+A node may reconstruct local state from an explicitly bounded evidence set. Replay must use the same validation, canonicalization, identity, duplicate/conflict, and transition rules as ordinary ingestion.
 
-### 2.2 replay
+### Archive transfer
 
-`replay` は、保存済みの wire log から canonical state を再構成する経路です。  
-storage node の再投入、障害復旧、archive からの再構成に向きます。
+Versioned archive bundles may be moved between operators. Import must verify the manifest and contents before mutation, preserve immutable evidence, and report partial or rejected records without silently completing an incomplete transfer.
 
-使いどころ:
+## Required synchronization state
 
-- storage node の再構成
-- archive からの復元
-- 保存状態の整合性確認
+A future implementation must make the following machine-readable:
 
-期待する性質:
+- source node or evidence-set identity
+- protocol, schema, archive, and capability versions
+- bounded source range
+- durable cursor or checkpoint
+- accepted, duplicate, rejected, deferred, and conflicting counts
+- detected gaps and unresolved dependencies
+- final digest or proof binding the transferred set
+- restart and resume state
 
-- 決定的である
-- validate / normalize / finalize の順を壊さない
-- raw log と provenance を失わない
-- 同じ入力から同じ canonical state に着地する
+A process exit code alone is not sufficient evidence of synchronization completeness.
 
-### 2.3 export / import
+## Failure and recovery requirements
 
-`export / import` は、node 間で bundle を持ち運ぶ経路です。  
-archive carrier と整合する形で、離れた node へ移送するときに使います。
+Future synchronization must define behavior for:
 
-使いどころ:
+- interruption before or after durable append
+- duplicate redelivery
+- source truncation or retention expiry
+- cursor rollback or reuse
+- missing predecessor evidence
+- incompatible protocol or archive versions
+- invalid signatures or authorization
+- identity and canonical-ID conflicts
+- local storage failure
+- partial archive or manifest corruption
 
-- オフライン移送
-- 長期保管
-- node 入れ替え
-- 退役後の再投入
+Retry must be idempotent. Ambiguous completion must not be reported as success.
 
-期待する性質:
+## Consistency non-guarantees
 
-- bundle の境界が明示される
-- manifest、wire-log、replay metadata を説明できる
-- capability で受け入れ可否を判断できる
-- scrub や retention は policy 側で決める
+Unless a later versioned contract explicitly provides them, synchronization does not imply:
 
-## 3. 役割分離
+- linearizability
+- serializability across nodes
+- globally consistent effective views
+- globally ordered transitions
+- automatic winner selection
+- identical wall-clock timestamps
+- immediate convergence
 
-### 3.1 relay 間
+Convergence, when claimed, must be defined over a bounded evidence set and verified by deterministic digests or equivalent proofs.
 
-relay 間では、主に `subscription` を使います。  
-これは継続配信と近接追従のためです。
+## Adoption gate
 
-relay 間同期では次を守ります。
+A multi-node synchronization feature requires:
 
-- subscription を semantic translation に使わない
-- carrier identity と delivery order を区別する
-- public relay、curated relay、archive relay の役割差を保つ
+- versioned schemas and wire contract
+- threat model and security review
+- deterministic conformance fixtures
+- duplicate/conflict and interrupted-operation tests
+- upgrade, downgrade, backup, restore, and rollback guidance
+- operator-visible diagnostics and metrics
+- reference-platform qualification
 
-### 3.2 storage node 間
+Until those gates are complete, this document remains design input only.
 
-storage node 間では、主に `replay` と `export / import` を使います。  
-保存状態の再構成や移送に向いています。
+## References
 
-storage node 間同期では次を守ります。
-
-- raw log を正本として扱う
-- canonical catalog は派生物として扱う
-- replay を壊す同期を採用しない
-
-### 3.3 archive との間
-
-archive との同期では、主に `export / import` を使います。  
-archive は replay 可能性を保った持ち運び形式として扱います。
-
-archive との同期では次を守ります。
-
-- archive version と protocol version を明示する
-- import 前に manifest を確認する
-- import 後に replay で canonical state を確認する
-
-## 4. 同期可否の説明
-
-同期可否は、node 名ではなく capability で説明します。  
-最低限、次が分かる必要があります。
-
-- どの carrier を受けられるか
-- どの schema version に対応するか
-- replay が必要かどうか
-- archive 互換があるか
-- subscription が使えるか
-
-capability が曖昧な場合は、推測で同期を始めず fail closed にします。
-
-## 5. 失敗時の扱い
-
-- subscription 失敗は配信遅延として扱う
-- replay 失敗は保存状態か input bundle の不整合として扱う
-- export / import 失敗は manifest、wire-log、replay metadata のどこで崩れたかを順に切り分ける
-- 同期失敗は semantic conflict と即断しない
-- 同期先が不明な場合は discovery と capability を見直す
-
-## 6. 切り分け順
-
-1. まず capability を確認する
-2. 次に carrier kind を確認する
-3. 次に version と bundle 形式を確認する
-4. 次に subscription / replay / export / import のどれで失敗したかを確認する
-5. 最後に raw log、canonical catalog、replay metadata、manifest の順で見る
-
-## 7. Phase 11 との関係
-
-この文書は Phase 11 の Issue 11.2 に対応します。  
-Issue 11.3 以降では、同期で起こりうる duplicate や conflict を `canonical identity`、`provenance`、`lineage` の側から扱います。
-
-## 8. 関連
-
-- [Multi-node Discovery and Topology](./MULTI_NODE_DISCOVERY_AND_TOPOLOGY.md)
-- [Carrier Capability Negotiation](./CARRIER_CAPABILITY_NEGOTIATION.md)
+- [Duplicate and Conflict Contract](../architecture/DUPLICATE_AND_CONFLICT_CONTRACT.md)
 - [File / Archive Carrier Contract](./FILE_ARCHIVE_CARRIER_CONTRACT.md)
-- [Multi-node Conflict Policy](./MULTI_NODE_CONFLICT_POLICY.md)
-- [Migration and Schema Versioning](./MIGRATION_AND_SCHEMA_VERSIONING.md)
+- [Storage Migration and Upgrade](./STORAGE_MIGRATION_AND_UPGRADE.md)
 - [Distributed Knowledge Commons Architecture](../architecture/DISTRIBUTED_KNOWLEDGE_COMMONS_ARCHITECTURE.md)

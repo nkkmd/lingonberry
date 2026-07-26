@@ -6,7 +6,7 @@
 ## Status
 
 - Tracked Markdown files: **170**
-- Release-blocking review entries: **35**
+- Release-blocking review entries: **34**
 - Classification totals: BILINGUAL_REQUIRED: 6, BILINGUAL_SCOPED: 3, ENGLISH_ONLY: 161
 - Governing policy: [`DOCUMENTATION_POLICY.md`](./DOCUMENTATION_POLICY.md)
 - Tracking issue: [#144](https://github.com/nkkmd/lingonberry/issues/144)
@@ -31,7 +31,7 @@ Every tracked Markdown file must appear below. `yes` in the final column means t
 | `docs/DOCUMENTATION_POLICY.md` | `BILINGUAL_REQUIRED` | `KEEP_BILINGUAL` | no |
 | `docs/architecture/DISTRIBUTED_KNOWLEDGE_COMMONS_ARCHITECTURE.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
 | `docs/architecture/DUPLICATE_AND_CONFLICT_CONTRACT.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
-| `docs/architecture/LINGONBERRY_PROTOCOL_EVOLUTION_PROPOSAL.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
+| `docs/architecture/LINGONBERRY_PROTOCOL_EVOLUTION_PROPOSAL.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
 | `docs/architecture/README.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
 | `docs/architecture/TOITOI_REFERENCE_CHECKLIST.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
 | `docs/architecture/V0_9_PUBLIC_API_FREEZE_CANDIDATE.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |

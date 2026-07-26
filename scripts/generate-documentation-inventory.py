@@ -132,6 +132,11 @@ NORMALIZED_ROADMAP_DOCS = {
     "docs/roadmap/V1_0_DISK_PRESSURE_DRIVER.md",
     "docs/roadmap/V1_0_DOCUMENTATION_FREEZE_PLAN.md",
     "docs/roadmap/V1_0_DOCUMENTATION_WALKTHROUGH.md",
+    "docs/roadmap/V1_0_FORMAL_SOAK_COMMAND_MAP.md",
+    "docs/roadmap/V1_0_FORMAL_SOAK_SCHEDULER.md",
+    "docs/roadmap/V1_0_QUALIFICATION_PLAN.md",
+    "docs/roadmap/V1_0_QUALIFICATION_STATUS.md",
+    "docs/roadmap/V1_0_REFERENCE_HOST_REHEARSAL.md",
 }
 
 

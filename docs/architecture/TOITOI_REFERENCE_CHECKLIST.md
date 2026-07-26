@@ -1,274 +1,207 @@
-# Toitoi 参照チェックリスト
-
-**Status: draft** | **Last updated: 2026-06-16**
-
-## 目的
-
-この文書は、新しい **分散知識コモンズ・プロトコル** を設計・実装するときに、Toitoi 側のどの情報を確認すべきかを整理した実務用チェックリストです。
-
-狙いは次の通りです。
-
-- Toitoi 固有の概念と、新プロトコルの共通基盤を混同しない
-- 既存の正本を見失わずに、必要な情報だけを移植する
-- 後から設計の根拠を辿れるようにする
-
-この文書は Toitoi の仕様そのものではありません。  
-新プロトコル開発のために、Toitoi から何を参照すべきかをまとめた案内です。
-
----
-
-## まず確認する正本
-
-新プロトコルの中核設計に入る前に、まず次の文書と schema を確認します。
-
-### 1. canonical event schema
-
-- [canonical-event.schema.json](https://github.com/nkkmd/Toitoi/blob/main/schemas/canonical-event.schema.json)
-- 目的: 正規化された知識オブジェクトの最小構造を確認する
-- 見るべき点:
-  - `id` の形式
-  - `schemaVersion`
-  - `type`
-  - `body.text` と `body.language`
-  - `contexts`
-  - `relationships`
-  - `lineage`
-  - `provenance`
-  - `rawRef`
-  - `identityClaims`
-  - `labels` と `meta`
-
-### 2. identity claim schema
-
-- [identity-claim.schema.json](https://github.com/nkkmd/Toitoi/blob/main/schemas/identity-claim.schema.json)
-- 目的: identity key と canonical id の対応をどう検証するかを確認する
-- 見るべき点:
-  - `identityKey`
-  - `canonicalId`
-  - `issuer`
-  - `issuedAt`
-  - `verification`
-  - `payloadHash`
-  - `signature`
-  - `status`
+# Toitoi Reference Checklist
 
-### 3. canonical identity と provenance の正本
+**Status:** active reference checklist  
+**Normative status:** non-normative  
+**Scope:** evaluating ideas and artifacts from the external Toitoi project for possible use in Lingonberry
 
-- [CANONICAL_IDENTITY_AND_PROVENANCE.md](https://github.com/nkkmd/Toitoi/blob/main/docs/concepts/CANONICAL_IDENTITY_AND_PROVENANCE.md)
-- 目的: identity 周りの責務分離を確認する
-- 見るべき点:
-  - carrier identity
-  - canonical identity
-  - identity key
-  - identity claim
-  - provenance
-  - rawRef
-  - 同一性の根拠として何を使い、何を使わないか
+## Purpose
 
-### 4. canonical event の正本
+This checklist helps maintainers examine Toitoi material without treating an external repository as part of the Lingonberry specification.
 
-- [CANONICAL_EVENT.md](https://github.com/nkkmd/Toitoi/blob/main/docs/protocols/CANONICAL_EVENT.md)
-- 目的: append-only、raw / canonical 分離、index の位置づけを確認する
-- 見るべき点:
-  - raw wire event
-  - normalized event
-  - canonicalized event
-  - derived index
-  - storage snapshot
-  - protocol-independent representation
-  - carrier 由来の判断を semantic layer に持ち込まない方針
+Use it to:
 
-### 5. 用語集
+- identify design ideas that may be relevant to Lingonberry;
+- separate domain-specific Toitoi semantics from protocol-level concerns;
+- record why an idea was adopted, adapted, or rejected;
+- avoid copying external schemas or terminology without compatibility analysis; and
+- preserve the boundary between checked-in Lingonberry contracts and historical design influences.
 
-- [GLOSSARY.md](https://github.com/nkkmd/Toitoi/blob/main/docs/concepts/GLOSSARY.md)
-- 目的: `inquiry`、`boundary object`、`commons`、`relay`、`indexer` の意味を揃える
-- 見るべき点:
-  - `inquiry`
-  - `question`
-  - `canonical event`
-  - `provenance`
-  - `lineage`
-  - `boundary object`
-  - `commons`
-  - `relay`
-  - `indexer`
-  - `canonical view`
-  - `protocol`
-  - `carrier`
+This document does not define the Toitoi specification, import Toitoi behavior into Lingonberry, or create a compatibility promise between the projects.
 
----
+## Authority boundary
 
-## 移植すべき情報
+For Lingonberry behavior, the authority order is:
 
-新プロトコルへ移すべきなのは、Toitoi 固有の「農業の内容」ではなく、**設計原理** です。
+1. checked-in schemas and conformance fixtures;
+2. runtime behavior covered by tests;
+3. normative Lingonberry protocol documents;
+4. operational and architecture guidance;
+5. this checklist and external Toitoi material.
 
-### A. そのまま持っていくもの
+An external document cannot override a Lingonberry schema, identifier rule, canonicalization rule, signature contract, transition rule, storage contract, API contract, or release gate.
 
-- append-only
-- replayable
-- provenance-aware
-- canonical identity first
-- raw と canonical の分離
-- lineage の保持
-- index は派生構造であること
-- protocol と carrier を同一視すること
+The fixed v1.0 release candidate remains:
 
-### B. 一般化して持っていくもの
+```text
+f9543019f2c219aea3b085ff90f2da201b268a48
+```
 
-- `canonical event` の考え方
-- `identity claim` の考え方
-- `rawRef` の考え方
-- `provenance` の考え方
-- `boundary object` の考え方
+Reviewing or revising this checklist does not redefine that candidate. The formal 72-hour soak, privileged reference-host qualification, version preparation, release pull request, tag, and GitHub Release remain separate incomplete gates.
 
-### C. Toitoi 固有として外すもの
+## Core separation rules
 
-- 農業前提の `contexts`
-- `inquiry` を唯一の中心型にすること
-- Nostr 固有の `kind` やタグ表現
-- Toitoi 固有語彙を protocol core に入れること
+A review must preserve these boundaries:
 
----
+- **protocol and carrier are distinct**: a transport may carry protocol objects, but transport-local behavior must not silently become protocol semantics;
+- **canonical evidence and derived state are distinct**: indexes, projections, caches, and effective views are rebuildable outputs, not replacement evidence;
+- **identity and provenance are distinct**: identity answers what an object is; provenance records origin and processing history;
+- **authenticity and truth are distinct**: a valid signature authenticates a signed statement but does not prove its factual correctness;
+- **Lingonberry core and application profiles are distinct**: domain vocabulary and workflow policy belong outside the core unless explicitly standardized;
+- **external influence and normative adoption are distinct**: an idea becomes part of Lingonberry only through checked-in contracts, implementation, tests, and review.
 
-## 具体的に確認する項目
+## External material to inspect
 
-この章は、設計会議や実装着手の前に順番に見るとよい項目です。
+When relevant, inspect the current Toitoi repository rather than relying on filenames or field lists copied into this checklist. Useful categories include:
 
-### 1. オブジェクトの中心型
+- canonical event or object schemas;
+- identity-claim and provenance models;
+- raw-reference handling;
+- lineage and relationship semantics;
+- protocol abstraction and carrier adapters;
+- indexer and API boundaries;
+- terminology and application-profile documents; and
+- migration, compatibility, and conformance material.
 
-確認すること:
+External paths may move or disappear. Record the repository URL, exact commit, path, and access date in the review evidence. A branch-relative `main` URL alone is not sufficient evidence for a compatibility decision.
 
-- 中心型を `inquiry` に限定するか
-- `observation`、`claim`、`evidence` まで最初から同格にするか
-- knowledge object を 1 つの共通型として扱うか
+## Review worksheet
 
-参照先:
+For every external artifact, record the following.
 
-- [canonical-event.schema.json](https://github.com/nkkmd/Toitoi/blob/main/schemas/canonical-event.schema.json)
-- [GLOSSARY.md](https://github.com/nkkmd/Toitoi/blob/main/docs/concepts/GLOSSARY.md)
+| Field | Required question |
+|---|---|
+| Source | Which repository, commit, and path were reviewed? |
+| Status | Is the source normative, draft, historical, generated, or implementation-specific? |
+| Problem | What concrete Lingonberry problem could the material address? |
+| Existing contract | Which current Lingonberry schema, document, runtime path, or fixture already governs the area? |
+| Proposed use | Adopt unchanged, adapt, use as background only, or reject? |
+| Compatibility | Is the change additive, behavioral, migration-required, semantically breaking, or cryptographically breaking? |
+| Identity effect | Does it change canonical bytes, canonical IDs, identity keys, signatures, or signed evidence? |
+| Storage effect | Does it change append, duplicate/conflict, replay, quarantine, transition, or effective-view behavior? |
+| Carrier effect | Does it introduce transport-specific assumptions into the protocol? |
+| Profile effect | Should the concept remain in a Toitoi application profile instead of Lingonberry core? |
+| Security effect | What new trust boundary, parser risk, resource limit, key lifecycle, or abuse case appears? |
+| Conformance | Which positive and negative fixtures prove the proposed behavior? |
+| Migration | How are existing evidence, nodes, clients, and archives handled? |
+| Decision evidence | Where is the accepted decision, implementation, and test evidence recorded? |
 
-### 2. identity の扱い
+## Topic-specific checks
 
-確認すること:
+### Object model
 
-- canonical id を opaque にするか
-- identity key をどう定義するか
-- identity claim を必須にするか任意にするか
-- 同一性の根拠をどこまで明示的に要求するか
+Determine whether the external model describes:
 
-参照先:
+- a protocol-core object;
+- a domain-specific object such as an inquiry, observation, claim, or evidence item;
+- a profile-level vocabulary;
+- a carrier envelope; or
+- derived index state.
 
-- [identity-claim.schema.json](https://github.com/nkkmd/Toitoi/blob/main/schemas/identity-claim.schema.json)
-- [CANONICAL_IDENTITY_AND_PROVENANCE.md](https://github.com/nkkmd/Toitoi/blob/main/docs/concepts/CANONICAL_IDENTITY_AND_PROVENANCE.md)
+Do not add domain types to the Lingonberry core merely because they are central to Toitoi. Prefer a profile or extension when the semantics are domain-specific.
 
-### 3. provenance と raw reference
+### Identity and canonicalization
 
-確認すること:
+Check whether the proposal changes:
 
-- provenance に何を含めるか
-- rawRef を何のために持つか
-- provenance と rawRef をどう分離するか
+- canonical byte generation;
+- canonical ID derivation;
+- semantic identity keys;
+- duplicate/conflict classification;
+- Unicode, number, timestamp, array, or optional-field handling;
+- identity claims; or
+- domain-separated signature payloads.
 
-参照先:
+Any such change requires explicit versioning, migration analysis, fixtures, and compatibility review. Existing signed or identity-bearing evidence must not be silently reinterpreted.
 
-- [canonical-event.schema.json](https://github.com/nkkmd/Toitoi/blob/main/schemas/canonical-event.schema.json)
-- [CANONICAL_IDENTITY_AND_PROVENANCE.md](https://github.com/nkkmd/Toitoi/blob/main/docs/concepts/CANONICAL_IDENTITY_AND_PROVENANCE.md)
+### Provenance and raw references
 
-### 4. 変更と履歴
+Clarify:
 
-確認すること:
+- which actor produced, transformed, published, or attested the object;
+- whether a raw reference identifies content, location, or both;
+- whether referenced material is required for verification or only audit context;
+- how unavailable or mutable external locations are handled; and
+- whether privacy-sensitive or secret material could be exposed.
 
-- 修正を上書きで扱うか
-- revision と tombstone を許すか
-- `lineage` をどう使うか
-- `revises`、`supersedes`、`derived_from` をどう扱うか
+Do not treat provenance metadata as proof of truth or authorization.
 
-参照先:
+### Revision, supersession, and removal
 
-- [CANONICAL_EVENT.md](https://github.com/nkkmd/Toitoi/blob/main/docs/protocols/CANONICAL_EVENT.md)
-- [canonical-event.schema.json](https://github.com/nkkmd/Toitoi/blob/main/schemas/canonical-event.schema.json)
+Separate:
 
-### 5. carrier と relay
+- creation of a new revision;
+- an explicit supersession transition;
+- retraction or dispute;
+- presentation-level hiding;
+- node-local storage suppression;
+- legal or policy removal; and
+- cryptographic erasure.
 
-確認すること:
+An append-only model does not by itself define which object is effective. Use the checked-in transition and effective-view contracts for Lingonberry behavior.
 
-- relay は保存と配信だけを担うのか
-- 最小限の検証や重複排除を標準責務に入れるか
-- どの carrier を最初の運搬路にするか
+### Carrier and relay behavior
 
-参照先:
+Check whether a proposed relay responsibility is:
 
-- [CANONICAL_EVENT.md](https://github.com/nkkmd/Toitoi/blob/main/docs/protocols/CANONICAL_EVENT.md)
-- [MULTI_PROTOCOL_INDEXER.md](https://github.com/nkkmd/Toitoi/blob/main/docs/architecture/MULTI_PROTOCOL_INDEXER.md)
+- transport delivery;
+- admission validation;
+- durable storage;
+- duplicate/conflict classification;
+- query projection;
+- replication; or
+- application policy.
 
-### 6. indexer と API
+Do not infer multi-node convergence, consensus, global ordering, federation, or cross-carrier identity equivalence from the existence of a relay or adapter. Those capabilities require separate contracts.
 
-確認すること:
+### Indexer and API behavior
 
-- indexer を semantic source にしない方針を守るか
-- canonical view を API の標準にするか
-- relation、lineage、provenance の検索をどう公開するか
+Verify that:
 
-参照先:
+- indexes remain derived and rebuildable;
+- query convenience does not become hidden protocol authority;
+- pagination and ordering are deterministic where promised;
+- effective-view reads preserve fail-closed behavior; and
+- API fields do not invent semantic guarantees absent from the underlying evidence.
 
-- [MULTI_PROTOCOL_INDEXER.md](https://github.com/nkkmd/Toitoi/blob/main/docs/architecture/MULTI_PROTOCOL_INDEXER.md)
-- [DIRECTORY_BOUNDARIES.md](https://github.com/nkkmd/Toitoi/blob/main/docs/architecture/DIRECTORY_BOUNDARIES.md)
+### Vocabulary and application profiles
 
-### 7. 語彙とアプリケーション・プロファイル
+Keep Toitoi-specific concepts, agricultural context, workflow states, and relation vocabularies in the Toitoi profile unless there is a demonstrated cross-domain requirement and an accepted Lingonberry proposal.
 
-確認すること:
+A profile may constrain or interpret core objects, but it must not silently change canonicalization, identity, signature verification, storage semantics, or transition authority.
 
-- domain vocabulary を core から分離するか
-- アプリケーション・プロファイルをどう定義するか
-- Toitoi を 1 つの profile として扱うか
+## Possible outcomes
 
-参照先:
+A review must end with one of these outcomes:
 
-- [GLOSSARY.md](https://github.com/nkkmd/Toitoi/blob/main/docs/concepts/GLOSSARY.md)
-- [README.md](https://github.com/nkkmd/Toitoi/blob/main/README.md)
+- **Adopt:** the idea is already compatible and is incorporated through a concrete Lingonberry contract and tests.
+- **Adapt:** the idea is useful, but Lingonberry-specific changes, versioning, or migration are required.
+- **Profile-only:** the idea belongs in the Toitoi application profile or another domain profile.
+- **Background only:** the material explains historical motivation but creates no implementation requirement.
+- **Reject:** the idea conflicts with current invariants, adds unjustified complexity, or lacks a safe migration path.
+- **Defer:** the idea is plausible but lacks implementation, conformance, security, or operational evidence.
 
----
+“Referenced” is not an adoption status.
 
-## Toitoi から抽出したい設計情報の要約
+## v1.0 boundary
 
-### 正本
+For v1.0, this checklist does not promise:
 
-- canonical event schema
-- identity claim schema
-- canonical identity と provenance の仕様
-- canonical event の責務分離
-- wire object と canonical object の責務分離
+- compatibility with Toitoi schemas or events;
+- automatic import of Toitoi data;
+- a stable Toitoi application profile;
+- Nostr or any other external carrier adapter;
+- multi-node synchronization or convergence;
+- profile registries or signed profile catalogs;
+- cross-project identity equivalence; or
+- migration of external signed evidence into Lingonberry identity v1.
 
-### 語彙
+Those capabilities require separate accepted contracts and release qualification.
 
-- inquiry
-- question
-- boundary object
-- commons
-- relay
-- indexer
-- canonical view
+## Maintenance rules
 
-### 実装境界
-
-- raw / normalized / canonical の段階分離
-- codec / validator / indexer / API の責務分離
-- carrier と protocol の同一化
-
-### 将来の一般化対象
-
-- knowledge object の多型化
-- domain vocabulary の外部化
-- multi-carrier 化
-- profile 駆動化
-
----
-
-## この文書の使い方
-
-1. まず正本を読む
-2. 次に移植すべき情報と外す情報を分ける
-3. その後に新プロトコルの schema と core model を書く
-4. 実装を始める前に、identity と provenance の方針を固定する
-
-この順番で進めると、Toitoi 固有の都合に引きずられずに、分野非依存のプロトコルへ拡張しやすくなります。
+- Keep this document free of copied field inventories that can drift from either repository.
+- Pin external evidence to exact commits when making a decision.
+- Link accepted behavior to Lingonberry schemas, fixtures, implementation, and tests.
+- Mark historical influence as historical; do not present it as current authority.
+- Re-run compatibility and security review when either project changes the relevant contract.
+- Do not change the fixed v1.0 candidate through documentation-only maintenance.

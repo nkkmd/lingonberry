@@ -1,4 +1,4 @@
-name: temporary regenerate v1 Rust API audit inventory
+name: temporary regenerate five-blocker documentation inventory
 
 on:
   push:

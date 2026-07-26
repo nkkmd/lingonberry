@@ -35,6 +35,7 @@ NORMALIZED_ARCHITECTURE_DOCS = {
     "docs/architecture/DISTRIBUTED_KNOWLEDGE_COMMONS_ARCHITECTURE.md",
     "docs/architecture/DUPLICATE_AND_CONFLICT_CONTRACT.md",
     "docs/architecture/LINGONBERRY_PROTOCOL_EVOLUTION_PROPOSAL.md",
+    "docs/architecture/README.md",
 }
 NORMALIZED_OPERATION_DOCS = {
     "docs/operations/ACCEPTANCE_POLICY.md",

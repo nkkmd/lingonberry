@@ -93,6 +93,7 @@ NORMALIZED_PROTOCOL_DOCS = {
     "docs/protocols/TRANSITION_AUTHORITY.md",
     "docs/protocols/TRANSITION_EVIDENCE_GENERATION.md",
     "docs/protocols/TRANSITION_OBJECT.md",
+    "docs/protocols/TRANSITION_REEVALUATION_COALESCING.md",
 }
 
 

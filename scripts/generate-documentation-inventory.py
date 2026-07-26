@@ -15,6 +15,9 @@ BILINGUAL_REQUIRED = {
     "docs/operations/V1_0_OPERATOR_RUNBOOK.md",
     "docs/operations/V1_0_UPGRADE_AND_ROLLBACK.md",
 }
+REVIEWED_BILINGUAL_REQUIRED = {
+    "README.md",
+}
 BILINGUAL_SCOPED = {
     "docs/concepts/GLOSSARY.md",
     "docs/concepts/CARRIER.md",
@@ -108,6 +111,8 @@ def tracked_markdown() -> list[str]:
 
 
 def classify(path: str) -> tuple[str, str, str]:
+    if path in REVIEWED_BILINGUAL_REQUIRED:
+        return "BILINGUAL_REQUIRED", "KEEP_BILINGUAL", "no"
     if path in BILINGUAL_REQUIRED:
         return "BILINGUAL_REQUIRED", "NORMALIZE_BEFORE_V1", "yes"
     if path in REVIEWED_BILINGUAL_SCOPED:

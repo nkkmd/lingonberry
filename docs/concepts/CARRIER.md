@@ -1,59 +1,114 @@
 # Carrier
 
-**Status: draft** | **Last updated: 2026-06-16**
+[English](#english) | [日本語](#日本語)
 
-## 目的
+> English is the normative version of this document. The Japanese section is a synchronized translation.
+>
+> 英語版がこの文書の正本です。日本語部分は同期された翻訳です。
 
-この文書は、Lingonberry における `carrier` の意味を、protocol と同一視する前提で定義します。
+**Status: reviewed concept contract** | **Scope: v1.0 single-node architecture**
 
-## 定義
+## English
 
-carrier とは、protocol object を wire 上で運ぶための実装です。
+### Definition
 
-このリポジトリでは、carrier は protocol の外側にある変換対象ではなく、protocol の正規な実装形です。
+A **carrier** is a concrete transport and framing mechanism that moves a Lingonberry protocol object between producers, storage nodes, relays, archives, or consumers.
 
-## carrier の責務
+A carrier is not the protocol itself. The protocol defines semantic meaning, canonical representation, identity, validation, and compatibility rules. A carrier defines how protocol material is packaged, addressed, transmitted, retried, stored, or recovered in a particular medium.
 
-- protocol object を受け取る
-- wire-level の構造を保持する
-- 必要なら framing、署名、再送、順序保証を提供する
-- carrier identity を付与する
-- storage と replay を支える
+### Responsibilities
 
-## carrier がやらないこと
+A carrier may:
 
-- semantic を carrier ごとに別物へ翻訳すること
-- protocol の意味を carrier 固有の都合で変更すること
-- canonical object と wire object を別プロトコルとして扱うこと
+- frame protocol-native wire objects;
+- provide endpoint addressing and carrier-local identifiers;
+- transport bytes over HTTP, files, archives, streams, or another explicitly supported medium;
+- provide retry, ordering, acknowledgement, or capability negotiation when documented;
+- retain raw transport evidence required for audit or replay;
+- expose carrier-specific operational limits and failure modes.
 
-## 主要な識別子
+### Non-responsibilities
 
-### carrier identity
+A carrier must not:
 
-carrier が内部で使う識別子です。
+- redefine the semantic meaning of a Knowledge Object;
+- silently rewrite canonical bytes or canonical identity;
+- treat transport success as semantic acceptance;
+- promote a carrier-local identifier to canonical identity;
+- bypass protocol validation, authorization, or storage conflict rules;
+- imply interoperability with an external protocol without a versioned adapter contract.
 
-例:
+### Identity boundaries
 
-- relay event id
-- record URI
-- archive object key
-- stream offset
+- **Canonical identifier:** protocol-level identity derived or validated under the protocol contract.
+- **Carrier identity:** a carrier-local reference such as an HTTP request reference, archive object key, record URI, relay event ID, or stream offset.
+- **Storage-internal key:** an implementation key used by a storage backend.
 
-### protocol object
+These identifiers may be linked by explicit evidence, but they are not interchangeable.
 
-carrier 上に表現された protocol の実体です。
+### Wire and canonical forms
 
-知識オブジェクトは、carrier によって意味が変わるのではなく、同じ意味を保ったまま表現されるべきです。
+The protocol-native wire format and canonical representation are different representations within the Lingonberry contract. A carrier transports or stores the wire representation; canonicalization and validation determine the canonical semantic record.
 
-## 設計原則
+External formats are not automatically Lingonberry wire formats. Conversion requires an explicit, versioned adapter that preserves provenance and records any lossy mapping.
 
-- carrier と protocol を分離しすぎない
-- carrier の違いは framing と capability に閉じる
-- semantic は protocol object 側に置く
-- wire と canonical は、別プロトコルではなく別表現として扱う
+### v1.0 boundary
 
-## 関連
+Lingonberry v1.0 qualifies documented single-node HTTP and file/archive behavior. It does not guarantee multi-carrier federation, global ordering, distributed consensus, or compatibility with an undocumented external transport.
 
-- [概念モデル](./CONCEPT_MODEL.md)
-- [用語集](./GLOSSARY.md)
-- [protocol-native wire format](../protocols/PROTOCOL_NATIVE_WIRE_FORMAT.md)
+## 日本語
+
+### 定義
+
+**carrier**は、Lingonberryのprotocol objectをproducer、storage node、relay、archive、consumerの間で運ぶ具体的なtransport／framing機構です。
+
+carrierはprotocolそのものではありません。protocolはsemantic、canonical representation、identity、validation、compatibility ruleを定義します。carrierは、特定の媒体上でprotocol materialをどのようにpackaging、addressing、transmission、retry、storage、recoveryするかを定義します。
+
+### 責務
+
+carrierは次の機能を提供できます。
+
+- protocol-native wire objectのframing
+- endpoint addressingとcarrier-local identifier
+- HTTP、file、archive、stream、その他明示的に対応した媒体でのbyte transport
+- 文書化されたretry、ordering、acknowledgement、capability negotiation
+- auditやreplayに必要なraw transport evidenceの保持
+- carrier固有の運用上限とfailure modeの公開
+
+### 責務ではないもの
+
+carrierは次のことをしてはいけません。
+
+- Knowledge Objectのsemanticを再定義する
+- canonical byteやcanonical identityを暗黙に書き換える
+- transport成功をsemantic acceptanceとみなす
+- carrier-local identifierをcanonical identityへ昇格させる
+- protocol validation、authorization、storage conflict ruleを回避する
+- versioned adapter contractなしに外部protocolとの相互運用性を主張する
+
+### identity境界
+
+- **Canonical identifier:** protocol contractに従って導出または検証されるprotocol-level identity
+- **Carrier identity:** HTTP request reference、archive object key、record URI、relay event ID、stream offsetなどのcarrier-local reference
+- **Storage-internal key:** storage backendが使用するimplementation key
+
+これらは明示的なevidenceによって関連付けられますが、相互に置き換えることはできません。
+
+### wireとcanonical form
+
+protocol-native wire formatとcanonical representationは、Lingonberry contract内の異なる表現です。carrierはwire representationをtransportまたは保存し、canonicalizationとvalidationがcanonical semantic recordを決定します。
+
+外部formatは自動的にLingonberry wire formatにはなりません。変換には、provenanceを保持し、lossy mappingを記録する明示的でversionedなadapterが必要です。
+
+### v1.0境界
+
+Lingonberry v1.0が資格確認するのは、文書化されたsingle-node HTTPおよびfile/archive behaviorです。multi-carrier federation、global ordering、distributed consensus、文書化されていない外部transportとの互換性は保証しません。
+
+## Related contracts
+
+- [Concept Model](./CONCEPT_MODEL.md)
+- [Glossary](./GLOSSARY.md)
+- [Protocol-native Wire Format](../protocols/PROTOCOL_NATIVE_WIRE_FORMAT.md)
+- [HTTP Carrier Contract](../operations/HTTP_CARRIER_CONTRACT.md)
+- [File / Archive Carrier Contract](../operations/FILE_ARCHIVE_CARRIER_CONTRACT.md)
+- [Carrier Capability Negotiation](../operations/CARRIER_CAPABILITY_NEGOTIATION.md)

@@ -6,7 +6,7 @@
 ## Status
 
 - Tracked Markdown files: **170**
-- Release-blocking review entries: **18**
+- Release-blocking review entries: **17**
 - Classification totals: BILINGUAL_REQUIRED: 6, BILINGUAL_SCOPED: 3, ENGLISH_ONLY: 161
 - Governing policy: [`DOCUMENTATION_POLICY.md`](./DOCUMENTATION_POLICY.md)
 - Tracking issue: [#144](https://github.com/nkkmd/lingonberry/issues/144)
@@ -161,7 +161,7 @@ Every tracked Markdown file must appear below. `yes` in the final column means t
 | `docs/roadmap/RELEASE_0_8_0_RELEASE_NOTE.md` | `ENGLISH_ONLY` | `ARCHIVE_REVIEW` | no |
 | `docs/roadmap/RELEASE_0_9_0_CHECKLIST.md` | `ENGLISH_ONLY` | `ARCHIVE_REVIEW` | no |
 | `docs/roadmap/RELEASE_0_9_0_RELEASE_NOTE.md` | `ENGLISH_ONLY` | `ARCHIVE_REVIEW` | no |
-| `docs/roadmap/ROADMAP_TO_V1_0.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
+| `docs/roadmap/ROADMAP_TO_V1_0.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
 | `docs/roadmap/V0_9_HARDENING_PLAN.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | no |
 | `docs/roadmap/V0_9_RELEASE_EVIDENCE.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | no |
 | `docs/roadmap/V1_0_CANDIDATE.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |

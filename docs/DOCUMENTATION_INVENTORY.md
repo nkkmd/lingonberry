@@ -6,7 +6,7 @@
 ## Status
 
 - Tracked Markdown files: **170**
-- Release-blocking review entries: **7**
+- Release-blocking review entries: **0**
 - Classification totals: BILINGUAL_REQUIRED: 6, BILINGUAL_SCOPED: 3, ENGLISH_ONLY: 161
 - Governing policy: [`DOCUMENTATION_POLICY.md`](./DOCUMENTATION_POLICY.md)
 - Tracking issue: [#144](https://github.com/nkkmd/lingonberry/issues/144)
@@ -174,13 +174,13 @@ Every tracked Markdown file must appear below. `yes` in the final column means t
 | `docs/roadmap/V1_0_QUALIFICATION_PLAN.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
 | `docs/roadmap/V1_0_QUALIFICATION_STATUS.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
 | `docs/roadmap/V1_0_REFERENCE_HOST_REHEARSAL.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
-| `docs/roadmap/V1_0_RELEASE_EVIDENCE.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
-| `docs/roadmap/V1_0_SOAK_PLAN.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
-| `docs/roadmap/V1_0_SOAK_REHEARSAL.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
-| `docs/security/V0_9_SECURITY_FINDINGS.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
-| `docs/security/V0_9_SECURITY_REVIEW.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
-| `docs/security/V0_9_SIGNATURE_WORKSPACE_REMEDIATION.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
-| `docs/security/V1_0_SECURITY_DIFF_REVIEW.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
+| `docs/roadmap/V1_0_RELEASE_EVIDENCE.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
+| `docs/roadmap/V1_0_SOAK_PLAN.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
+| `docs/roadmap/V1_0_SOAK_REHEARSAL.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
+| `docs/security/V0_9_SECURITY_FINDINGS.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
+| `docs/security/V0_9_SECURITY_REVIEW.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
+| `docs/security/V0_9_SIGNATURE_WORKSPACE_REMEDIATION.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
+| `docs/security/V1_0_SECURITY_DIFF_REVIEW.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
 | `fixtures/README.md` | `ENGLISH_ONLY` | `REVIEW` | no |
 | `packages/README.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
 | `packages/api/README.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |

@@ -125,6 +125,9 @@ NORMALIZED_PROTOCOL_DOCS = {
     "docs/protocols/TRANSITION_REEVALUATION_QUEUE.md",
     "docs/protocols/TRANSITION_SUPERSESSION.md",
 }
+NORMALIZED_ROADMAP_DOCS = {
+    "docs/roadmap/ROADMAP_TO_V1_0.md",
+}
 
 
 def tracked_markdown() -> list[str]:
@@ -143,7 +146,7 @@ def classify(path: str) -> tuple[str, str, str]:
         return "BILINGUAL_SCOPED", "REVIEW_SCOPE_BEFORE_V1", "yes"
     if path in HISTORICAL_OPERATION_DOCS:
         return "ENGLISH_ONLY", "KEEP_HISTORICAL", "no"
-    if path in NORMALIZED_ARCHITECTURE_DOCS or path in NORMALIZED_OPERATION_DOCS or path in NORMALIZED_PROTOCOL_DOCS:
+    if path in NORMALIZED_ARCHITECTURE_DOCS or path in NORMALIZED_OPERATION_DOCS or path in NORMALIZED_PROTOCOL_DOCS or path in NORMALIZED_ROADMAP_DOCS:
         return "ENGLISH_ONLY", "KEEP_ENGLISH", "no"
     if path.startswith("docs/roadmap/RELEASE_0_"):
         return "ENGLISH_ONLY", "ARCHIVE_REVIEW", "no"

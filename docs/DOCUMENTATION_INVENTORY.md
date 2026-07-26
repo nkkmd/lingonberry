@@ -6,7 +6,7 @@
 ## Status
 
 - Tracked Markdown files: **170**
-- Release-blocking review entries: **30**
+- Release-blocking review entries: **25**
 - Classification totals: BILINGUAL_REQUIRED: 6, BILINGUAL_SCOPED: 3, ENGLISH_ONLY: 161
 - Governing policy: [`DOCUMENTATION_POLICY.md`](./DOCUMENTATION_POLICY.md)
 - Tracking issue: [#144](https://github.com/nkkmd/lingonberry/issues/144)
@@ -36,11 +36,11 @@ Every tracked Markdown file must appear below. `yes` in the final column means t
 | `docs/architecture/TOITOI_REFERENCE_CHECKLIST.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
 | `docs/architecture/V0_9_PUBLIC_API_FREEZE_CANDIDATE.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
 | `docs/architecture/V0_9_RUST_API_INVENTORY.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
-| `docs/architecture/V1_0_RUST_API_AUDIT.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
-| `docs/architecture/V1_COMPATIBILITY_POLICY.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | yes |
-| `docs/concepts/CARRIER.md` | `BILINGUAL_SCOPED` | `REVIEW_SCOPE_BEFORE_V1` | yes |
+| `docs/architecture/V1_0_RUST_API_AUDIT.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
+| `docs/architecture/V1_COMPATIBILITY_POLICY.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
+| `docs/concepts/CARRIER.md` | `BILINGUAL_SCOPED` | `KEEP_BILINGUAL` | no |
 | `docs/concepts/CONCEPT_MODEL.md` | `ENGLISH_ONLY` | `REVIEW` | no |
-| `docs/concepts/GLOSSARY.md` | `BILINGUAL_SCOPED` | `REVIEW_SCOPE_BEFORE_V1` | yes |
+| `docs/concepts/GLOSSARY.md` | `BILINGUAL_SCOPED` | `KEEP_BILINGUAL` | no |
 | `docs/concepts/README.md` | `ENGLISH_ONLY` | `REVIEW` | no |
 | `docs/operations/ACCEPTANCE_POLICY.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
 | `docs/operations/ACCESS_RETENTION_AUDIT_CHECKLIST.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
@@ -82,7 +82,7 @@ Every tracked Markdown file must appear below. `yes` in the final column means t
 | `docs/operations/QUARANTINE_REPLACEMENT_TRANSACTION.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
 | `docs/operations/QUARANTINE_REPLACEMENT_V0_4_0_SMOKE_TEST.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
 | `docs/operations/QUARANTINE_SCHEDULER.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
-| `docs/operations/README.md` | `BILINGUAL_REQUIRED` | `NORMALIZE_BEFORE_V1` | yes |
+| `docs/operations/README.md` | `BILINGUAL_REQUIRED` | `KEEP_BILINGUAL` | no |
 | `docs/operations/RELAY_QUICKSTART.md` | `BILINGUAL_REQUIRED` | `NORMALIZE_BEFORE_V1` | yes |
 | `docs/operations/RELAY_STORAGE_SEPARATION.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
 | `docs/operations/SECRET_MANAGEMENT.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |

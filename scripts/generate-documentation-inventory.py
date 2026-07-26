@@ -38,6 +38,7 @@ NORMALIZED_ARCHITECTURE_DOCS = {
     "docs/architecture/README.md",
     "docs/architecture/TOITOI_REFERENCE_CHECKLIST.md",
     "docs/architecture/V0_9_PUBLIC_API_FREEZE_CANDIDATE.md",
+    "docs/architecture/V0_9_RUST_API_INVENTORY.md",
 }
 NORMALIZED_OPERATION_DOCS = {
     "docs/operations/ACCEPTANCE_POLICY.md",

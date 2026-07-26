@@ -1,235 +1,123 @@
 # Lingonberry Documentation Policy / Lingonberry 文書方針
 
-**Status: normative**  
-**Applies from: v1.0.0 documentation freeze**
+**Status:** normative for the v1.0.0 documentation set  
+**English is the normative language. Japanese is a synchronized translation.**
 
-> English is the normative language for Lingonberry documentation. Japanese translations are provided for accessibility. If the English and Japanese texts differ, the English text takes precedence.
+> If the English and Japanese sections differ, the English section takes precedence.
 >
-> Lingonberryの文書では英語を正本とします。日本語は利用しやすさのために提供される翻訳です。英語と日本語の内容に差異がある場合は、英語を優先します。
+> 英語部分と日本語部分に差異がある場合は、英語部分を優先します。
 
 ## English
 
 ### 1. Purpose
 
-This policy defines which Lingonberry documents are bilingual, which remain English-only, how bilingual files are structured, and what documentation work must be completed before v1.0.0 is released.
+This policy defines documentation language, classification, synchronization, inventory, and release-gate rules for Lingonberry.
 
-The goals are to:
+Its goals are to:
 
-- provide an accessible entry point for English- and Japanese-speaking users;
-- keep protocol, implementation, and maintenance terminology consistent with source code and public interfaces;
-- prevent Japanese-only requirements or behavior from becoming an unofficial parallel specification;
-- limit translation maintenance to documents where it materially improves installation, operation, security, or release adoption;
-- make documentation completeness an explicit v1.0.0 release gate.
+- provide accessible entry points for English- and Japanese-speaking users;
+- keep normative terminology aligned with source code, schemas, commands, APIs, diagnostics, and durable formats;
+- prevent Japanese-only requirements from becoming a parallel specification;
+- limit translation maintenance to documents where it materially improves adoption or routine operation;
+- make unresolved documentation work visible in the generated inventory.
 
 ### 2. Normative language
 
-English is normative for all Lingonberry documentation, specifications, compatibility statements, command contracts, and release evidence.
+English is normative for specifications, compatibility statements, command contracts, operational procedures, and release evidence.
 
-Japanese text in a bilingual document is a translation of the English section. It must not introduce requirements, exceptions, procedures, or guarantees that do not appear in the English section.
+Japanese text in a bilingual document is a translation. It must not introduce a requirement, exception, procedure, safety guarantee, or release claim that is absent from the English section.
 
-Source code identifiers, CLI commands, configuration keys, API fields, event names, error codes, file paths, and machine-readable values must not be translated.
+Source identifiers, commands, configuration keys, API fields, event names, error codes, file paths, version strings, hashes, and machine-readable values are not translated.
 
-### 3. Bilingual document format
+### 3. Bilingual format
 
-A bilingual document must contain English first and Japanese second in the same file.
+A bilingual document must place English first and Japanese second in the same file. The sections must have equivalent semantic scope and heading order.
 
-Recommended structure:
+Commands, paths, configuration examples, candidate identifiers, version numbers, and safety conditions must remain technically identical in both sections.
 
-```markdown
-# Document Title / 文書タイトル
+A Tier 1 change to English requires the corresponding Japanese update in the same pull request. A stale-translation warning is release-blocking until removed.
 
-> English is normative. Japanese is a translation.
-> 英語を正本とし、日本語はその翻訳です。
+### 4. Classification
 
-## English
+The generated inventory is the authoritative per-file classification and progress ledger.
 
-...
+#### `BILINGUAL_REQUIRED`
 
----
+Use for repository entry points and routine operator documents whose complete operational scope must be available in English and Japanese.
 
-## 日本語
+Current required set is maintained by `scripts/generate-documentation-inventory.py`. A required document may be marked `KEEP_BILINGUAL` only after scope and synchronization review.
 
-...
-```
+#### `BILINGUAL_SCOPED`
 
-The English and Japanese sections must use equivalent heading order and semantic scope. Commands and configuration examples must remain technically identical unless a locale-specific path or explanatory note is explicitly required.
+Use when the high-level or user-facing portion must be bilingual but detailed technical material may remain English-only. A reviewed file may be marked `KEEP_BILINGUAL` without changing its classification.
 
-### 4. Document classification
+#### `ENGLISH_ONLY`
 
-#### Tier 1: bilingual required
+Use for detailed protocol, architecture, security-review, qualification, soak, evidence, CI, debugging, generated-reference, and maintainer-only material unless an explicit decision requires translation.
 
-The following must be bilingual before v1.0.0:
+Historical documents may remain English-only or retain clearly non-normative historical Japanese content when the inventory records that disposition.
 
-- `README.md`;
-- `SECURITY.md`;
-- project overview or introduction document;
-- Getting Started guide;
-- installation and initial configuration guide;
-- standard start, stop, restart, health, and readiness procedures;
-- backup and restore runbook;
-- upgrade and rollback runbook;
-- basic troubleshooting runbook;
-- v1.0.0 release summary and operator-visible migration notes;
-- this documentation policy.
+### 5. Minimum bilingual operator surface
 
-#### Tier 2: bilingual, scoped to essential content
+Taken together, the reviewed bilingual documents must allow a new single-node operator to:
 
-The following should provide a bilingual high-level section, while detailed technical material may remain English-only:
-
-- `CONTRIBUTING.md`;
-- high-level architecture overview;
-- compatibility and support policy;
-- public roadmap summary;
-- migration overview.
-
-#### Tier 3: English only
-
-The following are English-only unless a later decision explicitly changes their classification:
-
-- detailed architecture and storage internals;
-- protocol, API, CLI, and configuration reference material;
-- source-code comments and generated reference documentation;
-- developer setup, CI, test-matrix, and debugging documentation;
-- qualification, formal-soak, crash-matrix, disk-pressure, and reference-host procedures;
-- release evidence, manifests, machine-readable reports, and internal maintainer runbooks;
-- issue templates, pull-request templates, commit messages, and release automation documentation.
-
-Formal-soak and qualification documents are not part of the bilingual minimum operator runbook. A bilingual overview may link to them, but the executable and normative procedures remain English-only.
-
-### 5. Minimum bilingual operator runbook
-
-The bilingual operator surface must let a new operator perform the following without reading internal qualification material:
-
-1. understand what Lingonberry is and its supported deployment boundary;
-2. install the supported package or binaries;
-3. create and validate the minimum configuration;
-4. start, stop, and restart the supported service;
-5. check health, readiness, and logs;
+1. understand the product and supported deployment boundary;
+2. install or build the supported binaries;
+3. create and validate minimum configuration;
+4. start, stop, and restart the services;
+5. inspect health, readiness, logs, and diagnostics;
 6. publish and retrieve a minimal object where applicable;
 7. create and verify a backup;
-8. perform or plan an isolated restore;
+8. plan or perform an isolated restore;
 9. verify storage and index state;
 10. upgrade from the supported previous release;
 11. roll back or stop safely after a failed upgrade;
-12. perform basic failure diagnosis and know when to stop and escalate.
+12. identify conditions that require stopping and escalation.
 
-### 6. Translation synchronization
+These capabilities may be distributed across the root README, operations index, quickstart, operator runbook, and upgrade/rollback guide. The policy does not require duplicate procedures in every document.
 
-A change to the English section of a Tier 1 bilingual document must update the corresponding Japanese section in the same pull request.
+### 6. Inventory and completion state
 
-If an exceptional pull request cannot update the translation, the document must carry an explicit stale-translation warning, and a blocking follow-up issue must be opened before release. v1.0.0 must not be released with a stale warning in a Tier 1 document.
+`docs/DOCUMENTATION_INVENTORY.md` is generated from tracked Markdown files. Manual edits to the generated inventory are not authoritative.
 
-English and Japanese sections must agree on:
+The generator must preserve classification separately from completion state. For example, a reviewed Tier 1 file remains `BILINGUAL_REQUIRED` while its action becomes `KEEP_BILINGUAL` and its blocker becomes `no`.
 
-- version numbers;
-- support status;
-- command names and arguments;
-- file paths;
-- configuration keys and precedence;
-- compatibility promises;
-- safety warnings;
-- backup, restore, upgrade, and rollback order;
-- release-blocking conditions.
+A path listed in a classification set but absent from tracked files is not an inventory entry and is not, by that fact alone, a release blocker. Adding a new required document requires adding the file and reviewing its classification and synchronization.
 
-### 7. Documentation organization
+### 7. Automated checks
 
-The preferred v1.x documentation layout is:
+The repository maintains checks for:
 
-```text
-README.md
-SECURITY.md
-CONTRIBUTING.md
-docs/
-├── DOCUMENTATION_POLICY.md
-├── OVERVIEW.md
-├── getting-started/
-│   └── GETTING_STARTED.md
-├── runbooks/
-│   ├── INSTALLATION.md
-│   ├── START_STOP.md
-│   ├── HEALTH_CHECK.md
-│   ├── BACKUP_RESTORE.md
-│   ├── UPGRADE.md
-│   └── TROUBLESHOOTING.md
-├── architecture/
-├── reference/
-├── development/
-├── roadmap/
-├── qualification/
-└── releases/
-```
+- generated inventory freshness;
+- required bilingual section markers and synchronization-sensitive files;
+- documentation-freeze boundaries;
+- standard Rust and JavaScript validation;
+- candidate-bound documentation walkthrough evidence when required by the documentation workflow.
 
-Existing files may be retained where renaming would introduce unnecessary release risk, but the documentation inventory must record their target classification and eventual destination.
+Passing these checks does not complete the formal soak, privileged reference-host qualification, version preparation, release PR, tag, GitHub Release, or publication evidence.
 
-### 8. v1.0.0 pre-release documentation work
+### 8. v1.0.0 release gate
 
-The following work is required before v1.0.0 release publication.
+Documentation readiness requires:
 
-#### Policy and inventory
+- every tracked Markdown file is present in the generated inventory;
+- every inventory row marked as a v1.0 blocker is resolved;
+- reviewed bilingual files contain synchronized English and Japanese sections;
+- no Tier 1 file contains a stale-translation warning;
+- routine installation, configuration, backup, restore, upgrade, and rollback instructions do not contradict one another;
+- English-only normative files contain no Japanese-only requirement;
+- release-facing documents accurately distinguish completed candidate evidence from pending release gates.
 
-- [x] Adopt a normative documentation language policy.
-- [ ] Create a complete inventory of existing Markdown and operator-facing text documents.
-- [ ] Classify every document as `BILINGUAL_REQUIRED`, `BILINGUAL_SCOPED`, `ENGLISH_ONLY`, `MERGE`, `ARCHIVE`, or `DELETE`.
-- [ ] Identify duplicate, obsolete, conflicting, and unlinked documents.
-- [ ] Record the target path and action for each document.
+The fixed pre-version candidate is `f9543019f2c219aea3b085ff90f2da201b268a48`. Documentation and tooling commits after that commit do not redefine it. Formal 72-hour soak, privileged reference-host qualification, version preparation, release PR, tag, GitHub Release, and final publication evidence remain separate gates.
 
-#### Tier 1 bilingual documents
-
-- [ ] Normalize `README.md` to English-first, Japanese-second form.
-- [ ] Normalize `SECURITY.md` to English-first, Japanese-second form.
-- [ ] Establish or normalize the bilingual project overview.
-- [ ] Establish or normalize the bilingual Getting Started guide.
-- [ ] Establish the minimum bilingual installation/configuration runbook.
-- [ ] Establish the minimum bilingual start/stop/restart runbook.
-- [ ] Establish the minimum bilingual health/readiness/log runbook.
-- [ ] Establish the minimum bilingual backup/restore runbook.
-- [ ] Establish the minimum bilingual upgrade/rollback runbook.
-- [ ] Establish the minimum bilingual troubleshooting runbook.
-- [ ] Prepare the bilingual v1.0.0 release summary and migration notes.
-
-#### English-only normalization
-
-- [ ] Convert mixed-language internal architecture and reference documents to English.
-- [ ] Convert qualification, soak, evidence, CI, and maintainer-only procedures to English.
-- [ ] Remove Japanese-only normative requirements from English-only documents.
-- [ ] Preserve historical Japanese material only when it is clearly marked archived and non-normative.
-
-#### Consistency and navigation
-
-- [ ] Add a documentation index linking all supported user, operator, developer, and maintainer documents.
-- [ ] Repair links affected by document moves or renames.
-- [ ] Standardize terminology, product name, version notation, command spelling, and path notation.
-- [ ] Ensure every supported operational action has exactly one normative procedure.
-- [ ] Ensure README and Getting Started do not duplicate detailed reference contracts.
-
-#### Automated checks
-
-- [ ] Add CI checks for required bilingual files and language-section markers.
-- [ ] Add link checking for release-facing Markdown documents.
-- [ ] Add checks for mismatched version numbers and frozen candidate identifiers where applicable.
-- [ ] Add a stale-translation warning or review check for Tier 1 files.
-- [ ] Include documentation policy and inventory files in the documentation freeze check.
-
-#### Release gate
-
-v1.0.0 documentation readiness requires all of the following:
-
-- all Tier 1 documents are present and synchronized;
-- no Tier 1 document contains a stale-translation warning;
-- all release-facing links pass validation;
-- no contradictory installation, configuration, backup, restore, upgrade, or rollback instructions remain;
-- English-only normative documents contain no Japanese-only requirements;
-- the documentation inventory has no unresolved `MERGE`, `DELETE`, or release-blocking `ARCHIVE` action;
-- the release summary clearly identifies supported platforms, compatibility, known limitations, and upgrade requirements.
-
-### 9. Change control after v1.0.0
+### 9. Change control
 
 For v1.x:
 
-- new user-facing or routine-operator documents must be classified under this policy when introduced;
-- Tier 1 changes require synchronized Japanese translation;
+- new user-facing or routine-operator documents must be classified when introduced;
+- Tier 1 English changes require synchronized Japanese changes;
 - internal technical documents default to English-only;
-- changing a document's classification requires a pull request that updates this policy or the documentation inventory;
+- classification or completion-state changes require generator and inventory updates;
 - English remains normative until a future major-version policy explicitly changes it.
 
 ---
@@ -238,223 +126,111 @@ For v1.x:
 
 ### 1. 目的
 
-本方針は、Lingonberryのどの文書を英日併記とし、どの文書を英語のみとするか、英日併記ファイルをどのような形式で管理するか、v1.0.0公開前にどの文書作業を完了させる必要があるかを定めます。
+本方針は、Lingonberryの文書言語、分類、翻訳同期、inventory、およびrelease gateの規則を定めます。
 
 目的は次のとおりです。
 
-- 英語利用者と日本語利用者の双方に、利用開始のための入口を提供すること。
-- protocol、実装、保守に関する用語をsource codeと公開interfaceに一致させること。
-- 日本語だけに存在する要件や動作が、非公式の並行仕様になることを防ぐこと。
-- 翻訳保守を、導入、通常運用、security、release移行に実質的な価値がある文書へ限定すること。
-- 文書の完成をv1.0.0 release gateとして明示すること。
+- 英語利用者と日本語利用者の双方に利用開始の入口を提供すること。
+- 正本となる用語をsource code、schema、command、API、diagnostic、durable formatと一致させること。
+- 日本語だけの要件が並行仕様になることを防ぐこと。
+- 翻訳保守を、導入または通常運用に実質的な価値がある文書へ限定すること。
+- 未解決の文書作業を生成inventoryで可視化すること。
 
 ### 2. 正本となる言語
 
-Lingonberryの文書、仕様、互換性宣言、command contract、release evidenceでは、英語を正本とします。
+仕様、互換性宣言、command contract、運用手順、release evidenceでは英語を正本とします。
 
-英日併記文書の日本語部分は英語部分の翻訳です。英語部分に存在しない要件、例外、手順、保証を日本語部分だけに追加してはいけません。
+英日併記文書の日本語部分は翻訳です。英語部分に存在しない要件、例外、手順、安全保証、release claimを日本語部分だけに追加してはいけません。
 
-source code identifier、CLI command、configuration key、API field、event名、error code、file path、machine-readable valueは翻訳しません。
+source identifier、command、configuration key、API field、event名、error code、file path、version文字列、hash、machine-readable valueは翻訳しません。
 
-### 3. 英日併記文書の形式
+### 3. 英日併記形式
 
-英日併記文書は、同一ファイル内で英語を先、日本語を後に配置します。
+英日併記文書では、同一ファイル内で英語を先、日本語を後に配置します。両sectionの意味上の範囲と見出し順序を一致させます。
 
-推奨構成:
+command、path、configuration example、candidate identifier、version番号、安全条件は両sectionで技術的に同一でなければなりません。
 
-```markdown
-# Document Title / 文書タイトル
+Tier 1文書の英語部分を変更する場合、同じpull requestで日本語部分も更新します。翻訳未更新warningは、削除されるまでrelease blockerです。
 
-> English is normative. Japanese is a translation.
-> 英語を正本とし、日本語はその翻訳です。
+### 4. 分類
 
-## English
+生成inventoryを、ファイル単位の分類と進捗の正本とします。
 
-...
+#### `BILINGUAL_REQUIRED`
 
----
+repositoryの入口および通常operator向け文書のうち、運用範囲全体を英語と日本語で提供する必要があるものに使用します。
 
-## 日本語
+現在の必須集合は`scripts/generate-documentation-inventory.py`で管理します。範囲と同期をreviewした文書だけを`KEEP_BILINGUAL`にできます。
 
-...
-```
+#### `BILINGUAL_SCOPED`
 
-英語部分と日本語部分では、見出しの順序と意味上の範囲を一致させます。commandやconfiguration exampleは、地域固有のpathや説明が明示的に必要な場合を除き、技術的に同一でなければなりません。
+概要またはuser-facing部分を英日併記とし、詳細技術部分は英語のみでもよい文書に使用します。review済み文書は分類を変更せず`KEEP_BILINGUAL`にできます。
 
-### 4. 文書の分類
+#### `ENGLISH_ONLY`
 
-#### Tier 1: 英日併記必須
+詳細protocol、architecture、security review、qualification、soak、evidence、CI、debugging、自動生成reference、maintainer専用文書に使用します。ただし明示的な決定がある場合を除きます。
 
-v1.0.0公開前に、以下を英日併記にします。
+historical文書は英語のみで維持できます。また、inventoryにその扱いを記録する場合、明確にnon-normativeな歴史的日本語を保持できます。
 
-- `README.md`
-- `SECURITY.md`
-- project概要または紹介文書
-- Getting Started guide
-- installationおよび初期configuration guide
-- 標準的なstart、stop、restart、health、readiness手順
-- backup／restore runbook
-- upgrade／rollback runbook
-- 基本troubleshooting runbook
-- v1.0.0 release概要およびoperator向けmigration notes
-- 本文書方針
+### 5. 最小英日併記operator surface
 
-#### Tier 2: 必須部分を絞って英日併記
+review済み英日併記文書全体で、新しいsingle-node operatorが次を実行できる状態にします。
 
-以下は概要部分を英日併記とし、詳細な技術内容は英語のみでも構いません。
-
-- `CONTRIBUTING.md`
-- high-level architecture overview
-- compatibility／support policy
-- 公開向けroadmap概要
-- migration overview
-
-#### Tier 3: 英語のみ
-
-以下は、将来の決定により分類が明示的に変更されない限り、英語のみとします。
-
-- 詳細architectureおよびstorage internals
-- protocol、API、CLI、configuration reference
-- source code commentおよび自動生成reference
-- developer setup、CI、test matrix、debugging文書
-- qualification、formal soak、crash matrix、disk pressure、reference host手順
-- release evidence、manifest、machine-readable report、maintainer向け内部runbook
-- issue template、pull request template、commit message、release automation文書
-
-formal soakおよびqualification文書は、英日併記する最小operator runbookには含めません。英日併記の概要からリンクすることはできますが、実行手順と正本は英語のみとします。
-
-### 5. 英日併記する最小operator runbook
-
-英日併記のoperator向け文書だけで、新しいoperatorが内部qualification文書を読まずに次を実行できる状態にします。
-
-1. Lingonberryの目的とsupported deployment boundaryを理解する。
-2. supported packageまたはbinaryをinstallする。
+1. productとsupported deployment boundaryを理解する。
+2. supported binaryをinstallまたはbuildする。
 3. 最小configurationを作成して検証する。
-4. supported serviceをstart、stop、restartする。
-5. health、readiness、logを確認する。
+4. serviceをstart、stop、restartする。
+5. health、readiness、log、diagnosticを確認する。
 6. 適用可能な場合、最小objectをpublishおよびretrieveする。
 7. backupを作成してverifyする。
-8. isolated restoreを実行または計画する。
-9. storageおよびindex状態をverifyする。
+8. isolated restoreを計画または実行する。
+9. storageとindex状態をverifyする。
 10. supported previous releaseからupgradeする。
-11. upgrade失敗時に安全にrollbackまたは停止する。
-12. 基本的な障害診断を行い、停止やescalationが必要な条件を判断する。
+11. upgrade失敗後に安全にrollbackまたは停止する。
+12. 停止とescalationが必要な条件を判断する。
 
-### 6. 翻訳同期
+これらはroot README、operations index、quickstart、operator runbook、upgrade/rollback guideへ分散して構いません。本方針は、同じ手順をすべての文書へ重複記載することを要求しません。
 
-Tier 1文書の英語部分を変更する場合、同じpull requestで対応する日本語部分も更新しなければなりません。
+### 6. Inventoryと完了状態
 
-例外的に翻訳を更新できない場合は、文書へ明示的な翻訳未更新warningを付け、release前に解決するblocking follow-up issueを作成します。Tier 1文書に翻訳未更新warningが残った状態でv1.0.0を公開してはいけません。
+`docs/DOCUMENTATION_INVENTORY.md`は追跡対象Markdownから生成します。生成inventoryの手動編集は正本ではありません。
 
-英語部分と日本語部分では、以下を一致させます。
+generatorは分類と完了状態を分離して管理しなければなりません。例えばreview済みTier 1文書は`BILINGUAL_REQUIRED`のまま、actionが`KEEP_BILINGUAL`、blockerが`no`になります。
 
-- version番号
-- support status
-- command名とargument
-- file path
-- configuration keyとprecedence
-- compatibility promise
-- safety warning
-- backup、restore、upgrade、rollbackの順序
-- release blocking condition
+分類集合に記載されていても追跡ファイルとして存在しないpathはinventory entryではなく、その事実だけではrelease blockerではありません。新しい必須文書を追加する場合は、ファイルを追加し、分類と翻訳同期をreviewします。
 
-### 7. 文書構成
+### 7. 自動検査
 
-v1.xで推奨する文書構成は次のとおりです。
+repositoryでは次を検査します。
 
-```text
-README.md
-SECURITY.md
-CONTRIBUTING.md
-docs/
-├── DOCUMENTATION_POLICY.md
-├── OVERVIEW.md
-├── getting-started/
-│   └── GETTING_STARTED.md
-├── runbooks/
-│   ├── INSTALLATION.md
-│   ├── START_STOP.md
-│   ├── HEALTH_CHECK.md
-│   ├── BACKUP_RESTORE.md
-│   ├── UPGRADE.md
-│   └── TROUBLESHOOTING.md
-├── architecture/
-├── reference/
-├── development/
-├── roadmap/
-├── qualification/
-└── releases/
-```
+- 生成inventoryのfreshness。
+- 必須英日併記section markerと同期対象文書。
+- documentation freeze boundary。
+- 標準RustおよびJavaScript validation。
+- 文書workflowで必要とされるcandidate-bound documentation walkthrough evidence。
 
-renameによるrelease riskが大きい場合は既存fileを維持して構いません。ただし、documentation inventoryには各文書の分類と将来の移動先を記録します。
+これらのcheck成功は、formal soak、privileged reference-host qualification、version preparation、release PR、tag、GitHub Release、publication evidenceの完了を意味しません。
 
-### 8. v1.0.0公開前に必要な文書作業
+### 8. v1.0.0 release gate
 
-以下はv1.0.0公開前に完了させる必要があります。
+文書準備完了には次が必要です。
 
-#### 方針と棚卸し
+- 追跡対象Markdownがすべて生成inventoryへ掲載されている。
+- inventoryでv1.0 blockerとされた項目がすべて解消されている。
+- review済み英日併記文書で英語と日本語が同期している。
+- Tier 1文書に翻訳未更新warningがない。
+- 通常のinstallation、configuration、backup、restore、upgrade、rollback手順が相互に矛盾しない。
+- 英語のみの正本文書に日本語だけの要件が存在しない。
+- release-facing文書が、完了済みcandidate evidenceと未完了release gateを正確に区別している。
 
-- [x] 正本言語と翻訳方針を採用する。
-- [ ] 既存のMarkdownおよびoperator向けtext文書をすべて棚卸しする。
-- [ ] 各文書を`BILINGUAL_REQUIRED`、`BILINGUAL_SCOPED`、`ENGLISH_ONLY`、`MERGE`、`ARCHIVE`、`DELETE`に分類する。
-- [ ] 重複、obsolete、矛盾、未リンクの文書を特定する。
-- [ ] 各文書のtarget pathと対応内容を記録する。
+固定pre-version candidateは`f9543019f2c219aea3b085ff90f2da201b268a48`です。このcommit以後の文書・tooling commitはcandidateを再定義しません。formal 72時間soak、privileged reference-host qualification、version preparation、release PR、tag、GitHub Release、最終publication evidenceは別のgateです。
 
-#### Tier 1英日併記文書
+### 9. 変更管理
 
-- [ ] `README.md`を英語先、日本語後の形式に統一する。
-- [ ] `SECURITY.md`を英語先、日本語後の形式に統一する。
-- [ ] 英日併記のproject overviewを作成または整理する。
-- [ ] 英日併記のGetting Started guideを作成または整理する。
-- [ ] 英日併記の最小installation／configuration runbookを整備する。
-- [ ] 英日併記の最小start／stop／restart runbookを整備する。
-- [ ] 英日併記の最小health／readiness／log runbookを整備する。
-- [ ] 英日併記の最小backup／restore runbookを整備する。
-- [ ] 英日併記の最小upgrade／rollback runbookを整備する。
-- [ ] 英日併記の最小troubleshooting runbookを整備する。
-- [ ] 英日併記のv1.0.0 release概要とmigration notesを作成する。
+v1.xでは次を適用します。
 
-#### 英語のみの文書整理
-
-- [ ] 言語が混在している内部architecture／reference文書を英語へ統一する。
-- [ ] qualification、soak、evidence、CI、maintainer向け手順を英語へ統一する。
-- [ ] 英語のみの文書から、日本語だけに存在するnormative requirementを除去する。
-- [ ] 歴史的な日本語資料を残す場合は、archiveかつnon-normativeであることを明記する。
-
-#### 整合性とnavigation
-
-- [ ] user、operator、developer、maintainer向け文書をまとめたdocumentation indexを追加する。
-- [ ] 文書の移動やrenameで影響を受けたlinkを修正する。
-- [ ] terminology、product名、version表記、command spelling、path表記を統一する。
-- [ ] supported operational actionごとに、正本となる手順を1つだけにする。
-- [ ] READMEおよびGetting Startedに詳細reference contractを重複記載しない。
-
-#### 自動検査
-
-- [ ] 必須英日併記文書とlanguage section markerを確認するCIを追加する。
-- [ ] release-facing Markdown文書のlink checkを追加する。
-- [ ] 必要な箇所でversion番号およびfrozen candidate identifierの不一致を検査する。
-- [ ] Tier 1文書の翻訳未更新を検知するwarningまたはreview checkを追加する。
-- [ ] documentation policyとinventoryをdocumentation freeze checkの対象に加える。
-
-#### Release gate
-
-v1.0.0の文書準備完了には、以下をすべて満たす必要があります。
-
-- Tier 1文書がすべて存在し、英語と日本語が同期している。
-- Tier 1文書に翻訳未更新warningが残っていない。
-- release-facing linkがすべて検証を通過している。
-- installation、configuration、backup、restore、upgrade、rollbackについて矛盾した手順が残っていない。
-- 英語のみの正本文書に、日本語だけの要件が存在しない。
-- documentation inventoryに未解決の`MERGE`、`DELETE`、またはrelease blockingな`ARCHIVE` actionがない。
-- release概要にsupported platform、compatibility、known limitation、upgrade requirementが明記されている。
-
-### 9. v1.0.0以降の変更管理
-
-v1.xでは次の規則を適用します。
-
-- 新しいuser-facing文書または通常operator向け文書を追加する際は、本方針に従って分類する。
-- Tier 1の変更では、日本語訳も同期して更新する。
+- 新しいuser-facing文書または通常operator向け文書を追加する際に分類する。
+- Tier 1の英語変更では日本語も同期して変更する。
 - 内部技術文書は英語のみをdefaultとする。
-- 文書分類を変更する場合は、本方針またはdocumentation inventoryを更新するpull requestを必要とする。
-- 将来のmajor versionで方針を明示的に変更しない限り、英語を正本とする。
+- 分類または完了状態の変更ではgeneratorとinventoryを更新する。
+- 将来のmajor version方針で明示的に変更しない限り、英語を正本とする。

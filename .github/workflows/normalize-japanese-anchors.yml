@@ -1,0 +1,64 @@
+name: normalize Japanese anchors
+
+on:
+  push:
+    branches:
+      - agent/fix-japanese-mobile-anchors
+
+permissions:
+  contents: write
+
+jobs:
+  normalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/fix-japanese-mobile-anchors
+          fetch-depth: 0
+
+      - name: Normalize Japanese navigation anchors
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          old_link = "[日本語](#日本語)"
+          new_link = "[日本語](#japanese)"
+          heading = "## 日本語"
+          anchor = '<a id="japanese"></a>'
+          changed = []
+
+          for path in sorted(Path('.').rglob('*.md')):
+              if '.git' in path.parts:
+                  continue
+              text = path.read_text(encoding='utf-8')
+              if old_link not in text:
+                  continue
+
+              updated = text.replace(old_link, new_link)
+              if anchor not in updated:
+                  marker = f"\n{heading}"
+                  if marker not in updated:
+                      raise SystemExit(f"missing Japanese heading: {path}")
+                  updated = updated.replace(marker, f"\n{anchor}\n\n{heading}", 1)
+
+              if updated != text:
+                  path.write_text(updated, encoding='utf-8')
+                  changed.append(str(path))
+
+          if not changed:
+              raise SystemExit('no Markdown files required normalization')
+
+          print('normalized files:')
+          for path in changed:
+              print(path)
+          PY
+
+      - name: Remove temporary workflow and commit
+        run: |
+          rm -f .github/workflows/normalize-japanese-anchors.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Use ASCII Japanese section anchors"
+          git push origin HEAD:agent/fix-japanese-mobile-anchors

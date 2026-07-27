@@ -7,7 +7,7 @@
 
 - Tracked Markdown files: **172**
 - Release-blocking review entries: **0**
-- Classification totals: BILINGUAL_REQUIRED: 7, BILINGUAL_SCOPED: 3, ENGLISH_ONLY: 162
+- Classification totals: BILINGUAL_REQUIRED: 9, BILINGUAL_SCOPED: 3, ENGLISH_ONLY: 160
 - Governing policy: [`DOCUMENTATION_POLICY.md`](./DOCUMENTATION_POLICY.md)
 - Tracking issue: [#144](https://github.com/nkkmd/lingonberry/issues/144)
 
@@ -43,7 +43,7 @@ Every tracked Markdown file must appear below. `yes` in the final column means t
 | `docs/concepts/GLOSSARY.md` | `BILINGUAL_SCOPED` | `KEEP_BILINGUAL` | no |
 | `docs/concepts/README.md` | `ENGLISH_ONLY` | `REVIEW` | no |
 | `docs/developers/PUBLISHER_QUICKSTART.md` | `BILINGUAL_REQUIRED` | `KEEP_BILINGUAL` | no |
-| `docs/developers/README.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
+| `docs/developers/README.md` | `BILINGUAL_REQUIRED` | `KEEP_BILINGUAL` | no |
 | `docs/developers/REPOSITORY_PUBLISH_WALKTHROUGH.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
 | `docs/operations/ACCEPTANCE_POLICY.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
 | `docs/operations/ACCESS_RETENTION_AUDIT_CHECKLIST.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
@@ -89,7 +89,7 @@ Every tracked Markdown file must appear below. `yes` in the final column means t
 | `docs/operations/RELAY_STORAGE_SEPARATION.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
 | `docs/operations/SECRET_MANAGEMENT.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
 | `docs/operations/STORAGE_MIGRATION_AND_UPGRADE.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
-| `docs/operations/STORAGE_NODE_QUICKSTART.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
+| `docs/operations/STORAGE_NODE_QUICKSTART.md` | `BILINGUAL_REQUIRED` | `KEEP_BILINGUAL` | no |
 | `docs/operations/STORAGE_NODE_RUNTIME.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
 | `docs/operations/SUPPORTED_PLATFORMS.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
 | `docs/operations/SYSTEMD_UNIT_TEMPLATES.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |

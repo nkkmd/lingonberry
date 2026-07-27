@@ -55,17 +55,20 @@ jobs:
             --thresholds deploy/soak/v1-formal-thresholds.example.json \
             --virtual-duration 259200 \
             --tick-seconds 60
-          jq -e --arg candidate "$ACTIVE_CANDIDATE_SHA" --arg storage "$ACTIVE_STORAGE_SHA256" --arg relay "$ACTIVE_RELAY_SHA256" '
+          jq -e --arg candidate "$ACTIVE_CANDIDATE_SHA" '
             .adapter == "mock" and
             .qualification == false and
             .qualifyingPass == false and
             .status == "passed" and
             .candidateCommit == $candidate and
-            .storageSha256 == $storage and
-            .relaySha256 == $relay and
             .scheduledDurationSeconds == 259200 and
             .workloadCounts == .workloadMinima
           ' target/formal-scheduler-pass/summary.json
+          jq -e --arg candidate "$ACTIVE_CANDIDATE_SHA" --arg storage "$ACTIVE_STORAGE_SHA256" --arg relay "$ACTIVE_RELAY_SHA256" '
+            .candidateCommit == $candidate and
+            .storageSha256 == $storage and
+            .relaySha256 == $relay
+          ' target/formal-scheduler-pass/manifests/run.json
           test "$(wc -l < target/formal-scheduler-pass/telemetry/metrics.jsonl)" -ge 4321
           (cd target/formal-scheduler-pass && sha256sum -c SHA256SUMS)
       - name: Verify disruptive workload distribution

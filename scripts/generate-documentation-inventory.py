@@ -7,6 +7,7 @@ from pathlib import Path
 
 BILINGUAL_REQUIRED = {
     "README.md",
+    "docs/developers/PUBLISHER_QUICKSTART.md",
     "SECURITY.md",
     "CONTRIBUTING.md",
     "docs/DOCUMENTATION_POLICY.md",

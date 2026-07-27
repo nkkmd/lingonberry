@@ -22,9 +22,13 @@ It covers:
 
 ### Repository integration checks
 
-Use [Knowledge Object Publish Quickstart](../operations/KNOWLEDGE_OBJECT_PUBLISH_QUICKSTART.md) when validating the checked-in fixture against a locally started relay.
+Use [Repository Publish Walkthrough](./REPOSITORY_PUBLISH_WALKTHROUGH.md) when validating the checked-in fixture against a locally started relay.
 
 That document is a repository and integration walkthrough. It is not the primary guide for implementing a new external publisher.
+
+## Directory boundary
+
+`docs/developers/` contains client implementation, application integration, reference producer, and repository integration guidance. `docs/operations/` contains relay, storage, deployment, service lifecycle, recovery, and operator procedures. A document is placed by its primary reader and responsibility boundary, not merely because it contains commands.
 
 ### Relay and storage developers
 

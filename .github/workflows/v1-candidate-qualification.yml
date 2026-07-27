@@ -2,6 +2,11 @@ name: v1 candidate qualification
 
 on:
   workflow_dispatch:
+    inputs:
+      candidate_sha:
+        description: Exact fixed v1.0.0 candidate commit SHA
+        required: true
+        type: string
   pull_request:
     paths:
       - 'packages/**'
@@ -26,7 +31,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: v1-qualification-${{ github.ref }}
+  group: v1-qualification-${{ github.ref }}-${{ inputs.candidate_sha || github.sha }}
   cancel-in-progress: true
 
 jobs:
@@ -35,8 +40,14 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     env:
-      CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      FIXED_CANDIDATE_SHA: 8c6b48082205a3af555130eec1f3e7d2ac8811fe
+      CANDIDATE_SHA: ${{ inputs.candidate_sha || github.event.pull_request.head.sha || github.sha }}
     steps:
+      - name: Validate manual candidate identity
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          test "$CANDIDATE_SHA" = "$FIXED_CANDIDATE_SHA"
+          [[ "$CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]]
       - uses: actions/checkout@v4
         with:
           ref: ${{ env.CANDIDATE_SHA }}

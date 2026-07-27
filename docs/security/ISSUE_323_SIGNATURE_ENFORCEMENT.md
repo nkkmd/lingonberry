@@ -9,7 +9,8 @@
 ## English
 
 **Status: implementation under review**  
-**Rule:** `lb.http.publish.signature.v1`
+**Rule:** `lb.http.publish.signature.v1`  
+**Tracking:** Issue #323 / PR #331
 
 The active Rust publish-ingestion path now verifies the Ed25519 publisher signature immediately after JSON parsing and before acceptance-policy evaluation, quarantine, duplicate or conflict classification, raw-request append, or canonical storage.
 
@@ -49,7 +50,8 @@ This is a runtime-affecting security correction. The previous fixed v1.0.0 quali
 ## 日本語
 
 **状態: 実装レビュー中**  
-**ルール:** `lb.http.publish.signature.v1`
+**ルール:** `lb.http.publish.signature.v1`  
+**追跡:** Issue #323 / PR #331
 
 現在のRust publish取り込み経路は、JSON解析直後にEd25519 publisher署名を検証します。この検証は、acceptance policy判定、quarantine、duplicate／conflict分類、raw request追記、canonical storage保存より前に実施されます。
 

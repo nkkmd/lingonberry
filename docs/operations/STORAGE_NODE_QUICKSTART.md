@@ -1,10 +1,12 @@
-# Storage node local quickstart / Storage nodeローカルquickstart
+# Storage Node Quickstart / Storage Nodeクイックスタート
 
-**Status: v1.0.0 pre-release local-evaluation guide / 状態: v1.0.0プレリリース・ローカル評価ガイド** | **Last updated / 最終更新: 2026-07-27**
+[English](#english) | [日本語](#日本語)
 
-English is normative for this document. The Japanese section is a synchronized translation.
+> English is the normative version of this document. The Japanese section is a synchronized translation. If the two sections differ, the English section takes precedence.
+>
+> 英語版がこの文書の正本です。日本語部分は同期翻訳です。内容に差異がある場合は英語版を優先します。
 
-この文書では英語を正本とします。日本語部分は同期された翻訳です。
+**Status: v1.0.0 pre-release local-evaluation guide** | **Last updated: 2026-07-27**
 
 ## English
 

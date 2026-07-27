@@ -24,9 +24,9 @@ It covers:
 - the HTTP publish-request envelope;
 - canonical signing-target construction;
 - the checked-in JavaScript reference producer;
+- Ed25519 signature generation and enforced verification;
 - HTTP submission and result handling;
-- retry and conformance guidance;
-- the current signature-enforcement limitation.
+- retry and conformance guidance.
 
 #### Repository integration checks
 
@@ -36,7 +36,7 @@ That document is a repository and integration walkthrough. It is not the primary
 
 ### Directory boundary
 
-`docs/developers/` contains client implementation, application integration, reference producer, and repository integration guidance. `docs/operations/` contains relay, storage, deployment, service lifecycle, recovery, and operator procedures. A document is placed by its primary reader and responsibility boundary, not merely because it contains commands.
+`docs/developers/` contains client implementation, application integration, reference producer, and repository integration guidance. `docs/operations/` contains relay, storage, deployment, service lifecycle, recovery, and operator procedures. Documents are placed by their primary reader and responsibility boundary.
 
 #### Relay and storage developers
 
@@ -55,13 +55,15 @@ That document is a repository and integration walkthrough. It is not the primary
 
 ### Release boundary
 
-The latest published release is `v0.9.0`. The fixed pre-version v1.0 candidate remains:
+The latest published release is `v0.9.0`. The fixed pre-version v1.0 candidate is:
 
 ```text
-f9543019f2c219aea3b085ff90f2da201b268a48
+8c6b48082205a3af555130eec1f3e7d2ac8811fe
 ```
 
-These developer documents do not redefine that candidate or complete the formal 72-hour soak, privileged reference-host qualification, version preparation, tag, or GitHub Release.
+Candidate qualification and documentation walkthrough have passed. Privileged reference-host preflight is the next gate. Formal 72-hour soak, version preparation, tag, and GitHub Release remain pending.
+
+These developer documents do not redefine the candidate or authorize release publication.
 
 ---
 
@@ -83,19 +85,19 @@ These developer documents do not redefine that candidate or complete the formal 
 - HTTP publish-request envelope
 - canonical signing-targetの構築
 - リポジトリに含まれるJavaScript reference producer
+- Ed25519 signatureの生成と強制検証
 - HTTP送信と結果処理
 - retryおよびconformanceのガイダンス
-- 現在のsignature enforcement上の制限
 
 #### リポジトリ統合確認
 
-リポジトリに含まれるfixtureを、ローカルで起動したrelayに対して検証する場合は、[Repository Publish Walkthrough](./REPOSITORY_PUBLISH_WALKTHROUGH.md)を使用してください。
+リポジトリに含まれるfixtureをローカルrelayで検証する場合は、[Repository Publish Walkthrough](./REPOSITORY_PUBLISH_WALKTHROUGH.md)を使用してください。
 
-この文書はリポジトリおよび統合のwalkthroughです。新しい外部publisherを実装するための主要ガイドではありません。
+この文書はrepository integrationのwalkthroughです。新しい外部publisherを実装するための主要ガイドではありません。
 
 ### ディレクトリの境界
 
-`docs/developers/`には、client実装、application統合、reference producer、およびrepository integrationのガイダンスを配置します。`docs/operations/`には、relay、storage、deployment、service lifecycle、recovery、およびoperator手順を配置します。文書の配置は、commandを含むかどうかだけではなく、主要な読者と責任境界によって決定します。
+`docs/developers/`にはclient実装、application統合、reference producer、repository integrationのガイダンスを配置します。`docs/operations/`にはrelay、storage、deployment、service lifecycle、recovery、operator手順を配置します。文書の配置は主要な読者と責任境界によって決定します。
 
 #### Relayおよびstorage開発者
 
@@ -114,10 +116,12 @@ These developer documents do not redefine that candidate or complete the formal 
 
 ### Release境界
 
-最新の公開releaseは`v0.9.0`です。固定されたpre-version v1.0 candidateは引き続き次のcommitです。
+最新の公開releaseは`v0.9.0`です。固定されたpre-version v1.0 candidateは次のcommitです。
 
 ```text
-f9543019f2c219aea3b085ff90f2da201b268a48
+8c6b48082205a3af555130eec1f3e7d2ac8811fe
 ```
 
-これらの開発者向け文書は、このcandidateを再定義するものではなく、formal 72-hour soak、privileged reference-host qualification、version preparation、tag、またはGitHub Releaseの完了を意味しません。
+candidate qualificationとdocumentation walkthroughはPASS済みです。次のgateはprivileged reference-host preflightです。正式72時間soak、version preparation、tag、GitHub Releaseは未完了です。
+
+これらの開発者向け文書はcandidateを再定義せず、release publicationを承認するものでもありません。

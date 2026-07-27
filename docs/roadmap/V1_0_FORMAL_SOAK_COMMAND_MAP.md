@@ -1,79 +1,87 @@
 # Lingonberry v1.0.0 Formal Soak Command Map
 
-**Status: pre-real-host validation** | **Candidate: `f9543019f2c219aea3b085ff90f2da201b268a48`** | **Tracking: #134 / #114**
+**Status: active-candidate pre-real-host validation** | **Candidate: `8c6b48082205a3af555130eec1f3e7d2ac8811fe`** | **Tracking: #343 / #114** | **Last updated: 2026-07-27**
 
 ## Purpose
 
-This document records the frozen operation-routing boundary for the formal v1.0.0 soak. It distinguishes operations that can be executed through installed operator surfaces from operations that still require a dedicated real-host driver.
+This document records the operation-routing boundary for the formal v1.0.0 soak. It distinguishes operations executable through installed operator surfaces from operations requiring a dedicated reference-host driver.
 
-The machine-readable source is:
+Machine-readable source:
 
 - `deploy/soak/v1-formal-command-map.json`
 
-The validator is:
+Validator:
 
 - `scripts/check-v1-formal-command-map.py`
 
+## Frozen identities
+
+The command map is bound to:
+
+```text
+candidate:
+8c6b48082205a3af555130eec1f3e7d2ac8811fe
+
+lingonberry-storage:
+737b148de48bc2ed2f96b3fb8e068e4c696f73d4069e7eaf89b76eaa6a610507
+
+lingonberry-relay:
+23b5cd4044b69a483a457a71164ac5376370793bd502518e2e7d1baeab34a81c
+```
+
+Any host-specific copy must preserve those identities. A different candidate or digest requires a new qualification cycle and evidence record.
+
 ## Safety properties
 
-- commands are represented as argv arrays, not shell command strings;
+- commands are argv arrays, not shell command strings;
 - shell metacharacters are rejected;
-- placeholders must reference declared variables or one of the two scheduler-generated archive placeholders;
-- every required workload family must exist in the map;
-- disabled operations require a non-empty reason;
-- a disabled required operation makes `qualificationReady` false;
-- the candidate commit is a full immutable SHA;
-- the map does not contain credentials or bearer tokens.
+- placeholders must reference declared variables or scheduler-generated archive placeholders;
+- every required workload family must exist;
+- disabled operations require a reason;
+- disabled required operations keep `qualificationReady` false;
+- candidate and binary identities are immutable full digests;
+- credentials and bearer tokens are excluded from the map.
 
 ## Current routing
 
 | Workload family | Adapter | Enabled | Evidence boundary |
 |---|---|---:|---|
-| publish | installed relay CLI | yes | canonical fixture path is frozen before execution |
-| retrieve | installed storage CLI | yes | `list` is the current bounded retrieval visibility surface |
-| query | installed storage CLI | yes | `status` is the current bounded query/observability surface |
+| publish | installed relay CLI | yes | signed canonical fixture frozen before execution |
+| retrieve | installed storage CLI | yes | bounded retrieval visibility surface |
+| query | installed storage CLI | yes | bounded status/query surface |
 | graceful restart | systemd | yes | documented unit restart |
-| abrupt termination | systemd | yes | SIGKILL to the unit main process; recovery verification remains scheduler responsibility |
+| abrupt termination | systemd | yes | SIGKILL to unit main process followed by recovery verification |
 | verify | installed storage CLI | yes | strict verification exit code |
 | index rebuild | installed storage CLI | yes | canonical storage remains authoritative |
-| backup | installed storage CLI | yes | scheduler generates a unique archive directory |
-| isolated restore | installed storage CLI | yes | uses a previously verified archive |
-| malformed input | installed relay CLI + stdin fixture | yes | rejection is required |
-| oversized input | installed relay CLI + stdin fixture | yes | rejection is required |
-| deeply nested input | installed relay CLI + stdin fixture | yes | rejection is required |
-| crash matrix | test-suite only | no | no installed operator command exposes the complete proof-bound matrix |
-| disk pressure | host scenario | no | requires isolated quota-controlled volume and host-specific recovery map |
+| backup | installed storage CLI | yes | unique generated archive directory |
+| isolated restore | installed storage CLI | yes | previously verified archive and isolated target |
+| malformed input | relay CLI + stdin fixture | yes | rejection required |
+| oversized input | relay CLI + stdin fixture | yes | rejection required |
+| deeply nested input | relay CLI + stdin fixture | yes | rejection required |
+| crash matrix | candidate-bound test driver | yes for rehearsal | formal cadence/evidence must be frozen on host |
+| disk pressure | isolated host scenario | pending live enablement | requires frozen device, filesystem UUID, ownership, and recovery map |
 
-Additional non-minimum operations are retained for later activation:
+Additional surfaces retained for controlled activation:
 
-- migration via `lingonberry-storage-migrate`;
-- quarantine/replacement/cleanup via authenticated admin HTTP/RBAC.
+- migration through `lingonberry-storage-migrate`;
+- quarantine/replacement/cleanup through authenticated admin HTTP/RBAC.
 
-## Qualification blockers
+## Remaining reference-host inputs
 
-The command map is intentionally not yet qualification-ready.
+Before `qualificationReady:true` may be recorded:
 
-1. `crash_matrix`
-   - define whether the formal soak may execute the candidate-bound test binary on the reference host;
-   - otherwise expose a supported installed operator surface that exercises the complete matrix;
-   - bind every injected point and result to retained evidence.
-
-2. `disk_pressure`
-   - provision an isolated filesystem, loop device, or project-quota target;
-   - freeze its mount identity and recovery ownership;
-   - prove the harness can only remove files it created;
-   - preserve host capacity for journal and evidence;
-   - run post-pressure restart, verification, index, archive, proof, and workspace checks.
+1. freeze the real Ubuntu 24.04 x86_64 systemd host;
+2. verify both installed binary SHA-256 values;
+3. freeze state, data, backup, temp, journal, proof, archive, evidence, and workspace paths;
+4. freeze the disk-pressure device, backing file, ext4 UUID, capacity, ownership, and cleanup marker;
+5. execute every enabled operation and record expected exit/status values;
+6. prove generated archive and restore targets are isolated and non-symlinked;
+7. verify valid, malformed, invalid-signature, verifier-failure, duplicate, and conflict publish paths;
+8. retain command-map, contract, threshold, and evidence digests;
+9. independently inspect the reference-host artifact.
 
 ## Exit condition
 
-This gate may move to `qualificationReady:true` only when:
-
-- all 14 required workload families are enabled;
-- the validator passes;
-- a real Ubuntu 24.04 x86_64 systemd rehearsal executes every enabled operation;
-- expected exit codes and machine-readable status values are recorded;
-- generated archive and restore paths are proven isolated and non-symlinked;
-- credentials required by admin HTTP flows are injected outside the map and redacted from all evidence.
+This gate passes only when the reference-host preflight in Issue #343 completes with no unresolved release blocker. Passing this gate authorizes preparation of the formal soak, not the release itself.
 
 This document does not start or pass the 72-hour soak.

@@ -1,13 +1,24 @@
 # v1.0.0 Candidate-Bound Crash-Matrix Driver
 
-**Status: rehearsal implementation**  
-**Candidate:** `f9543019f2c219aea3b085ff90f2da201b268a48`
+**Status: active-candidate rehearsal implementation**  
+**Candidate:** `8c6b48082205a3af555130eec1f3e7d2ac8811fe`  
+**Last updated:** 2026-07-27
 
 ## Purpose
 
-The formal soak requires six complete replacement and cleanup crash-matrix cycles. No public operator CLI exposes the complete failure-injection matrix. The qualification surface is therefore the integration-test binary built from the exact designated candidate.
+The formal soak requires six complete replacement and cleanup crash-matrix cycles. No public operator CLI exposes the complete failure-injection matrix. The qualification surface is therefore the integration-test binary built from the exact fixed candidate.
 
 This does not redefine the public operator contract. It provides candidate-bound evidence for a non-public maintenance and recovery surface already covered by the release qualification suite.
+
+## Active launcher
+
+- `scripts/run-v1-crash-matrix-driver.sh`
+
+The reviewed implementation is retained in:
+
+- `scripts/run-v1-crash-matrix-driver-legacy.sh`
+
+The launcher fixes `CANDIDATE_SHA` to the active candidate and rejects any different value before delegating to the retained implementation.
 
 ## Evidence binding
 
@@ -35,7 +46,7 @@ One successful invocation containing all four tests is one crash-matrix cycle.
 
 ## Rehearsal boundary
 
-The CI rehearsal executes two cycles and validates evidence generation and candidate-mismatch refusal. It always records:
+The CI rehearsal checks out candidate `8c6b4808…`, executes two cycles, verifies bundle checksums, and proves a candidate mismatch fails closed. It always records:
 
 ```json
 {
@@ -44,4 +55,4 @@ The CI rehearsal executes two cycles and validates evidence generation and candi
 }
 ```
 
-The formal soak requires at least six cycles distributed through the 72-hour schedule. Rehearsal success does not start or pass the formal soak.
+The formal soak requires at least six cycles distributed throughout the 72-hour schedule. Rehearsal success does not start or pass the formal soak.

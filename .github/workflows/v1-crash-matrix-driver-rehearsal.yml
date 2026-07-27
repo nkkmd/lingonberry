@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - 'scripts/run-v1-crash-matrix-driver.sh'
+      - 'scripts/run-v1-crash-matrix-driver-legacy.sh'
       - '.github/workflows/v1-crash-matrix-driver-rehearsal.yml'
       - 'deploy/soak/v1-formal-command-map.json'
       - 'docs/roadmap/V1_0_CRASH_MATRIX_DRIVER.md'
@@ -11,6 +12,9 @@ on:
 
 permissions:
   contents: read
+
+env:
+  ACTIVE_CANDIDATE_SHA: 8c6b48082205a3af555130eec1f3e7d2ac8811fe
 
 jobs:
   rehearse:
@@ -25,7 +29,7 @@ jobs:
       - name: Checkout exact candidate
         uses: actions/checkout@v4
         with:
-          ref: f9543019f2c219aea3b085ff90f2da201b268a48
+          ref: ${{ env.ACTIVE_CANDIDATE_SHA }}
           path: candidate
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
@@ -34,6 +38,7 @@ jobs:
       - name: Run two-cycle rehearsal
         working-directory: candidate
         env:
+          CANDIDATE_SHA: ${{ env.ACTIVE_CANDIDATE_SHA }}
           CRASH_MATRIX_REPO_ROOT: ${{ github.workspace }}/candidate
           CRASH_MATRIX_OUT: ${{ runner.temp }}/v1-crash-matrix-rehearsal
           CRASH_MATRIX_CYCLES: '2'
@@ -42,7 +47,7 @@ jobs:
         env:
           EVIDENCE_DIR: ${{ runner.temp }}/v1-crash-matrix-rehearsal
         run: |
-          jq -e '.status == "passed" and .qualification == false and .qualifyingPass == false and .cyclesRequired == 2 and .cyclesCompleted == 2 and .testsPerCycle == 4' "$EVIDENCE_DIR/summary.json"
+          jq -e --arg candidate "$ACTIVE_CANDIDATE_SHA" '.status == "passed" and .qualification == false and .qualifyingPass == false and .candidateCommit == $candidate and .cyclesRequired == 2 and .cyclesCompleted == 2 and .testsPerCycle == 4' "$EVIDENCE_DIR/summary.json"
           test "$(find "$EVIDENCE_DIR/cycles" -name 'cycle-*.json' | wc -l)" -eq 2
           (cd "$EVIDENCE_DIR" && sha256sum -c SHA256SUMS)
       - name: Verify candidate mismatch fails closed

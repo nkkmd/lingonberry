@@ -1,149 +1,118 @@
 # Repository Publish Walkthrough
 
-**Status: v1.0 pre-release repository-integration guide**
+**Status: v1.0 pre-release repository-integration guide** | **Last updated: 2026-07-27**
 
-This quickstart verifies the checked-in Lingonberry publication path with a local relay and repository fixtures. English is normative.
-
-External application, service, CLI, connector, and protocol-adapter developers should use [Publisher Quickstart](./PUBLISHER_QUICKSTART.md) as their primary entry point.
+This walkthrough verifies the checked-in Lingonberry publication path with a local relay and repository fixtures. English is normative. External publisher developers should use [Publisher Quickstart](./PUBLISHER_QUICKSTART.md) as their primary guide.
 
 ## 1. Release boundary
 
 - latest public release: `v0.9.0`
-- fixed v1.0 candidate: `f9543019f2c219aea3b085ff90f2da201b268a48`
-- v1.0.0: not released
-- formal 72-hour soak: not performed
-- privileged reference-host qualification: incomplete
+- fixed v1.0 candidate: `8c6b48082205a3af555130eec1f3e7d2ac8811fe`
+- candidate qualification and documentation walkthrough: passed
+- privileged reference-host preflight: next gate
+- formal 72-hour soak: not started
 - version update, tag, and GitHub Release: not performed
 
 This document does not publish or redefine the candidate.
 
-## 2. Purpose and audience
+## 2. Purpose
 
-Use this document when you need to:
+Use this document to:
 
-- start the checked-in relay from the repository;
-- submit the checked-in publish-request fixture;
-- inspect ingestion classification;
-- confirm retrieval and persistence behavior;
+- start the checked-in relay;
+- submit the checked-in signed publish-request fixture;
+- inspect signature enforcement and ingestion classification;
+- confirm retrieval and restart persistence;
 - exercise repository integration paths.
 
-Use [Publisher Quickstart](./PUBLISHER_QUICKSTART.md) when implementing a new external publisher, generating custom Knowledge Objects, constructing canonical signing targets, managing keys, or defining client retry behavior.
+Use [Publisher Quickstart](./PUBLISHER_QUICKSTART.md) for custom object generation, canonical signing targets, key handling, and client retry behavior.
 
 ## 3. Prerequisites
-
-Required:
-
-- Git;
-- a Rust toolchain with Cargo;
-- `curl` or an equivalent HTTP client.
 
 ```bash
 git clone https://github.com/nkkmd/lingonberry.git
 cd lingonberry
-```
-
-For an exact candidate walkthrough:
-
-```bash
-git checkout f9543019f2c219aea3b085ff90f2da201b268a48
-```
-
-Verify the workspace:
-
-```bash
+git checkout 8c6b48082205a3af555130eec1f3e7d2ac8811fe
 rustc --version
 cargo --version
 cargo metadata --no-deps
 ```
 
-## 4. Signature implementation boundary
+## 4. Enforced signature boundary
 
 The normative request-signature rule is `lb.http.publish.signature.v1` using Ed25519 and `lb.canonical.json.v1`.
 
-The checked-in schema validates that:
+The active ingestion path:
 
-- `publisher.publicKey` contains exactly 64 lowercase hexadecimal characters;
-- `publisher.signature` contains exactly 128 lowercase hexadecimal characters.
+1. parses bounded JSON;
+2. validates the request envelope;
+3. decodes the publisher public key and signature;
+4. reconstructs the canonical signing target;
+5. verifies Ed25519 before acceptance, quarantine, duplicate/conflict classification, raw append, or canonical storage;
+6. fails closed for malformed encoding, invalid signatures, or verifier execution failures.
 
-The current checked-in publish-ingestion path does **not** yet perform Ed25519 verification before acceptance or storage. It does not decode the key and signature, reconstruct the canonical signing target, or reject a correctly shaped but cryptographically invalid signature.
+Stable signature result codes include:
 
-Therefore:
+- `LB_PUBLISH_SIGNATURE_MALFORMED`
+- `LB_PUBLISH_SIGNATURE_INVALID`
+- `LB_PUBLISH_SIGNATURE_VERIFIER_ERROR`
 
-- successful publication is not currently proof of publisher authentication;
-- this quickstart must not be used to claim enforced signature verification;
-- the normative future verification behavior remains defined by [HTTP Publish Signature](../protocols/HTTP_PUBLISH_SIGNATURE.md).
+Duplicate and conflict paths do not bypass signature verification.
 
-## 5. Inspect local capabilities
+## 5. Inspect capabilities
 
 ```bash
 cargo run -p lingonberry-relay -- capabilities
 ```
 
-Capability discovery is descriptive. It does not perform runtime negotiation, automatic fallback, dynamic downgrade, or a remote authentication handshake.
+Capability discovery is descriptive. It does not perform runtime negotiation, dynamic downgrade, or a remote authorization handshake.
 
 ## 6. Publish through the local relay command
 
-The checked-in fixture is:
+The checked-in signed fixture is:
 
 ```text
 fixtures/http-publish-request/minimal-request.json
 ```
 
-Do not edit a signed fixture unless you regenerate the request and signature according to the normative contract.
-
-Run:
+Do not edit it unless the request and signature are regenerated according to the normative contract.
 
 ```bash
 cargo run -p lingonberry-relay -- publish fixtures/http-publish-request/minimal-request.json
 ```
 
-The current command path:
-
-1. parses the request JSON;
-2. validates the publish-request schema and nested Knowledge Object;
-3. validates identity and acceptance-policy requirements;
-4. defers eligible requests to quarantine, rejects invalid requests, or continues;
-5. finalizes the Knowledge Object;
-6. applies duplicate and conflict classification;
-7. appends accepted data through the configured storage backend;
-8. returns a versioned ingestion result.
-
-Cryptographic Ed25519 verification is not currently one of these active stages.
+The command verifies the signature, applies identity and acceptance policy, performs duplicate/conflict classification, appends accepted data through the configured backend, and returns a versioned ingestion result.
 
 ## 7. Interpret the ingestion result
 
 Common fields include:
 
-- `contractVersion`;
-- `status`;
-- `code`;
-- `stored`;
-- `duplicate`;
-- `errors`.
-
-Depending on the result, it may also include:
-
-- `canonicalId`;
-- `identityKey`;
-- `carrierIdentity`;
-- `storedAt`;
-- `object`;
-- `quarantineId`.
+- `contractVersion`
+- `status`
+- `code`
+- `stored`
+- `duplicate`
+- `errors`
+- `canonicalId`
+- `identityKey`
+- `carrierIdentity`
+- `storedAt`
+- `quarantineId`
 
 | Status | Meaning |
 |---|---|
-| `stored` | a new canonical object was stored |
-| `duplicate` | the same publication was already stored; idempotent success |
-| `deferred` | acceptance policy placed the request in quarantine; canonical storage did not occur |
-| `rejected` | request, object, identity, or policy validation rejected the request |
-| `conflict` | the canonical identity conflicts with different stored content |
-| `failed` | an operational or storage failure occurred |
+| `stored` | a new signature-verified canonical object was stored |
+| `duplicate` | the same signature-verified publication already exists; idempotent success |
+| `deferred` | acceptance policy placed it in quarantine; not canonically stored |
+| `rejected` | request, identity, signature, or policy validation rejected it |
+| `conflict` | canonical identity conflicts with different stored content |
+| `failed` | verifier infrastructure, operational, or storage failure |
 
-Do not infer canonical storage from process completion alone. Inspect `status`, `stored`, `duplicate`, `quarantineId`, and `errors`.
+Do not infer canonical storage from process completion alone. Inspect the structured result.
 
 ## 8. Publish through HTTP
 
-Start the public HTTP carrier on loopback:
+Start the HTTP carrier:
 
 ```bash
 cargo run -p lingonberry-relay -- serve-http 127.0.0.1:8787
@@ -154,11 +123,6 @@ In another terminal:
 ```bash
 curl -sS http://127.0.0.1:8787/v1/capabilities
 curl -sS http://127.0.0.1:8787/v1/ready
-```
-
-Publish the fixture without rewriting its bytes:
-
-```bash
 curl -sS \
   -H 'content-type: application/json' \
   --data-binary @fixtures/http-publish-request/minimal-request.json \
@@ -179,64 +143,52 @@ Typical mapping:
 
 Clients must inspect both the HTTP status and JSON body. `202 Accepted` means deferred quarantine, not canonical storage.
 
-## 9. Verify retrieval
+## 9. Verify retrieval and persistence
 
-For a stored or duplicate result, use the returned `canonicalId`:
+For `stored` or `duplicate`, use the returned `canonicalId`:
 
 ```bash
 curl -sS 'http://127.0.0.1:8787/v1/objects/<canonical-id>'
 ```
 
-Replace the placeholder with the exact returned identifier and preserve URL encoding.
+Restart the relay and retrieve the same identifier again to verify persistence.
 
-For deeper storage checks, see:
+## 10. Negative signature checks
 
-- [Storage Node Quickstart](../operations/STORAGE_NODE_QUICKSTART.md);
-- [Storage Node Runtime](../operations/STORAGE_NODE_RUNTIME.md);
-- [File/Archive Carrier Contract](../operations/FILE_ARCHIVE_CARRIER_CONTRACT.md).
+Create copies outside the repository fixture tree and verify that:
 
-## 10. Common outcomes
+- malformed public-key or signature encoding is rejected with `LB_PUBLISH_SIGNATURE_MALFORMED`;
+- changing any signed request field without resigning is rejected with `LB_PUBLISH_SIGNATURE_INVALID`;
+- a verifier execution failure is returned as `LB_PUBLISH_SIGNATURE_VERIFIER_ERROR` and does not store or quarantine the request;
+- tampered requests matching an existing canonical identity cannot reach `duplicate` or `conflict` classification.
 
-### `duplicate`
+The candidate documentation-walkthrough artifact records successful execution of these cases. Do not modify the checked-in signed fixture in place.
 
-Treat it as idempotent success. It does not create a second canonical object.
+## 11. Common outcomes
 
-### `deferred`
+- `duplicate`: idempotent success; no second canonical object.
+- `deferred`: retain `quarantineId`; no canonical storage.
+- `rejected`: inspect `code` and `errors`; correct before retry.
+- `conflict`: do not treat as transient.
+- `failed`: investigate verifier infrastructure, operation, or storage; use bounded retry only when genuinely transient.
 
-Record `quarantineId`. The request was not canonically stored.
+## 12. Non-guarantees
 
-### `rejected`
+This walkthrough does not establish or guarantee:
 
-Read `code` and `errors`. Correct the request before retrying.
-
-### `conflict`
-
-Do not retry it as though it were a transient server failure.
-
-### `failed`
-
-Investigate the operational or storage failure. A client may use bounded retry with backoff when the failure is genuinely transient.
-
-## 11. Non-guarantees
-
-This quickstart does not establish or guarantee:
-
-- enforced publisher authentication in the current ingestion path;
-- publisher authorization, key issuance, delegation, or revocation;
-- replay prevention;
-- network pub/sub delivery;
-- runtime capability negotiation;
-- dynamic carrier fallback or version downgrade;
-- federated synchronization;
+- publisher authorization, key issuance, delegation, rotation, or revocation;
+- replay prevention beyond current ingestion and duplicate semantics;
+- network pub/sub delivery or federation;
+- runtime capability negotiation or dynamic carrier fallback;
 - production TLS termination or denial-of-service protection;
 - formal 72-hour soak completion;
-- privileged reference-host qualification;
+- reference-host preflight completion;
 - v1.0.0 publication.
 
 ## References
 
 - [Publisher Quickstart](./PUBLISHER_QUICKSTART.md)
-- [Developer Documentation](../developers/README.md)
+- [Developer Documentation](./README.md)
 - [HTTP Carrier Contract](../operations/HTTP_CARRIER_CONTRACT.md)
 - [HTTP Publish Signature](../protocols/HTTP_PUBLISH_SIGNATURE.md)
 - [Protocol-Native Wire Format](../protocols/PROTOCOL_NATIVE_WIRE_FORMAT.md)

@@ -5,9 +5,9 @@
 
 ## Status
 
-- Tracked Markdown files: **173**
+- Tracked Markdown files: **172**
 - Release-blocking review entries: **0**
-- Classification totals: BILINGUAL_REQUIRED: 7, BILINGUAL_SCOPED: 3, ENGLISH_ONLY: 163
+- Classification totals: BILINGUAL_REQUIRED: 7, BILINGUAL_SCOPED: 3, ENGLISH_ONLY: 162
 - Governing policy: [`DOCUMENTATION_POLICY.md`](./DOCUMENTATION_POLICY.md)
 - Tracking issue: [#144](https://github.com/nkkmd/lingonberry/issues/144)
 
@@ -25,7 +25,6 @@ Every tracked Markdown file must appear below. `yes` in the final column means t
 |---|---|---|---|
 | `AGENTS.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
 | `CHANGELOG.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH_ADD_BILINGUAL_V1_SUMMARY` | no |
-| `PUBLISHER_QUICKSTART.md` | `ENGLISH_ONLY` | `REVIEW` | no |
 | `README.md` | `BILINGUAL_REQUIRED` | `KEEP_BILINGUAL` | no |
 | `conformance/README.md` | `ENGLISH_ONLY` | `REVIEW` | no |
 | `docs/DOCUMENTATION_INVENTORY.md` | `ENGLISH_ONLY` | `REVIEW` | no |

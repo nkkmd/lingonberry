@@ -12,6 +12,11 @@ on:
 permissions:
   contents: read
 
+env:
+  ACTIVE_CANDIDATE_SHA: 8c6b48082205a3af555130eec1f3e7d2ac8811fe
+  ACTIVE_STORAGE_SHA256: 737b148de48bc2ed2f96b3fb8e068e4c696f73d4069e7eaf89b76eaa6a610507
+  ACTIVE_RELAY_SHA256: 23b5cd4044b69a483a457a71164ac5376370793bd502518e2e7d1baeab34a81c
+
 jobs:
   rehearse:
     runs-on: ubuntu-24.04
@@ -26,12 +31,16 @@ jobs:
             deploy/soak/v1-disk-pressure-contract.example.json > /tmp/reference-host-contract.json
           python3 scripts/check-v1-reference-host.py \
             --contract /tmp/reference-host-contract.json > reference-host-static.json
-          jq -e '
+          jq -e --arg candidate "$ACTIVE_CANDIDATE_SHA" \
+                --arg storage "$ACTIVE_STORAGE_SHA256" \
+                --arg relay "$ACTIVE_RELAY_SHA256" '
             .staticContractValid == true and
             .liveValidationRequested == false and
             .qualificationReady == false and
             .referenceHostRehearsalComplete == false and
-            .candidateCommit == "f9543019f2c219aea3b085ff90f2da201b268a48"
+            .candidateCommit == $candidate and
+            .storageSha256 == $storage and
+            .relaySha256 == $relay
           ' reference-host-static.json
       - name: Reject placeholder UUID
         run: |
@@ -50,6 +59,14 @@ jobs:
           code=$?
           set -e
           test "$code" -ne 0
+      - name: Reject altered evidence identity
+        run: |
+          jq '.filesystemUuid="11111111-2222-3333-4444-555555555555" | .storageSha256="0000000000000000000000000000000000000000000000000000000000000000"' \
+            deploy/soak/v1-disk-pressure-contract.example.json > /tmp/altered-identity-contract.json
+          if python3 scripts/check-v1-reference-host.py --contract /tmp/altered-identity-contract.json; then
+            echo 'altered identity unexpectedly accepted' >&2
+            exit 1
+          fi
       - name: Verify live mode fails closed on hosted runner
         run: |
           jq '.filesystemUuid="11111111-2222-3333-4444-555555555555"' \

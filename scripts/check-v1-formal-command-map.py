@@ -17,6 +17,9 @@ ALLOWED_ADAPTERS = {
     "exec", "systemd", "generated-path", "test-suite", "stdin-fixture",
     "host-scenario", "exec-sequence", "http-rbac"
 }
+GENERATED = {
+    "generatedArchiveDir", "latestVerifiedArchiveDir", "generatedDiskPressureDir"
+}
 PLACEHOLDER = re.compile(r"^\{[A-Za-z][A-Za-z0-9]*\}$")
 SHELL_META = re.compile(r"[;&|`$<>\n\r]")
 
@@ -38,9 +41,7 @@ def validate_argv(argv: object, variables: dict[str, object], location: str) -> 
             if not PLACEHOLDER.match(match):
                 fail(f"{location}[{i}] has malformed placeholder {match}")
             key = match[1:-1]
-            if key not in variables and key not in {
-                "generatedArchiveDir", "latestVerifiedArchiveDir"
-            }:
+            if key not in variables and key not in GENERATED:
                 fail(f"{location}[{i}] references unknown variable {key}")
 
 

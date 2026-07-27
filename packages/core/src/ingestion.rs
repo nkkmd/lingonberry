@@ -7,7 +7,6 @@ use lingonberry_validation::{
 use std::collections::BTreeMap;
 
 pub const PUBLISH_INGESTION_CONTRACT_VERSION: &str = "1";
-pub const HTTP_PUBLISH_SIGNATURE_RULE_VERSION: &str = "lb.http.publish.signature.v1";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PublishIngestionStatus {
@@ -159,9 +158,9 @@ struct PublishSignatureFailure {
 }
 
 fn enforce_publish_signature(request: &JsonValue) -> Result<(), PublishSignatureFailure> {
-    let request_map = as_object(request).ok_or_else(|| malformed_signature(
-        "publish request must be an object before signature verification",
-    ))?;
+    let request_map = as_object(request).ok_or_else(|| {
+        malformed_signature("publish request must be an object before signature verification")
+    })?;
     let publisher = request_map
         .get("publisher")
         .and_then(as_object)
@@ -221,7 +220,7 @@ fn is_verifier_failure(message: &str) -> bool {
 fn is_lower_hex(value: &str) -> bool {
     value
         .bytes()
-        .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+        .all(|byte| matches!(byte, b'0'..=b'9' | b'a'..=b'f'))
 }
 
 pub fn publish_ingestion_result_json(result: &PublishIngestionResult) -> JsonValue {
@@ -381,9 +380,42 @@ mod tests {
                 ])),
             ),
         ]));
-        let failure = enforce_publish_signature(&request).expect_err("must reject malformed signature");
+        let failure =
+            enforce_publish_signature(&request).expect_err("must reject malformed signature");
         assert_eq!(failure.status, PublishIngestionStatus::Rejected);
         assert_eq!(failure.code, "LB_PUBLISH_SIGNATURE_MALFORMED");
+    }
+
+    #[test]
+    fn checked_in_valid_signature_vector_passes_ingestion_guard() {
+        let request = parse_json(include_str!(
+            "../../../conformance/http-publish-signature/minimal-request.input.json"
+        ))
+        .expect("checked-in signature vector must parse");
+        enforce_publish_signature(&request).expect("checked-in valid signature must verify");
+    }
+
+    #[test]
+    fn changed_signature_bytes_fail_before_ingestion() {
+        let mut request = parse_json(include_str!(
+            "../../../conformance/http-publish-signature/minimal-request.input.json"
+        ))
+        .expect("checked-in signature vector must parse");
+        let JsonValue::Object(request_map) = &mut request else {
+            panic!("request must be an object");
+        };
+        let Some(JsonValue::Object(publisher)) = request_map.get_mut("publisher") else {
+            panic!("publisher must be an object");
+        };
+        let Some(JsonValue::String(signature)) = publisher.get_mut("signature") else {
+            panic!("signature must be a string");
+        };
+        signature.replace_range(0..1, if signature.starts_with('0') { "1" } else { "0" });
+
+        let failure =
+            enforce_publish_signature(&request).expect_err("changed signature must be rejected");
+        assert_eq!(failure.status, PublishIngestionStatus::Rejected);
+        assert_eq!(failure.code, "LB_PUBLISH_SIGNATURE_INVALID");
     }
 
     #[test]

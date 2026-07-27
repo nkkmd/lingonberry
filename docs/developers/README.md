@@ -1,6 +1,6 @@
 # Developer Documentation / 開発者向け文書
 
-[English](#english) | [日本語](#日本語)
+[English](#english) | [日本語](#japanese)
 
 > English is the normative version of this document. The Japanese section is a synchronized translation. If the two sections differ, the English section takes precedence.
 >
@@ -64,6 +64,8 @@ f9543019f2c219aea3b085ff90f2da201b268a48
 These developer documents do not redefine that candidate or complete the formal 72-hour soak, privileged reference-host qualification, version preparation, tag, or GitHub Release.
 
 ---
+
+<a id="japanese"></a>
 
 ## 日本語
 

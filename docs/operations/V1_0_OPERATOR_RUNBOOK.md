@@ -1,6 +1,6 @@
 # v1.0 Single-Node Operator Runbook / v1.0 Single-Node運用Runbook
 
-[English](#english) | [日本語](#日本語)
+[English](#english) | [日本語](#japanese)
 
 **Status: pre-release candidate**  
 **Reference platform: Ubuntu Server 24.04 LTS / x86_64 / systemd**
@@ -364,6 +364,8 @@ For corrupt, unknown-newer, symlink, active migration journal, incomplete replac
 - [Cleanup Operations Runbook](./QUARANTINE_REPLACEMENT_CLEANUP_RUNBOOK.md)
 
 ---
+
+<a id="japanese"></a>
 
 ## 日本語
 

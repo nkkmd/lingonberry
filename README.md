@@ -1,6 +1,6 @@
 # Lingonberry
 
-[English](#english) | [日本語](#日本語)
+[English](#english) | [日本語](#japanese)
 
 > English is the normative version of this document. The Japanese section is a translation. If the two sections differ, the English section takes precedence.
 >
@@ -175,6 +175,8 @@ JavaScript contract tests and the external conformance suite are run by `.github
 See the package metadata and repository license files for applicable terms.
 
 ---
+
+<a id="japanese"></a>
 
 ## 日本語
 

@@ -1,6 +1,6 @@
 # Relay Quickstart
 
-[English](#english) | [日本語](#日本語)
+[English](#english) | [日本語](#japanese)
 
 > English is the normative version of this document. The Japanese section is a translation. If the two sections differ, the English section takes precedence.
 >
@@ -149,6 +149,8 @@ Read next:
 - [Relay / Storage Separation](./RELAY_STORAGE_SEPARATION.md)
 
 ---
+
+<a id="japanese"></a>
 
 ## 日本語
 

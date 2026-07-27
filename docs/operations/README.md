@@ -1,6 +1,6 @@
 # Operations
 
-[English](#english) | [日本語](#日本語)
+[English](#english) | [日本語](#japanese)
 
 > English is the normative version of this document. The Japanese section is a translation. If the two sections differ, the English section takes precedence.
 >
@@ -119,6 +119,8 @@ The v1.0 operator and upgrade runbooks are the current pre-release single-node o
 Historical and maintainer-only documents remain English-only unless the documentation policy explicitly classifies them otherwise.
 
 ---
+
+<a id="japanese"></a>
 
 ## 日本語
 

@@ -1,6 +1,6 @@
 # v1.0 Upgrade and Rollback / v1.0 Upgrade・Rollback
 
-[English](#english) | [日本語](#日本語)
+[English](#english) | [日本語](#japanese)
 
 **Status: pre-release candidate**  
 **Reference platform: Ubuntu Server 24.04 LTS / x86_64 / systemd / ext4**
@@ -309,6 +309,8 @@ Record old and new release identifiers, all relevant checksums, copied configura
 - [v0.8.0 Upgrade and Rollback](./V0_8_UPGRADE_AND_ROLLBACK.md) — historical procedure
 
 ---
+
+<a id="japanese"></a>
 
 ## 日本語
 

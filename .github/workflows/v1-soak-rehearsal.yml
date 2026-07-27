@@ -12,6 +12,11 @@ on:
 permissions:
   contents: read
 
+env:
+  ACTIVE_CANDIDATE_SHA: 8c6b48082205a3af555130eec1f3e7d2ac8811fe
+  ACTIVE_STORAGE_SHA256: 737b148de48bc2ed2f96b3fb8e068e4c696f73d4069e7eaf89b76eaa6a610507
+  ACTIVE_RELAY_SHA256: 23b5cd4044b69a483a457a71164ac5376370793bd502518e2e7d1baeab34a81c
+
 jobs:
   rehearsal:
     runs-on: ubuntu-24.04
@@ -25,7 +30,7 @@ jobs:
       - name: Checkout exact candidate
         uses: actions/checkout@v4
         with:
-          ref: f9543019f2c219aea3b085ff90f2da201b268a48
+          ref: ${{ env.ACTIVE_CANDIDATE_SHA }}
           path: candidate
       - name: Prepare external rehearsal harness
         run: |
@@ -45,11 +50,15 @@ jobs:
           SOAK_REPO_ROOT: ${{ github.workspace }}/candidate
           SOAK_PROFILE: rehearsal
           SOAK_OUT: target/v1-soak-rehearsal-pass
+          CANDIDATE_SHA: ${{ env.ACTIVE_CANDIDATE_SHA }}
+          STORAGE_SHA256: ${{ env.ACTIVE_STORAGE_SHA256 }}
+          RELAY_SHA256: ${{ env.ACTIVE_RELAY_SHA256 }}
         run: bash /tmp/run-v1-soak.sh
       - name: Verify passing bundle
         working-directory: candidate
         run: |
           jq -e '.profile == "rehearsal" and .qualification == false and .status == "passed"' target/v1-soak-rehearsal-pass/summary.json
+          jq -e --arg sha "$ACTIVE_CANDIDATE_SHA" '.candidateCommit == $sha' target/v1-soak-rehearsal-pass/summary.json
           test "$(jq '.scenarios | length' target/v1-soak-rehearsal-pass/summary.json)" -ge 9
           (cd target/v1-soak-rehearsal-pass && sha256sum -c SHA256SUMS)
       - name: Run forced-failure rehearsal
@@ -59,6 +68,9 @@ jobs:
           SOAK_PROFILE: rehearsal
           SOAK_FORCE_FAILURE: '1'
           SOAK_OUT: target/v1-soak-rehearsal-failure
+          CANDIDATE_SHA: ${{ env.ACTIVE_CANDIDATE_SHA }}
+          STORAGE_SHA256: ${{ env.ACTIVE_STORAGE_SHA256 }}
+          RELAY_SHA256: ${{ env.ACTIVE_RELAY_SHA256 }}
         run: |
           if bash /tmp/run-v1-soak.sh; then
             echo 'forced-failure rehearsal unexpectedly passed' >&2
@@ -68,12 +80,16 @@ jobs:
         working-directory: candidate
         run: |
           jq -e '.qualification == false and .status == "failed" and .stopReason == "forced rehearsal failure"' target/v1-soak-rehearsal-failure/summary.json
+          jq -e --arg sha "$ACTIVE_CANDIDATE_SHA" '.candidateCommit == $sha' target/v1-soak-rehearsal-failure/summary.json
           (cd target/v1-soak-rehearsal-failure && sha256sum -c SHA256SUMS)
       - name: Verify formal profile is fail closed
         working-directory: candidate
         env:
           SOAK_REPO_ROOT: ${{ github.workspace }}/candidate
           SOAK_PROFILE: formal
+          CANDIDATE_SHA: ${{ env.ACTIVE_CANDIDATE_SHA }}
+          STORAGE_SHA256: ${{ env.ACTIVE_STORAGE_SHA256 }}
+          RELAY_SHA256: ${{ env.ACTIVE_RELAY_SHA256 }}
         run: |
           if bash /tmp/run-v1-soak.sh > /tmp/formal.out 2>&1; then
             echo 'formal profile unexpectedly started' >&2

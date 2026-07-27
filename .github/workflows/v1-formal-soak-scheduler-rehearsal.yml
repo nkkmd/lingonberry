@@ -4,12 +4,15 @@ on:
   pull_request:
     paths:
       - 'scripts/v1_formal_soak_scheduler.py'
+      - 'scripts/v1_systemd_soak_runner.py'
       - 'scripts/check-v1-formal-command-map.py'
       - 'scripts/run-v1-crash-matrix-driver.sh'
+      - 'scripts/run-v1-disk-pressure-driver.py'
       - 'deploy/soak/**'
       - '.github/workflows/v1-formal-soak-scheduler-rehearsal.yml'
       - 'docs/roadmap/V1_0_SOAK_PLAN.md'
       - 'docs/roadmap/V1_0_FORMAL_SOAK_SCHEDULER.md'
+      - 'docs/roadmap/V1_0_FORMAL_SOAK_COMMAND_MAP.md'
       - 'docs/roadmap/V1_0_CRASH_MATRIX_DRIVER.md'
   workflow_dispatch:
 
@@ -22,18 +25,24 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Compile scheduler and command-map validator
+      - name: Compile soak executors and command-map validator
         run: |
           python3 -m py_compile scripts/v1_formal_soak_scheduler.py
+          python3 -m py_compile scripts/v1_systemd_soak_runner.py
           python3 -m py_compile scripts/check-v1-formal-command-map.py
-      - name: Validate command map and retained blocker
+          python3 -m py_compile scripts/run-v1-disk-pressure-driver.py
+      - name: Validate qualification-ready command map
         run: |
           python3 scripts/check-v1-formal-command-map.py > target-command-map-report.json
           jq -e '
-            .qualificationReady == false and
-            .qualificationBlockers == ["disk_pressure"] and
-            .enabledRequiredOperations == 13
+            .qualificationReady == true and
+            .qualificationBlockers == [] and
+            .enabledRequiredOperations == 14
           ' target-command-map-report.json
+      - name: Validate host configuration templates
+        run: |
+          jq -e '.generatedRoot and .capacityPath and (.telemetryPaths | length >= 6)' deploy/soak/v1-formal-host-config.example.json
+          jq -e '.maximum_journal_bytes > 0 and (.maximum_path_growth_bytes | length >= 6)' deploy/soak/v1-formal-host-thresholds.example.json
       - name: Run 72-hour virtual-time schedule rehearsal
         run: |
           python3 scripts/v1_formal_soak_scheduler.py \
@@ -100,18 +109,23 @@ jobs:
           code=$?
           set -e
           test "$code" -ne 0
-      - name: Verify systemd qualification fails closed outside reference host contract
+      - name: Verify systemd runner rejects non-reference environment
         run: |
           set +e
-          python3 scripts/v1_formal_soak_scheduler.py \
-            --adapter systemd \
+          python3 scripts/v1_systemd_soak_runner.py \
             --out target/formal-systemd-refusal \
-            --thresholds deploy/soak/v1-formal-thresholds.example.json \
-            --virtual-duration 259200 \
-            --tick-seconds 60
+            --thresholds deploy/soak/v1-formal-host-thresholds.example.json \
+            --config deploy/soak/v1-formal-host-config.example.json \
+            --command-map deploy/soak/v1-formal-command-map.json \
+            --duration 60 \
+            --tick-seconds 10 \
+            --rehearsal
           code=$?
           set -e
           test "$code" -ne 0
+          jq -e '.adapter == "systemd" and .qualification == false and .status == "failed"' target/formal-systemd-refusal/summary.json
+          test -s target/formal-systemd-refusal/partial/checkpoint.json
+          (cd target/formal-systemd-refusal && sha256sum -c SHA256SUMS)
       - name: Upload scheduler rehearsal evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -120,5 +134,6 @@ jobs:
           path: |
             target/formal-scheduler-pass
             target/formal-scheduler-threshold-failure
+            target/formal-systemd-refusal
             target-command-map-report.json
           retention-days: 90

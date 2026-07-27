@@ -1,0 +1,21 @@
+{
+  "capacityPath": "/var/lib/lingonberry",
+  "generatedRoot": "/var/lib/lingonberry/soak-generated",
+  "journalSince": "2026-07-27T00:00:00Z",
+  "restartRecoverySeconds": 60,
+  "oversizedInputBytes": 2097152,
+  "nestedInputDepth": 300,
+  "variables": {
+    "crashMatrixDriver": "/opt/lingonberry-soak/bin/run-v1-crash-matrix-driver.sh",
+    "diskPressureDriver": "/opt/lingonberry-soak/bin/run-v1-disk-pressure-driver.py",
+    "diskPressureContract": "/etc/lingonberry/v1-disk-pressure-contract.json"
+  },
+  "telemetryPaths": {
+    "state": "/var/lib/lingonberry/state",
+    "data": "/var/lib/lingonberry/data",
+    "backup": "/var/lib/lingonberry/backups",
+    "temporary": "/var/lib/lingonberry/tmp",
+    "evidence": "/var/lib/lingonberry/soak-evidence",
+    "generated": "/var/lib/lingonberry/soak-generated"
+  }
+}

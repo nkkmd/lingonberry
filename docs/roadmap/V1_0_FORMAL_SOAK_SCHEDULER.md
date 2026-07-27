@@ -1,63 +1,69 @@
 # Lingonberry v1.0.0 Formal Soak Scheduler
 
-**Status: scheduler implementation under rehearsal; formal execution not started** | **Candidate: `f9543019f2c219aea3b085ff90f2da201b268a48`** | **Tracking: #134 and #114**
+**Status: implementation aligned to active candidate; formal execution not started** | **Candidate: `8c6b48082205a3af555130eec1f3e7d2ac8811fe`** | **Tracking: #343 / #114** | **Last updated: 2026-07-27**
 
-## 1. Purpose
+## Purpose
 
 This document defines the executable scheduler boundary for the formal v1.0.0 qualification soak. It implements the cadence, evidence, threshold, and fail-closed requirements in `V1_0_SOAK_PLAN.md` without claiming that the 72-hour run has occurred.
 
-The implementation is:
+The active launcher is:
 
 - `scripts/v1_formal_soak_scheduler.py`
-- `deploy/soak/v1-formal-thresholds.example.json`
-- `.github/workflows/v1-formal-soak-scheduler-rehearsal.yml`
 
-## 2. Adapter boundary
+The reviewed scheduling implementation is retained in:
 
-### 2.1 Mock adapter
+- `scripts/v1_formal_soak_scheduler_legacy.py`
 
-The mock adapter exists only to rehearse scheduler behavior using virtual time.
+The launcher fixes the active candidate and both candidate-built binary SHA-256 values before delegating to the retained implementation. This preserves the reviewed scheduling logic while preventing superseded identities from being used.
 
-A mock run always records:
+## Frozen identities
 
-- `adapter: "mock"`
-- `qualification: false`
-- `qualifyingPass: false`
+```text
+candidate:
+8c6b48082205a3af555130eec1f3e7d2ac8811fe
 
-A green mock run cannot satisfy Issue #114.
+lingonberry-storage:
+737b148de48bc2ed2f96b3fb8e068e4c696f73d4069e7eaf89b76eaa6a610507
 
-### 2.2 systemd adapter
+lingonberry-relay:
+23b5cd4044b69a483a457a71164ac5376370793bd502518e2e7d1baeab34a81c
+```
+
+## Adapter boundary
+
+### Mock adapter
+
+The mock adapter exists only to rehearse scheduler behavior using virtual time. It always records:
+
+```text
+adapter: mock
+qualification: false
+qualifyingPass: false
+```
+
+A green mock run cannot satisfy the formal soak gate.
+
+### systemd adapter
 
 Only the systemd adapter can produce a potentially qualifying run. It fails closed unless all of the following are true:
 
-- the host is Ubuntu 24.04;
-- the architecture is `x86_64`;
-- the process runs as root;
-- `systemctl` is available;
-- `LINGONBERRY_FORMAL_SOAK_ACK` exactly equals the designated candidate SHA;
-- both installed binary SHA-256 values match the recorded candidate digests;
+- Ubuntu Server 24.04 LTS;
+- `x86_64` architecture;
+- execution as root;
+- `systemctl` available;
+- `LINGONBERRY_FORMAL_SOAK_ACK` exactly equals the fixed candidate;
+- installed storage and relay binaries match the frozen SHA-256 values;
 - the configured service is active;
 - `--real-time` is supplied;
-- the scheduled duration is at least 259,200 seconds;
+- scheduled duration is at least 259,200 seconds;
 - telemetry cadence is exactly 60 seconds;
-- a frozen host configuration file is supplied.
+- a frozen host configuration and threshold file are supplied.
 
-A systemd run that does not meet every condition cannot set `qualifyingPass: true`.
+## Distributed scheduling
 
-## 3. Distributed scheduling
+Each workload family is distributed across the complete run rather than executed as a startup burst. The scheduler validates exact counts before execution.
 
-Each workload family is evenly distributed across the full run rather than executed as a startup burst. The scheduler validates exact counts before execution.
-
-For disruptive workload families, events must occupy all three thirds of the run:
-
-- graceful restart;
-- abrupt termination;
-- index rebuild;
-- isolated restore;
-- replacement/cleanup crash matrix;
-- disk-pressure scenario.
-
-The scheduler uses the exact minima from `V1_0_SOAK_PLAN.md`:
+Required minima:
 
 | Workload | Minimum |
 |---|---:|
@@ -76,11 +82,11 @@ The scheduler uses the exact minima from `V1_0_SOAK_PLAN.md`:
 | Deeply nested input | 200 |
 | Disk pressure | 2 |
 
-## 4. Threshold enforcement
+Disruptive workloads must occur across all three thirds of the run.
 
-Thresholds are loaded before execution from an immutable JSON manifest. They are evaluated at every telemetry tick.
+## Threshold enforcement
 
-Current threshold fields are:
+Thresholds are loaded before execution from an immutable JSON manifest and evaluated at every telemetry tick:
 
 - minimum free disk bytes;
 - minimum free inodes;
@@ -90,23 +96,13 @@ Current threshold fields are:
 - maximum readiness failure seconds;
 - maximum unexpected restart count.
 
-Any violation stops the run immediately and retains partial evidence. Thresholds cannot be modified in an existing output directory.
+Any violation stops the run immediately and retains partial evidence.
 
-The example values are placeholders for rehearsal. The dedicated reference host must freeze host-derived values before the formal run. Values may not be chosen after observing the run.
+## Non-resumable evidence identity
 
-## 5. Non-resumable run identity
+Each run receives a new UUID-backed run ID and a new output directory. A stopped, failed, or completed run cannot resume into the same evidence identity. A retry requires a fresh preflight, clock, schedule, and output path.
 
-Each run receives a UUID-backed run ID. The output directory must not already exist.
-
-A stopped, failed, or completed run cannot be resumed into the same evidence identity. A retry requires:
-
-- a new output directory;
-- a new run ID;
-- a fresh preflight;
-- a new continuous-duration clock;
-- a complete new workload schedule.
-
-## 6. Evidence contract
+## Evidence contract
 
 Each run retains:
 
@@ -118,48 +114,15 @@ Each run retains:
 - `summary.json`;
 - `SHA256SUMS`.
 
-The summary distinguishes:
+A run is a qualifying pass only when the systemd adapter is used, preflight succeeds, real-time duration reaches at least 72 hours, all workload minima are met, no threshold or scenario failure occurs, and evidence finalization succeeds.
 
-- scheduler execution status;
-- adapter qualification eligibility;
-- final `qualifyingPass` decision;
-- workload counts and minima;
-- stop reason;
-- candidate identity;
-- environment preflight.
+## Current GO / NO-GO
 
-A run is a qualifying pass only when all conditions are simultaneously true:
+```text
+scheduler implementation: READY
+mock rehearsal: NON-QUALIFYING
+reference-host preflight: NEXT
+formal 72-hour execution: NO-GO UNTIL #343 PASSES
+```
 
-1. adapter is the systemd adapter;
-2. preflight succeeds;
-3. real time is enabled;
-4. duration is at least 72 continuous hours;
-5. all workload counts equal or exceed the minima;
-6. no threshold or scenario failure occurs;
-7. evidence finalization succeeds.
-
-## 7. Scheduler rehearsal
-
-The CI rehearsal performs four independent checks:
-
-1. virtual 72-hour schedule reaches every workload minimum and spreads disruptive events across all thirds;
-2. a threshold violation stops the run and preserves partial evidence;
-3. an existing output directory cannot be reused;
-4. systemd qualification refuses to start outside the reference-host contract.
-
-The rehearsal artifact is non-qualifying. Its purpose is to validate scheduler mechanics before a dedicated-host scheduler rehearsal.
-
-## 8. Remaining work before formal execution
-
-The scheduler core does not itself define the frozen host command map. Before Issue #134 can close, the repository still requires:
-
-- a reviewed systemd host configuration with argv-only commands for every workload family;
-- exact storage, backup, restore, quarantine, journal, proof, archive, evidence, and workspace paths;
-- host-specific thresholds derived and frozen before execution;
-- immediate pre/post disruptive-operation telemetry snapshots;
-- journal and fixed-path byte/file-count collection in the systemd adapter;
-- a short real-host scheduler rehearsal using the same systemd adapter;
-- verification that deliberate SIGKILL events are distinguished from unexplained restarts;
-- independent inspection of the real-host rehearsal bundle.
-
-Until those items pass, Issue #114 remains not started and the release decision remains Pending.
+Before formal execution, the reference host must freeze the final command map, thresholds, path layout, service identity, disk-pressure device identity, evidence filesystem, journal filesystem, and operator provenance. No version, tag, or publication action is authorized by scheduler readiness alone.

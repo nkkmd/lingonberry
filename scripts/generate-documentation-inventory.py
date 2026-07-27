@@ -6,6 +6,7 @@ import subprocess
 from pathlib import Path
 
 BILINGUAL_REQUIRED = {
+    "PUBLISHER_QUICKSTART.md",
     "README.md",
     "SECURITY.md",
     "CONTRIBUTING.md",
@@ -16,6 +17,7 @@ BILINGUAL_REQUIRED = {
     "docs/operations/V1_0_UPGRADE_AND_ROLLBACK.md",
 }
 REVIEWED_BILINGUAL_REQUIRED = {
+    "PUBLISHER_QUICKSTART.md",
     "README.md",
     "docs/DOCUMENTATION_POLICY.md",
     "docs/operations/README.md",

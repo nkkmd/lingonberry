@@ -11,6 +11,8 @@
     "relayBinary": "/usr/local/bin/lingonberry-relay",
     "migrationBinary": "/usr/local/bin/lingonberry-storage-migrate",
     "crashMatrixDriver": "/opt/lingonberry-soak/bin/run-v1-crash-matrix-driver.sh",
+    "diskPressureDriver": "/opt/lingonberry-soak/bin/run-v1-disk-pressure-driver.py",
+    "diskPressureContract": "/etc/lingonberry/v1-disk-pressure-contract.json",
     "fixture": "/opt/lingonberry-soak/fixtures/http-publish-request/minimal-request.json",
     "stateDir": "/var/lib/lingonberry/state",
     "dataDir": "/var/lib/lingonberry/data",
@@ -32,7 +34,7 @@
     "malformed": {"adapter":"stdin-fixture","enabled":true,"argv":["{relayBinary}","publish","/dev/stdin"],"expectExitCodes":[1]},
     "oversized": {"adapter":"stdin-fixture","enabled":true,"argv":["{relayBinary}","publish","/dev/stdin"],"expectExitCodes":[1]},
     "nested": {"adapter":"stdin-fixture","enabled":true,"argv":["{relayBinary}","publish","/dev/stdin"],"expectExitCodes":[1]},
-    "disk_pressure": {"adapter":"host-scenario","enabled":false,"reason":"Requires an isolated quota-controlled volume and host-specific recovery command map."},
+    "disk_pressure": {"adapter":"host-scenario","enabled":true,"argv":["python3","{diskPressureDriver}","--contract","{diskPressureContract}","--out","{generatedDiskPressureDir}","--mode","live"]},
     "migration": {"adapter":"exec-sequence","enabled":false,"reason":"Migration is a separate proof-bound surface and requires a frozen source/target generation fixture before rehearsal.","argvSequence":[["{migrationBinary}","inspect"],["{migrationBinary}","plan"],["{migrationBinary}","apply"],["{migrationBinary}","status"]]},
     "quarantine_replacement_cleanup": {"adapter":"http-rbac","enabled":false,"reason":"Requires a frozen authenticated admin HTTP command map and proof artifacts."}
   }

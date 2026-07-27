@@ -1,22 +1,27 @@
 name: v1 documentation walkthrough
 
 on:
-  pull_request:
-    paths:
-      - 'scripts/run-v1-documentation-walkthrough.sh'
-      - '.github/workflows/v1-documentation-walkthrough.yml'
-      - 'docs/roadmap/V1_0_DOCUMENTATION_WALKTHROUGH.md'
-      - 'docs/roadmap/V1_0_RELEASE_EVIDENCE.md'
-      - 'docs/operations/**'
-      - 'deploy/systemd/**'
   workflow_dispatch:
+    inputs:
+      candidate_sha:
+        description: Exact fixed candidate commit
+        required: true
+        type: string
+      storage_sha256:
+        description: SHA-256 of candidate-built lingonberry-storage
+        required: true
+        type: string
+      relay_sha256:
+        description: SHA-256 of candidate-built lingonberry-relay
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 concurrency:
-  group: v1-documentation-walkthrough-${{ github.ref }}
-  cancel-in-progress: true
+  group: v1-documentation-walkthrough-${{ inputs.candidate_sha }}
+  cancel-in-progress: false
 
 jobs:
   walkthrough:
@@ -24,10 +29,18 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     env:
-      CANDIDATE_SHA: f9543019f2c219aea3b085ff90f2da201b268a48
-      STORAGE_SHA256: 22228c6ee424c697114f1fcbb1f8aa2ad6c3a3feb4b0c1a71298c2cd7acbbeb0
-      RELAY_SHA256: 9552773a6138cbbbcd32d88a313e01865972facf5b9cbfb3104d091573d7625d
+      ACTIVE_CANDIDATE_SHA: 8c6b48082205a3af555130eec1f3e7d2ac8811fe
+      CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+      STORAGE_SHA256: ${{ inputs.storage_sha256 }}
+      RELAY_SHA256: ${{ inputs.relay_sha256 }}
     steps:
+      - name: Validate explicit evidence identities
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$CANDIDATE_SHA" = "$ACTIVE_CANDIDATE_SHA"
+          [[ "$STORAGE_SHA256" =~ ^[0-9a-f]{64}$ ]]
+          [[ "$RELAY_SHA256" =~ ^[0-9a-f]{64}$ ]]
       - name: Checkout walkthrough harness
         uses: actions/checkout@v4
         with:
@@ -50,11 +63,11 @@ jobs:
       - name: Verify evidence bundle
         run: |
           python3 - <<'PY'
-          import json
+          import json, os
           from pathlib import Path
           p = Path('harness/target/v1-documentation-walkthrough/summary.json')
           summary = json.loads(p.read_text())
-          assert summary['candidateCommit'] == 'f9543019f2c219aea3b085ff90f2da201b268a48'
+          assert summary['candidateCommit'] == os.environ['CANDIDATE_SHA']
           assert summary['status'] == 'passed'
           assert len(summary['procedures']) == 16
           assert all(x['status'] == 'passed' for x in summary['procedures'])

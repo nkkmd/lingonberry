@@ -1,97 +1,157 @@
 # Lingonberry v1.0.0 Release Evidence
 
-**Status: candidate qualification, security, compatibility, and documentation walkthrough recorded; soak pending** | **Target release: v1.0.0** | **Parent issue: #109** | **Last updated: 2026-07-23**
+**Status: active candidate qualification and documentation walkthrough PASS; reference-host preflight and soak pending** | **Target release: v1.0.0** | **Parent issue: #109** | **Last updated: 2026-07-27**
 
 ## 1. Evidence policy
 
-This document is the final commit-bound evidence record for the Lingonberry v1.0.0 release.
+This document is the authoritative commit-bound evidence record for the Lingonberry v1.0.0 release.
 
-A prior release result, workflow dry run, or documentation claim may be referenced as historical context, but it does not satisfy a mandatory v1.0.0 gate unless the qualification plan explicitly allows review-only reuse and the applicability review is recorded here.
-
-Do not mark a gate passed unless its evidence identifies the exact candidate or merged release commit, execution method, environment, pass criteria, retained artifact, and deviation disposition.
+A prior candidate result may remain as historical context, but it does not satisfy an active release gate. A gate is passed only when its evidence identifies the exact candidate, execution method, environment, retained artifact, checksums, pass criteria, and deviation disposition.
 
 ## 2. Release identity
 
 | Field | Value |
 |---|---|
 | Release version | `1.0.0` |
-| Candidate commit | `f9543019f2c219aea3b085ff90f2da201b268a48` |
-| Candidate designation time | 2026-07-23 01:03:26 UTC, merge of PR #127 |
+| Active candidate commit | `8c6b48082205a3af555130eec1f3e7d2ac8811fe` |
+| Candidate designation | PR #333; exact SHA recorded by PR #334 |
+| Superseded candidate | `f9543019f2c219aea3b085ff90f2da201b268a48` |
 | Reviewed release PR | Pending |
 | Merged release commit | Pending |
 | Annotated tag | Pending |
 | GitHub Release | Pending |
-| Protocol/schema contract | `docs/architecture/V1_COMPATIBILITY_POLICY.md` |
 | Qualification plan | `docs/roadmap/V1_0_QUALIFICATION_PLAN.md` |
 | Candidate record | `docs/roadmap/V1_0_CANDIDATE.md` |
-| Security and compatibility review | `docs/security/V1_0_SECURITY_DIFF_REVIEW.md` |
+| Security review | `docs/security/V1_0_SECURITY_DIFF_REVIEW.md` |
 | Documentation walkthrough | `docs/roadmap/V1_0_DOCUMENTATION_WALKTHROUGH.md` |
 | Soak plan | `docs/roadmap/V1_0_SOAK_PLAN.md` |
 
-## 3. Candidate build provenance
+Documentation-only evidence commits after the active candidate do not move the candidate.
+
+## 3. Runtime security delta
+
+PR #331 added release-blocking Ed25519 publisher-signature enforcement before acceptance policy, quarantine, duplicate/conflict classification, raw append, and canonical storage.
+
+The active candidate provides stable outcomes for:
+
+- malformed public-key or signature encoding;
+- cryptographically invalid signatures;
+- verifier operational failures;
+- valid checked-in signed vectors;
+- duplicate and conflict processing after authentication.
+
+No storage format, migration rule, canonical object format, public Rust API, backup/restore format, or recovery procedure was intentionally changed.
+
+## 4. Candidate qualification provenance
 
 | Evidence | Value |
 |---|---|
 | Repository | `nkkmd/lingonberry` |
-| Candidate SHA | `f9543019f2c219aea3b085ff90f2da201b268a48` |
-| Git status at qualification | Clean |
-| Ubuntu version | Ubuntu 24.04.4 LTS |
-| Architecture | `x86_64` |
-| systemd version | 255 |
-| Rust compiler | `rustc 1.97.1 (8bab26f4f 2026-07-14)` |
-| Cargo version | `cargo 1.97.1 (c980f4866 2026-06-30)` |
-| Node.js version | `v22.23.1` |
-| `lingonberry-storage` SHA-256 | `22228c6ee424c697114f1fcbb1f8aa2ad6c3a3feb4b0c1a71298c2cd7acbbeb0` |
-| `lingonberry-relay` SHA-256 | `9552773a6138cbbbcd32d88a313e01865972facf5b9cbfb3104d091573d7625d` |
-| Qualification workflow | run 6, run ID `29971797941` |
-| Qualification artifact | ID `8549953270`; `sha256:cc216536a29acbc65ba7b25e74f1e2198c7050605019ea3a09c1ddab0fb18b7b` |
-| Walkthrough workflow | run 3, run ID `29974169660` |
-| Walkthrough artifact | ID `8550809328`; `sha256:75adb9ce95b69307632705aa82d89ede1cf413779e11ab29e18e2a47cca56904` |
-| Artifact retention | Both GitHub Actions artifacts retained through 2026-10-21; permanent identities and binary hashes recorded here |
-| Independent inspection | Qualification bundle: 12 gates and 32 checksums verified. Walkthrough bundle: 16 procedures and 34 checksums verified. |
+| Candidate SHA | `8c6b48082205a3af555130eec1f3e7d2ac8811fe` |
+| Qualification workflow run | `30238378797` |
+| Qualification artifact ID | `8642393171` |
+| Artifact name | `v1-qualification-8c6b48082205a3af555130eec1f3e7d2ac8811fe-1` |
+| Artifact digest | `sha256:c30a0472f6ea07f3e395c9a27c67d1460b8f35a13a7afd397bd0e5895cb93b3e` |
+| `lingonberry-storage` SHA-256 | `737b148de48bc2ed2f96b3fb8e068e4c696f73d4069e7eaf89b76eaa6a610507` |
+| `lingonberry-relay` SHA-256 | `23b5cd4044b69a483a457a71164ac5376370793bd502518e2e7d1baeab34a81c` |
+| Aggregate result | `passed` |
+| Gate result | 12 of 12 passed |
+| Bundle checksum verification | Every `SHA256SUMS` entry verified |
+| Independent artifact verification | Downloaded ZIP digest matched GitHub artifact digest |
+| Artifact expiration | 2026-10-25 |
 
-## 4. Mandatory qualification gates
+The artifact manifest embedded the exact candidate SHA and the binary digests matched direct calculations.
+
+## 5. Documentation walkthrough provenance
+
+| Evidence | Value |
+|---|---|
+| Walkthrough workflow run | `30239602412` |
+| Walkthrough job | `89893906819` |
+| Walkthrough artifact ID | `8642773653` |
+| Artifact name | `v1-documentation-walkthrough-8c6b48082205a3af555130eec1f3e7d2ac8811fe-1` |
+| Artifact digest | `sha256:9b954ada86f86e5da4966951039af9dddc2eddb3d49c996d09256e4cad598338` |
+| Candidate identity | Matched active candidate |
+| Binary identities | Matched candidate qualification evidence |
+| Procedure result | 16 of 16 passed |
+| Bundle checksum verification | All 34 `SHA256SUMS` entries verified |
+| Independent artifact verification | Downloaded ZIP digest matched GitHub artifact digest |
+| Artifact expiration | 2026-10-25 |
+
+The walkthrough executed or cross-referenced `DOC-01` through `DOC-16` without failed, blocked, or pending procedures.
+
+## 6. Mandatory qualification gates
 
 | Gate | Status | Evidence | Deviations / disposition |
 |---|---|---|---|
-| Object lifecycle end-to-end | Passed | qualification run `29971797941`, `logs/core-lifecycle.log` | None |
-| External protocol conformance | Passed | qualification run and walkthrough DOC-08 | None |
-| Supported legacy-state migration | Passed | qualification migration/recovery log; walkthrough DOC-13 | None |
-| Backup verification and isolated restore | Passed | qualification operator acceptance; walkthrough DOC-09/10/11 | None |
-| Index verify and rebuild | Passed | qualification index log; walkthrough DOC-12 | None |
-| Replacement and cleanup crash matrix | Passed | qualification crash matrix; walkthrough DOC-15 | None |
-| Standard Rust validation | Passed | qualification run; CI run 1198 | None |
-| JavaScript validation | Passed | qualification run; CI run 1198 | None |
-| Security regressions | Passed | qualification logs and candidate security review | No panic, abort, OOM, or credential leakage detected |
-| Security release-blocker review | Passed | issue #130; `V1_0_SECURITY_DIFF_REVIEW.md` | Critical 0; High 0; release-blocking Medium 0 |
-| Reference-platform operator acceptance | Passed | qualification operator acceptance; walkthrough DOC-01 through DOC-12 | Ubuntu 24.04.4, x86_64, systemd 255 |
-| Installation/configuration/operations review | Passed | walkthrough run `29974169660`, artifact `8550809328` | Service-user env loading corrected in docs and rerun |
-| Upgrade/rollback/recovery review | Passed | walkthrough DOC-13/15/16 and candidate tests | Cross-referenced where no integrated public CLI exists |
-| v1.0 qualification soak | Pending | Issue #114 | Not started |
+| Object lifecycle end-to-end | Passed | qualification run `30238378797` | None |
+| External protocol conformance | Passed | qualification run and walkthrough `DOC-08` | None |
+| Supported legacy-state migration | Passed | qualification migration gate; walkthrough `DOC-13` | None |
+| Backup verification and isolated restore | Passed | qualification and walkthrough `DOC-09` through `DOC-11` | None |
+| Index verify and rebuild | Passed | qualification and walkthrough `DOC-12` | None |
+| Replacement and cleanup crash matrix | Passed | qualification and walkthrough `DOC-15` | None |
+| Standard Rust validation | Passed | candidate qualification and repository CI | None |
+| JavaScript validation | Passed | candidate qualification and repository CI | None |
+| Publisher signature regressions | Passed | walkthrough `DOC-08` and `DOC-16` | No bypass found |
+| Security release-blocker review | Passed | `V1_0_SECURITY_DIFF_REVIEW.md` | Artifact-bound follow-up complete |
+| Installation/configuration/operations review | Passed | walkthrough run `30239602412` | None |
+| Upgrade/rollback/recovery review | Passed | walkthrough `DOC-13`, `DOC-15`, `DOC-16` | Cross-referenced where appropriate |
+| Privileged reference-host preflight | Pending | Issue #335 | Not yet executed |
+| v1.0 qualification soak | Pending | soak tracking issue | Not started |
 
-## 5. Compatibility confirmation
+## 7. Signature-enforcement evidence
 
-The candidate was reviewed against the approved v1 compatibility policy. The v0.9.0-to-candidate comparison contains no production implementation, protocol fixture, storage-format, migration-runtime, HTTP-handler, or operator-CLI change.
+The active walkthrough confirms:
 
-| Contract family | Candidate change | Disposition | Evidence |
-|---|---|---|---|
-| Protocol and schema | None | Compatible | external conformance passed |
-| Canonical serialization and identifiers | None | Compatible | core lifecycle and workspace tests passed |
-| Digest and signature payload | None | Compatible | security regressions passed |
-| Public Rust API | No runtime API source change after audit | Compatible | Rust API audit and Rust gates |
-| HTTP and operator CLI | None | Compatible | installed-binary acceptance and walkthrough |
-| Diagnostics and machine-readable errors | None | Compatible | walkthrough observations |
-| Configuration | Documentation invocation correction only | Compatible | precedence and service-user loading executed |
-| Storage and durable artifacts | None | Compatible | migration, backup/restore, and index gates |
-| Migration and rollback | None | Compatible | storage tests and walkthrough cross-reference |
+- the checked-in valid signature vector passes ingestion;
+- changed signature bytes fail before ingestion;
+- malformed signature material follows the stable malformed-security path;
+- verifier operational errors fail closed;
+- conformance vectors include valid, tampered, malformed-public-key, and malformed-signature requests;
+- duplicate and conflict behavior remains explicit and cannot be reached by bypassing signature verification.
 
-No compatibility exception, waiver, or deprecation is required.
+No successful stored, duplicate, conflict, quarantine, or raw-append result was observed for a signature failure.
 
-## 6. Soak result
+## 8. Compatibility confirmation
+
+| Contract family | Active candidate disposition | Evidence |
+|---|---|---|
+| Protocol and schema | Compatible with intentional signature enforcement | conformance and signed vectors |
+| Canonical serialization and identifiers | Compatible | lifecycle and workspace tests |
+| Digest and signature payload | Intentional security correction | security review and walkthrough |
+| Public Rust API | No intentional incompatible change | Rust validation |
+| HTTP and operator CLI | Compatible | walkthrough |
+| Diagnostics and machine-readable errors | Stable security codes added | walkthrough and tests |
+| Configuration | Compatible | walkthrough |
+| Storage and durable artifacts | Unchanged | migration, backup/restore, index gates |
+| Migration and rollback | Compatible | qualification and walkthrough |
+
+No compatibility exception or waiver is required.
+
+## 9. Documentation freeze
+
+| Document area | Status | Evidence |
+|---|---|---|
+| Installation | Passed | `DOC-02`, `DOC-03`, `DOC-06` |
+| Configuration | Passed | `DOC-04` |
+| Operations | Passed | `DOC-05` through `DOC-12` |
+| Upgrade and rollback | Passed | `DOC-13` |
+| Recovery and troubleshooting | Passed | `DOC-11`, `DOC-15`, `DOC-16` |
+| Compatibility policy | Passed | security/compatibility review |
+| README and documentation indexes | Passed | repository CI |
+| Current implementation status | Pending release sync | release PR |
+| Release checklist | Pending | release PR |
+| Release notes | Pending | release PR |
+| CHANGELOG | Pending | release PR |
+
+**Documentation freeze gate: PASS for the active candidate.**
+
+## 10. Soak result
 
 | Field | Value |
 |---|---|
-| Qualified commit | `f9543019f2c219aea3b085ff90f2da201b268a48` |
+| Qualified commit | `8c6b48082205a3af555130eec1f3e7d2ac8811fe` |
+| Reference-host preflight | Pending |
 | Start time | Pending |
 | End time | Pending |
 | Continuous duration | Pending |
@@ -103,78 +163,47 @@ No compatibility exception, waiver, or deprecation is required.
 | Maximum RSS | Pending |
 | Maximum file descriptors | Pending |
 | Disk/inode growth disposition | Pending |
-| Journal/proof/archive/workspace growth disposition | Pending |
 | Panic/abort/OOM count | Pending |
 | Canonical corruption count | Pending |
 | Object/index divergence count | Pending |
 | Unrecoverable injected failures | Pending |
-| Soak artifact location and digest | Pending |
+| Soak artifact identity | Pending |
 | Final soak decision | Pending |
 
-## 7. Security findings disposition
-
-| Severity | Open count | Release-blocking count | Evidence |
-|---|---:|---:|---|
-| Critical | 0 | 0 | `V1_0_SECURITY_DIFF_REVIEW.md` |
-| High | 0 | 0 | `V1_0_SECURITY_DIFF_REVIEW.md` |
-| Medium | 0 | 0 | `V1_0_SECURITY_DIFF_REVIEW.md` |
-| Low | 2 accepted process residual risks | N/A | version-tagged Actions and finite artifact retention |
-
-The accepted Low risks are controlled by retained toolchain provenance, candidate and binary digests, bundle checksums, repository-recorded artifact identity, and mandatory final merged-commit revalidation.
-
-## 8. Documentation freeze
-
-| Document area | Status | Reviewed commit | Evidence |
-|---|---|---|---|
-| Installation | Passed | candidate `f9543019…` | walkthrough DOC-02/03/06 |
-| Configuration | Passed | candidate `f9543019…` | walkthrough DOC-04; corrected runbook |
-| Operations | Passed | candidate `f9543019…` | walkthrough DOC-05 through DOC-12 |
-| Upgrade and rollback | Passed | candidate `f9543019…` | walkthrough DOC-13 |
-| Recovery and troubleshooting | Passed | candidate `f9543019…` | walkthrough DOC-11/15/16 |
-| Compatibility policy | Passed | candidate `f9543019…` | issue #130 |
-| README and documentation indexes | Passed | candidate `f9543019…` | PR #125 and freeze checks |
-| Current implementation status | Pending release sync | Pending release PR | Non-runtime release-document task |
-| Release checklist | Not created | Pending release PR | Required before publication |
-| Release notes | Not created | Pending release PR | Required before publication |
-| CHANGELOG | Pending | Pending release PR | Required before publication |
-
-**Documentation freeze gate: PASS** for candidate execution. Release-specific checklist, notes, implementation-status, and CHANGELOG synchronization remain version-preparation tasks.
-
-## 9. Final release validation
+## 11. Final release validation
 
 | Validation | Status | Evidence |
 |---|---|---|
+| Active candidate exact-SHA qualification | Passed | run `30238378797`; artifact `8642393171` |
+| Active candidate security review | Passed | `V1_0_SECURITY_DIFF_REVIEW.md` |
+| Active candidate documentation walkthrough | Passed | run `30239602412`; artifact `8642773653` |
+| Privileged reference-host preflight | Pending | Pending |
+| 72-hour soak | Pending | Pending |
 | Reviewed release PR checks | Pending | Pending |
 | Merged-commit standard CI | Pending | Pending |
 | Merged-commit candidate qualification | Pending | Pending |
-| Pre-version candidate exact-SHA qualification | Passed | run `29971797941`, artifact `8549953270` |
-| Candidate security and compatibility review | Passed | issue #130 |
-| Candidate documentation walkthrough | Passed | run `29974169660`, artifact `8550809328` |
 | Version consistency | Pending | Pending |
 | Tag points to merged release commit | Pending | Pending |
 | GitHub Release points to annotated tag | Pending | Pending |
 | Published artifacts match recorded digests | Pending | Pending |
 
-## 10. Deviations and residual risks
+## 12. Deviations and residual risks
 
-No release-blocking deviation was observed in candidate qualification, security/compatibility review, or documentation walkthrough.
+No release-blocking deviation was observed in active-candidate qualification or documentation walkthrough.
 
-Resolved documentation defect:
-
-- The original runbook used pre-`sudo` command substitution to read a protected environment file and invoked direct publish as the operator user. PR #133 corrected both commands without changing runtime behavior, and the complete walkthrough was rerun successfully.
-
-Accepted process residual risks:
+Accepted process residual risks remain:
 
 - third-party GitHub Actions use reviewed version tags rather than immutable commit SHAs;
-- GitHub Actions artifact retention is finite, while permanent artifact identity and binary digests are retained in this repository.
+- GitHub Actions artifact retention is finite, while artifact identities, bundle checksums, and binary digests are recorded permanently in this repository.
 
 Remaining planned work is not classified as a deviation:
 
-- 72-hour qualification soak;
+- privileged reference-host preflight and disk-pressure rehearsal;
+- formal 72-hour qualification soak;
 - version preparation and publication validation.
 
-## 11. Final decision
+## 13. Final decision
 
 **Decision: Pending**
 
-Candidate qualification, security, compatibility, and documentation freeze are green. A final `PASS` decision may be recorded only when the 72-hour soak, version preparation, merged-commit validation, tag, GitHub Release, and publication evidence are complete.
+The active candidate qualification, security review, compatibility review, and documentation freeze are green. The repository is **GO for privileged reference-host preflight** and remains **NO-GO for formal soak** until that preflight passes. A final release `PASS` requires the soak, version preparation, merged-commit validation, tag, GitHub Release, and publication evidence.

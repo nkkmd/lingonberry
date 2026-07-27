@@ -1,10 +1,12 @@
 # Developer Documentation / 開発者向け文書
 
-**Status: v1.0 pre-release developer entry point / 状態: v1.0プレリリース開発者向け入口**
+[English](#english) | [日本語](#日本語)
 
-English is normative for this document. The Japanese section is a synchronized translation.
+> English is the normative version of this document. The Japanese section is a synchronized translation. If the two sections differ, the English section takes precedence.
+>
+> 英語版がこの文書の正本です。日本語部分は同期翻訳です。内容に差異がある場合は英語版を優先します。
 
-この文書では英語を正本とします。日本語部分は同期された翻訳です。
+**Status: v1.0 pre-release developer entry point** | **Last updated: 2026-07-27**
 
 ## English
 

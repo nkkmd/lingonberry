@@ -6,10 +6,14 @@ cd "$repo_root"
 
 profile="${SOAK_PROFILE:-rehearsal}"
 out="${SOAK_OUT:-target/v1-soak-$profile}"
-candidate_sha="${CANDIDATE_SHA:-f9543019f2c219aea3b085ff90f2da201b268a48}"
-expected_storage_sha="${STORAGE_SHA256:-22228c6ee424c697114f1fcbb1f8aa2ad6c3a3feb4b0c1a71298c2cd7acbbeb0}"
-expected_relay_sha="${RELAY_SHA256:-9552773a6138cbbbcd32d88a313e01865972facf5b9cbfb3104d091573d7625d}"
+candidate_sha="${CANDIDATE_SHA:-8c6b48082205a3af555130eec1f3e7d2ac8811fe}"
+expected_storage_sha="${STORAGE_SHA256:-737b148de48bc2ed2f96b3fb8e068e4c696f73d4069e7eaf89b76eaa6a610507}"
+expected_relay_sha="${RELAY_SHA256:-23b5cd4044b69a483a457a71164ac5376370793bd502518e2e7d1baeab34a81c}"
 force_failure="${SOAK_FORCE_FAILURE:-0}"
+
+[[ "$candidate_sha" = "8c6b48082205a3af555130eec1f3e7d2ac8811fe" ]] || { echo "unsupported candidate: $candidate_sha" >&2; exit 3; }
+[[ "$expected_storage_sha" = "737b148de48bc2ed2f96b3fb8e068e4c696f73d4069e7eaf89b76eaa6a610507" ]] || { echo "unsupported storage digest" >&2; exit 3; }
+[[ "$expected_relay_sha" = "23b5cd4044b69a483a457a71164ac5376370793bd502518e2e7d1baeab34a81c" ]] || { echo "unsupported relay digest" >&2; exit 3; }
 
 case "$profile" in
   rehearsal)

@@ -1,188 +1,101 @@
 # v1.0.0 Candidate-Diff Security Review
 
-**Status: final candidate-bound review complete** | **Release target: v1.0.0** | **Baseline: v0.9.0 (`971155340603afdc0c9c5bd37e596f49c260d15e`)** | **Candidate: `f9543019f2c219aea3b085ff90f2da201b268a48`** | **Tracking issue: #130** | **Last updated: 2026-07-23**
+**Status: redesigned-candidate code review complete; artifact-bound disposition pending** | **Release target: v1.0.0** | **Superseded candidate: `f9543019f2c219aea3b085ff90f2da201b268a48`** | **Candidate: `8c6b48082205a3af555130eec1f3e7d2ac8811fe`** | **Tracking issues: #332, #335** | **Last updated: 2026-07-27**
 
-## 1. Purpose
+## 1. Review boundary
 
-This record is the final security and compatibility disposition for the designated pre-version v1.0.0 candidate. It supplements:
+The previous PASS disposition applied only to candidate `f9543019f2c219aea3b085ff90f2da201b268a48`. PR #331 introduced a runtime-affecting publisher-authentication control, so the earlier candidate review, binaries, qualification artifact, walkthrough, and soak evidence are historical and cannot authorize the redesigned candidate.
 
-- `docs/security/V0_9_SECURITY_REVIEW.md`
-- `docs/security/V0_9_SECURITY_FINDINGS.md`
-- `docs/architecture/V1_COMPATIBILITY_POLICY.md`
-- `docs/architecture/V1_0_RUST_API_AUDIT.md`
-- `docs/roadmap/V1_0_RELEASE_EVIDENCE.md`
+This review examines the security-relevant runtime delta introduced before candidate `8c6b48082205a3af555130eec1f3e7d2ac8811fe`.
 
-The disposition is valid only for the exact candidate SHA above. Any runtime-affecting, protocol, durable-format, CLI/HTTP contract, migration, recovery, or security-control change requires a new candidate review and new executable evidence.
+## 2. Runtime delta
 
-## 2. Final diff scope
+The intentional production change is in `packages/core/src/ingestion.rs`:
 
-Comparison:
+- reconstruct and verify the canonical `lb.http.publish.signature.v1` target immediately after JSON parsing;
+- reject malformed lowercase-hex key/signature encodings with `LB_PUBLISH_SIGNATURE_MALFORMED`;
+- reject cryptographically invalid signatures with `LB_PUBLISH_SIGNATURE_INVALID`;
+- fail closed on verifier workspace or OpenSSL execution failure with `LB_PUBLISH_SIGNATURE_VERIFIER_ERROR`;
+- perform verification before acceptance policy, quarantine, duplicate/conflict classification, raw-request append, or canonical storage.
 
-```text
-base: v0.9.0 / 971155340603afdc0c9c5bd37e596f49c260d15e
-candidate: f9543019f2c219aea3b085ff90f2da201b268a48
-commits ahead: 53
-changed files: 23
-```
+Two legacy fixtures were replaced with valid signed equivalents so their intended schema-validation and identity-conflict terminal states remain reachable after authentication enforcement.
 
-The changed files are limited to:
+No intentional change was made to canonical object serialization, durable storage format, migration semantics, index authority, backup/restore format, recovery procedure, or public Rust API.
 
-- documentation and documentation indexes;
-- GitHub Actions qualification and documentation-integrity workflows;
-- qualification, documentation-check, and Rust public-API inventory scripts.
+## 3. Threat analysis
 
-No file under `packages/**`, `conformance/**`, `tests/**`, protocol fixtures, canonicalization implementation, storage implementation, migration runtime, relay runtime, HTTP handlers, or operator CLI implementation changed between v0.9.0 and the candidate.
+### 3.1 Authentication bypass
 
-**Disposition: no production runtime, protocol, storage, migration, CLI, or HTTP implementation delta.**
+**Disposition: mitigated.**
 
-The v0.9.0 runtime security review remains applicable, while candidate-bound regression and operator evidence are supplied by qualification run `29971797941`.
+The verification gate precedes every successful, duplicate, conflict, quarantine, and persistence path. A duplicate request cannot obtain an idempotent success result without first passing signature verification.
 
-## 3. Candidate-bound qualification evidence
+### 3.2 Malformed key or signature input
 
-| Evidence | Value |
-|---|---|
-| Workflow | `v1 candidate qualification` run 6 |
-| Run ID | `29971797941` |
-| Artifact ID | `8549953270` |
-| Artifact digest | `sha256:cc216536a29acbc65ba7b25e74f1e2198c7050605019ea3a09c1ddab0fb18b7b` |
-| Candidate SHA in artifact | `f9543019f2c219aea3b085ff90f2da201b268a48` |
-| Recorded gates | 12 passed, 0 failed |
-| Bundle checksums | all 32 `SHA256SUMS` entries independently verified |
-| Relay binary SHA-256 | `9552773a6138cbbbcd32d88a313e01865972facf5b9cbfb3104d091573d7625d` |
-| Storage binary SHA-256 | `22228c6ee424c697114f1fcbb1f8aa2ad6c3a3feb4b0c1a71298c2cd7acbbeb0` |
+**Disposition: fail closed.**
 
-The qualification covered Rust formatting and clippy, workspace tests, storage migration and recovery, index consistency, core lifecycle, JavaScript tests, external conformance, replacement and cleanup crash points, release builds, and installed-binary operator acceptance.
+Shape and decoding failures are externally distinguishable from cryptographic verification failure through stable machine-readable codes. Malformed data does not fall through to quarantine or storage.
 
-## 4. Security review findings
+### 3.3 Verifier process failure
 
-### 4.1 Runtime security delta
+**Disposition: fail closed with operational residual risk.**
 
-**Disposition: acceptable; no delta detected.**
+Workspace, process-spawn, and OpenSSL failures reject the request rather than treating it as authenticated. The remaining risk is availability: verifier infrastructure failure can reject legitimate publishes. This is acceptable for the v1 security boundary and must be observed during real-host execution.
 
-No new parser, canonicalization, signature, authorization, path mutation, storage, migration, recovery, indexing, or destructive-operation implementation entered after v0.9.0.
+### 3.4 Canonical-target mismatch
 
-### 4.2 Workflow permissions
+**Disposition: covered by checked-in vectors and conformance.**
+
+The valid golden request passes through Rust ingestion. Changed signature bytes fail before ingestion. JavaScript external conformance covers positive, tampered, and malformed cases.
+
+### 3.5 Storage and quarantine side effects
+
+**Disposition: no bypass identified.**
+
+Invalid or unverifiable requests cannot append raw request data, enter canonical storage, or be deferred to quarantine. This preserves the rule that quarantine is not an authentication fallback.
+
+### 3.6 Secret handling
 
 **Disposition: acceptable.**
 
-Qualification workflows use:
+The verifier consumes public keys and signatures only. No publisher private key is introduced into the server ingestion path or retained evidence.
 
-```yaml
-permissions:
-  contents: read
-```
+## 4. Repository evidence
 
-They cannot modify repository contents, publish tags or releases, write packages, update deployments, or mutate issues and pull requests through the workflow token.
+The following redesigned-candidate PR checks passed:
 
-### 4.3 Candidate identity binding
+- standard CI;
+- Rust workspace tests and Clippy;
+- JavaScript tests and external conformance;
+- v1 candidate qualification dry runs;
+- Rust public API audit;
+- documentation inventory, bilingual, and freeze checks.
 
-**Disposition: passed.**
+The exact main-push candidate artifact has not yet been independently retrieved through the available connector. Therefore its run ID, artifact ID/digest, binary SHA-256 values, and bundle checksum verification remain pending and must not be inferred from PR runs or the superseded candidate.
 
-The workflow checks out the explicit candidate SHA, records it in `summary.json`, and fails unless the recorded SHA equals the workflow candidate. Qualification-only PR #128 used the designated candidate itself as `pull_request.head.sha` and was closed without merge after artifact inspection.
-
-### 4.4 Command and path injection
-
-**Disposition: acceptable.**
-
-The orchestrator uses a fixed command list, quoted paths, `set -euo pipefail`, and no `eval` or dynamically constructed shell program. Pull-request titles, bodies, branch names, labels, and commit messages are not executed as shell input.
-
-### 4.5 Failure propagation and ambiguous success
-
-**Disposition: passed.**
-
-A non-zero gate stops qualification. The workflow separately requires:
-
-- aggregate status `passed`;
-- every gate status `passed`;
-- candidate SHA equality;
-- a non-empty checksum manifest;
-- successful verification of the entire evidence bundle.
-
-Partial evidence is retained on failure through `if: always()` rather than silently omitted.
-
-### 4.6 Artifact integrity and retention
-
-**Disposition: passed with accepted process residual risk.**
-
-The artifact is self-contained and checksum-verifiable. Its GitHub retention is finite, but the artifact ID, artifact digest, binary digests, candidate SHA, toolchain, and gate references are retained in repository release evidence.
-
-### 4.7 Log and sensitive-data review
-
-**Disposition: passed.**
-
-All retained qualification logs were scanned for panic, abort, OOM, credential-shaped output, secret-bearing configuration, and unexplained failure markers.
-
-Results:
-
-- panic matches: 0;
-- abort matches: 0;
-- OOM matches: 0;
-- credential or bearer-token output: 0;
-- secret-pattern matches: 4 benign references only.
-
-The four benign matches were test names or outputs asserting secret-free behavior: `appends_canonical_secret_free_events`, `containsSecrets:false`, and `report_schema_never_contains_secret_fields`. No credential or sensitive value was present.
-
-Temporary runner paths and expected negative-test failure text appear in logs. They are not credentials and do not reveal operator production paths.
-
-### 4.8 Supply-chain residual risk
-
-**Disposition: accepted Low risk; not release-blocking.**
-
-GitHub-hosted runners, Rust and Node distributions, and third-party Actions are referenced through reviewed version tags rather than immutable commit SHAs. This matches repository-wide practice but is weaker than complete immutable pinning.
-
-Risk controls for v1.0.0:
-
-1. qualification workflow source is frozen for the candidate;
-2. runner OS and toolchain versions are retained;
-3. release binaries are independently hashed;
-4. artifact-level and bundle-level digests are retained;
-5. the final merged release commit must be revalidated before publication.
-
-Changing all Actions to immutable SHAs is suitable follow-up hardening, but introducing that repository-wide change after candidate designation is not required for v1.0.0.
-
-## 5. Compatibility disposition
-
-The candidate introduces no implementation change in any approved v1 compatibility family.
-
-| Contract family | Candidate delta | Disposition | Evidence |
-|---|---|---|---|
-| Protocol and schema | No implementation or fixture change | Compatible | v0.9.0 comparison; external conformance passed |
-| Canonical serialization and identifiers | No implementation change | Compatible | core lifecycle and workspace tests passed |
-| Digest and signature payload | No implementation change | Compatible | workspace security regressions passed |
-| Public Rust API | No runtime API source change after audit | Compatible | `V1_0_RUST_API_AUDIT.md`; Rust gates passed |
-| HTTP and operator CLI | No handler or CLI implementation change | Compatible | installed-binary operator acceptance passed |
-| Diagnostics and machine-readable errors | No implementation change | Compatible | operator acceptance and workspace tests passed |
-| Configuration | No implementation or default change | Compatible | operator acceptance passed |
-| Storage and durable artifacts | No storage-format implementation change | Compatible | migration/recovery, backup/restore, and index gates passed |
-| Migration and rollback | No migration implementation change | Compatible | storage migration/recovery gate passed |
-
-No compatibility exception, waiver, or deprecation is required for the candidate.
-
-## 6. Findings summary
+## 5. Findings
 
 | ID | Area | Severity | Status | Disposition |
 |---|---|---:|---|---|
-| V1-DIFF-001 | Runtime implementation delta | Informational | closed | No production implementation changed after v0.9.0. |
-| V1-DIFF-002 | Candidate SHA binding | Medium if absent | closed | Exact candidate qualified and artifact identity independently verified. |
-| V1-DIFF-003 | Evidence checksum working directory | Low | closed | Initial dry-run defect corrected before candidate designation. |
-| V1-DIFF-004 | Action references use version tags | Low | accepted | Controlled through provenance, artifact digest, binary hashes, and final revalidation. |
-| V1-DIFF-005 | Expiring Actions artifact | Low | accepted-process-risk | Permanent identifying digests and evidence references are retained in-repository. |
+| V1-DIFF-006 | Publisher authentication absent before ingestion | Critical | closed | Ed25519 verification now precedes all terminal and storage paths. |
+| V1-DIFF-007 | Duplicate/quarantine authentication bypass | High | closed | Both paths require successful verification first. |
+| V1-DIFF-008 | Verifier infrastructure availability | Low | accepted for preflight | Fail-closed behavior is correct; observe rejection and recovery on the real host. |
+| V1-DIFF-009 | Exact candidate artifact identity | Medium if omitted | open | Retrieve and independently verify main-push artifact before real-host testing. |
+| V1-DIFF-010 | Candidate documentation walkthrough | Medium if stale | open | Rerun using candidate binaries and newly recorded hashes. |
 
-Final open finding counts:
+Open release-blocking counts before real-host entry:
 
 | Severity | Open | Release-blocking |
 |---|---:|---:|
 | Critical | 0 | 0 |
 | High | 0 | 0 |
-| Medium | 0 | 0 |
-| Low | 2 accepted process residual risks | 0 |
+| Medium | 2 evidence requirements | 2 |
+| Low | 1 accepted operational observation | 0 |
 
-## 7. Final disposition
+## 6. Preflight disposition
 
-**Security disposition: PASS for candidate-bound review.**
+**Security code-review disposition: PASS.**
 
-**Compatibility disposition: PASS for candidate-bound review.**
+**Artifact-bound candidate security disposition: PENDING.**
 
-There is no identified security or compatibility blocker preventing the candidate from proceeding to the documentation walkthrough and 72-hour soak.
-
-This is not the final release decision. The release remains blocked until the documentation walkthrough, soak, residual-risk review, version preparation, merged-release-commit validation, and publication evidence are complete.
+No code-level security blocker was identified in the publisher-signature enforcement delta. Real-host qualification must not begin until the exact candidate qualification artifact and binary hashes are independently recorded and the documentation walkthrough is pinned to those identities.

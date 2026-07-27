@@ -1,0 +1,27 @@
+name: temporary fix publisher link
+
+on:
+  push:
+    branches:
+      - agent/reorganize-publisher-docs
+    paths:
+      - '.github/workflows/tmp-fix-publisher-link.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/reorganize-publisher-docs
+          fetch-depth: 0
+      - run: |
+          sed -i 's#](../developers/PUBLISHER_QUICKSTART.md)#](./PUBLISHER_QUICKSTART.md)#' docs/developers/REPOSITORY_PUBLISH_WALKTHROUGH.md
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add docs/developers/REPOSITORY_PUBLISH_WALKTHROUGH.md
+          git commit -m 'docs: fix publisher walkthrough link'
+          git push origin HEAD:agent/reorganize-publisher-docs

@@ -30,27 +30,21 @@ Use the checked-in JavaScript reference producer instead of inventing a second c
 
 - latest published release: `v0.9.0`
 - fixed v1.0 candidate: `8c6b48082205a3af555130eec1f3e7d2ac8811fe`
-- v1.0.0: not released
 - candidate qualification and documentation walkthrough: passed
 - privileged reference-host preflight: next gate
-- formal 72-hour soak: not started
+- formal 72-hour soak and v1.0.0 publication: not started
 
 The normative signature rule is `lb.http.publish.signature.v1` using Ed25519 and `lb.canonical.json.v1`.
 
-The active ingestion path verifies the publisher signature immediately after parsing and before acceptance policy, quarantine, duplicate/conflict classification, raw append, or canonical storage. It fails closed with stable result codes for malformed encoding, invalid signatures, and verifier execution failures.
+The active ingestion path verifies the publisher signature immediately after parsing and before acceptance policy, quarantine, duplicate/conflict classification, raw append, or canonical storage. Malformed encoding, invalid signatures, and verifier execution failures fail closed.
 
-A successful `stored` or `duplicate` result therefore occurs only after the request passed the enforced publisher-signature boundary. It does not establish publisher authorization, key issuance, delegation, revocation, or replay prevention.
+A `stored` or `duplicate` result occurs only after the enforced signature boundary. It does not establish publisher authorization, key issuance, delegation, revocation, or replay prevention.
 
-See [HTTP Publish Signature](../protocols/HTTP_PUBLISH_SIGNATURE.md) for the exact contract.
+See [HTTP Publish Signature](../protocols/HTTP_PUBLISH_SIGNATURE.md).
 
-### 3. Prerequisites
+### 3. Prerequisites and candidate checkout
 
-Required:
-
-- Git;
-- Node.js 22 or a compatible current runtime;
-- a Rust toolchain with Cargo;
-- `curl` or another HTTP client.
+Required: Git, Node.js 22 or compatible, Rust/Cargo, and `curl` or another HTTP client.
 
 ```bash
 git clone https://github.com/nkkmd/lingonberry.git
@@ -77,7 +71,7 @@ node conformance/minimal-producer.mjs \
   > /tmp/lingonberry-publish-request.json
 ```
 
-The producer generates an ephemeral Ed25519 key pair, constructs the canonical signing target, signs its UTF-8 bytes, and emits the complete envelope. It is a conformance reference, not a private-key management system.
+The producer generates an ephemeral Ed25519 key pair, constructs the canonical signing target, signs its UTF-8 bytes, and emits the complete envelope. It is not a private-key management system.
 
 ### 5. Start the relay and submit
 
@@ -94,53 +88,48 @@ curl -sS \
   http://127.0.0.1:8787/v1/objects
 ```
 
-Inspect both the HTTP status and JSON ingestion result.
+Inspect both the HTTP status and JSON result.
 
-| Ingestion result | Meaning |
+| Result | Meaning |
 |---|---|
-| `stored` | a new authenticated request was canonically stored |
-| `duplicate` | the same authenticated publication already exists; idempotent success |
-| `deferred` | acceptance policy placed it in quarantine; not canonically stored |
-| `rejected` | schema, identity, signature, or policy validation rejected it |
-| `conflict` | the canonical identity conflicts with different stored content |
+| `stored` | new signature-verified canonical object stored |
+| `duplicate` | same signature-verified publication already exists |
+| `deferred` | quarantined; not canonically stored |
+| `rejected` | schema, identity, signature, or policy rejection |
+| `conflict` | canonical identity conflicts with different content |
 | `failed` | verifier infrastructure, operational, or storage failure |
 
-Relevant signature codes include:
+Signature codes:
 
 - `LB_PUBLISH_SIGNATURE_MALFORMED`
 - `LB_PUBLISH_SIGNATURE_INVALID`
 - `LB_PUBLISH_SIGNATURE_VERIFIER_ERROR`
 
-### 6. Retrieve stored content
-
-For `stored` or `duplicate`, use the returned `canonicalId`:
+### 6. Retrieve and handle results
 
 ```bash
 curl -sS 'http://127.0.0.1:8787/v1/objects/<canonical-id>'
 ```
 
-Preserve URL encoding and use the exact returned identifier.
+Use the exact returned identifier and preserve URL encoding.
 
-### 7. Client requirements
+Client requirements:
 
-- do not rewrite a signed request after signature generation;
+- never rewrite a signed request after signing;
 - treat `duplicate` as idempotent success;
 - do not treat `deferred` as canonical storage;
 - correct `rejected` requests before retrying;
-- do not retry `conflict` as a transient failure;
+- do not retry `conflict` as transient;
 - use bounded backoff only for genuinely transient `failed` outcomes;
 - never place private keys in logs, fixtures, repository files, or evidence bundles.
 
-### 8. Non-guarantees
+### 7. Non-guarantees
 
-This guide does not provide or guarantee:
+This guide does not guarantee publisher authorization/key lifecycle, replay prevention beyond current ingestion semantics, federation, production TLS, denial-of-service protection, formal soak completion, or v1.0.0 publication.
 
-- publisher authorization, key issuance, delegation, rotation, or revocation;
-- replay prevention beyond existing ingestion and duplicate semantics;
-- network pub/sub delivery or federation;
-- runtime capability negotiation or dynamic downgrade;
-- production TLS termination or denial-of-service protection;
-- formal 72-hour soak completion or v1.0.0 publication.
+---
+
+<a id="japanese"></a>
 
 ## 日本語
 
@@ -166,20 +155,17 @@ Knowledge Objectを作成
 
 - 最新公開release: `v0.9.0`
 - 固定v1.0 candidate: `8c6b48082205a3af555130eec1f3e7d2ac8811fe`
-- v1.0.0: 未公開
 - candidate qualification／documentation walkthrough: PASS
 - privileged reference-host preflight: 次のgate
-- 正式72時間soak: 未開始
+- 正式72時間soak／v1.0.0公開: 未開始
 
-正本となる署名規則は、Ed25519と`lb.canonical.json.v1`を使用する`lb.http.publish.signature.v1`です。
+正本となる署名規則はEd25519と`lb.canonical.json.v1`を使用する`lb.http.publish.signature.v1`です。
 
-active ingestion pathはparse直後にpublisher signatureを検証し、acceptance policy、quarantine、duplicate／conflict判定、raw append、canonical storageより前にfail closedします。malformed encoding、invalid signature、verifier execution failureには安定したresult codeを返します。
+active ingestion pathはparse直後にpublisher signatureを検証し、acceptance policy、quarantine、duplicate／conflict判定、raw append、canonical storageより前にfail closedします。
 
-`stored`または`duplicate`は、強制されたpublisher-signature境界を通過したrequestです。ただしpublisher authorization、key発行、delegation、revocation、replay preventionまで保証するものではありません。
+`stored`または`duplicate`は強制された署名境界を通過したrequestです。ただしpublisher authorization、key発行、delegation、revocation、replay preventionまで保証しません。
 
-詳細は[HTTP Publish Signature](../protocols/HTTP_PUBLISH_SIGNATURE.md)を参照してください。
-
-### 3. 準備
+### 3. 準備とcandidate checkout
 
 ```bash
 git clone https://github.com/nkkmd/lingonberry.git
@@ -206,7 +192,7 @@ node conformance/minimal-producer.mjs \
   > /tmp/lingonberry-publish-request.json
 ```
 
-reference producerはephemeral Ed25519 key pairを生成し、canonical signing targetへ署名して完全なenvelopeを出力します。private-key management solutionではありません。
+reference producerはephemeral Ed25519 key pairを生成し、canonical signing targetへ署名します。private-key management solutionではありません。
 
 ### 5. Relay起動と送信
 
@@ -223,11 +209,9 @@ curl -sS \
   http://127.0.0.1:8787/v1/objects
 ```
 
-HTTP statusとJSON ingestion resultの両方を確認してください。
-
-- `stored`: 新しい認証済みrequestをcanonical storageへ保存
-- `duplicate`: 同じ認証済みpublicationが存在するidempotent success
-- `deferred`: quarantineへ移動し、canonical storage未保存
+- `stored`: 新しい署名検証済みobjectを保存
+- `duplicate`: 同じ署名検証済みpublicationが存在
+- `deferred`: quarantineへ移動し未保存
 - `rejected`: schema、identity、signature、policyによる拒否
 - `conflict`: 同じcanonical identityに異なるcontent
 - `failed`: verifier infrastructure、operation、storage failure
@@ -238,23 +222,14 @@ HTTP statusとJSON ingestion resultの両方を確認してください。
 - `LB_PUBLISH_SIGNATURE_INVALID`
 - `LB_PUBLISH_SIGNATURE_VERIFIER_ERROR`
 
-### 6. 保存済みcontentの取得
+### 6. 取得とresult処理
 
 ```bash
 curl -sS 'http://127.0.0.1:8787/v1/objects/<canonical-id>'
 ```
 
-返却されたidentifierを正確に使用し、URL encodingを保持してください。
+署名後のrequestを書き換えず、`duplicate`はidempotent success、`deferred`は未保存、`conflict`は非一時障害として扱ってください。private keyをlog、fixture、repository、evidence bundleへ保存しないでください。
 
-### 7. Client要件
+### 7. 非保証
 
-- 署名後のrequest bytesを書き換えない
-- `duplicate`をidempotent successとして扱う
-- `deferred`をcanonical storage成功と扱わない
-- `rejected`は修正してから再送する
-- `conflict`を一時障害としてretryしない
-- private keyをlog、fixture、repository、evidence bundleへ保存しない
-
-### 8. 非保証
-
-このガイドはpublisher authorization、key lifecycle、federation、production TLS、DoS protection、正式72時間soak完了、v1.0.0公開を保証しません。
+このガイドはpublisher authorization／key lifecycle、federation、production TLS、DoS protection、正式72時間soak完了、v1.0.0公開を保証しません。

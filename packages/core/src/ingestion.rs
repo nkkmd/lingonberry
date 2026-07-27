@@ -1,5 +1,5 @@
 use crate::{AppendOutcome, QuarantineStore, StorageBackend};
-use lingonberry_protocol::{parse_json, JsonValue};
+use lingonberry_protocol::{parse_json, verify_publish_request_signature, JsonValue};
 use lingonberry_validation::{
     evaluate_acceptance, finalize_knowledge_object_full, validate_publish_request_full,
     AcceptanceDecision, AcceptancePolicy,
@@ -7,6 +7,7 @@ use lingonberry_validation::{
 use std::collections::BTreeMap;
 
 pub const PUBLISH_INGESTION_CONTRACT_VERSION: &str = "1";
+pub const HTTP_PUBLISH_SIGNATURE_RULE_VERSION: &str = "lb.http.publish.signature.v1";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PublishIngestionStatus {
@@ -80,6 +81,10 @@ pub fn ingest_publish_request(
         }
     };
 
+    if let Err(failure) = enforce_publish_signature(&request) {
+        return terminal_result(failure.status, failure.code, vec![failure.message]);
+    }
+
     let report = validate_publish_request_full(&request);
     match evaluate_acceptance(&report, policy) {
         AcceptanceDecision::Reject { code, errors } => {
@@ -144,6 +149,79 @@ pub fn ingest_publish_request(
             vec![error.message],
         ),
     }
+}
+
+#[derive(Debug)]
+struct PublishSignatureFailure {
+    status: PublishIngestionStatus,
+    code: &'static str,
+    message: String,
+}
+
+fn enforce_publish_signature(request: &JsonValue) -> Result<(), PublishSignatureFailure> {
+    let request_map = as_object(request).ok_or_else(|| malformed_signature(
+        "publish request must be an object before signature verification",
+    ))?;
+    let publisher = request_map
+        .get("publisher")
+        .and_then(as_object)
+        .ok_or_else(|| malformed_signature("publisher must be an object"))?;
+
+    let public_key = publisher
+        .get("publicKey")
+        .and_then(as_string)
+        .ok_or_else(|| malformed_signature("publisher.publicKey is required"))?;
+    let signature = publisher
+        .get("signature")
+        .and_then(as_string)
+        .ok_or_else(|| malformed_signature("publisher.signature is required"))?;
+
+    if public_key.len() != 64 || !is_lower_hex(public_key) {
+        return Err(malformed_signature(
+            "publisher.publicKey must be exactly 64 lowercase hexadecimal characters",
+        ));
+    }
+    if signature.len() != 128 || !is_lower_hex(signature) {
+        return Err(malformed_signature(
+            "publisher.signature must be exactly 128 lowercase hexadecimal characters",
+        ));
+    }
+
+    verify_publish_request_signature(request).map_err(|message| {
+        if is_verifier_failure(&message) {
+            PublishSignatureFailure {
+                status: PublishIngestionStatus::Failed,
+                code: "LB_PUBLISH_SIGNATURE_VERIFIER_ERROR",
+                message,
+            }
+        } else {
+            PublishSignatureFailure {
+                status: PublishIngestionStatus::Rejected,
+                code: "LB_PUBLISH_SIGNATURE_INVALID",
+                message,
+            }
+        }
+    })
+}
+
+fn malformed_signature(message: impl Into<String>) -> PublishSignatureFailure {
+    PublishSignatureFailure {
+        status: PublishIngestionStatus::Rejected,
+        code: "LB_PUBLISH_SIGNATURE_MALFORMED",
+        message: message.into(),
+    }
+}
+
+fn is_verifier_failure(message: &str) -> bool {
+    message.starts_with("failed to create signature verification")
+        || message.starts_with("failed to write signature verification")
+        || message.starts_with("failed to run signature verification")
+}
+
+fn is_lower_hex(value: &str) -> bool {
+    value
+        .bytes()
+        .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
 }
 
 pub fn publish_ingestion_result_json(result: &PublishIngestionResult) -> JsonValue {
@@ -242,6 +320,13 @@ fn as_object(value: &JsonValue) -> Option<&BTreeMap<String, JsonValue>> {
     }
 }
 
+fn as_string(value: &JsonValue) -> Option<&str> {
+    match value {
+        JsonValue::String(value) => Some(value),
+        _ => None,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -282,5 +367,32 @@ mod tests {
         assert!(result.duplicate());
         assert_eq!(result.status, PublishIngestionStatus::Duplicate);
         assert_eq!(result.code, "LB_OBJECT_DUPLICATE");
+    }
+
+    #[test]
+    fn malformed_signature_has_stable_security_code() {
+        let request = JsonValue::Object(BTreeMap::from([
+            ("object".to_string(), JsonValue::Object(BTreeMap::new())),
+            (
+                "publisher".to_string(),
+                JsonValue::Object(BTreeMap::from([
+                    ("publicKey".to_string(), JsonValue::String("00".to_string())),
+                    ("signature".to_string(), JsonValue::String("00".to_string())),
+                ])),
+            ),
+        ]));
+        let failure = enforce_publish_signature(&request).expect_err("must reject malformed signature");
+        assert_eq!(failure.status, PublishIngestionStatus::Rejected);
+        assert_eq!(failure.code, "LB_PUBLISH_SIGNATURE_MALFORMED");
+    }
+
+    #[test]
+    fn verifier_operational_errors_are_fail_closed() {
+        assert!(is_verifier_failure(
+            "failed to run signature verification command"
+        ));
+        assert!(!is_verifier_failure(
+            "publisher.signature does not verify the canonical request payload"
+        ));
     }
 }

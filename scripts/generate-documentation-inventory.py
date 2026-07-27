@@ -149,6 +149,7 @@ NORMALIZED_ROADMAP_DOCS = {
     "docs/roadmap/V1_0_SOAK_REHEARSAL.md",
 }
 NORMALIZED_SECURITY_DOCS = {
+    "docs/security/ISSUE_323_SIGNATURE_ENFORCEMENT.md",
     "docs/security/V0_9_SECURITY_FINDINGS.md",
     "docs/security/V0_9_SECURITY_REVIEW.md",
     "docs/security/V0_9_SIGNATURE_WORKSPACE_REMEDIATION.md",

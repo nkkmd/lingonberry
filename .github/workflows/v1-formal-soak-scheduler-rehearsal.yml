@@ -4,8 +4,10 @@ on:
   pull_request:
     paths:
       - 'scripts/v1_formal_soak_scheduler.py'
+      - 'scripts/v1_formal_soak_scheduler_legacy.py'
       - 'scripts/check-v1-formal-command-map.py'
       - 'scripts/run-v1-crash-matrix-driver.sh'
+      - 'scripts/run-v1-crash-matrix-driver-legacy.sh'
       - 'deploy/soak/**'
       - '.github/workflows/v1-formal-soak-scheduler-rehearsal.yml'
       - 'docs/roadmap/V1_0_SOAK_PLAN.md'
@@ -16,6 +18,11 @@ on:
 permissions:
   contents: read
 
+env:
+  ACTIVE_CANDIDATE_SHA: 8c6b48082205a3af555130eec1f3e7d2ac8811fe
+  ACTIVE_STORAGE_SHA256: 737b148de48bc2ed2f96b3fb8e068e4c696f73d4069e7eaf89b76eaa6a610507
+  ACTIVE_RELAY_SHA256: 23b5cd4044b69a483a457a71164ac5376370793bd502518e2e7d1baeab34a81c
+
 jobs:
   scheduler-rehearsal:
     runs-on: ubuntu-24.04
@@ -25,6 +32,7 @@ jobs:
       - name: Compile scheduler and command-map validator
         run: |
           python3 -m py_compile scripts/v1_formal_soak_scheduler.py
+          python3 -m py_compile scripts/v1_formal_soak_scheduler_legacy.py
           python3 -m py_compile scripts/check-v1-formal-command-map.py
       - name: Validate command map and retained blocker
         run: |
@@ -34,6 +42,11 @@ jobs:
             .qualificationBlockers == ["disk_pressure"] and
             .enabledRequiredOperations == 13
           ' target-command-map-report.json
+          jq -e --arg candidate "$ACTIVE_CANDIDATE_SHA" --arg storage "$ACTIVE_STORAGE_SHA256" --arg relay "$ACTIVE_RELAY_SHA256" '
+            .candidateCommit == $candidate and
+            .storageSha256 == $storage and
+            .relaySha256 == $relay
+          ' deploy/soak/v1-formal-command-map.json
       - name: Run 72-hour virtual-time schedule rehearsal
         run: |
           python3 scripts/v1_formal_soak_scheduler.py \
@@ -42,11 +55,14 @@ jobs:
             --thresholds deploy/soak/v1-formal-thresholds.example.json \
             --virtual-duration 259200 \
             --tick-seconds 60
-          jq -e '
+          jq -e --arg candidate "$ACTIVE_CANDIDATE_SHA" --arg storage "$ACTIVE_STORAGE_SHA256" --arg relay "$ACTIVE_RELAY_SHA256" '
             .adapter == "mock" and
             .qualification == false and
             .qualifyingPass == false and
             .status == "passed" and
+            .candidateCommit == $candidate and
+            .storageSha256 == $storage and
+            .relaySha256 == $relay and
             .scheduledDurationSeconds == 259200 and
             .workloadCounts == .workloadMinima
           ' target/formal-scheduler-pass/summary.json

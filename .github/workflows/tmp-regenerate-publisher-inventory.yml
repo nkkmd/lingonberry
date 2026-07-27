@@ -1,0 +1,28 @@
+name: temporary regenerate publisher inventory
+
+on:
+  push:
+    branches:
+      - agent/fix-publisher-quickstart-placement
+    paths:
+      - '.github/workflows/tmp-regenerate-publisher-inventory.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  regenerate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/fix-publisher-quickstart-placement
+          fetch-depth: 0
+      - run: python3 scripts/generate-documentation-inventory.py
+      - run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add docs/DOCUMENTATION_INVENTORY.md
+          git diff --cached --quiet && exit 0
+          git commit -m 'docs: regenerate publisher documentation inventory'
+          git push origin HEAD:agent/fix-publisher-quickstart-placement

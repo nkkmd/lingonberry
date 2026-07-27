@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import platform
@@ -11,7 +12,9 @@ import subprocess
 import sys
 from pathlib import Path
 
-CANDIDATE = "f9543019f2c219aea3b085ff90f2da201b268a48"
+CANDIDATE = "8c6b48082205a3af555130eec1f3e7d2ac8811fe"
+STORAGE_SHA256 = "737b148de48bc2ed2f96b3fb8e068e4c696f73d4069e7eaf89b76eaa6a610507"
+RELAY_SHA256 = "23b5cd4044b69a483a457a71164ac5376370793bd502518e2e7d1baeab34a81c"
 REQUIRED_COMMANDS = {
     "blkid", "curl", "df", "findmnt", "losetup", "mountpoint", "sha256sum",
     "systemctl", "uname",
@@ -36,6 +39,14 @@ def read_os_release() -> dict[str, str]:
     return values
 
 
+def sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as fh:
+        for chunk in iter(lambda: fh.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--contract", required=True, type=Path)
@@ -47,11 +58,15 @@ def main() -> None:
         fail("schemaVersion must be 1")
     if data.get("candidateCommit") != CANDIDATE:
         fail("candidate commit mismatch")
+    if data.get("storageSha256") != STORAGE_SHA256:
+        fail("storage digest identity mismatch")
+    if data.get("relaySha256") != RELAY_SHA256:
+        fail("relay digest identity mismatch")
 
     required = [
         "device", "backingFile", "filesystemType", "filesystemUuid", "mountPoint",
         "workspace", "pressureFile", "capacityBytes", "evidenceDir", "journalDir",
-        "serviceUnit", "storageBinary",
+        "serviceUnit", "storageBinary", "relayBinary", "storageSha256", "relaySha256",
     ]
     for key in required:
         if key not in data:
@@ -80,6 +95,8 @@ def main() -> None:
     static_report = {
         "schemaVersion": 1,
         "candidateCommit": CANDIDATE,
+        "storageSha256": STORAGE_SHA256,
+        "relaySha256": RELAY_SHA256,
         "staticContractValid": True,
         "liveValidationRequested": args.live,
         "qualificationReady": False,
@@ -120,8 +137,17 @@ def main() -> None:
         fail(f"filesystem UUID mismatch: {uuid}")
     if run(["systemctl", "is-active", "--quiet", data["serviceUnit"]]).returncode != 0:
         fail("Lingonberry service is not active")
-    if not Path(data["storageBinary"]).is_file():
+
+    storage_binary = Path(data["storageBinary"])
+    relay_binary = Path(data["relayBinary"])
+    if not storage_binary.is_file():
         fail("storage binary is missing")
+    if not relay_binary.is_file():
+        fail("relay binary is missing")
+    if sha256(storage_binary) != STORAGE_SHA256:
+        fail("storage binary digest mismatch")
+    if sha256(relay_binary) != RELAY_SHA256:
+        fail("relay binary digest mismatch")
 
     mount_dev = run(["findmnt", "-n", "-o", "MAJ:MIN", "--target", mount]).stdout.strip()
     evidence_dev = run(["findmnt", "-n", "-o", "MAJ:MIN", "--target", data["evidenceDir"]]).stdout.strip()

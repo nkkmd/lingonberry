@@ -15,7 +15,7 @@ External application, service, CLI, connector, and protocol-adapter developers s
 
 The developer guide covers request construction, canonical signing-target generation, the checked-in JavaScript reference producer, HTTP submission, response handling, retry behavior, conformance checks, and the current signature-enforcement limitation.
 
-For repository-local fixture and relay-path verification, use [Knowledge Object Publish Quickstart](docs/operations/KNOWLEDGE_OBJECT_PUBLISH_QUICKSTART.md).
+For repository-local fixture and relay-path verification, use [Knowledge Object Publish Quickstart](docs/developers/REPOSITORY_PUBLISH_WALKTHROUGH.md).
 
 The latest published release is `v0.9.0`. The fixed pre-version v1.0 candidate remains `f9543019f2c219aea3b085ff90f2da201b268a48`; this documentation entry point does not redefine it or complete outstanding release gates.
 
@@ -30,6 +30,6 @@ The latest published release is `v0.9.0`. The fixed pre-version v1.0 candidate r
 
 developer guideでは、request構築、canonical signing target生成、repository内のJavaScript reference producer、HTTP送信、response処理、retry方針、conformance確認、および現在の署名強制に関する制限を説明します。
 
-repository内のfixtureとrelay pathを検証する場合は、[Knowledge Object Publish Quickstart](docs/operations/KNOWLEDGE_OBJECT_PUBLISH_QUICKSTART.md)を使用してください。
+repository内のfixtureとrelay pathを検証する場合は、[Knowledge Object Publish Quickstart](docs/developers/REPOSITORY_PUBLISH_WALKTHROUGH.md)を使用してください。
 
 最新の公開済みreleaseは`v0.9.0`です。version更新前の固定v1.0 candidateは引き続き`f9543019f2c219aea3b085ff90f2da201b268a48`です。この文書入口はcandidateを再定義せず、未完了のrelease gateを完了扱いにしません。

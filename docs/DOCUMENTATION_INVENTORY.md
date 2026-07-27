@@ -6,7 +6,7 @@
 ## Status
 
 - Tracked Markdown files: **173**
-- Release-blocking review entries: **0**
+- Release-blocking review entries: **1**
 - Classification totals: BILINGUAL_REQUIRED: 7, BILINGUAL_SCOPED: 3, ENGLISH_ONLY: 163
 - Governing policy: [`DOCUMENTATION_POLICY.md`](./DOCUMENTATION_POLICY.md)
 - Tracking issue: [#144](https://github.com/nkkmd/lingonberry/issues/144)
@@ -43,8 +43,8 @@ Every tracked Markdown file must appear below. `yes` in the final column means t
 | `docs/concepts/CONCEPT_MODEL.md` | `ENGLISH_ONLY` | `REVIEW` | no |
 | `docs/concepts/GLOSSARY.md` | `BILINGUAL_SCOPED` | `KEEP_BILINGUAL` | no |
 | `docs/concepts/README.md` | `ENGLISH_ONLY` | `REVIEW` | no |
-| `docs/developers/PUBLISHER_QUICKSTART.md` | `ENGLISH_ONLY` | `REVIEW` | no |
-| `docs/developers/README.md` | `ENGLISH_ONLY` | `REVIEW` | no |
+| `docs/developers/PUBLISHER_QUICKSTART.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
+| `docs/developers/README.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
 | `docs/operations/ACCEPTANCE_POLICY.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
 | `docs/operations/ACCESS_RETENTION_AUDIT_CHECKLIST.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
 | `docs/operations/ACCESS_RETENTION_POLICY.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
@@ -54,7 +54,7 @@ Every tracked Markdown file must appear below. `yes` in the final column means t
 | `docs/operations/CONTAINER_EXECUTION_TEMPLATES.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
 | `docs/operations/FILE_ARCHIVE_CARRIER_CONTRACT.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
 | `docs/operations/HTTP_CARRIER_CONTRACT.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
-| `docs/operations/KNOWLEDGE_OBJECT_PUBLISH_QUICKSTART.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
+| `docs/operations/KNOWLEDGE_OBJECT_PUBLISH_QUICKSTART.md` | `ENGLISH_ONLY` | `MERGE_OR_ENGLISH_NORMALIZATION` | yes |
 | `docs/operations/MIGRATION_AND_SCHEMA_VERSIONING.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
 | `docs/operations/MULTI_NODE_CAPACITY_AND_PLACEMENT_POLICY.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
 | `docs/operations/MULTI_NODE_CONFLICT_POLICY.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |

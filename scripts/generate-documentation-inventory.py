@@ -50,6 +50,11 @@ NORMALIZED_ARCHITECTURE_DOCS = {
     "docs/architecture/V1_0_RUST_API_AUDIT.md",
     "docs/architecture/V1_COMPATIBILITY_POLICY.md",
 }
+NORMALIZED_DEVELOPER_DOCS = {
+    "docs/developers/PUBLISHER_QUICKSTART.md",
+    "docs/developers/README.md",
+    "docs/developers/REPOSITORY_PUBLISH_WALKTHROUGH.md",
+}
 NORMALIZED_OPERATION_DOCS = {
     "docs/operations/ACCEPTANCE_POLICY.md",
     "docs/operations/ACCESS_RETENTION_AUDIT_CHECKLIST.md",
@@ -60,7 +65,6 @@ NORMALIZED_OPERATION_DOCS = {
     "docs/operations/CONTAINER_EXECUTION_TEMPLATES.md",
     "docs/operations/FILE_ARCHIVE_CARRIER_CONTRACT.md",
     "docs/operations/HTTP_CARRIER_CONTRACT.md",
-    "docs/operations/KNOWLEDGE_OBJECT_PUBLISH_QUICKSTART.md",
     "docs/operations/MIGRATION_AND_SCHEMA_VERSIONING.md",
     "docs/operations/MULTI_NODE_CAPACITY_AND_PLACEMENT_POLICY.md",
     "docs/operations/MULTI_NODE_CONFLICT_POLICY.md",
@@ -167,7 +171,7 @@ def classify(path: str) -> tuple[str, str, str]:
         return "BILINGUAL_SCOPED", "REVIEW_SCOPE_BEFORE_V1", "yes"
     if path in HISTORICAL_OPERATION_DOCS:
         return "ENGLISH_ONLY", "KEEP_HISTORICAL", "no"
-    if path in NORMALIZED_ARCHITECTURE_DOCS or path in NORMALIZED_OPERATION_DOCS or path in NORMALIZED_PROTOCOL_DOCS or path in NORMALIZED_ROADMAP_DOCS or path in NORMALIZED_SECURITY_DOCS:
+    if path in NORMALIZED_ARCHITECTURE_DOCS or path in NORMALIZED_DEVELOPER_DOCS or path in NORMALIZED_OPERATION_DOCS or path in NORMALIZED_PROTOCOL_DOCS or path in NORMALIZED_ROADMAP_DOCS or path in NORMALIZED_SECURITY_DOCS:
         return "ENGLISH_ONLY", "KEEP_ENGLISH", "no"
     if path.startswith("docs/roadmap/RELEASE_0_"):
         return "ENGLISH_ONLY", "ARCHIVE_REVIEW", "no"

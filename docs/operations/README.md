@@ -48,10 +48,15 @@ The formal reference platform is Ubuntu Server 24.04 LTS, x86_64, systemd.
 
 ### Start here
 
-For development:
+For external publisher and application integration:
+
+- [Developer Documentation](../developers/README.md)
+- [Publisher Quickstart](../../PUBLISHER_QUICKSTART.md)
+- [Repository Publish Walkthrough](../developers/REPOSITORY_PUBLISH_WALKTHROUGH.md)
+
+For relay and storage component development:
 
 - [Relay Quickstart](./RELAY_QUICKSTART.md)
-- [Knowledge Object Publish Quickstart](./KNOWLEDGE_OBJECT_PUBLISH_QUICKSTART.md)
 - [Storage Node Quickstart](./STORAGE_NODE_QUICKSTART.md)
 
 For single-node operation:
@@ -155,10 +160,15 @@ release build済みbinaryをinstall
 
 ### 最初に読む文書
 
-開発用途:
+外部publisherおよびapplication integration:
+
+- [Developer Documentation](../developers/README.md)
+- [Publisher Quickstart](../../PUBLISHER_QUICKSTART.md)
+- [Repository Publish Walkthrough](../developers/REPOSITORY_PUBLISH_WALKTHROUGH.md)
+
+relayおよびstorage component開発:
 
 - [Relay Quickstart](./RELAY_QUICKSTART.md)
-- [Knowledge Object Publish Quickstart](./KNOWLEDGE_OBJECT_PUBLISH_QUICKSTART.md)
 - [Storage Node Quickstart](./STORAGE_NODE_QUICKSTART.md)
 
 single-node運用:

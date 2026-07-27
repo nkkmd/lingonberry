@@ -1,0 +1,95 @@
+name: temporary reorganize publisher documentation
+
+on:
+  push:
+    branches:
+      - agent/reorganize-publisher-docs
+    paths:
+      - '.github/workflows/tmp-reorganize-publisher-docs.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  reorganize:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/reorganize-publisher-docs
+          fetch-depth: 0
+      - name: Reorganize publisher documentation
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          old = Path('docs/operations/KNOWLEDGE_OBJECT_PUBLISH_QUICKSTART.md')
+          new = Path('docs/developers/REPOSITORY_PUBLISH_WALKTHROUGH.md')
+          text = old.read_text().replace('# Knowledge Object Publish Quickstart', '# Repository Publish Walkthrough', 1)
+          for name in [
+              'STORAGE_NODE_QUICKSTART.md',
+              'STORAGE_NODE_RUNTIME.md',
+              'FILE_ARCHIVE_CARRIER_CONTRACT.md',
+              'HTTP_CARRIER_CONTRACT.md',
+              'ACCEPTANCE_POLICY.md',
+              'CARRIER_CAPABILITY_NEGOTIATION.md',
+              'NODE_LIFECYCLE_RUNBOOK.md',
+          ]:
+              text = text.replace(f'](./{name})', f'](../operations/{name})')
+          new.write_text(text)
+          old.unlink()
+
+          root = Path('PUBLISHER_QUICKSTART.md')
+          root.write_text(root.read_text().replace(
+              'docs/operations/KNOWLEDGE_OBJECT_PUBLISH_QUICKSTART.md',
+              'docs/developers/REPOSITORY_PUBLISH_WALKTHROUGH.md',
+          ))
+
+          dev = Path('docs/developers/README.md')
+          text = dev.read_text().replace(
+              'Use [Knowledge Object Publish Quickstart](../operations/KNOWLEDGE_OBJECT_PUBLISH_QUICKSTART.md) when validating the checked-in fixture against a locally started relay.\n\nThat document is a repository and integration walkthrough. It is not the primary guide for implementing a new external publisher.',
+              'Use [Repository Publish Walkthrough](./REPOSITORY_PUBLISH_WALKTHROUGH.md) when validating the checked-in fixture against a locally started relay.\n\nThat document is a repository and integration walkthrough. It is not the primary guide for implementing a new external publisher.\n\n## Directory boundary\n\n`docs/developers/` contains client implementation, application integration, reference producer, and repository integration guidance. `docs/operations/` contains relay, storage, deployment, service lifecycle, recovery, and operator procedures. A document is placed by its primary reader and responsibility boundary, not merely because it contains commands.',
+          )
+          dev.write_text(text)
+
+          readme = Path('README.md')
+          text = readme.read_text()
+          text = text.replace(
+              'See [Relay Quickstart](docs/operations/RELAY_QUICKSTART.md) for the complete development path.',
+              'Choose the path that matches your role:\n\n- [Relay Quickstart](docs/operations/RELAY_QUICKSTART.md) — build and run a local relay;\n- [Publisher Quickstart](PUBLISHER_QUICKSTART.md) — implement an external application, service, CLI, connector, or protocol adapter;\n- [Storage Node Quickstart](docs/operations/STORAGE_NODE_QUICKSTART.md) — build and exercise the storage component;\n- [Developer Documentation](docs/developers/README.md) — browse integration contracts and repository walkthroughs.',
+              1,
+          )
+          text = text.replace(
+              '開発用の完全な手順は[Relay Quickstart](docs/operations/RELAY_QUICKSTART.md)を参照してください。',
+              '担当する役割に応じて、次の導線を選択してください。\n\n- [Relay Quickstart](docs/operations/RELAY_QUICKSTART.md) — local relayをbuildして起動する。\n- [Publisher Quickstart](PUBLISHER_QUICKSTART.md) — 外部application、service、CLI、connector、protocol adapterを実装する。\n- [Storage Node Quickstart](docs/operations/STORAGE_NODE_QUICKSTART.md) — storage componentをbuildして検証する。\n- [Developer Documentation](docs/developers/README.md) — integration contractとrepository walkthroughを確認する。',
+              1,
+          )
+          readme.write_text(text)
+
+          ops = Path('docs/operations/README.md')
+          text = ops.read_text().replace(
+              'For development:\n\n- [Relay Quickstart](./RELAY_QUICKSTART.md)\n- [Knowledge Object Publish Quickstart](./KNOWLEDGE_OBJECT_PUBLISH_QUICKSTART.md)\n- [Storage Node Quickstart](./STORAGE_NODE_QUICKSTART.md)',
+              'For external publisher and application integration:\n\n- [Developer Documentation](../developers/README.md)\n- [Publisher Quickstart](../../PUBLISHER_QUICKSTART.md)\n- [Repository Publish Walkthrough](../developers/REPOSITORY_PUBLISH_WALKTHROUGH.md)\n\nFor relay and storage component development:\n\n- [Relay Quickstart](./RELAY_QUICKSTART.md)\n- [Storage Node Quickstart](./STORAGE_NODE_QUICKSTART.md)',
+          )
+          text = text.replace(
+              '開発用途:\n\n- [Relay Quickstart](./RELAY_QUICKSTART.md)\n- [Knowledge Object Publish Quickstart](./KNOWLEDGE_OBJECT_PUBLISH_QUICKSTART.md)\n- [Storage Node Quickstart](./STORAGE_NODE_QUICKSTART.md)',
+              '外部publisherおよびapplication integration:\n\n- [Developer Documentation](../developers/README.md)\n- [Publisher Quickstart](../../PUBLISHER_QUICKSTART.md)\n- [Repository Publish Walkthrough](../developers/REPOSITORY_PUBLISH_WALKTHROUGH.md)\n\nrelayおよびstorage component開発:\n\n- [Relay Quickstart](./RELAY_QUICKSTART.md)\n- [Storage Node Quickstart](./STORAGE_NODE_QUICKSTART.md)',
+          )
+          ops.write_text(text)
+
+          gen = Path('scripts/generate-documentation-inventory.py')
+          text = gen.read_text().replace('    "docs/operations/KNOWLEDGE_OBJECT_PUBLISH_QUICKSTART.md",\n', '')
+          insert = '''NORMALIZED_DEVELOPER_DOCS = {\n    "docs/developers/PUBLISHER_QUICKSTART.md",\n    "docs/developers/README.md",\n    "docs/developers/REPOSITORY_PUBLISH_WALKTHROUGH.md",\n}\n'''
+          text = text.replace('NORMALIZED_OPERATION_DOCS = {\n', insert + 'NORMALIZED_OPERATION_DOCS = {\n')
+          text = text.replace(
+              'if path in NORMALIZED_ARCHITECTURE_DOCS or path in NORMALIZED_OPERATION_DOCS or path in NORMALIZED_PROTOCOL_DOCS or path in NORMALIZED_ROADMAP_DOCS or path in NORMALIZED_SECURITY_DOCS:',
+              'if path in NORMALIZED_ARCHITECTURE_DOCS or path in NORMALIZED_DEVELOPER_DOCS or path in NORMALIZED_OPERATION_DOCS or path in NORMALIZED_PROTOCOL_DOCS or path in NORMALIZED_ROADMAP_DOCS or path in NORMALIZED_SECURITY_DOCS:',
+          )
+          gen.write_text(text)
+          PY
+          python3 scripts/generate-documentation-inventory.py
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add README.md PUBLISHER_QUICKSTART.md docs/developers docs/operations/README.md scripts/generate-documentation-inventory.py docs/DOCUMENTATION_INVENTORY.md
+          git commit -m 'docs: organize quickstarts by developer role'
+          git push origin HEAD:agent/reorganize-publisher-docs

@@ -1,9 +1,9 @@
 # Roadmap to Lingonberry v1.0.0
 
-**Status: active release roadmap**  
+**Status: active release roadmap; repository qualification complete, reference-host qualification next**  
 **Latest published release: v0.9.0**  
-**Fixed pre-version qualification candidate: `f9543019f2c219aea3b085ff90f2da201b268a48`**  
-**Last reviewed: 2026-07-26**
+**Fixed pre-version qualification candidate: `8c6b48082205a3af555130eec1f3e7d2ac8811fe`**  
+**Last reviewed: 2026-07-27**
 
 ## 1. Purpose and authority
 
@@ -22,13 +22,13 @@ This roadmap is not the normative source for protocol, storage, API, security, o
 
 The published v0.5.0 through v0.9.0 milestones completed the implementation, contract, migration, operations, and hardening work originally described in earlier revisions of this roadmap.
 
-The latest published release is **v0.9.0**. The repository has designated the following immutable pre-version qualification candidate for v1.0.0:
+The latest published release is **v0.9.0**. After the release-blocking publisher-authentication correction, the repository designated and qualified the following immutable pre-version candidate for v1.0.0:
 
 ```text
-f9543019f2c219aea3b085ff90f2da201b268a48
+8c6b48082205a3af555130eec1f3e7d2ac8811fe
 ```
 
-Documentation, inventory, and evidence-maintenance commits after that SHA do not redefine the candidate. Any runtime-affecting, protocol, durable-format, CLI or HTTP contract, migration, recovery, or default-behavior change would require an explicit new candidate and new candidate-bound evidence.
+The previous candidate `f9543019f2c219aea3b085ff90f2da201b268a48` and evidence bound to it are historical and cannot authorize the active runtime. Documentation, inventory, and evidence-maintenance commits after the active candidate SHA do not redefine the candidate. Any runtime-affecting, protocol, durable-format, CLI or HTTP contract, migration, recovery, or default-behavior change would require an explicit new candidate and new candidate-bound evidence.
 
 ### 2.1 Completed foundations
 
@@ -47,7 +47,9 @@ The checked-in implementation and evidence cover the following single-node found
 
 ### 2.2 Completed candidate-bound checks
 
-Candidate qualification and repeatable documentation walkthroughs have been exercised against the fixed candidate. These checks establish reproducible evidence for the candidate but do not by themselves authorize release publication.
+The active candidate has passed standard CI, Rust and JavaScript regressions, external conformance, documentation inventory and freeze checks, candidate-delta security review, exact-candidate executable qualification, and the candidate documentation walkthrough. The qualification bundle passed all 12 gates, and the walkthrough passed all 16 procedures with independently verified checksums and binary identities.
+
+These checks establish reproducible repository-side evidence for the candidate but do not by themselves authorize release publication. The next gate is privileged reference-host qualification on the designated Ubuntu Server 24.04 LTS x86_64 systemd host. The formal 72-hour soak remains blocked until that gate passes.
 
 ## 3. v1.0.0 product boundary
 
@@ -102,25 +104,21 @@ Historical release checklists and release notes remain evidence for their respec
 
 The following work remains mandatory before publication.
 
-### 5.1 Documentation inventory closure
+### 5.1 Privileged reference-host qualification
 
-All release-blocking documentation review entries must be resolved. English is normative, and required Japanese translations must remain synchronized.
+The reference-platform procedure must be completed on the designated Ubuntu Server 24.04 LTS x86_64 systemd host using candidate-built binaries and the required privileged installation, service-lifecycle, backup, restore, migration, recovery, disk-pressure, and public-endpoint checks.
+
+Container, local-development, or unprivileged rehearsals do not replace this gate. The host-specific command map, resource thresholds, identities, deviations, and evidence locations must be frozen and independently inspected before the formal soak is authorized.
 
 ### 5.2 Formal 72-hour soak
 
-The formal candidate-bound soak has not been performed. It must satisfy the checked-in workload floors, evidence requirements, interruption rules, and disposition criteria. Rehearsals do not count as the formal soak.
+The formal candidate-bound soak has not been performed. It may start only after privileged reference-host qualification receives a GO decision. It must satisfy the checked-in duration and workload floors, evidence requirements, interruption rules, stop conditions, and disposition criteria. Rehearsals do not count as the formal soak.
 
-### 5.3 Privileged reference-host qualification
+### 5.3 Final security and residual-risk disposition
 
-The reference-platform procedure must be completed on the designated Ubuntu Server 24.04 LTS x86_64 systemd host using candidate-built binaries and the required privileged installation, service-lifecycle, backup, restore, migration, recovery, and public-endpoint checks.
+Candidate-bound security findings, accepted deviations, residual risks, soak results, and any environment-specific limitations must receive final disposition. No unresolved release-blocking security or operational finding may remain.
 
-Container, local-development, or unprivileged rehearsals do not replace this gate.
-
-### 5.4 Final security and residual-risk disposition
-
-Candidate-bound security findings, accepted deviations, residual risks, and any environment-specific limitations must receive final disposition. No unresolved release-blocking security finding may remain.
-
-### 5.5 Version and publication sequence
+### 5.4 Version and publication sequence
 
 Only after all prior gates pass:
 

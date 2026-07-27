@@ -1,114 +1,144 @@
 # 現在の実装状況
 
-**Status: v0.9.0 released** | **Latest published release: v0.9.0** | **Next release target: v1.0.0** | **Last updated: 2026-07-22**
+**Status: v1.0.0 active-candidate reference-host preflight ready** | **Latest published release: v0.9.0** | **Next release target: v1.0.0** | **Last updated: 2026-07-27**
 
-この文書は、Lingonberryの実装作業を中断・再開するときの引き継ぎ用正本です。
+この文書は、Lingonberryの実装・qualification・release作業を中断／再開するときの引き継ぎ用正本です。
 
 ## Release state
 
 ```text
 latest published release: 0.9.0
 next release target: 1.0.0
-v0.9.0 parent issue: #107 (closed, completed)
-v0.9.0 release PR: #108 (merged)
-v0.9.0 merge commit: 971155340603afdc0c9c5bd37e596f49c260d15e
-v0.9.0 tag: v0.9.0
-GitHub Release: published
-formal reference platform: Ubuntu Server 24.04 LTS, x86_64, systemd
-publication state: released
+active pre-version candidate: 8c6b48082205a3af555130eec1f3e7d2ac8811fe
+reference platform: Ubuntu Server 24.04 LTS, x86_64, systemd
+candidate qualification: passed and independently inspected
+documentation walkthrough: passed and independently inspected
+repository-side preflight: complete
+privileged reference-host preflight: ready to execute
+formal 72-hour soak: blocked until reference-host preflight passes
+v1.0.0 version/tag/GitHub Release: pending
 ```
 
-## v0.9.0で完成した範囲
+Evidence／documentation commitをcandidate決定後に追加しても、固定candidateは変更しません。
 
-### Protocol parser hardening
+## Active candidate identities
 
-- JSON input size limit: 1 MiB
-- array／object共通nesting depth limit: 128
-- oversized inputをrecursive parse前にfail closedで拒否
-- depth 128を受理し、depth 129以上をpanicせず拒否
-- mixed object／array nestingへ同じ上限を適用
-- canonical ordering、round trip、deterministic parse契約を維持
+```text
+candidate commit:
+8c6b48082205a3af555130eec1f3e7d2ac8811fe
 
-### Signature verification workspace hardening
+lingonberry-storage SHA-256:
+737b148de48bc2ed2f96b3fb8e068e4c696f73d4069e7eaf89b76eaa6a610507
 
-- PID、timestamp、atomic counterを組み合わせたworkspace候補名
-- exclusive directory creation
-- Unix reference platformでowner-only `0o700` permission
-- artifact fileの`create_new(true)`による既存path上書き拒否
-- normal success／failure return pathでRAII cleanup
-- payload、signature、temporary pathを含まないgeneric error
-- cleanup、permission、collision、concurrent isolationのunit test
+lingonberry-relay SHA-256:
+23b5cd4044b69a483a457a71164ac5376370793bd502518e2e7d1baeab34a81c
+```
 
-### Public contract freeze evidence
+Superseded candidate `f9543019f2c219aea3b085ff90f2da201b268a48`と、そのcandidateに結び付くbinary、walkthrough、soak、release authorization evidenceは歴史記録です。active runtimeの承認には使用しません。
 
-- Rust public API inventory
-- public API freeze candidate
-- security reviewとfinding ledger
-- Critical finding: 0
-- High finding: 0
-- release-blocking Medium finding: 0
+## Verified candidate evidence
 
-### Version and publication
+### Candidate qualification
 
-- 全Rust workspace packageと`Cargo.lock`を`0.9.0`へ更新
-- `CHANGELOG.md`へ0.9.0 entryを追加
-- release checklist、release notes、release evidenceを確定
-- PR #108をmainへmerge
-- tag `v0.9.0`を作成
-- GitHub Release `v0.9.0`を公開
-- issue #107をcompletedとしてclose
+- workflow run: `30238378797`
+- artifact ID: `8642393171`
+- artifact digest: `sha256:c30a0472f6ea07f3e395c9a27c67d1460b8f35a13a7afd397bd0e5895cb93b3e`
+- candidate SHA、binary SHA-256、全`SHA256SUMS` entryを独立検証済み
+- 12 qualification gate: all passed
 
-## Preserved v0.8.0 operational baseline
+### Documentation walkthrough
+
+- workflow run: `30239602412`
+- artifact ID: `8642773653`
+- artifact digest: `sha256:9b954ada86f86e5da4966951039af9dddc2eddb3d49c996d09256e4cad598338`
+- 16 procedures: all passed
+- 34 `SHA256SUMS` entries: all verified
+- valid、tampered、malformed、verifier failureのsignature pathを確認
+- duplicate／conflict pathがpublisher authenticationを迂回しないことを確認
+
+## v1.0.0で固定済みの主要範囲
+
+### Canonical storage and derived state
+
+- canonical storageをsemantic source of truthとして維持
+- index／effective viewは検証・再構築可能な派生状態
+- deterministic index verify／rebuild、checkpoint、catch-up
+- stale worker／incomplete evidenceによるlast-known-good state上書きを拒否
+
+### Authenticated publishing
+
+- Ed25519 publisher signatureをJSON parse直後に検証
+- acceptance policy、quarantine、duplicate／conflict判定、raw append、canonical storageより前にfail closed
+- malformed encoding: `LB_PUBLISH_SIGNATURE_MALFORMED`
+- cryptographically invalid signature: `LB_PUBLISH_SIGNATURE_INVALID`
+- verifier execution failure: `LB_PUBLISH_SIGNATURE_VERIFIER_ERROR`
+- valid signed fixture、tampered signature、duplicate／conflict non-bypassを検証済み
+
+### Operations and recovery
 
 - Ubuntu Server 24.04 LTS、x86_64、systemd
 - release-built binaries under `/usr/local/bin`
 - hardened systemd units
-- read-only `doctor`、strict `verify`、health／ready／status／metrics
+- health／ready／status／doctor／verify／metrics
 - verified backup and isolated restore
 - deterministic index verify／rebuild
-- isolated DR drill
-- explicit migration and compatible rollback
+- explicit migration、resume、rollback
+- persistent quarantine、verified replacement、proof-bound cleanup
 
-## Fixed safety model
+### Input and workspace hardening
 
-- validation未通過objectをcanonical storageへ保存しない
-- conflict時に既存canonical objectを上書きしない
-- ordinary startupでimplicit migrationやdestructive repairを実行しない
-- unknown、corrupt、contradictory stateを成功扱いしない
-- restoreはactive state／data directoryを上書きしない
-- canonical storageを正本とし、indexは検証・再構築可能な派生状態とする
-- untrusted JSONをsize／depth上限なしでrecursive parseしない
-- signature verification artifactを既存pathへ上書きしない
-- normal return pathでsignature verification workspaceを残留させない
-- same-host lockをdistributed lockとして扱わない
+- JSON input size limit: 1 MiB
+- array／object共通nesting depth limit: 128
+- oversized／over-nested inputをrecursive parse前に拒否
+- signature verification workspaceのexclusive creation、owner-only permission、RAII cleanup
 
-## Validation and publication record
+## Current GO / NO-GO boundary
 
-- post-hardening CI run 1141: success
-- release-preparation workflow `29898586767`: success
-- final standard CI run 1152: success
-- Operator acceptance run 74: success
-- bounded hardening soak: parser limits、signature workspace、replacement crash matrixを5反復し成功
-- PR #108 merged
-- merge commit `971155340603afdc0c9c5bd37e596f49c260d15e`
-- tag `v0.9.0`
-- GitHub Release `v0.9.0` published
+### GO
+
+- repository-side implementation and evidence review
+- exact-candidate qualification
+- candidate documentation walkthrough
+- privileged reference-host preflight preparation
+
+### NO-GO
+
+次はreference-host preflightがPASSするまで開始しません。
+
+- formal 72-hour soak
+- version `1.0.0` update
+- release checklist／release notes／CHANGELOGの最終確定
+- merged release commit validation
+- annotated tag `v1.0.0`
+- GitHub Release publication
+
+## Reference-host preflight inputs
+
+- candidateと2つのbinary digestを変更しない
+- Ubuntu Server 24.04 LTS、x86_64、systemdを使用
+- service user、directory、ownership、environment file、systemd unitを記録
+- evidence／journalをdisk-pressure対象とは別filesystemへ置く
+- startup、restart、signed publish、persistence、diagnostics、backup／restore、indexを実行
+- malformed、invalid signature、verifier failure、duplicate、conflictのfail-closed behaviorを実行
+- disk-pressure rehearsalとstop conditionを確認
+- UTC timestamp、operator identity、host provenance、deviation、artifact digestを記録
+
+Tracking issue: [#343](https://github.com/nkkmd/lingonberry/issues/343)
 
 ## Canonical documents
 
-- [v0.9.0 Release Checklist](./RELEASE_0_9_0_CHECKLIST.md)
-- [v0.9.0 Release Notes](./RELEASE_0_9_0_RELEASE_NOTE.md)
-- [v0.9.0 Release Evidence](./V0_9_RELEASE_EVIDENCE.md)
-- [v0.9.0 Hardening Plan](./V0_9_HARDENING_PLAN.md)
-- [v0.9.0 Security Review](../security/V0_9_SECURITY_REVIEW.md)
-- [v0.9.0 Security Findings](../security/V0_9_SECURITY_FINDINGS.md)
-- [v0.9.0 Public API Freeze Candidate](../architecture/V0_9_PUBLIC_API_FREEZE_CANDIDATE.md)
-- [v0.9.0 Rust API Inventory](../architecture/V0_9_RUST_API_INVENTORY.md)
-- [Supported Platforms](../operations/SUPPORTED_PLATFORMS.md)
-- [v0.8.0 Operator Runbook](../operations/V0_8_OPERATOR_RUNBOOK.md)
-- [Operator CLI Contract](../operations/OPERATOR_CLI_CONTRACT.md)
-- [v0.8.0 Upgrade and Rollback](../operations/V0_8_UPGRADE_AND_ROLLBACK.md)
+再開時は次の順に確認します。
+
+1. [v1.0.0 Qualification Status](./V1_0_QUALIFICATION_STATUS.md)
+2. [v1.0.0 Release Evidence](./V1_0_RELEASE_EVIDENCE.md)
+3. [v1.0.0 Documentation Walkthrough](./V1_0_DOCUMENTATION_WALKTHROUGH.md)
+4. [v1.0.0 Security Diff Review](../security/V1_0_SECURITY_DIFF_REVIEW.md)
+5. [v1.0.0 Qualification Plan](./V1_0_QUALIFICATION_PLAN.md)
+6. [v1.0.0 Soak Plan](./V1_0_SOAK_PLAN.md)
+7. [v1 Compatibility Policy](../architecture/V1_COMPATIBILITY_POLICY.md)
+8. [v1.0 Operator Runbook](../operations/V1_0_OPERATOR_RUNBOOK.md)
+9. [Roadmap to v1.0](./ROADMAP_TO_V1_0.md)
 
 ## Next step
 
-`docs/roadmap/ROADMAP_TO_V1_0.md`に従い、v1.0.0 stable single-node release gateの最終確認へ進みます。
+Issue #344で入口文書と実行identityを整合させた後、Issue #343に従ってactive candidateのprivileged reference-host preflightを実行します。preflightがPASSした場合のみ、同じcandidate／binary identityで正式72時間soakを開始します。

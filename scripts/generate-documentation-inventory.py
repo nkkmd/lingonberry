@@ -6,8 +6,8 @@ import subprocess
 from pathlib import Path
 
 BILINGUAL_REQUIRED = {
-    "PUBLISHER_QUICKSTART.md",
     "README.md",
+    "docs/developers/PUBLISHER_QUICKSTART.md",
     "SECURITY.md",
     "CONTRIBUTING.md",
     "docs/DOCUMENTATION_POLICY.md",
@@ -17,8 +17,8 @@ BILINGUAL_REQUIRED = {
     "docs/operations/V1_0_UPGRADE_AND_ROLLBACK.md",
 }
 REVIEWED_BILINGUAL_REQUIRED = {
-    "PUBLISHER_QUICKSTART.md",
     "README.md",
+    "docs/developers/PUBLISHER_QUICKSTART.md",
     "docs/DOCUMENTATION_POLICY.md",
     "docs/operations/README.md",
     "docs/operations/RELAY_QUICKSTART.md",
@@ -51,7 +51,6 @@ NORMALIZED_ARCHITECTURE_DOCS = {
     "docs/architecture/V1_COMPATIBILITY_POLICY.md",
 }
 NORMALIZED_DEVELOPER_DOCS = {
-    "docs/developers/PUBLISHER_QUICKSTART.md",
     "docs/developers/README.md",
     "docs/developers/REPOSITORY_PUBLISH_WALKTHROUGH.md",
 }

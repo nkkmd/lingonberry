@@ -97,7 +97,7 @@ curl -sS http://127.0.0.1:8787/v1/ready
 Choose the path that matches your role:
 
 - [Relay Quickstart](docs/operations/RELAY_QUICKSTART.md) — build and run a local relay;
-- [Publisher Quickstart](PUBLISHER_QUICKSTART.md) — implement an external application, service, CLI, connector, or protocol adapter;
+- [Publisher Quickstart](docs/developers/PUBLISHER_QUICKSTART.md) — implement an external application, service, CLI, connector, or protocol adapter;
 - [Storage Node Quickstart](docs/operations/STORAGE_NODE_QUICKSTART.md) — build and exercise the storage component;
 - [Developer Documentation](docs/developers/README.md) — browse integration contracts and repository walkthroughs.
 
@@ -267,7 +267,7 @@ curl -sS http://127.0.0.1:8787/v1/ready
 担当する役割に応じて、次の導線を選択してください。
 
 - [Relay Quickstart](docs/operations/RELAY_QUICKSTART.md) — local relayをbuildして起動する。
-- [Publisher Quickstart](PUBLISHER_QUICKSTART.md) — 外部application、service、CLI、connector、protocol adapterを実装する。
+- [Publisher Quickstart](docs/developers/PUBLISHER_QUICKSTART.md) — 外部application、service、CLI、connector、protocol adapterを実装する。
 - [Storage Node Quickstart](docs/operations/STORAGE_NODE_QUICKSTART.md) — storage componentをbuildして検証する。
 - [Developer Documentation](docs/developers/README.md) — integration contractとrepository walkthroughを確認する。
 

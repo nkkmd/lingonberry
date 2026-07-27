@@ -1,14 +1,18 @@
 # Lingonberry v1.0.0 Pre-Version Candidate
 
-**Status: redesignation pending merge and main-push qualification** | **Target release: v1.0.0** | **Parent issue: #109** | **Tracking issue: #332** | **Redesignation date: 2026-07-27**
+**Status: designated; main-push qualification evidence pending inspection** | **Target release: v1.0.0** | **Parent issue: #109** | **Tracking issue: #332** | **Redesignation date: 2026-07-27**
 
-## 1. Redesignation rule
+## 1. Designated candidate
 
-The `main` merge commit that introduces this redesignation record is designated as the new Lingonberry v1.0.0 pre-version qualification candidate.
+The redesigned Lingonberry v1.0.0 pre-version qualification candidate is the `main` squash-merge commit produced by PR #333:
 
-The exact candidate SHA is not this pull-request head SHA and is not the earlier candidate. It is the resulting `main` merge commit, which must be qualified by the `v1 candidate qualification` workflow through its `push` trigger.
+```text
+8c6b48082205a3af555130eec1f3e7d2ac8811fe
+```
 
-After merge, the exact SHA, workflow run, artifact ID, artifact digest, binary SHA-256 values, security disposition, and documentation-walkthrough evidence must be recorded in the release evidence documents and issue #332.
+This exact commit includes the runtime-affecting Ed25519 publisher-signature enforcement merged through PR #331 and the candidate-redesignation record merged through PR #333. Later evidence-only or documentation-only commits do not silently move or redefine the candidate.
+
+The candidate must be qualified by the `v1 candidate qualification` workflow through its `main` push trigger. The exact workflow run, artifact ID, artifact digest, binary SHA-256 values, security disposition, and documentation-walkthrough evidence must be recorded in the release evidence documents and issue #332 before the candidate is treated as fully qualified.
 
 ## 2. Superseded candidate
 
@@ -43,7 +47,7 @@ The redesigned candidate includes:
 
 ## 4. Candidate qualification requirements
 
-The designated merge commit must produce a checksummed qualification artifact containing:
+The designated candidate must produce a checksummed qualification artifact containing:
 
 - the exact candidate commit;
 - repository and workflow provenance;
@@ -55,11 +59,11 @@ The designated merge commit must produce a checksummed qualification artifact co
 - aggregate summary;
 - bundle `SHA256SUMS`.
 
-All recorded gates must pass. The artifact candidate commit must equal the pushed `main` merge commit.
+All recorded gates must pass. The artifact candidate commit must equal `8c6b48082205a3af555130eec1f3e7d2ac8811fe`.
 
 ## 5. Evidence boundary
 
-Passing PR dry-run qualification does not designate the PR head as the candidate. Passing main-push candidate qualification does not by itself authorize version preparation or publication.
+The successful PR #333 qualification run was a dry run and does not replace the required `main` push evidence. Main-push candidate qualification does not by itself authorize version preparation or publication.
 
 After redesignation, the following remain mandatory:
 
@@ -81,17 +85,15 @@ After redesignation:
 - a command, path, required setting, diagnostic code, or recovery-instruction change invalidates affected walkthrough evidence;
 - no change may reuse old binary, walkthrough, reference-host, or soak evidence while silently moving the qualified SHA.
 
-## 7. Post-merge record
-
-To be completed from the `main` push evidence:
+## 7. Post-merge qualification record
 
 ```text
-candidate merge SHA: Pending
-qualification workflow run: Pending
+candidate merge SHA: 8c6b48082205a3af555130eec1f3e7d2ac8811fe
+qualification workflow run: Pending connector-visible inspection
 qualification artifact ID: Pending
 qualification artifact digest: Pending
 lingonberry-storage SHA-256: Pending
 lingonberry-relay SHA-256: Pending
-standard CI result: Pending
-qualification disposition: Pending
+standard CI result: PR checks passed; main-push result pending inspection
+qualification disposition: Candidate designated; executable evidence not yet recorded
 ```

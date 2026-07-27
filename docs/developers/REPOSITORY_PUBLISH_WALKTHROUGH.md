@@ -4,7 +4,7 @@
 
 This quickstart verifies the checked-in Lingonberry publication path with a local relay and repository fixtures. English is normative.
 
-External application, service, CLI, connector, and protocol-adapter developers should use [Publisher Quickstart](../developers/PUBLISHER_QUICKSTART.md) as their primary entry point.
+External application, service, CLI, connector, and protocol-adapter developers should use [Publisher Quickstart](./PUBLISHER_QUICKSTART.md) as their primary entry point.
 
 ## 1. Release boundary
 
@@ -27,7 +27,7 @@ Use this document when you need to:
 - confirm retrieval and persistence behavior;
 - exercise repository integration paths.
 
-Use [Publisher Quickstart](../developers/PUBLISHER_QUICKSTART.md) when implementing a new external publisher, generating custom Knowledge Objects, constructing canonical signing targets, managing keys, or defining client retry behavior.
+Use [Publisher Quickstart](./PUBLISHER_QUICKSTART.md) when implementing a new external publisher, generating custom Knowledge Objects, constructing canonical signing targets, managing keys, or defining client retry behavior.
 
 ## 3. Prerequisites
 
@@ -235,7 +235,7 @@ This quickstart does not establish or guarantee:
 
 ## References
 
-- [Publisher Quickstart](../developers/PUBLISHER_QUICKSTART.md)
+- [Publisher Quickstart](./PUBLISHER_QUICKSTART.md)
 - [Developer Documentation](../developers/README.md)
 - [HTTP Carrier Contract](../operations/HTTP_CARRIER_CONTRACT.md)
 - [HTTP Publish Signature](../protocols/HTTP_PUBLISH_SIGNATURE.md)

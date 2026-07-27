@@ -1,6 +1,6 @@
 # Carrier
 
-[English](#english) | [日本語](#日本語)
+[English](#english) | [日本語](#japanese)
 
 > English is the normative version of this document. The Japanese section is a synchronized translation.
 >
@@ -55,6 +55,8 @@ External formats are not automatically Lingonberry wire formats. Conversion requ
 ### v1.0 boundary
 
 Lingonberry v1.0 qualifies documented single-node HTTP and file/archive behavior. It does not guarantee multi-carrier federation, global ordering, distributed consensus, or compatibility with an undocumented external transport.
+
+<a id="japanese"></a>
 
 ## 日本語
 

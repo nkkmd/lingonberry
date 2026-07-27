@@ -1,6 +1,6 @@
 # Glossary / 用語集
 
-[English](#english) | [日本語](#日本語)
+[English](#english) | [日本語](#japanese)
 
 > English is the normative version of this document. The Japanese section is a synchronized translation.
 >
@@ -93,6 +93,8 @@ The versioned semantic and validation contract governing Lingonberry objects, id
 ### relay
 
 The operator-facing process that exposes documented HTTP, storage, diagnostic, and lifecycle behavior. v1.0 qualifies a single-node relay; the term does not imply federation or consensus.
+
+<a id="japanese"></a>
 
 ## 日本語
 

@@ -19,6 +19,12 @@ ENGLISH_MARKER = "## English"
 JAPANESE_MARKER = "## 日本語"
 NORMATIVE_ENGLISH_RE = re.compile(r"English is (?:the )?normative")
 NORMATIVE_JAPANESE = "英語"
+LEGACY_JAPANESE_LINK = "[日本語](#日本語)"
+ASCII_JAPANESE_LINK = "[日本語](#japanese)"
+ASCII_JAPANESE_ANCHOR_RE = re.compile(
+    r'<a\s+(?:id|name)=["\']japanese["\']\s*></a>',
+    re.IGNORECASE,
+)
 
 
 def parse_args() -> argparse.Namespace:
@@ -49,6 +55,16 @@ def main() -> int:
 
     errors: list[str] = []
     checked = 0
+
+    for path in sorted(ROOT.rglob("*.md")):
+        if ".git" in path.parts:
+            continue
+        relative = path.relative_to(ROOT).as_posix()
+        text = path.read_text(encoding="utf-8")
+        if LEGACY_JAPANESE_LINK in text:
+            errors.append(f"legacy Unicode Japanese link target: {relative}")
+        if ASCII_JAPANESE_LINK in text and not ASCII_JAPANESE_ANCHOR_RE.search(text):
+            errors.append(f"missing ASCII Japanese anchor: {relative}")
 
     for relative in sorted(required):
         if relative in pending:

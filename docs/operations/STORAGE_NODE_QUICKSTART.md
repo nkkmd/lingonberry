@@ -1,6 +1,6 @@
 # Storage Node Quickstart / Storage Nodeクイックスタート
 
-[English](#english) | [日本語](#日本語)
+[English](#english) | [日本語](#japanese)
 
 > English is the normative version of this document. The Japanese section is a synchronized translation. If the two sections differ, the English section takes precedence.
 >
@@ -296,6 +296,8 @@ Documentation and evidence commits after that candidate do not redefine it.
 - [v1.0 Upgrade and Rollback](./V1_0_UPGRADE_AND_ROLLBACK.md)
 
 ---
+
+<a id="japanese"></a>
 
 ## 日本語
 

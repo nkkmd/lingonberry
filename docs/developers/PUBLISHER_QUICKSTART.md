@@ -1,6 +1,6 @@
 # Publisher Quickstart / Publisher クイックスタート
 
-[English](#english) | [日本語](#日本語)
+[English](#english) | [日本語](#japanese)
 
 > English is the normative version of this document. The Japanese section is a synchronized translation. If the two sections differ, the English section takes precedence.
 >
@@ -324,6 +324,8 @@ This quickstart does not establish or guarantee:
 - [`conformance/minimal-producer.mjs`](../../conformance/minimal-producer.mjs)
 
 ---
+
+<a id="japanese"></a>
 
 ## 日本語
 

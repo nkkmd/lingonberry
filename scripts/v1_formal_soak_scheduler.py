@@ -8,6 +8,7 @@ all candidate-bound identities before delegating to that implementation.
 from __future__ import annotations
 
 import importlib.util
+import sys
 from pathlib import Path
 
 CANDIDATE = "8c6b48082205a3af555130eec1f3e7d2ac8811fe"
@@ -21,6 +22,7 @@ def load_implementation():
     if spec is None or spec.loader is None:
         raise RuntimeError(f"cannot load formal soak implementation: {path}")
     module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
     spec.loader.exec_module(module)
     module.CANDIDATE = CANDIDATE
     module.STORAGE_SHA256 = STORAGE_SHA256

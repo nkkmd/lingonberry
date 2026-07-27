@@ -25,7 +25,7 @@ Every tracked Markdown file must appear below. `yes` in the final column means t
 |---|---|---|---|
 | `AGENTS.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
 | `CHANGELOG.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH_ADD_BILINGUAL_V1_SUMMARY` | no |
-| `PUBLISHER_QUICKSTART.md` | `BILINGUAL_REQUIRED` | `KEEP_BILINGUAL` | no |
+| `PUBLISHER_QUICKSTART.md` | `ENGLISH_ONLY` | `REVIEW` | no |
 | `README.md` | `BILINGUAL_REQUIRED` | `KEEP_BILINGUAL` | no |
 | `conformance/README.md` | `ENGLISH_ONLY` | `REVIEW` | no |
 | `docs/DOCUMENTATION_INVENTORY.md` | `ENGLISH_ONLY` | `REVIEW` | no |
@@ -43,7 +43,7 @@ Every tracked Markdown file must appear below. `yes` in the final column means t
 | `docs/concepts/CONCEPT_MODEL.md` | `ENGLISH_ONLY` | `REVIEW` | no |
 | `docs/concepts/GLOSSARY.md` | `BILINGUAL_SCOPED` | `KEEP_BILINGUAL` | no |
 | `docs/concepts/README.md` | `ENGLISH_ONLY` | `REVIEW` | no |
-| `docs/developers/PUBLISHER_QUICKSTART.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
+| `docs/developers/PUBLISHER_QUICKSTART.md` | `BILINGUAL_REQUIRED` | `KEEP_BILINGUAL` | no |
 | `docs/developers/README.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
 | `docs/developers/REPOSITORY_PUBLISH_WALKTHROUGH.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
 | `docs/operations/ACCEPTANCE_POLICY.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |

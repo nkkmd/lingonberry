@@ -51,7 +51,7 @@ The formal reference platform is Ubuntu Server 24.04 LTS, x86_64, systemd.
 For external publisher and application integration:
 
 - [Developer Documentation](../developers/README.md)
-- [Publisher Quickstart](../../PUBLISHER_QUICKSTART.md)
+- [Publisher Quickstart](../developers/PUBLISHER_QUICKSTART.md)
 - [Repository Publish Walkthrough](../developers/REPOSITORY_PUBLISH_WALKTHROUGH.md)
 
 For relay and storage component development:
@@ -163,7 +163,7 @@ release build済みbinaryをinstall
 外部publisherおよびapplication integration:
 
 - [Developer Documentation](../developers/README.md)
-- [Publisher Quickstart](../../PUBLISHER_QUICKSTART.md)
+- [Publisher Quickstart](../developers/PUBLISHER_QUICKSTART.md)
 - [Repository Publish Walkthrough](../developers/REPOSITORY_PUBLISH_WALKTHROUGH.md)
 
 relayおよびstorage component開発:

@@ -1,0 +1,28 @@
+name: temporary regenerate reorganized docs inventory
+
+on:
+  push:
+    branches:
+      - agent/reorganize-publisher-docs
+    paths:
+      - '.github/workflows/tmp-regenerate-reorganized-docs-inventory.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  regenerate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/reorganize-publisher-docs
+          fetch-depth: 0
+      - run: |
+          python3 scripts/generate-documentation-inventory.py
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add docs/DOCUMENTATION_INVENTORY.md
+          git diff --cached --quiet && exit 0
+          git commit -m 'docs: regenerate documentation inventory'
+          git push origin HEAD:agent/reorganize-publisher-docs

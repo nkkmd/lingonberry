@@ -1,71 +1,90 @@
 # Lingonberry v1.0.0 Qualification Status
 
-**Status: candidate qualification, security review, compatibility review, and documentation walkthrough complete; formal soak and publication pending** | **Target release: v1.0.0** | **Parent issue: #109**
+**Status: candidate redesignation pending; prior candidate-bound evidence superseded by runtime security change** | **Target release: v1.0.0** | **Parent issue: #109** | **Tracking issue: #332**
 
-## 1. Fixed candidate
+## 1. Candidate state
+
+The previous fixed candidate was:
 
 ```text
 f9543019f2c219aea3b085ff90f2da201b268a48
 ```
 
-The candidate was designated by the merge of PR #127 on 2026-07-23. Later documentation and inventory commits do not move it.
+It was designated by PR #127 on 2026-07-23. PR #331 subsequently introduced runtime-affecting Ed25519 publisher-signature enforcement before acceptance and storage. Under the candidate change-control policy, the previous candidate and its executable evidence are now historical and cannot authorize v1.0.0 publication.
 
-## 2. Completed candidate-bound work
+The new candidate will be the `main` merge commit produced by the redesignation PR tracked in issue #332. Until that merge commit passes main-push qualification and its artifact is inspected and recorded, there is no active qualified v1.0.0 candidate.
 
-| Work item | Status | Evidence |
-|---|---|---|
-| Candidate designation | Complete | PR #127 |
-| Candidate qualification | Passed | run `29971797941`, artifact `8549953270` |
-| Candidate binaries and digests | Recorded | `V1_0_RELEASE_EVIDENCE.md` |
-| Rust public API audit | Complete | `V1_0_RUST_API_AUDIT.md` |
-| Normative v1 compatibility policy | Complete | `V1_COMPATIBILITY_POLICY.md` |
-| Candidate security and compatibility review | Passed | `V1_0_SECURITY_DIFF_REVIEW.md` |
-| Candidate documentation walkthrough | Passed | run `29974169660`, artifact `8550809328`, 16 procedures |
-| Candidate documentation freeze | Passed for candidate execution | `V1_0_RELEASE_EVIDENCE.md` |
+## 2. Superseded candidate-bound work
 
-The candidate review records Critical 0, High 0, and release-blocking Medium 0. Candidate qualification and walkthrough evidence are checksummed and commit-bound.
+| Work item | Current status | Historical evidence | Required replacement |
+|---|---|---|---|
+| Candidate designation | Superseded | PR #127 | Merge the issue #332 redesignation PR |
+| Candidate qualification | Superseded | run `29971797941`, artifact `8549953270` | Qualify the new exact `main` merge commit |
+| Candidate binaries and digests | Superseded | `V1_0_RELEASE_EVIDENCE.md` | Record new candidate-built binary digests |
+| Rust public API audit | Remains applicable, rerun required by workflow | `V1_0_RUST_API_AUDIT.md` | Pass audit on the new candidate |
+| Normative v1 compatibility policy | Remains normative | `V1_COMPATIBILITY_POLICY.md` | Review signature-enforcement delta against policy |
+| Candidate security and compatibility review | Superseded | `V1_0_SECURITY_DIFF_REVIEW.md` | Rerun for the new candidate and PR #331 delta |
+| Candidate documentation walkthrough | Superseded | run `29974169660`, artifact `8550809328` | Rerun with new candidate-built binaries |
+| Candidate documentation freeze | Reopened | prior candidate evidence | Revalidate affected developer/operator procedures |
+| Privileged reference-host qualification | Pending | none complete | Execute against the new candidate |
+| Formal 72-hour soak | Not started | none | Start only from the new fixed candidate |
 
-## 3. Remaining release-blocking work
+Historical evidence remains retained for auditability. It must not be relabeled, copied, or cited as evidence for the redesigned candidate.
+
+## 3. Completed runtime correction
+
+PR #331 completed the release-blocking publisher-authentication correction:
+
+- verifies Ed25519 publisher signatures immediately after JSON parsing;
+- verifies before acceptance policy, quarantine, duplicate/conflict classification, raw-request append, and canonical storage;
+- rejects malformed encodings with `LB_PUBLISH_SIGNATURE_MALFORMED`;
+- rejects cryptographically invalid signatures with `LB_PUBLISH_SIGNATURE_INVALID`;
+- fails closed on verifier execution failures with `LB_PUBLISH_SIGNATURE_VERIFIER_ERROR`;
+- covers the checked-in valid vector and tampered-signature path in Rust ingestion;
+- preserves intended validation and conflict test coverage with correctly signed fixtures.
+
+PR #331 passed standard CI, Rust public API audit, JavaScript external conformance, documentation inventory, and PR candidate qualification before merge.
+
+## 4. Redesignation gates
 
 | Gate | State | Required completion |
 |---|---|---|
-| Formal 72-hour qualification soak | Not started / not completed | Execute the real-time systemd scheduler for at least 259,200 seconds and satisfy every workload, telemetry, crash-matrix, disk-pressure, and stop-threshold requirement. |
-| Privileged reference-host qualification | Pending | Complete the dedicated Ubuntu Server 24.04 x86_64 systemd host preparation and disk-pressure rehearsal without undocumented workarounds. |
-| Final residual-risk disposition | Pending | Review soak and reference-host evidence and record a release decision. |
+| Redesignation PR standard CI | Pending | All required checks pass on the PR head. |
+| PR candidate qualification dry run | Pending | Qualification passes without treating the PR head as the fixed candidate. |
+| New candidate designation | Pending | Merge the redesignation PR; its `main` merge commit becomes the fixed candidate. |
+| Main-push candidate qualification | Pending | Qualify the exact pushed merge commit and retain the artifact. |
+| Independent artifact inspection | Pending | Verify candidate identity, all gates, checksums, and binary digests. |
+| Release evidence update | Pending | Record new SHA, run ID, artifact ID/digest, binary digests, and disposition. |
+| Security and compatibility review | Pending rerun | Review the runtime delta through the new candidate. |
+| Documentation walkthrough | Pending rerun | Execute all required procedures using candidate-built binaries. |
+
+## 5. Remaining release-blocking work
+
+| Gate | State | Required completion |
+|---|---|---|
+| Formal 72-hour qualification soak | Blocked on redesignation | Execute for at least 259,200 seconds and satisfy every workload, telemetry, crash-matrix, disk-pressure, and stop-threshold requirement. |
+| Privileged reference-host qualification | Blocked on redesignation | Complete Ubuntu Server 24.04 x86_64 systemd host preparation and disk-pressure rehearsal without undocumented workarounds. |
+| Final residual-risk disposition | Pending | Review all replacement evidence and record a release decision. |
 | Version preparation | Pending | Set version `1.0.0` and synchronize release checklist, notes, implementation status, and CHANGELOG. |
 | Reviewed release PR | Pending | Review the exact version-preparation diff and required checks. |
 | Merged-commit validation | Pending | Revalidate the merged release commit and preserve evidence. |
 | Annotated tag and GitHub Release | Pending | Publish only after all prior gates pass. |
 | Final publication evidence | Pending | Record tag, release, artifact, and digest identities. |
 
-## 4. Formal-soak readiness boundary
+## 6. Current execution order
 
-The scheduler, command map, crash-matrix driver, disk-pressure driver, and reference-host preparation documents exist and have rehearsal coverage. This is infrastructure readiness only.
+1. merge the candidate-redesignation PR tracked by issue #332;
+2. qualify the exact resulting `main` merge commit;
+3. inspect and record the qualification artifact and binary digests;
+4. rerun security/compatibility review and the documentation walkthrough;
+5. complete privileged reference-host qualification;
+6. execute the formal 72-hour soak against the new candidate binaries;
+7. verify all evidence, deviations, workload floors, and residual risks;
+8. prepare and review version `1.0.0`;
+9. validate the merged release commit, create the annotated tag and GitHub Release, and record publication evidence.
 
-The following do not satisfy the formal gate:
+## 7. Release boundary
 
-- mock-adapter runs;
-- virtual-time scheduler rehearsals;
-- CI-only disk-pressure or crash-matrix rehearsal;
-- bounded v0.9.0 hardening soak evidence;
-- candidate qualification runs shorter than the formal duration;
-- documentation statements without retained real-host evidence.
+v1.0.0 remains unpublished. There is currently no active qualified candidate because the previous candidate was invalidated by a runtime security correction. Version preparation, tagging, and publication remain prohibited until the redesigned candidate and all subsequent release gates pass.
 
-## 5. Current execution order
-
-1. complete privileged reference-host preparation and rehearsal;
-2. freeze host-specific command-map and threshold inputs;
-3. execute the formal 72-hour soak against the fixed candidate binaries;
-4. verify the complete evidence bundle and workload floors;
-5. record deviations, residual risks, and final pass/fail disposition;
-6. prepare version `1.0.0` and release-specific documents;
-7. open and review the release PR;
-8. validate the merged release commit;
-9. create the annotated tag and GitHub Release;
-10. record final publication evidence.
-
-## 6. Release boundary
-
-v1.0.0 remains unpublished. Candidate qualification success does not authorize version preparation, tagging, or publication while the formal soak and privileged reference-host qualification remain incomplete.
-
-The authoritative detailed record is [`V1_0_RELEASE_EVIDENCE.md`](./V1_0_RELEASE_EVIDENCE.md).
+The authoritative detailed record is [`V1_0_RELEASE_EVIDENCE.md`](./V1_0_RELEASE_EVIDENCE.md), which must be updated after the new main-push qualification artifact is available.

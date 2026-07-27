@@ -7,21 +7,25 @@ from pathlib import Path
 
 BILINGUAL_REQUIRED = {
     "README.md",
+    "docs/developers/README.md",
     "docs/developers/PUBLISHER_QUICKSTART.md",
     "SECURITY.md",
     "CONTRIBUTING.md",
     "docs/DOCUMENTATION_POLICY.md",
     "docs/operations/README.md",
     "docs/operations/RELAY_QUICKSTART.md",
+    "docs/operations/STORAGE_NODE_QUICKSTART.md",
     "docs/operations/V1_0_OPERATOR_RUNBOOK.md",
     "docs/operations/V1_0_UPGRADE_AND_ROLLBACK.md",
 }
 REVIEWED_BILINGUAL_REQUIRED = {
     "README.md",
+    "docs/developers/README.md",
     "docs/developers/PUBLISHER_QUICKSTART.md",
     "docs/DOCUMENTATION_POLICY.md",
     "docs/operations/README.md",
     "docs/operations/RELAY_QUICKSTART.md",
+    "docs/operations/STORAGE_NODE_QUICKSTART.md",
     "docs/operations/V1_0_OPERATOR_RUNBOOK.md",
     "docs/operations/V1_0_UPGRADE_AND_ROLLBACK.md",
 }
@@ -51,7 +55,6 @@ NORMALIZED_ARCHITECTURE_DOCS = {
     "docs/architecture/V1_COMPATIBILITY_POLICY.md",
 }
 NORMALIZED_DEVELOPER_DOCS = {
-    "docs/developers/README.md",
     "docs/developers/REPOSITORY_PUBLISH_WALKTHROUGH.md",
 }
 NORMALIZED_OPERATION_DOCS = {
@@ -97,7 +100,6 @@ NORMALIZED_OPERATION_DOCS = {
     "docs/operations/RELAY_STORAGE_SEPARATION.md",
     "docs/operations/SECRET_MANAGEMENT.md",
     "docs/operations/STORAGE_MIGRATION_AND_UPGRADE.md",
-    "docs/operations/STORAGE_NODE_QUICKSTART.md",
     "docs/operations/STORAGE_NODE_RUNTIME.md",
     "docs/operations/SUPPORTED_PLATFORMS.md",
     "docs/operations/SYSTEMD_UNIT_TEMPLATES.md",

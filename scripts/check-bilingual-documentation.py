@@ -17,8 +17,8 @@ REQUIRED_RE = re.compile(
 
 ENGLISH_MARKER = "## English"
 JAPANESE_MARKER = "## 日本語"
-NORMATIVE_ENGLISH_RE = re.compile(r"English is (?:the )?normative")
-NORMATIVE_JAPANESE = "英語"
+NORMATIVE_ENGLISH = "English is the normative version of this document."
+NORMATIVE_JAPANESE = "英語版がこの文書の正本です。"
 
 
 def parse_args() -> argparse.Namespace:
@@ -70,10 +70,10 @@ def main() -> int:
             errors.append(f"missing {JAPANESE_MARKER!r}: {relative}")
         if english_index >= 0 and japanese_index >= 0 and english_index > japanese_index:
             errors.append(f"Japanese section precedes English section: {relative}")
-        if not NORMATIVE_ENGLISH_RE.search(text):
-            errors.append(f"missing English normative notice: {relative}")
+        if NORMATIVE_ENGLISH not in text:
+            errors.append(f"missing standard English normative notice: {relative}")
         if NORMATIVE_JAPANESE not in text:
-            errors.append(f"missing Japanese normative notice: {relative}")
+            errors.append(f"missing standard Japanese normative notice: {relative}")
 
         checked += 1
 

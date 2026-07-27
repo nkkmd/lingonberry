@@ -5,9 +5,9 @@
 
 ## Status
 
-- Tracked Markdown files: **170**
+- Tracked Markdown files: **173**
 - Release-blocking review entries: **0**
-- Classification totals: BILINGUAL_REQUIRED: 6, BILINGUAL_SCOPED: 3, ENGLISH_ONLY: 161
+- Classification totals: BILINGUAL_REQUIRED: 6, BILINGUAL_SCOPED: 3, ENGLISH_ONLY: 164
 - Governing policy: [`DOCUMENTATION_POLICY.md`](./DOCUMENTATION_POLICY.md)
 - Tracking issue: [#144](https://github.com/nkkmd/lingonberry/issues/144)
 
@@ -25,6 +25,7 @@ Every tracked Markdown file must appear below. `yes` in the final column means t
 |---|---|---|---|
 | `AGENTS.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
 | `CHANGELOG.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH_ADD_BILINGUAL_V1_SUMMARY` | no |
+| `PUBLISHER_QUICKSTART.md` | `ENGLISH_ONLY` | `REVIEW` | no |
 | `README.md` | `BILINGUAL_REQUIRED` | `KEEP_BILINGUAL` | no |
 | `conformance/README.md` | `ENGLISH_ONLY` | `REVIEW` | no |
 | `docs/DOCUMENTATION_INVENTORY.md` | `ENGLISH_ONLY` | `REVIEW` | no |
@@ -42,6 +43,8 @@ Every tracked Markdown file must appear below. `yes` in the final column means t
 | `docs/concepts/CONCEPT_MODEL.md` | `ENGLISH_ONLY` | `REVIEW` | no |
 | `docs/concepts/GLOSSARY.md` | `BILINGUAL_SCOPED` | `KEEP_BILINGUAL` | no |
 | `docs/concepts/README.md` | `ENGLISH_ONLY` | `REVIEW` | no |
+| `docs/developers/PUBLISHER_QUICKSTART.md` | `ENGLISH_ONLY` | `REVIEW` | no |
+| `docs/developers/README.md` | `ENGLISH_ONLY` | `REVIEW` | no |
 | `docs/operations/ACCEPTANCE_POLICY.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
 | `docs/operations/ACCESS_RETENTION_AUDIT_CHECKLIST.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
 | `docs/operations/ACCESS_RETENTION_POLICY.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |

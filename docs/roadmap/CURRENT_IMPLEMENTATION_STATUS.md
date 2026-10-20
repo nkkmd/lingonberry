@@ -1,146 +1,147 @@
 # 現在の実装状況
 
-**Status: v1.0.0 active-candidate reference-host execution deferred** | **Latest published release: v0.9.0** | **Next release target: v1.0.0** | **Last updated: 2026-10-20**
+**状態: v1.0.0の実機試験を保留中** | **最新の公開版: v0.9.0** | **次の公開目標: v1.0.0** | **最終更新: 2026-10-20**
 
-この文書は、Lingonberryの実装・qualification・release作業を中断／再開するときの引き継ぎ用正本です。
+この文書は、Lingonberryの実装、公開に向けた検証、リリース作業の現在地をまとめた引き継ぎ用の正本です。
 
-**Execution hold — 2026-10-20:** At the maintainer’s request, privileged reference-host preflight, disk-pressure rehearsal, and the formal 72-hour soak are deferred. Repository preparation and recorded candidate results remain intact; this hold is neither a test failure nor a passed gate. Resume only after an explicit maintainer request, rechecking the fixed candidate, binary identities, retained artifacts, and host prerequisites. Version 1.0.0, tagging, and publication remain pending.
+**実機試験の保留（2026-10-20）:** 管理者の指示により、基準ホストでの事前検証、ディスク圧迫試験、正式72時間連続稼働試験を一旦保留しています。リポジトリ側の準備と記録済みの検証結果は保持します。保留は試験の失敗でも合格でもありません。明示的な再開指示を受けた後に、固定した公開候補、バイナリの識別情報、保存済みの検証記録、ホストの前提条件を再確認します。
 
-## Release state
+## リリースと検証の状況
+
+| 項目 | 状況 |
+|---|---|
+| 最新の公開版 | `v0.9.0` |
+| 次の公開目標 | `v1.0.0`（未公開） |
+| バージョン更新前の公開候補 | 下記のコミットに固定済み |
+| 基準環境 | Ubuntu Server 24.04 LTS / x86_64 / systemd |
+| 公開候補の適格性検証 | 合格。成果物も独立した方法で検証済み |
+| 文書に沿った手順の動作確認 | 合格。成果物も独立した方法で検証済み |
+| リポジトリ側の事前準備 | 完了 |
+| 管理者権限による基準ホストでの事前検証 | 管理者の指示により保留中 |
+| 正式72時間連続稼働試験 | 未開始。実機での事前検証に合格するまで開始不可 |
+| v1.0.0へのバージョン更新・タグ・GitHub Release | 未完了 |
+
+公開候補の決定後に検証記録や文書のコミットを追加しても、固定した公開候補は変更しません。
+
+## 固定した公開候補とバイナリ
+
+公開候補のコミット:
 
 ```text
-latest published release: 0.9.0
-next release target: 1.0.0
-active pre-version candidate: 8c6b48082205a3af555130eec1f3e7d2ac8811fe
-reference platform: Ubuntu Server 24.04 LTS, x86_64, systemd
-candidate qualification: passed and independently inspected
-documentation walkthrough: passed and independently inspected
-repository-side preflight: complete
-privileged reference-host preflight: deferred by maintainer request (2026-10-20)
-formal 72-hour soak: blocked until reference-host preflight passes
-v1.0.0 version/tag/GitHub Release: pending
+8c6b48082205a3af555130eec1f3e7d2ac8811fe
 ```
 
-Evidence／documentation commitをcandidate決定後に追加しても、固定candidateは変更しません。
-
-## Active candidate identities
+バイナリのSHA-256:
 
 ```text
-candidate commit:
-8c6b48082205a3af555130eec1f3e7d2ac8811fe
-
-lingonberry-storage SHA-256:
+lingonberry-storage
 737b148de48bc2ed2f96b3fb8e068e4c696f73d4069e7eaf89b76eaa6a610507
 
-lingonberry-relay SHA-256:
+lingonberry-relay
 23b5cd4044b69a483a457a71164ac5376370793bd502518e2e7d1baeab34a81c
 ```
 
-Superseded candidate `f9543019f2c219aea3b085ff90f2da201b268a48`と、そのcandidateに結び付くbinary、walkthrough、soak、release authorization evidenceは歴史記録です。active runtimeの承認には使用しません。
+旧候補`f9543019f2c219aea3b085ff90f2da201b268a48`と、それに対応するバイナリ、手順の動作確認、連続稼働試験、公開承認の根拠は過去の記録です。現在の公開候補の承認には使用しません。
 
-## Verified candidate evidence
+## 検証済みの記録
 
-### Candidate qualification
+### 公開候補の適格性検証
 
-- workflow run: `30238378797`
-- artifact ID: `8642393171`
-- artifact digest: `sha256:c30a0472f6ea07f3e395c9a27c67d1460b8f35a13a7afd397bd0e5895cb93b3e`
-- candidate SHA、binary SHA-256、全`SHA256SUMS` entryを独立検証済み
-- 12 qualification gate: all passed
+- ワークフロー実行ID: `30238378797`
+- 成果物ID: `8642393171`
+- 成果物のハッシュ値: `sha256:c30a0472f6ea07f3e395c9a27c67d1460b8f35a13a7afd397bd0e5895cb93b3e`
+- 公開候補のコミットSHA、バイナリのSHA-256、`SHA256SUMS`の全項目を独立した方法で検証済み
+- 必須の検証項目: **12項目すべて合格**
 
-### Documentation walkthrough
+### 文書に沿った手順の動作確認
 
-- workflow run: `30239602412`
-- artifact ID: `8642773653`
-- artifact digest: `sha256:9b954ada86f86e5da4966951039af9dddc2eddb3d49c996d09256e4cad598338`
-- 16 procedures: all passed
-- 34 `SHA256SUMS` entries: all verified
-- valid、tampered、malformed、verifier failureのsignature pathを確認
-- duplicate／conflict pathがpublisher authenticationを迂回しないことを確認
+- ワークフロー実行ID: `30239602412`
+- 成果物ID: `8642773653`
+- 成果物のハッシュ値: `sha256:9b954ada86f86e5da4966951039af9dddc2eddb3d49c996d09256e4cad598338`
+- 手順の動作確認: **16手順すべて合格**
+- `SHA256SUMS`: **34項目すべて検証済み**
+- 正常な署名、改変された署名、形式不正の署名、署名検証基盤の障害を確認済み
+- 重複・競合の処理で公開者の署名検証を迂回できないことを確認済み
 
-## v1.0.0で固定済みの主要範囲
+## v1.0.0の公開候補で実装済みの主な機能
 
-### Canonical storage and derived state
+### 正本となるストレージと派生状態
 
-- canonical storageをsemantic source of truthとして維持
-- index／effective viewは検証・再構築可能な派生状態
-- deterministic index verify／rebuild、checkpoint、catch-up
-- stale worker／incomplete evidenceによるlast-known-good state上書きを拒否
+- 正規化済みデータを保存するストレージを、意味上の正本とする
+- インデックスと、遷移を反映した有効ビューは、検証・再構築できる派生状態として扱う
+- 同じ入力から同じ結果を得られるインデックス検証・再構築、チェックポイント、更新への追随処理を備える
+- 古い状態で動くワーカーや不完全な検証記録によって、最後に正常と確認された状態が上書きされるのを防ぐ
 
-### Authenticated publishing
+### 署名による認証付き公開
 
-- Ed25519 publisher signatureをJSON parse直後に検証
-- acceptance policy、quarantine、duplicate／conflict判定、raw append、canonical storageより前にfail closed
-- malformed encoding: `LB_PUBLISH_SIGNATURE_MALFORMED`
-- cryptographically invalid signature: `LB_PUBLISH_SIGNATURE_INVALID`
-- verifier execution failure: `LB_PUBLISH_SIGNATURE_VERIFIER_ERROR`
-- valid signed fixture、tampered signature、duplicate／conflict non-bypassを検証済み
+- JSONの解析直後に、公開者のEd25519署名を検証する
+- 受入方針の適用、隔離、重複・競合の判定、受信データの追記、正本となるストレージへの保存より前に検証する。検証できなければ処理を拒否する
+- 署名の符号化形式が不正な場合: `LB_PUBLISH_SIGNATURE_MALFORMED`
+- 暗号学的に無効な署名の場合: `LB_PUBLISH_SIGNATURE_INVALID`
+- 署名検証基盤の実行に失敗した場合: `LB_PUBLISH_SIGNATURE_VERIFIER_ERROR`
+- 有効な署名付きサンプル、改変された署名、重複・競合時の検証迂回防止を確認済み
 
-### Operations and recovery
+### 運用と復旧
 
-- Ubuntu Server 24.04 LTS、x86_64、systemd
-- release-built binaries under `/usr/local/bin`
-- hardened systemd units
-- health／ready／status／doctor／verify／metrics
-- verified backup and isolated restore
-- deterministic index verify／rebuild
-- explicit migration、resume、rollback
-- persistent quarantine、verified replacement、proof-bound cleanup
+- 基準環境はUbuntu Server 24.04 LTS / x86_64 / systemd
+- リリース用バイナリを`/usr/local/bin`に配置し、安全対策を施したsystemdユニットを使用
+- `health`、`ready`、`status`、`doctor`、`verify`、`metrics`による確認・診断
+- 検証済みバックアップと、稼働環境から分離した場所への復元
+- 同じ入力から同じ結果を得られるインデックス検証・再構築
+- 明示的な保存形式の移行、再開、ロールバック
+- 永続的な隔離管理、検証済みの置換処理、証明データに基づく整理処理
 
-### Input and workspace hardening
+### 入力と一時作業領域の安全対策
 
-- JSON input size limit: 1 MiB
-- array／object共通nesting depth limit: 128
-- oversized／over-nested inputをrecursive parse前に拒否
-- signature verification workspaceのexclusive creation、owner-only permission、RAII cleanup
+- JSONの入力サイズ上限: **1 MiB**
+- 配列・オブジェクト共通の入れ子の深さ上限: **128**
+- サイズや深さの上限を超える入力を、再帰的な解析の前に拒否する
+- 署名検証用の一時作業領域は既存領域を上書きせずに作成し、所有者だけにアクセスを許可する。RAIIによって後片付けする
 
-## Current GO / NO-GO boundary
+## 完了済みの準備と、開始できない作業
 
-### Repository preparation complete; execution deferred
+リポジトリ側の実装・検証記録の確認、固定候補の検証、文書に沿った手順の動作確認、実機試験の準備は完了しています。実機試験そのものは保留中です。
 
-- repository-side implementation and evidence review
-- exact-candidate qualification
-- candidate documentation walkthrough
-- privileged reference-host preflight preparation
+以下は、明示的な再開指示を受け、基準ホストでの事前検証に合格するまで開始しません。
 
-### NO-GO
+- 正式72時間連続稼働試験
+- バージョン`1.0.0`への更新
+- リリース確認表、リリースノート、`CHANGELOG.md`の最終確定
+- 統合後のリリースコミットの検証
+- 注釈付きタグ`v1.0.0`の作成
+- GitHub Releaseの公開
 
-次はreference-host preflightがPASSするまで開始しません。
+事前検証に合格しただけで公開できるわけではありません。正式72時間試験と、その後のリリース検証も必要です。
 
-- formal 72-hour soak
-- version `1.0.0` update
-- release checklist／release notes／CHANGELOGの最終確定
-- merged release commit validation
-- annotated tag `v1.0.0`
-- GitHub Release publication
+## 実機での事前検証に必要な準備と確認
 
-## Reference-host preflight inputs
+再開時には、[Issue #343](https://github.com/nkkmd/lingonberry/issues/343)に従って次を確認します。
 
-- candidateと2つのbinary digestを変更しない
-- Ubuntu Server 24.04 LTS、x86_64、systemdを使用
-- service user、directory、ownership、environment file、systemd unitを記録
-- evidence／journalをdisk-pressure対象とは別filesystemへ置く
-- startup、restart、signed publish、persistence、diagnostics、backup／restore、indexを実行
-- malformed、invalid signature、verifier failure、duplicate、conflictのfail-closed behaviorを実行
-- disk-pressure rehearsalとstop conditionを確認
-- UTC timestamp、operator identity、host provenance、deviation、artifact digestを記録
+- 固定した公開候補と、2つのバイナリのハッシュ値を維持する
+- Ubuntu Server 24.04 LTS / x86_64 / systemdを使用する
+- サービス用ユーザー、ディレクトリ、所有権、環境設定ファイル、systemdユニットを記録する
+- 検証記録とジャーナルは、ディスク圧迫試験の対象とは別のファイルシステムに保存する
+- 起動、再起動、署名付き公開、データ保持、診断、バックアップ・復元、インデックスを確認する
+- 形式不正・無効な署名・署名検証基盤の障害があれば処理を拒否し、重複・競合でも検証を迂回しないことを確認する
+- ディスク圧迫試験の予行演習と停止条件を確認する
+- UTC時刻、実施者、ホストの構成・来歴、計画からの逸脱、成果物のハッシュ値を記録する
 
-Tracking issue: [#343](https://github.com/nkkmd/lingonberry/issues/343)
+## 再開時に読む正本文書
 
-## Canonical documents
+次の順に確認します。
 
-再開時は次の順に確認します。
+1. [v1.0.0 検証状況](./V1_0_QUALIFICATION_STATUS.md)
+2. [v1.0.0 リリースの検証記録](./V1_0_RELEASE_EVIDENCE.md)
+3. [v1.0.0 文書に沿った手順の検証記録](./V1_0_DOCUMENTATION_WALKTHROUGH.md)
+4. [v1.0.0 セキュリティ差分の確認記録](../security/V1_0_SECURITY_DIFF_REVIEW.md)
+5. [v1.0.0 適格性検証計画](./V1_0_QUALIFICATION_PLAN.md)
+6. [v1.0.0 連続稼働試験計画](./V1_0_SOAK_PLAN.md)
+7. [v1 互換性方針](../architecture/V1_COMPATIBILITY_POLICY.md)
+8. [v1.0 単一ノード運用手順書](../operations/V1_0_OPERATOR_RUNBOOK.md)
+9. [v1.0公開までの計画](./ROADMAP_TO_V1_0.md)
 
-1. [v1.0.0 Qualification Status](./V1_0_QUALIFICATION_STATUS.md)
-2. [v1.0.0 Release Evidence](./V1_0_RELEASE_EVIDENCE.md)
-3. [v1.0.0 Documentation Walkthrough](./V1_0_DOCUMENTATION_WALKTHROUGH.md)
-4. [v1.0.0 Security Diff Review](../security/V1_0_SECURITY_DIFF_REVIEW.md)
-5. [v1.0.0 Qualification Plan](./V1_0_QUALIFICATION_PLAN.md)
-6. [v1.0.0 Soak Plan](./V1_0_SOAK_PLAN.md)
-7. [v1 Compatibility Policy](../architecture/V1_COMPATIBILITY_POLICY.md)
-8. [v1.0 Operator Runbook](../operations/V1_0_OPERATOR_RUNBOOK.md)
-9. [Roadmap to v1.0](./ROADMAP_TO_V1_0.md)
+## 次の工程
 
-## Next step
+Issue #344で扱った入口文書と実行対象の識別情報の整合は完了しています。現在は実機試験の再開指示を待つ段階です。
 
-Issue #344による入口文書と実行identityの整合は完了しています。実機試験は保留中です。明示的な再開指示後、Issue #343に従ってactive candidateのprivileged reference-host preflightを実行します。preflightがPASSした場合のみ、同じcandidate／binary identityで正式72時間soakを開始します。
+明示的な再開指示の後、Issue #343に従い、固定した公開候補で基準ホストの事前検証を行います。合格した場合に限り、同じ公開候補とバイナリで正式72時間連続稼働試験へ進みます。

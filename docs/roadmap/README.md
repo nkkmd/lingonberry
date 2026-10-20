@@ -1,166 +1,168 @@
-# ロードマップ
+# 計画・進捗の文書案内
 
-**Status: v1.0.0 reference-host execution deferred** | **Latest published release: v0.9.0** | **Next release target: v1.0.0** | **Last updated: 2026-10-20**
+**状態: v1.0.0の実機試験を保留中** | **最新の公開版: v0.9.0** | **次の公開目標: v1.0.0** | **最終更新: 2026-10-20**
 
-このディレクトリには、Lingonberryの実装・運用準備・qualification・releaseに関するroadmap、checklist、release note、release evidence、および作業再開用の現在地文書を置きます。
+このディレクトリには、Lingonberryの実装計画、運用準備、公開に向けた検証計画、リリース確認表、リリースノート、検証記録、作業再開用の引き継ぎ文書をまとめています。
 
-**Execution hold — 2026-10-20:** At the maintainer’s request, privileged reference-host preflight, disk-pressure rehearsal, and the formal 72-hour soak are deferred. Repository preparation and recorded candidate results remain intact; this hold is neither a test failure nor a passed gate. Resume only after an explicit maintainer request, rechecking the fixed candidate, binary identities, retained artifacts, and host prerequisites. Version 1.0.0, tagging, and publication remain pending.
+**実機試験の保留（2026-10-20）:** 管理者の指示により、基準ホストでの事前検証、ディスク圧迫試験、正式72時間連続稼働試験を一旦保留しています。準備と記録済みの検証結果は保持します。保留を試験の失敗や合格として扱いません。明示的な再開指示の後に、固定した公開候補、バイナリ、保存済みの検証記録、ホストの前提条件を再確認します。v1.0.0へのバージョン更新・タグ・公開は未完了です。
 
 ## 再開時に最初に読む文書
 
 現在のv1.0.0作業では、次の順に確認します。
 
-1. [v1.0.0 Qualification Status](./V1_0_QUALIFICATION_STATUS.md)
-2. [v1.0.0 Release Evidence](./V1_0_RELEASE_EVIDENCE.md)
-3. [v1.0.0 Documentation Walkthrough](./V1_0_DOCUMENTATION_WALKTHROUGH.md)
-4. [v1.0.0 Security Diff Review](../security/V1_0_SECURITY_DIFF_REVIEW.md)
-5. [v1.0.0 Qualification Plan](./V1_0_QUALIFICATION_PLAN.md)
-6. [v1 Compatibility Policy](../architecture/V1_COMPATIBILITY_POLICY.md)
-7. [v1 Rust Public API Audit](../architecture/V1_0_RUST_API_AUDIT.md)
-8. [v1.0.0 Soak Plan](./V1_0_SOAK_PLAN.md)
+1. [v1.0.0 検証状況](./V1_0_QUALIFICATION_STATUS.md)
+2. [v1.0.0 リリースの検証記録](./V1_0_RELEASE_EVIDENCE.md)
+3. [v1.0.0 文書に沿った手順の検証記録](./V1_0_DOCUMENTATION_WALKTHROUGH.md)
+4. [v1.0.0 セキュリティ差分の確認記録](../security/V1_0_SECURITY_DIFF_REVIEW.md)
+5. [v1.0.0 適格性検証計画](./V1_0_QUALIFICATION_PLAN.md)
+6. [v1 互換性方針](../architecture/V1_COMPATIBILITY_POLICY.md)
+7. [v1 Rust公開APIの監査](../architecture/V1_0_RUST_API_AUDIT.md)
+8. [v1.0.0 連続稼働試験計画](./V1_0_SOAK_PLAN.md)
 9. [現在の実装状況](./CURRENT_IMPLEMENTATION_STATUS.md)
-10. [v1.0までのロードマップ](./ROADMAP_TO_V1_0.md)
-11. [運用文書索引](../operations/README.md)
+10. [v1.0公開までの計画](./ROADMAP_TO_V1_0.md)
+11. [運用文書案内](../operations/README.md)
 
-Dry runやvirtual-time rehearsalはtoolingとevidence形式の検証です。candidate-bound qualification、reference-host preflight、正式72時間soakの代替にはなりません。
+試行実行や仮想時間を使う予行演習は、ツールと検証記録の形式を確認するものです。固定した公開候補の検証、基準ホストでの事前検証、正式72時間連続稼働試験の代わりにはなりません。
 
-## Active candidate
+## 固定した公開候補
+
+公開候補のコミット:
 
 ```text
-candidate:
 8c6b48082205a3af555130eec1f3e7d2ac8811fe
+```
 
-lingonberry-storage SHA-256:
+バイナリのSHA-256:
+
+```text
+lingonberry-storage
 737b148de48bc2ed2f96b3fb8e068e4c696f73d4069e7eaf89b76eaa6a610507
 
-lingonberry-relay SHA-256:
+lingonberry-relay
 23b5cd4044b69a483a457a71164ac5376370793bd502518e2e7d1baeab34a81c
 ```
 
-Evidence／documentation commitを追加してもcandidateは移動しません。旧candidate `f9543019f2c219aea3b085ff90f2da201b268a48`に結び付く実行証拠は歴史記録です。
+検証記録や文書のコミットを追加しても、固定した公開候補は変更しません。旧候補`f9543019f2c219aea3b085ff90f2da201b268a48`に対応する実行結果は過去の記録です。
 
-## v1.0.0 qualificationの現在地
+## v1.0.0に向けた検証の現在地
 
 ### 完了済み
 
-- gate inventoryとqualification plan
-- Rust public API audit
-- normative v1 compatibility policy
-- soak／telemetry contract
-- candidate designationとexact SHA freeze
-- Ed25519 publisher-signature enforcement
-- candidate-delta security reviewとfinal security disposition
-- exact-candidate qualification runとartifact独立検証
-- documentation freeze／inventory／bilingual／link integrity checks
-- 16-procedure candidate documentation walkthrough
-- qualification／walkthrough binary identityと全bundle checksumの独立検証
-- repository-side pre-real-host preparation
-- reference-host checker、command map、disk-pressure contractのactive identity alignment
+- 必須検証項目の一覧と適格性検証計画の作成
+- Rust公開APIの監査
+- 正本となるv1互換性方針の策定
+- 連続稼働試験と計測データ収集の仕様確定
+- 公開候補の指定と、正確なコミットSHAの固定
+- Ed25519による公開者の署名検証の必須化
+- 公開候補の変更差分に対するセキュリティ確認と最終判断
+- 固定した公開候補の検証と、成果物の独立検証
+- 文書の確定範囲、文書一覧、英日併記、リンクの整合性確認
+- 公開候補を使った、文書に記載された16手順の動作確認
+- 候補検証・手順確認で使用したバイナリと、検証記録一式の全チェックサムの独立検証
+- 実機試験に向けたリポジトリ側の事前準備
+- 基準ホストの確認ツール、実行コマンドの対応表、ディスク圧迫試験の仕様を、現在の公開候補・バイナリの識別情報に整合
 
 ### 保留中の項目（再開指示後に実行）
 
-- privileged reference-host preflight（Issue #343）
-- startup、restart、signed publish、persistence、diagnostics、backup／restore、index checks
-- malformed／invalid-signature／verifier-failure／duplicate／conflict fail-closed checks
-- isolated disk-pressure rehearsal
-- host provenance、command map、threshold、UTC timeline、deviation、artifact digestの固定
+- 基準ホストでの管理者権限による事前検証（Issue #343）
+- 起動、再起動、署名付き公開、データ保持、診断、バックアップ・復元、インデックスの確認
+- 形式不正の要求、無効な署名、署名検証基盤の障害を拒否し、重複・競合でも検証を迂回しないことの確認
+- 分離した環境でのディスク圧迫試験の予行演習
+- ホストの構成・来歴、実行コマンドの対応表、しきい値、UTC時刻の経過記録、計画からの逸脱、成果物のハッシュ値の固定
 
-### Reference-host preflight PASS後に実行する項目
+### 実機での事前検証に合格した後の工程
 
-- formal 72-hour qualification soak
-- soak artifactとresource-growth dispositionの独立検証
-- version `1.0.0`、release checklist、release notes、CHANGELOGの準備
-- release PR review
-- merged-commit CI／qualification
-- annotated tag `v1.0.0`
-- GitHub Release
-- published artifact digestと最終release evidenceの確定
+次の順序で進めます。
 
-## GO / NO-GO
+1. 正式72時間連続稼働試験を行う
+2. 試験の成果物と、メモリ・ディスクなどの使用量増加に対する判断を独立した方法で検証する
+3. バージョン`1.0.0`、リリース確認表、リリースノート、`CHANGELOG.md`を準備する
+4. リリースPRをレビューする
+5. 統合後のコミットに対するCIと適格性検証を確認する
+6. 注釈付きタグ`v1.0.0`を作成する
+7. GitHub Releaseを公開する
+8. 公開配布物のハッシュ値と、最終的なリリースの検証記録を確定する
 
-```text
-DEFERRED (maintainer request, 2026-10-20):
-- privileged reference-host preflight
+## 実行・公開の判断
 
-NO-GO:
-- formal 72-hour soak until preflight passes
-- version/tag/publication until soak and release validation pass
-```
+| 作業 | 現在の判断 |
+|---|---|
+| 基準ホストでの事前検証 | 準備済み。ただし管理者の指示により保留中 |
+| 正式72時間連続稼働試験 | 実機試験の再開指示と、事前検証の合格が必要 |
+| バージョン更新・タグ・公開 | 連続稼働試験と、その後のリリース検証に合格するまで実施不可 |
 
-## Evidence record
+## 検証記録
 
-### Candidate qualification
+| 項目 | 公開候補の適格性検証 | 文書に沿った手順の動作確認 |
+|---|---|---|
+| 実行ID | `30238378797` | `30239602412` |
+| 成果物ID | `8642393171` | `8642773653` |
+| 成果物のSHA-256 | `c30a0472f6ea07f3e395c9a27c67d1460b8f35a13a7afd397bd0e5895cb93b3e` | `9b954ada86f86e5da4966951039af9dddc2eddb3d49c996d09256e4cad598338` |
 
-- run `30238378797`
-- artifact `8642393171`
-- digest `sha256:c30a0472f6ea07f3e395c9a27c67d1460b8f35a13a7afd397bd0e5895cb93b3e`
+詳細は[リリースの検証記録](./V1_0_RELEASE_EVIDENCE.md)を正本とします。
 
-### Documentation walkthrough
+## 基準となる運用構成
 
-- run `30239602412`
-- artifact `8642773653`
-- digest `sha256:9b954ada86f86e5da4966951039af9dddc2eddb3d49c996d09256e4cad598338`
+v1.0.0は、v0.8.0で確立したUbuntu Server 24.04 LTS / x86_64 / systemdによる単一ノードの運用構成を維持します。
 
-詳細は[Release Evidence](./V1_0_RELEASE_EVIDENCE.md)を正本とします。
+- [v1.0 単一ノード運用手順書](../operations/V1_0_OPERATOR_RUNBOOK.md)
+- [運用CLIの仕様](../operations/OPERATOR_CLI_CONTRACT.md)
+- [v0.8.0 更新とロールバックの手順](../operations/V0_8_UPGRADE_AND_ROLLBACK.md)
+- [対応環境](../operations/SUPPORTED_PLATFORMS.md)
+- [保存形式の移行と更新の仕様](../operations/STORAGE_MIGRATION_AND_UPGRADE.md)
 
-## Operator baseline
+## 主な文書の役割
 
-v1.0.0は、v0.8.0で確立したUbuntu Server 24.04 LTS、x86_64、systemdのsingle-node operator baselineを維持します。
+| ファイル | 内容 |
+|---|---|
+| `V1_0_QUALIFICATION_PLAN.md` | 必須検証項目、分類、合格・公開中止の基準 |
+| `V1_0_QUALIFICATION_STATUS.md` | 検証の現在地、対象の識別情報、実施可否、次の工程 |
+| `V1_0_DOCUMENTATION_FREEZE_PLAN.md` | 文書を確定する範囲、手順確認の条件、変更管理 |
+| `V1_0_DOCUMENTATION_WALKTHROUGH.md` | 文書・手順ごとの静的確認と実行確認の記録 |
+| `V1_0_SOAK_PLAN.md` | 72時間試験の負荷、計測項目、停止条件 |
+| `V1_0_RELEASE_EVIDENCE.md` | 公開候補、成果物、バイナリ、公開結果を結び付ける検証記録の正本 |
+| `CURRENT_IMPLEMENTATION_STATUS.md` | 実装済みの範囲と、作業を再開するための全体状況 |
+| `ROADMAP_TO_V1_0.md` | リリースまでの工程と、v1.0で扱う範囲 |
 
-- [v1.0 Operator Runbook](../operations/V1_0_OPERATOR_RUNBOOK.md)
-- [Operator CLI Contract](../operations/OPERATOR_CLI_CONTRACT.md)
-- [v0.8.0 Upgrade and Rollback](../operations/V0_8_UPGRADE_AND_ROLLBACK.md)
-- [Supported Platforms](../operations/SUPPORTED_PLATFORMS.md)
-- [Storage Migration and Upgrade Contract](../operations/STORAGE_MIGRATION_AND_UPGRADE.md)
+## v0.9.0の公開記録
 
-## 文書の役割
+v0.9.0では、v1.0の安定した単一ノード運用仕様に向けて、公開候補の安全性を高めました。プロトコル解析の資源使用量制限、署名検証用の一時作業領域の安全性、公開APIの一覧、セキュリティ上の判断、バージョン整合、範囲を限定した連続稼働試験の記録を確定しています。
 
-- `V1_0_QUALIFICATION_PLAN.md`: mandatory gate、classification、pass／blocker criteria
-- `V1_0_QUALIFICATION_STATUS.md`: 現在の実行状態、identity、GO／NO-GO、次の順序
-- `V1_0_DOCUMENTATION_FREEZE_PLAN.md`: freeze対象、walkthrough条件、change control
-- `V1_0_DOCUMENTATION_WALKTHROUGH.md`: 文書・手順ごとの静的／実行レビュー記録
-- `V1_0_SOAK_PLAN.md`: 72時間soakのworkload、telemetry、停止条件
-- `V1_0_RELEASE_EVIDENCE.md`: candidate、artifact、binary、publicationに結び付く証拠正本
-- `CURRENT_IMPLEMENTATION_STATUS.md`: 実装済み範囲と作業再開用の全体状態
-- `ROADMAP_TO_V1_0.md`: release-level sequenceとv1.0境界
+- [v0.9.0 リリース確認表](./RELEASE_0_9_0_CHECKLIST.md)
+- [v0.9.0 リリースノート](./RELEASE_0_9_0_RELEASE_NOTE.md)
+- [v0.9.0 リリースの検証記録](./V0_9_RELEASE_EVIDENCE.md)
+- [v0.9.0 安全性強化計画](./V0_9_HARDENING_PLAN.md)
 
-## v0.9.0 release record
+公開時の記録:
 
-v0.9.0は、v1.0 stable single-node contractへ進む前のrelease-candidate hardeningとして、protocol parserのresource boundedness、signature verification temporary workspaceの安全性、public API inventory、security disposition、version整合、bounded soak evidenceを固定しました。
+- PR #108を統合済み
+- 統合コミット: `971155340603afdc0c9c5bd37e596f49c260d15e`
+- タグ: `v0.9.0`
+- GitHub Release `v0.9.0`を公開済み
 
-- [v0.9.0 Release Checklist](./RELEASE_0_9_0_CHECKLIST.md)
-- [v0.9.0 Release Notes](./RELEASE_0_9_0_RELEASE_NOTE.md)
-- [v0.9.0 Release Evidence](./V0_9_RELEASE_EVIDENCE.md)
-- [v0.9.0 Hardening Plan](./V0_9_HARDENING_PLAN.md)
+## リリース履歴
 
-Publication record:
+| バージョン | 主な内容 |
+|---|---|
+| v0.9.0 | 公開候補の安全性強化、資源使用量を制限した解析、署名用作業領域の保護、公開仕様の確定記録、範囲を限定した連続稼働試験 |
+| v0.8.0 | 単一ノードの運用準備、Ubuntu 24.04基準環境、運用診断、検証済み復旧、systemdによる配置、新規CI環境での受入確認 |
+| v0.7.0 | 保存形式のマニフェスト、決定的な移行処理、検証済みバックアップと移行元の対応付け、再開・ロールバック |
+| v0.6.0 | 追記専用の遷移、永続化された再評価、同じ入力から同じ結果を得られる有効ビュー、上限を設けた診断 |
+| v0.5.0 | バージョン付き通常オブジェクトの管理、決定的なインデックス管理、チェックポイント・追随処理、再起動・復旧の簡易確認 |
+| v0.4.0 | 決定的な保存期限後の整理、証明データに基づく承認、検証済みの整理トランザクション、パス単位の復旧 |
+| v0.3.0 | 検証済みの置換トランザクション、世代の公開、復旧、運用面の安全性強化 |
+| v0.2.0 | 永続的な隔離管理、バックアップ・復元、役割に基づくアクセス制御（RBAC） |
+| v0.1.0 | 初期のプロトコル、スキーマ、サンプルデータ、carrier（プロトコルオブジェクトの伝送実装）の仕様 |
 
-- PR #108 merged
-- merge commit `971155340603afdc0c9c5bd37e596f49c260d15e`
-- tag `v0.9.0`
-- GitHub Release `v0.9.0` published
+## 維持する安全条件
 
-## Release history
-
-- v0.9.0: release-candidate hardening、bounded parser、secure signature workspace、public-contract freeze evidence、bounded soak
-- v0.8.0: single-node operational readiness、Ubuntu 24.04 reference platform、operator diagnostics、verified recovery、systemd deployment、fresh-runner acceptance
-- v0.7.0: storage-format manifest、deterministic migration、verified backup binding、resume／rollback
-- v0.6.0: append-only transitions、durable reevaluation、deterministic effective views、bounded diagnostics
-- v0.5.0: versioned normal object lifecycle、deterministic index lifecycle、checkpoint／catch-up、restart／recovery smoke
-- v0.4.0: deterministic retention cleanup、proof-bound authorization、verified cleanup transaction、path-level recovery
-- v0.3.0: verified replacement transaction、generation publication、recovery、operations hardening
-- v0.2.0: persistent quarantine lifecycle、backup／restore、RBAC
-- v0.1.0: initial protocol／schema／fixtures／carrier contracts
-
-## 絶対に崩さない境界
-
-- validation／publisher authentication未通過objectをcanonical storageへ保存しない
-- canonical storageよりindexをsemantic sourceとして優先しない
-- conflict時に既存objectを上書きしない
-- normal startupでimplicit storage migrationを実行しない
-- unknown newer storage formatをmutateしない
-- active state／data directoryへrestoreしない
-- archive segmentやimmutable evidence ledgerをrewrite／deleteしない
-- untrusted JSONを上限なしでrecursive parseしない
-- signature verification artifactを既存pathへ上書きしない
-- same-host lockをdistributed lockとして扱わない
+- 検証や公開者の認証を通過していないオブジェクトを、正本となるストレージへ保存しない
+- 正本となるストレージよりもインデックスを意味上の正本として優先しない
+- 競合時に既存のオブジェクトを上書きしない
+- 通常起動時に暗黙の保存形式変更を行わない
+- 未知の新しい保存形式を変更しない
+- 稼働中の状態ディレクトリやデータディレクトリへ復元しない
+- アーカイブの区画や変更不可の検証記録台帳を書き換えたり削除したりしない
+- 信頼できないJSONを、上限なしで再帰的に解析しない
+- 署名検証用の成果物で既存のパスを上書きしない
+- 同一ホスト内のロックを分散ロックとして扱わない

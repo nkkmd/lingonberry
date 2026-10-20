@@ -6,9 +6,11 @@
 >
 > 英語版がこの文書の正本です。日本語部分は翻訳です。内容に差異がある場合は英語版を優先します。
 
-**Status: v1.0.0 qualification active** | **Latest published release: v0.9.0** | **Next release target: v1.0.0** | **Last updated: 2026-07-23**
+**Status: v1.0.0 real-host execution deferred** | **Latest published release: v0.9.0** | **Next release target: v1.0.0** | **Last updated: 2026-10-20**
 
 ## English
+
+**Execution hold — 2026-10-20:** At the maintainer’s request, privileged reference-host preflight, disk-pressure rehearsal, and the formal 72-hour soak are deferred. Repository preparation and recorded candidate results remain intact; this hold is neither a test failure nor a passed gate. Resume only after an explicit maintainer request, rechecking the fixed candidate, binary identities, retained artifacts, and host prerequisites. Version 1.0.0, tagging, and publication remain pending.
 
 This directory contains Lingonberry operational contracts, operator runbooks, deployment guidance, recovery procedures, and machine-readable failure or crash inventories.
 
@@ -123,6 +125,8 @@ Historical and maintainer-only documents remain English-only unless the document
 <a id="japanese"></a>
 
 ## 日本語
+
+**実機試験の保留（2026-10-20）:** 管理者の指示により、実機での事前検証、ディスク圧迫試験、正式72時間連続稼働試験を一旦保留します。準備と記録済みの候補検証結果は保持します。保留を試験失敗や合格として扱いません。明示的な再開指示後に、固定候補・バイナリ識別値・保存済み証拠・ホスト条件を再確認します。v1.0.0への更新・タグ・公開は未完了です。
 
 このdirectoryには、Lingonberryの運用契約、operator runbook、deployment guidance、recovery procedure、機械可読なfailure／crash inventoryを配置します。
 

@@ -6,7 +6,9 @@
 
 - プロジェクト名: `Lingonberry`
 - ルート: `.`
-- 最新安定版: `v0.3.0`
+- 最新公開版: `v0.9.0`
+- 次期目標: `v1.0.0`（未公開）
+- 現在の作業状態: 実機試験は管理者指示により保留（2026-10-20）。明示的な再開指示までreference-host preflight、disk-pressure rehearsal、正式72時間soakを実行しない。現在地は `docs/roadmap/V1_0_QUALIFICATION_STATUS.md` を参照する。
 - 主要言語: Rust、JavaScript、Markdown、JSON Schema
 - リポジトリ種別: 分散知識コモンズ・プロトコル、実装、運用契約、schema、fixture
 - Rust workspace: `packages/protocol`、`packages/identity`、`packages/validation`、`packages/core`、`packages/indexer`、`packages/relay`、`packages/storage`

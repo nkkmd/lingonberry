@@ -1,6 +1,8 @@
 # Lingonberry v1.0.0 Qualification Status
 
-**Status: repository evidence complete; reference-host preflight next** | **Target release: v1.0.0** | **Parent issue: #109** | **Tracking issues: #332, #335, #341**
+**Status: repository evidence complete; reference-host execution deferred** | **Target release: v1.0.0** | **Parent issue: #109** | **Tracking issues: #332, #335, #341**
+
+**Execution hold — 2026-10-20:** At the maintainer’s request, privileged reference-host preflight, disk-pressure rehearsal, and the formal 72-hour soak are deferred. Repository preparation and recorded candidate results remain intact; this hold is neither a test failure nor a passed gate. Resume only after an explicit maintainer request, rechecking the fixed candidate, binary identities, retained artifacts, and host prerequisites. Version 1.0.0, tagging, and publication remain pending.
 
 ## 1. Active candidate
 
@@ -106,6 +108,6 @@ Freeze these values before provisioning or execution:
 
 ## 9. Go/no-go decision
 
-**Current decision: GO for privileged reference-host preflight; NO-GO for formal soak until that preflight passes.**
+**Current decision: Repository prerequisites satisfied; reference-host execution deferred by maintainer request; NO-GO for formal soak until that preflight passes.**
 
 The exact candidate qualification artifact and active-candidate documentation walkthrough have been independently verified and recorded. Formal soak authorization remains conditional on successful privileged reference-host preparation.

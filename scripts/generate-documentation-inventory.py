@@ -30,11 +30,13 @@ REVIEWED_BILINGUAL_REQUIRED = {
     "docs/operations/V1_0_UPGRADE_AND_ROLLBACK.md",
 }
 BILINGUAL_SCOPED = {
+    "docs/roadmap/V1_0_QUALIFICATION_STATUS.md",
     "docs/concepts/GLOSSARY.md",
     "docs/concepts/CARRIER.md",
     "docs/protocols/VERSIONING_AND_COMPATIBILITY.md",
 }
 REVIEWED_BILINGUAL_SCOPED = {
+    "docs/roadmap/V1_0_QUALIFICATION_STATUS.md",
     "docs/concepts/CARRIER.md",
     "docs/concepts/GLOSSARY.md",
     "docs/protocols/VERSIONING_AND_COMPATIBILITY.md",
@@ -219,7 +221,7 @@ Every tracked Markdown file must appear below. `yes` in the final column means t
 
 ## 日本語
 
-追跡対象のMarkdownファイルは、すべて以下に掲載されなければなりません。最終列が`yes`の項目は、v1.0.0公開前に記載された作業を完了する必要があります。分類済みであることは、翻訳や正規化が完了済みであることを意味しません。
+Gitで追跡しているMarkdownファイルを、すべて下表に掲載します。最終列の`v1.0 blocker`が`yes`の項目は、v1.0.0の公開前に、対応事項（`Required action`）を完了する必要があります。文書が分類されていても、翻訳や表記の整理が完了しているとは限りません。
 
 ## Inventory
 

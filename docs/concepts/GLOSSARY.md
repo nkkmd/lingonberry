@@ -100,87 +100,87 @@ The operator-facing process that exposes documented HTTP, storage, diagnostic, a
 
 ### Knowledge Object
 
-Lingonberryがaccept、store、retrieve、evaluateするprotocol-levelのsemantic unitです。必須構造とvalidation behaviorは、repository内のschemaおよびprotocol contractで定義されます。carrierを通じて到着しただけではauthoritativeになりません。
+Lingonberryが受け入れ、保存、取得、評価する、プロトコル上の意味の単位です。必須の構造と検証時の動作は、リポジトリ内のスキーマとプロトコル仕様で定めます。carrierを通じて届いただけでは、正本として認められません。
 
 ### canonical representation
 
-文書化されたcanonicalization ruleによって生成される決定的な表現です。canonical byteはcompatibility-relevantであり、規定されたidentity、digest、signature、duplicate、conflict behaviorに使用されます。
+文書に定めた正規化規則によって、同じ入力から同じ結果が得られる表現です。正規化されたバイト列は互換性に関わり、仕様に従って識別、ダイジェスト、署名、重複・競合の判定に使われます。
 
 ### canonical identifier
 
-identifierおよびcanonicalization contractに従って検証されるprotocol-level object identifierです。carrier-local identifierやstorage-internal identifierとは異なります。
+識別子と正規化の仕様に従って検証される、プロトコル上のオブジェクト識別子です。carrier内の識別子やストレージ内部の識別子とは区別します。
 
 ### protocol-native wire format
 
-対応carrierが運ぶLingonberry定義のwire representationです。任意の外部protocol formatではありません。外部変換にはversioned adapterが必要です。
+対応するcarrierが運ぶ、Lingonberry固有の伝送形式です。任意の外部プロトコルの形式をそのまま使うものではありません。外部形式との変換には、バージョン付きアダプターが必要です。
 
 ### carrier
 
-文書化されたHTTP carrierやfile/archive carrierなどの具体的なtransport／framing機構です。protocol materialを運びますが、semanticを定義しません。詳細は[`CARRIER.md`](./CARRIER.md)を参照してください。
+文書に定めたHTTPやファイル・アーカイブなどによる、具体的な伝送・フレーミングの仕組みです。プロトコルのデータを運びますが、その意味は定義しません。詳細は[`CARRIER.md`](./CARRIER.md)を参照してください。
 
 ### carrier identity
 
-archive key、request reference、record URI、event identifier、stream offsetなど、addressing、retrieval、transport deduplication、auditに使用するcarrier-local referenceです。canonical identityではありません。
+宛先指定、取得、伝送上の重複排除、監査に使う、carrier内の参照です。アーカイブキー、要求の参照、レコードURI、イベント識別子、ストリーム内の位置などが該当します。canonical identityとは区別します。
 
 ### storage-internal key
 
-storage backendが使用するimplementation keyです。明示的なcontractがない限りpublic protocol identifierではありません。
+ストレージの実装が内部で使用するキーです。仕様に明記されていない限り、公開プロトコルの識別子ではありません。
 
 ### identity key
 
-現在のidentity ruleでobject identityのbindingまたはresolutionに使用する決定的なkeyです。正確なbasisとversionはidentity／protocol contractで定義され、carrier endpoint locationには依存しません。
+現在の識別規則に従い、オブジェクトの同一性を対応付けたり判定したりするための、決定的なキーです。何を基に生成するかと、そのバージョンは、識別情報とプロトコルの仕様で定めます。carrierの接続先の場所によって決まるものではありません。
 
 ### identity claim
 
-identity bindingを主張するversioned evidenceです。claimが証明するのはverification contractで確立される範囲だけで、object内容の真実性を独立して証明するものではありません。
+識別情報の対応関係を主張する、バージョン付きの証明データです。証明できるのは検証仕様で定めた範囲に限られ、オブジェクトの内容が真実であることを独立して証明するものではありません。
 
 ### provenance
 
-origin、custody、issuer、transformation、transport historyを記述するevidenceです。auditabilityを支えますが、semantic truthやauthorizationと同義ではありません。
+出所、管理の経緯、発行者、変換、伝送の履歴を示す記録です。監査を可能にしますが、内容の真実性や認可と同じ意味ではありません。
 
 ### raw reference
 
-関連contractが要求する場合に、audit、replay、reconstructionへ使用するraw requestまたはcarrier evidenceへの参照です。canonical storageの代替ではありません。
+関連する仕様で必要とされる場合に、監査、再実行、再構築に使う、保存済みの生の要求やcarrierの記録への参照です。正本となるストレージの代わりにはなりません。
 
 ### lineage
 
-object間のderivation、revision、supersession、translation、その他文書化された履歴関係を表す明示的relationです。
+オブジェクト間の派生、改訂、置換、翻訳など、文書に定めた履歴上の関係を明示するものです。
 
 ### relation
 
-protocol schemaに従うKnowledge Object間のsemantic linkです。derived viewが解釈してもimmutableなsource objectを書き換えません。
+プロトコルのスキーマに従ってKnowledge Object同士を結ぶ、意味上の関係です。派生ビューがこの関係を解釈しても、変更不可の元オブジェクトを書き換えることはありません。
 
 ### transition
 
-transition authority、ordering、supersession、reevaluation contractに従ってeffective viewへ影響し得る、別個にvalidatedされたevidence objectです。元のKnowledge Objectを書き換えません。
+遷移の権限、順序、置換、再評価の仕様に従って、有効ビューに影響を与え得る、独立した検証対象の証明オブジェクトです。元のKnowledge Objectは書き換えません。
 
 ### effective view
 
-canonical objectとaccepted transition evidenceから生成されるderivedかつrebuildableな解釈です。canonical source of truthではなく、governing evidenceがambiguousまたはinvalidな場合はfail closedします。
+正規オブジェクトと受理済みの遷移の証明データから導く、再構築可能な解釈です。意味上の正本ではありません。判断の根拠となる証明データが曖昧または無効な場合は、安全側に処理を拒否します。
 
 ### derived index
 
-authoritative durable recordから生成されるrebuildableなsearch／lookup structureです。semantic sourceではなく、canonical storageを暗黙に上書きしてはいけません。
+正本となる永続レコードから生成する、再構築可能な検索・参照用の構造です。意味上の正本ではなく、正本となるストレージを暗黙に上書きしてはいけません。
 
 ### quarantine
 
-canonical acceptanceの対象ではないmaterialを、文書化されたreview、recovery、replacement、dismissal、permanent rejectionのために保持するcontrolled stateです。
+正規データとして受け入れられないものを、文書に定めた確認、復旧、置換、除外、恒久的な拒否のために保持する、管理された状態です。
 
 ### application profile
 
-domain-specificなconstraintやvocabularyをprotocol coreの上に重ねる仕組みです。利用範囲を狭めることはできますが、core canonicalization、identity、validation、compatibility semanticsを暗黙に再定義してはいけません。
+プロトコルの中核仕様の上に重ねる、分野固有の制約や語彙のまとまりです。利用範囲を狭めることはできますが、中核となる正規化、識別、検証、互換性の意味を暗黙に再定義してはいけません。
 
 ### capability
 
-対応behaviorのversioned declarationです。capability negotiationだけではauthorization、data validity、interoperability成功を証明しません。
+対応する動作を示す、バージョン付きの宣言です。対応機能を交渉しただけでは、認可、データの妥当性、相互運用の成功は証明できません。
 
 ### protocol
 
-Lingonberry object、identity、wire form、error、compatibility behaviorを統治するversioned semantic／validation contractです。carrierおよびruntime implementationとは異なります。
+Lingonberryのオブジェクト、識別情報、伝送形式、エラー、互換性の動作を定める、バージョン付きの意味と検証の仕様です。carrierや実行時の実装とは区別します。
 
 ### relay
 
-文書化されたHTTP、storage、diagnostic、lifecycle behaviorを公開するoperator-facing processです。v1.0が資格確認するのはsingle-node relayであり、federationやconsensusを意味しません。
+文書に定めたHTTP、ストレージ、診断、起動・停止などの動作を提供する、運用担当者向けのプロセスです。v1.0の検証対象は単一ノードのリレーであり、連合や合意の機能を意味するものではありません。
 
 ## Governing references / 関連正本
 

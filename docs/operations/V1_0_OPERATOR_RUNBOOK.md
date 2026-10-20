@@ -1,4 +1,4 @@
-# v1.0 Single-Node Operator Runbook / v1.0 Single-Node運用Runbook
+# v1.0 Single-Node Operator Runbook / v1.0 単一ノード運用手順書
 
 [English](#english) | [日本語](#japanese)
 
@@ -9,7 +9,11 @@
 >
 > 英語版がこの文書の正本です。日本語部分は翻訳です。内容に差異がある場合は英語版を優先します。
 
+**Last updated: 2026-10-20**
+
 ## English
+
+**Execution hold (2026-10-20):** Reference-host preflight, disk-pressure rehearsal, and the formal 72-hour soak are deferred at the maintainer’s request. Resume only after an explicit maintainer request; v1.0.0 remains unpublished.
 
 ### 1. Scope and release boundary
 
@@ -20,7 +24,7 @@ The latest published release is `v0.9.0`. `v1.0.0` is still under qualification 
 The designated pre-version qualification candidate is:
 
 ```text
-f9543019f2c219aea3b085ff90f2da201b268a48
+8c6b48082205a3af555130eec1f3e7d2ac8811fe
 ```
 
 Qualification-specific soak, crash-matrix, disk-pressure, and evidence procedures are maintainer workflows and are intentionally outside this operator runbook.
@@ -91,7 +95,7 @@ sha256sum /usr/local/bin/lingonberry-storage /usr/local/bin/lingonberry-relay
 For candidate qualification only, build the exact designated candidate with locked dependencies, then record the resulting binary digests:
 
 ```bash
-git checkout --detach f9543019f2c219aea3b085ff90f2da201b268a48
+git checkout --detach 8c6b48082205a3af555130eec1f3e7d2ac8811fe
 cargo build --locked --release -p lingonberry-storage -p lingonberry-relay
 sha256sum target/release/lingonberry-storage target/release/lingonberry-relay
 ```
@@ -369,33 +373,35 @@ For corrupt, unknown-newer, symlink, active migration journal, incomplete replac
 
 ## 日本語
 
-### 1. 対象範囲とリリース境界
+**実機試験の保留（2026-10-20）:** 基準ホストでの事前検証、ディスク圧迫試験、正式72時間連続稼働試験は、管理者の指示により保留しています。明示的な再開指示を受けてから再開します。v1.0.0は未公開です。
 
-この文書は、Lingonberry v1.x運用契約で想定する最小single-node手順です。install、設定検証、service lifecycle、health check、backup、isolated restore、index検証、restart persistence、一次切り分けを扱います。
+### 1. 対象範囲とリリース状況
 
-最新の公開済みreleaseは`v0.9.0`です。`v1.0.0`は資格確認中で、まだ公開されていません。v1.0.0 tagとGitHub Releaseが存在するまでは、この文書はpre-release runbookであり、v1.0.0公開済みの証拠として扱ってはいけません。
+この文書は、Lingonberry v1.xの運用仕様で想定する、単一ノードの基本的な運用手順書です。インストール、設定検証、サービスの起動・停止・再起動、正常性の確認、バックアップ、分離した環境への復元、インデックス検証、再起動後のデータ保持、一次切り分けを扱います。
 
-version更新前の指定qualification candidateは次のcommitです。
+最新の公開版は`v0.9.0`です。`v1.0.0`は公開に向けた検証中で、まだ公開されていません。v1.0.0 タグとGitHub Releaseが存在するまでは、この文書は公開前の手順書であり、v1.0.0公開済みの証拠として扱ってはいけません。
+
+バージョン更新前の検証対象として指定した公開候補は次のコミットです。
 
 ```text
-f9543019f2c219aea3b085ff90f2da201b268a48
+8c6b48082205a3af555130eec1f3e7d2ac8811fe
 ```
 
-qualification固有のsoak、crash matrix、disk pressure、evidence手順はmaintainer workflowであり、このoperator runbookの対象外です。
+適格性検証固有の連続稼働試験、障害注入試験、ディスク圧迫試験、検証記録手順は保守担当者の作業であり、この運用手順書の対象外です。
 
 ### 2. 安全規則
 
-- canonical storageを正本とし、indexとeffective viewは再構築可能な派生物として扱う
-- active stateまたはactive data directoryへrestoreしない
-- manifest、journal、generation pointer、index、proof、evidenceを手作業で編集しない
-- `doctor`、`verify`、migration inspection、readinessがcorrupt、unsupported、unknown-newer、ambiguous、incompleteを報告した場合は停止する
-- 通常起動時にimplicit migrationを行わない
-- recoveryを試みる前にlogとdiagnostic outputを保存する
-- systemd templateの正本として`deploy/systemd/`配下のchecked-in fileを使用する
+- 保存した知識オブジェクトを正本とし、インデックスと遷移を反映した有効ビューは再構築可能な派生物として扱う
+- 稼働中の状態ディレクトリやデータディレクトリへ復元しない
+- マニフェスト、ジャーナル、世代を指すポインター、インデックス、証明データ、検証記録を手作業で編集しない
+- `doctor`、`verify`、移行状態の調査、受付準備状態が破損、未対応、未知の新しい形式、曖昧、不完全を報告した場合は停止する
+- 通常起動時に暗黙の移行処理を行わない
+- 復旧を試みる前にログと診断結果を保存する
+- systemdのテンプレートの正本として`deploy/systemd/`配下のリポジトリで管理するファイルを使用する
 
-### 3. Reference platformと前提条件
+### 3. 基準環境と前提条件
 
-release test済みのreference platformは次のとおりです。
+リリース試験済みの基準環境は次のとおりです。
 
 ```text
 Ubuntu Server 24.04 LTS
@@ -404,7 +410,7 @@ systemd
 ext4などのlocal Linux filesystem
 ```
 
-OS側の前提packageを導入します。
+OS側で必要なパッケージを導入します。
 
 ```bash
 sudo apt update
@@ -413,11 +419,11 @@ uname -m
 systemctl --version
 ```
 
-正式reference-platform手順では、`uname -m`が`x86_64`を返す必要があります。
+正式な基準環境手順では、`uname -m`が`x86_64`を返す必要があります。
 
-Rust toolchainが必要なのは、qualification candidateをsourceからbuildする場合だけです。公開後のproduction運用では、release build済みbinaryと公開checksumを使用します。
+Rustツールチェーンが必要なのは、検証対象の公開候補をソースコードからビルドする場合だけです。公開後の本番運用では、リリース用にビルドされたバイナリと公開されたチェックサムを使用します。
 
-### 4. Service accountとdirectoryを作成する
+### 4. サービス用アカウントとディレクトリを作成する
 
 ```bash
 sudo useradd --system \
@@ -433,11 +439,11 @@ sudo install -d -o lingonberry -g lingonberry \
 sudo install -d -o root -g lingonberry -m 0750 /etc/lingonberry
 ```
 
-active state、active data、backup、temporary file、configurationは明示的に分離し、個別に確認できる状態を維持します。
+稼働中の状態とデータ、バックアップ、一時ファイル、設定は明示的に分離し、個別に確認できる状態を維持します。
 
-### 5. Binaryをinstallする
+### 5. バイナリをインストールする
 
-公開releaseでは、そのrelease用に提供された検証済みrelease binaryを使用します。置換前後のchecksumを記録します。
+公開リリースでは、そのリリース用に提供された検証済み公開用バイナリを使用します。置換前後のチェックサムを記録します。
 
 ```bash
 sha256sum lingonberry-storage lingonberry-relay
@@ -446,19 +452,19 @@ sudo install -m 0755 lingonberry-relay /usr/local/bin/lingonberry-relay
 sha256sum /usr/local/bin/lingonberry-storage /usr/local/bin/lingonberry-relay
 ```
 
-candidate qualificationの場合だけ、locked dependencyでexact candidateをbuildし、binary digestを記録します。
+公開候補の検証の場合だけ、固定された依存関係で指定された正確な公開候補をビルドし、バイナリのハッシュ値を記録します。
 
 ```bash
-git checkout --detach f9543019f2c219aea3b085ff90f2da201b268a48
+git checkout --detach 8c6b48082205a3af555130eec1f3e7d2ac8811fe
 cargo build --locked --release -p lingonberry-storage -p lingonberry-relay
 sha256sum target/release/lingonberry-storage target/release/lingonberry-relay
 ```
 
-source buildしたcandidateはqualification inputであり、公開済みv1.0.0 release artifactではありません。
+ソースコードからビルドした公開候補は検証への入力であり、公開済みv1.0.0の配布物ではありません。
 
-### 6. Configurationとsystemd unitをinstallする
+### 6. 設定とsystemdユニットをインストールする
 
-対応するsourceまたはrelease bundleからinstallします。
+対応するソースコードまたはリリース配布物一式からインストールします。
 
 ```bash
 sudo install -m 0644 \
@@ -476,13 +482,13 @@ sudo install -m 0640 deploy/systemd/relay.env.example \
 sudo chown root:lingonberry /etc/lingonberry/*.env
 ```
 
-起動前に両方のenvironment fileを確認します。設定の優先順位は次のとおりです。
+起動前に両方の環境設定ファイルを確認します。設定の優先順位は次のとおりです。
 
 ```text
-defaults < configuration file < environment < CLI
+既定値 < 設定ファイル < 環境変数 < CLIオプション
 ```
 
-`env $(cat /etc/lingonberry/storage.env | xargs)`は使用しません。保護されたenvironment fileはservice-user shellの内部で読み込みます。
+`env $(cat /etc/lingonberry/storage.env | xargs)`は使用しません。保護された環境設定ファイルはサービス用ユーザーのシェルの内部で読み込みます。
 
 ### 7. 起動前に設定を検証する
 
@@ -505,11 +511,11 @@ sudo systemd-analyze verify \
   /etc/systemd/system/lingonberry-relay.service
 ```
 
-失敗したcheckは起動をblockします。`doctor`はread-onlyであり、手作業によるfile修復で置き換えてはいけません。
+検査に失敗した場合は起動を中止します。`doctor`は読み取り専用であり、手作業によるファイル修復で置き換えてはいけません。
 
 ### 8. 起動、停止、再起動
 
-起動してenableします。
+起動して自動起動を有効化します。
 
 ```bash
 sudo systemctl daemon-reload
@@ -517,7 +523,7 @@ sudo systemctl enable --now lingonberry-storage-ready.service
 sudo systemctl enable --now lingonberry-relay.service
 ```
 
-statusとreadinessを確認します。
+状況と受付準備状態を確認します。
 
 ```bash
 systemctl status \
@@ -526,25 +532,25 @@ systemctl status \
 curl -fsS http://127.0.0.1:8787/v1/ready
 ```
 
-long-running relayを再起動します。
+常駐するリレーを再起動します。
 
 ```bash
 sudo systemctl restart lingonberry-relay.service
 curl -fsS http://127.0.0.1:8787/v1/ready
 ```
 
-serviceを停止します。
+サービスを停止します。
 
 ```bash
 sudo systemctl stop lingonberry-relay.service
 sudo systemctl stop lingonberry-storage-ready.service
 ```
 
-storage unitはoneshot readiness gateです。relay unitがlong-running processです。
+ストレージユニットは一度だけ起動準備を確認するユニットです。リレーユニットが常駐プロセスです。
 
-### 9. 通常のhealth check
+### 9. 日常の正常性確認
 
-service userとしてstorage checkを実行します。
+サービス用ユーザーとしてストレージの検査を実行します。
 
 ```bash
 sudo -u lingonberry sh -c '
@@ -557,7 +563,7 @@ sudo -u lingonberry sh -c '
 '
 ```
 
-より詳しいread-only inspectionを行います。
+より詳しい読み取り専用の調査を行います。
 
 ```bash
 sudo -u lingonberry sh -c '
@@ -568,11 +574,11 @@ sudo -u lingonberry sh -c '
 '
 ```
 
-readinessまたはverificationが失敗した場合、原因と対応を理解して記録するまで通常運用を続けません。
+受付準備状態または検証が失敗した場合、原因と対応を理解して記録するまで通常運用を再開しません。
 
-### 10. Publishとpersisted stateの確認
+### 10. 公開と永続化された状態の確認
 
-canonical data directoryへ直接アクセスするpublish commandはservice userとして実行します。
+正本となるデータディレクトリへ直接アクセスする公開コマンドはサービス用ユーザーとして実行します。
 
 ```bash
 sudo -u lingonberry env \
@@ -587,11 +593,11 @@ sudo -u lingonberry sh -c '
 '
 ```
 
-production clientは通常、repository fixtureへ依存せず、設定済みrelay interfaceを通してpublishします。
+本番環境クライアントは通常、リポジトリ付属のサンプルデータへ依存せず、設定済みリレーインターフェースを通して公開します。
 
-### 11. Backupの作成と検証
+### 11. バックアップの作成と検証
 
-新しいdestination、または明示的に再利用可能なdestinationを使用します。作成だけを成功として扱いません。
+新しい保存先、または再利用が明示的に認められた保存先を使用します。作成だけを成功として扱いません。
 
 ```bash
 sudo -u lingonberry sh -c '
@@ -609,11 +615,11 @@ sudo -u lingonberry sh -c '
 '
 ```
 
-backup path、timestamp、verification result、関連binary digestを記録します。
+バックアップパス、時刻、検証結果、関連バイナリのハッシュ値を記録します。
 
-### 12. Isolated targetだけにrestoreする
+### 12. 分離された復元先だけに復元する
 
-active stateまたはactive dataへrestoreしてはいけません。
+稼働中の状態ディレクトリやデータディレクトリへ復元してはいけません。
 
 ```bash
 sudo install -d -o lingonberry -g lingonberry \
@@ -636,9 +642,9 @@ sudo -u lingonberry sh -c '
 '
 ```
 
-targetは明示的、空、isolated、かつsymbolic linkではない必要があります。active pathへの切り替えは、verification後に別のoperator判断として行います。
+復元先には、明示的に指定した、稼働環境から分離された空のディレクトリを使用します。シンボリックリンクは使用できません。使用中のパスへの切り替えは、検証後に運用担当者による別の判断として行います。
 
-### 13. Derived indexの検証と再構築
+### 13. 派生インデックスの検証と再構築
 
 ```bash
 sudo -u lingonberry sh -c '
@@ -654,11 +660,11 @@ sudo -u lingonberry sh -c '
 '
 ```
 
-rebuildはderived stateだけに使用します。corrupt canonical storageの修復手段ではありません。
+再構築は派生状態だけに使用します。正本となるストレージの破損を修復する手段ではありません。
 
-### 14. Restart persistence check
+### 14. 再起動後のデータ保持の確認
 
-persisted listingを取得し、relayを再起動してreadinessを待ち、listingを比較します。
+保存済みデータの一覧を取得し、リレーを再起動して受付準備が整うのを待ち、一覧を比較します。
 
 ```bash
 sudo -u lingonberry sh -c '
@@ -680,7 +686,7 @@ cmp /tmp/lingonberry-list-before.json \
   /tmp/lingonberry-list-after.json
 ```
 
-不一致はreleaseまたはoperationをblockするpersistence failureです。追加作業の前に両listingとservice journalを保存します。
+一覧が一致しなければ、データ保持の確認に失敗しています。リリースまたは運用を中止してください。追加作業の前に両方の一覧とサービスのジャーナルを保存します。
 
 ### 15. 一次切り分け
 
@@ -703,20 +709,20 @@ sudo -u lingonberry sh -c '
 '
 ```
 
-corrupt、unknown-newer、symlink、active migration journal、incomplete replacement、incomplete cleanup、unsafe restore-target errorの場合は、次のように対応します。
+破損、未知の新しい形式、シンボリックリンク、処理中の移行ジャーナル、未完了の置換処理や整理処理、安全でない復元先に関するエラーが報告された場合は、次のように対応します。
 
-1. write trafficを停止する
-2. logとdiagnostic outputを保存する
-3. state fileを手作業で編集しない
-4. 対応するmigration、quarantine、replacement、recovery手順に従う
+1. 書き込み要求を停止する
+2. ログと診断結果を保存する
+3. 状態ファイルを手作業で編集しない
+4. 対応する移行、隔離領域、置換処理、復旧手順に従う
 
 ### 16. 関連手順
 
-- [Supported Platforms](./SUPPORTED_PLATFORMS.md)
-- [Operator CLI Contract](./OPERATOR_CLI_CONTRACT.md)
-- [Storage Migration and Upgrade Contract](./STORAGE_MIGRATION_AND_UPGRADE.md)
-- [v1.0 Upgrade and Rollback](./V1_0_UPGRADE_AND_ROLLBACK.md)
-- [Quarantine Admin HTTP and RBAC](./QUARANTINE_ADMIN_HTTP.md)
-- [Quarantine Backup / Verify / Restore](./QUARANTINE_BACKUP_RESTORE.md)
-- [Replacement Recovery Runbook](./QUARANTINE_REPLACEMENT_RECOVERY_RUNBOOK.md)
-- [Cleanup Operations Runbook](./QUARANTINE_REPLACEMENT_CLEANUP_RUNBOOK.md)
+- [対応環境](./SUPPORTED_PLATFORMS.md)
+- [運用CLIの仕様](./OPERATOR_CLI_CONTRACT.md)
+- [保存形式の移行と更新の仕様](./STORAGE_MIGRATION_AND_UPGRADE.md)
+- [v1.0 更新とロールバックの手順](./V1_0_UPGRADE_AND_ROLLBACK.md)
+- [隔離領域の管理用HTTP APIと役割に基づくアクセス制御](./QUARANTINE_ADMIN_HTTP.md)
+- [隔離領域のバックアップ・検証・復元](./QUARANTINE_BACKUP_RESTORE.md)
+- [置換処理の復旧手順](./QUARANTINE_REPLACEMENT_RECOVERY_RUNBOOK.md)
+- [置換処理後の整理手順](./QUARANTINE_REPLACEMENT_CLEANUP_RUNBOOK.md)

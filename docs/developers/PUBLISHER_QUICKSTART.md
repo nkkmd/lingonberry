@@ -1,4 +1,4 @@
-# Publisher Quickstart / Publisher クイックスタート
+# Publisher Quickstart / 公開クライアントの入門ガイド
 
 [English](#english) | [日本語](#japanese)
 
@@ -8,7 +8,9 @@
 
 ## English
 
-**Status: v1.0 pre-release developer guide** | **Last updated: 2026-07-27**
+**Execution hold (2026-10-20):** Reference-host preflight, disk-pressure rehearsal, and the formal 72-hour soak are deferred at the maintainer’s request. Resume only after an explicit maintainer request; v1.0.0 remains unpublished.
+
+**Status: v1.0 pre-release developer guide** | **Last updated: 2026-10-20**
 
 This guide is for developers building an application, service, CLI, connector, or protocol adapter that submits Knowledge Objects to a Lingonberry relay.
 
@@ -133,39 +135,41 @@ This guide does not guarantee publisher authorization/key lifecycle, replay prev
 
 ## 日本語
 
-**Status: v1.0 pre-release developer guide** | **最終更新: 2026-07-27**
+**実機試験の保留（2026-10-20）:** 基準ホストでの事前検証、ディスク圧迫試験、正式72時間連続稼働試験は、管理者の指示により保留しています。明示的な再開指示を受けてから再開します。v1.0.0は未公開です。
 
-このガイドは、Knowledge ObjectをLingonberry relayへ送信するapplication、service、CLI、connector、protocol adapterの開発者向けです。
+**状態: v1.0公開前の開発者ガイド** | **最終更新: 2026-10-20**
 
-### 1. Publisher flow
+このガイドは、知識オブジェクト（Knowledge Object）をLingonberryのリレーへ送信するアプリケーション、サービス、CLI、コネクター、プロトコルアダプターの開発者向けです。
+
+### 1. 公開処理の流れ
 
 ```text
-Knowledge Objectを作成
-→ HTTP publish-request envelopeを構築
-→ canonical signing targetを構築
-→ Ed25519 private keyで署名
+知識オブジェクトを作成
+→ HTTP公開要求のデータ構造に組み込む
+→ 正規化された署名対象データを構築
+→ Ed25519秘密鍵で署名
 → POST /v1/objects
-→ HTTP statusとingestion-result bodyを確認
-→ 保存成功時は返却されたcanonicalIdで取得
+→ HTTPステータスと取込結果の応答本文を確認
+→ 保存成功時は返されたcanonicalIdで取得
 ```
 
-独自のcanonicalization／署名実装を新設せず、checked-in JavaScript reference producerを参照してください。
+正規化や署名を独自に実装し直すのではなく、リポジトリ付属のJavaScript生成ツール（参照実装）を参照してください。
 
-### 2. Release／security境界
+### 2. リリース状況と署名検証の適用範囲
 
-- 最新公開release: `v0.9.0`
-- 固定v1.0 candidate: `8c6b48082205a3af555130eec1f3e7d2ac8811fe`
-- candidate qualification／documentation walkthrough: PASS
-- privileged reference-host preflight: 次のgate
-- 正式72時間soak／v1.0.0公開: 未開始
+- 最新の公開版: `v0.9.0`
+- 固定したv1.0公開候補: `8c6b48082205a3af555130eec1f3e7d2ac8811fe`
+- 公開候補の検証／文書の手順に沿った動作確認: 合格
+- 基準ホストでの管理者権限による事前検証: 次の検証項目
+- 正式な72時間連続稼働試験／v1.0.0公開: 未開始
 
 正本となる署名規則はEd25519と`lb.canonical.json.v1`を使用する`lb.http.publish.signature.v1`です。
 
-active ingestion pathはparse直後にpublisher signatureを検証し、acceptance policy、quarantine、duplicate／conflict判定、raw append、canonical storageより前にfail closedします。
+現在の取込処理では、JSONの解析直後に公開者の署名を検証します。署名を検証できなければ、受入方針の適用、隔離、重複・競合の判定、受信データの追記、正本となるストレージへの保存のいずれにも進まず、要求を拒否します。
 
-`stored`または`duplicate`は強制された署名境界を通過したrequestです。ただしpublisher authorization、key発行、delegation、revocation、replay preventionまで保証しません。
+`stored`または`duplicate`は必須の署名検証を通過した要求です。ただし公開者への権限付与、鍵の発行、権限委譲、失効、再送攻撃の防止まで保証しません。
 
-### 3. 準備とcandidate checkout
+### 3. 準備と公開候補の取得
 
 ```bash
 git clone https://github.com/nkkmd/lingonberry.git
@@ -173,15 +177,15 @@ cd lingonberry
 git checkout 8c6b48082205a3af555130eec1f3e7d2ac8811fe
 ```
 
-candidate決定後のevidence／documentation commitはcandidateを変更しません。
+公開候補の決定後に追加する検証記録や文書のコミットは公開候補を変更しません。
 
-### 4. 署名済みrequestの生成
+### 4. 署名済み要求の生成
 
 ```bash
 node conformance/minimal-producer.mjs > /tmp/lingonberry-publish-request.json
 ```
 
-custom例:
+カスタマイズ例:
 
 ```bash
 node conformance/minimal-producer.mjs \
@@ -192,15 +196,15 @@ node conformance/minimal-producer.mjs \
   > /tmp/lingonberry-publish-request.json
 ```
 
-reference producerはephemeral Ed25519 key pairを生成し、canonical signing targetへ署名します。private-key management solutionではありません。
+参照実装の生成ツールは一時的なEd25519鍵ペアを生成し、正規化された署名対象データに署名します。秘密鍵の管理機能ではありません。
 
-### 5. Relay起動と送信
+### 5. リレーの起動と送信
 
 ```bash
 cargo run -p lingonberry-relay -- serve-http 127.0.0.1:8787
 ```
 
-別terminal:
+別の端末で送信します。
 
 ```bash
 curl -sS \
@@ -209,27 +213,27 @@ curl -sS \
   http://127.0.0.1:8787/v1/objects
 ```
 
-- `stored`: 新しい署名検証済みobjectを保存
-- `duplicate`: 同じ署名検証済みpublicationが存在
-- `deferred`: quarantineへ移動し未保存
-- `rejected`: schema、identity、signature、policyによる拒否
-- `conflict`: 同じcanonical identityに異なるcontent
-- `failed`: verifier infrastructure、operation、storage failure
+- `stored`: 新しい署名検証済みオブジェクトを保存
+- `duplicate`: 同じ署名検証済みの公開データが既に存在する
+- `deferred`: 隔離領域へ移し、正本となるストレージには未保存
+- `rejected`: スキーマ、識別情報、署名、方針による拒否
+- `conflict`: 同じ正規化された識別情報（canonical identity）に、異なる内容が対応している
+- `failed`: 署名検証基盤、操作、またはストレージでの失敗
 
-署名関連code:
+署名に関するエラーコード:
 
 - `LB_PUBLISH_SIGNATURE_MALFORMED`
 - `LB_PUBLISH_SIGNATURE_INVALID`
 - `LB_PUBLISH_SIGNATURE_VERIFIER_ERROR`
 
-### 6. 取得とresult処理
+### 6. 取得と結果の処理
 
 ```bash
 curl -sS 'http://127.0.0.1:8787/v1/objects/<canonical-id>'
 ```
 
-署名後のrequestを書き換えず、`duplicate`はidempotent success、`deferred`は未保存、`conflict`は非一時障害として扱ってください。private keyをlog、fixture、repository、evidence bundleへ保存しないでください。
+署名後の要求を書き換えず、`duplicate`は再送しても重複を増やさない成功、`deferred`は未保存、`conflict`は一時的な障害ではない結果として扱ってください。秘密鍵をログ、サンプルデータ、リポジトリ、検証記録一式へ保存しないでください。
 
-### 7. 非保証
+### 7. このガイドで保証しない事項
 
-このガイドはpublisher authorization／key lifecycle、federation、production TLS、DoS protection、正式72時間soak完了、v1.0.0公開を保証しません。
+このガイドは公開者への権限付与／鍵のライフサイクル、ノード間連携、本番環境のTLS、DoS対策、正式な72時間連続稼働試験完了、v1.0.0公開を保証しません。

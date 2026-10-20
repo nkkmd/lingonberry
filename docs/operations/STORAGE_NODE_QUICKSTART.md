@@ -1,4 +1,4 @@
-# Storage Node Quickstart / Storage Nodeクイックスタート
+# Storage Node Quickstart / ストレージノードの入門ガイド
 
 [English](#english) | [日本語](#japanese)
 
@@ -6,9 +6,11 @@
 >
 > 英語版がこの文書の正本です。日本語部分は同期翻訳です。内容に差異がある場合は英語版を優先します。
 
-**Status: v1.0.0 pre-release local-evaluation guide** | **Last updated: 2026-07-27**
+**Status: v1.0.0 pre-release local-evaluation guide** | **Last updated: 2026-10-20**
 
 ## English
+
+**Execution hold (2026-10-20):** Reference-host preflight, disk-pressure rehearsal, and the formal 72-hour soak are deferred at the maintainer’s request. Resume only after an explicit maintainer request; v1.0.0 remains unpublished.
 
 ### 1. Purpose and boundary
 
@@ -280,7 +282,7 @@ This guide describes the current v1.0.0 pre-release implementation. It does not 
 The designated pre-version candidate remains:
 
 ```text
-f9543019f2c219aea3b085ff90f2da201b268a48
+8c6b48082205a3af555130eec1f3e7d2ac8811fe
 ```
 
 Documentation and evidence commits after that candidate do not redefine it.
@@ -301,29 +303,31 @@ Documentation and evidence commits after that candidate do not redefine it.
 
 ## 日本語
 
+**実機試験の保留（2026-10-20）:** 基準ホストでの事前検証、ディスク圧迫試験、正式72時間連続稼働試験は、管理者の指示により保留しています。明示的な再開指示を受けてから再開します。v1.0.0は未公開です。
+
 ### 1. 目的と適用範囲
 
-このガイドは、リポジトリのcheckoutから検証済みの`lingonberry-storage` command環境までを構築する、最小限のローカル開発手順を示します。
+このガイドは、リポジトリのチェックアウトから検証済みの`lingonberry-storage` コマンドを検証して利用できるようにする、最小限のローカル開発手順を示します。
 
-これは本番環境へのinstall手順ではありません。install済みreference node、service account設定、保護されたenvironment file、リポジトリに含まれるsystemd unit、backup、upgrade、rollback、およびrelease evidenceについては、[`V1_0_OPERATOR_RUNBOOK.md`](./V1_0_OPERATOR_RUNBOOK.md)を使用してください。
+これは本番環境へのインストール手順ではありません。導入済みの基準構成のノード、サービス用アカウントの設定、保護された環境設定ファイル、リポジトリに含まれるsystemdユニット、バックアップ、更新、ロールバック、およびリリースの検証記録については、[v1.0 単一ノード運用手順書](./V1_0_OPERATOR_RUNBOOK.md)を使用してください。
 
-現在のstorage binaryはoperatorおよびstorage command用のbinaryです。長時間稼働するdaemonではありません。
+現在のストレージバイナリは、運用とストレージ操作に使うコマンド用の実行ファイルです。長時間稼働する常駐プロセスではありません。
 
-- `lingonberry-storage run`はruntime snapshotを出力して終了します。
-- `lingonberry-storage ready`はstartup readinessを評価して終了します。
-- `lingonberry-relay`が長時間稼働するHTTP relay processです。
-- リポジトリに含まれるstorage systemd unitはoneshot readiness gateです。
+- `lingonberry-storage run`は実行時点の状態を出力して終了します。
+- `lingonberry-storage ready`は起動準備状態を評価して終了します。
+- `lingonberry-relay`が長時間稼働するHTTPリレープロセスです。
+- リポジトリに含まれるストレージ用systemdユニットは一度だけ起動準備を確認するユニットです。
 
 ### 2. 必要条件
 
 次を備えた、サポート対象のLinux開発環境を使用してください。
 
 - Git
-- 現行のstable Rust toolchain
+- 現在の安定版Rustツールチェーン
 - Cargo
-- Rust workspaceに必要なbuild dependency
+- Rustのワークスペースに必要なビルド依存関係
 
-toolを利用できることを確認します。
+ツールを利用できることを確認します。
 
 ```bash
  git --version
@@ -331,35 +335,35 @@ toolを利用できることを確認します。
  cargo --version
 ```
 
-正式なreference platformは[`SUPPORTED_PLATFORMS.md`](./SUPPORTED_PLATFORMS.md)で定義されています。
+正式な基準環境は[対応環境](./SUPPORTED_PLATFORMS.md)で定義されています。
 
-### 3. リポジトリをcloneする
+### 3. リポジトリを複製する
 
 ```bash
 git clone https://github.com/nkkmd/lingonberry.git
 cd lingonberry
 ```
 
-release qualificationでは、`main`がrelease candidateであると仮定しないでください。qualification文書で指定された正確なrevisionを使用します。このquickstartでは、現在のcheckoutをローカル評価にのみ使用します。
+リリースの適格性検証では、`main`が公開候補であると仮定しないでください。適格性検証文書で指定された正確なリビジョンを使用します。この入門ガイドでは、現在のチェックアウトをローカル評価にのみ使用します。
 
-### 4. Storage packageをbuildおよびtestする
+### 4. ストレージパッケージをビルドおよび試験する
 
 ```bash
 cargo build -p lingonberry-storage
 cargo test -p lingonberry-storage
 ```
 
-release modeのローカルbinaryを作成する場合は、次を実行します。
+リリースモードのローカルバイナリを作成する場合は、次を実行します。
 
 ```bash
 cargo build --release -p lingonberry-storage
 ```
 
-以下の開発例では`cargo run`を使用します。install済みnodeの手順では、任意のcheckoutから暗黙にrebuildするのではなく、review済みrelease binaryを使用しなければなりません。
+以下の開発例では`cargo run`を使用します。導入済みのノードの手順では、任意のチェックアウトから暗黙にビルドし直すのではなく、確認済み公開用バイナリを使用しなければなりません。
 
-### 5. 分離されたローカルdirectoryを作成する
+### 5. 分離されたローカルディレクトリを作成する
 
-このquickstartが既存nodeを変更できないように、破棄可能なdirectory treeを使用します。
+この入門ガイドが既存ノードを変更できないように、評価後に削除できる専用ディレクトリ一式を使用します。
 
 ```bash
 export LB_STORAGE_ROOT="$(mktemp -d)"
@@ -375,32 +379,32 @@ mkdir -p \
   "$LINGONBERRY_STORAGE_TEMP_DIR"
 ```
 
-このガイドでは、すべてのdirectoryを明示できるため、storage固有のvariableを推奨します。configurationの優先順位は次のとおりです。
+このガイドでは、すべてのディレクトリを明示できるため、ストレージ固有の変数を推奨します。設定の優先順位は次のとおりです。
 
 ```text
-defaults
-→ config file
-→ environment variables
-→ CLI options
+既定値
+→ 設定ファイル
+→ 環境変数
+→ CLIオプション
 ```
 
-完全なcontractについては[`STORAGE_NODE_RUNTIME.md`](./STORAGE_NODE_RUNTIME.md)を参照してください。
+完全な仕様については[ストレージノードの実行時仕様](./STORAGE_NODE_RUNTIME.md)を参照してください。
 
-### 6. Command surfaceを確認する
+### 6. 利用できるコマンドを確認する
 
 ```bash
 cargo run -p lingonberry-storage -- capabilities
 ```
 
-出力はcanonical JSONであり、storage serviceと実装済みoperationを識別できる必要があります。
+出力は正規化済みのJSONであり、ストレージサービスと実装済み操作を識別できる必要があります。
 
-### 7. Effective configurationを確認する
+### 7. 実際に適用される設定を確認する
 
 ```bash
 cargo run -p lingonberry-storage -- config
 ```
 
-解決された値が`$LB_STORAGE_ROOT`配下を指していることを確認します。
+実際に適用された値が`$LB_STORAGE_ROOT`配下を指していることを確認します。
 
 ```text
 stateDir
@@ -418,7 +422,7 @@ catalogPath
 <dataDir>/canonical-catalog.sqlite3
 ```
 
-commandの前に、一時的なCLI overrideを渡すこともできます。
+コマンドの前に、一時的な設定を一時的に上書きするCLIオプションを指定することもできます。
 
 ```bash
 cargo run -p lingonberry-storage -- \
@@ -426,7 +430,7 @@ cargo run -p lingonberry-storage -- \
   config
 ```
 
-CLI overrideはenvironment variableより優先されます。
+CLIオプションによる上書きは環境変数より優先されます。
 
 ### 8. `status`と`run`を理解する
 
@@ -435,82 +439,82 @@ cargo run -p lingonberry-storage -- status
 cargo run -p lingonberry-storage -- run
 ```
 
-どちらのcommandもsnapshotを出力して終了します。常駐serviceを開始せず、network portをlistenせず、厳密なstorage integrityを証明するものでもありません。
+どちらのコマンドもその時点の状態を出力して終了します。常駐サービスを開始せず、ネットワークポートで待ち受けず、厳密なストレージ整合性を証明するものでもありません。
 
-`run`が稼働し続けることを期待してterminalを開いたままにしないでください。
+`run`が稼働し続けることを期待して端末を開いたままにしないでください。
 
-### 9. Diagnosticを実行する
+### 9. 診断を実行する
 
-#### 9.1 Process-level health
+#### 9.1 プロセスの正常性
 
 ```bash
 cargo run -p lingonberry-storage -- health
 ```
 
-`health`はcommand processを実行できることを確認します。storage readinessは検査しません。
+`health`はコマンドプロセスを実行できることを確認します。ストレージの受付準備状態は検査しません。
 
-#### 9.2 Read-only doctor report
+#### 9.2 読み取り専用の診断レポート
 
 ```bash
 cargo run -p lingonberry-storage -- doctor
 ```
 
-新しく作成した空のworkspaceでは、空のstorage format、logまたはcatalog fileの欠如、空のbackup inventoryなどに対するwarningが想定されます。warningだけでは`doctor`は失敗しません。
+新しく作成した空のワークスペースでは、空の保存形式、ログまたはカタログファイルの欠如、空のバックアップ一覧などに対する警告が想定されます。警告だけでは`doctor`は失敗しません。
 
-failed checkを無視してはいけません。これは、破損または未対応のstorage、無効なfile type、symlink rejection、不整合なindex state、またはcapacity check失敗などを示します。
+失敗した検査項目を無視してはいけません。これは、破損または未対応のストレージ、無効なファイル種別、シンボリックリンクの拒否、不整合なインデックス状態、または容量検査の失敗などを示します。
 
-#### 9.3 Startup readiness
+#### 9.3 起動準備状態
 
 ```bash
 cargo run -p lingonberry-storage -- ready
 ```
 
-`ready`はdoctor reportにfailed checkが含まれる場合にのみ失敗します。そのため、warningだけが存在する空のローカルworkspaceはreadyになる場合があります。
+`ready`は`doctor`の診断結果に失敗した検査項目が含まれる場合にのみ失敗します。そのため、警告だけが存在する空のローカルワークスペースでも受付準備が整ったと判定される場合があります。
 
-これは、リポジトリに含まれるoneshot unitが使用するcommandです。
+これは、リポジトリに含まれる一度だけ実行するユニットが使用するコマンドです。
 
 ```text
 deploy/systemd/lingonberry-storage-ready.service
 ```
 
-#### 9.4 Strict verification
+#### 9.4 厳密な検証
 
 ```bash
 cargo run -p lingonberry-storage -- verify
 ```
 
-`verify`はwarningもnon-zeroとして扱います。まっさらな空のworkspaceは、storage stateと必要な運用artifactが初期化されるまでstrict verificationを通過しない場合があります。
+`verify`は警告も0以外の終了コードとして扱います。まっさらな空のワークスペースは、ストレージ状態と必要な運用成果物が初期化されるまで厳密な検証を通過しない場合があります。
 
 次の違いを意図的に使い分けてください。
 
 ```text
-doctor = warnings allowed
-ready  = failed checks rejected
-verify = warnings and failed checks rejected
+doctor = 警告だけなら成功
+ready  = 失敗した検査項目があれば失敗
+verify = 警告または失敗した検査項目があれば失敗
 ```
 
-### 10. Read-only storage commandを実行する
+### 10. 読み取り専用のストレージコマンドを実行する
 
 ```bash
 cargo run -p lingonberry-storage -- list
 cargo run -p lingonberry-storage -- replay
 ```
 
-空のworkspaceでは、これらのcommandはserviceを開始するのではなく、空の結果を表すcanonical JSONを返す必要があります。
+空のワークスペースでは、これらのコマンドはサービスを開始するのではなく、空の結果を表す正規化済みのJSONを返す必要があります。
 
-`retrieve`にはcanonical IDが必要です。
+`retrieve`には正規IDが必要です。
 
 ```bash
 cargo run -p lingonberry-storage -- retrieve 'lb:obj:example'
 ```
 
-objectが存在しないことによるnot-found failureは想定される結果であり、runtime破損の証明ではありません。
+オブジェクトが存在しないことによる「見つからない」という結果は想定される結果であり、実行環境が破損している証拠ではありません。
 
-### 11. 任意のappend smoke test
+### 11. 追記の簡易動作確認（任意）
 
-`append`は状態を変更するcommandであり、有効なpublish-request JSON fileが必要です。review済みfixtureを使用するか、現在のprotocol contractに適合する分離されたtest requestを作成してください。
+`append`は状態を変更するコマンドであり、有効な公開要求を記述したJSONファイルが必要です。確認済みサンプルデータを使用するか、現在のプロトコル仕様に適合する分離された試験要求を作成してください。
 
-現在のcheckoutに適した、リポジトリに含まれるfixtureを使用する例は次のとおりです。
+現在のチェックアウトに適した、リポジトリに含まれるサンプルデータを使用する例は次のとおりです。
 
 ```bash
 cargo run -p lingonberry-storage -- \
@@ -525,19 +529,19 @@ cargo run -p lingonberry-storage -- replay
 cargo run -p lingonberry-storage -- doctor
 ```
 
-このquickstartから既存の本番directoryに対して、`append`、restore、migration、index rebuild、またはdrill commandを実行しないでください。
+この入門ガイドから既存の本番ディレクトリに対して、`append`、復元、移行、インデックス再構築、または復旧訓練コマンドを実行しないでください。
 
-### 12. Metrics snapshot
+### 12. 運用指標の現時点の値
 
 ```bash
 cargo run -p lingonberry-storage -- metrics
 ```
 
-これはbounded-cardinalityのcommand snapshotを出力します。継続的に提供されるmetrics endpointではありません。
+このコマンドは、実行時点の運用指標を、項目の種類数に上限を設けて出力します。継続的に提供される運用指標の取得先ではありません。
 
-### 13. Cleanup
+### 13. 後片付け
 
-ローカル評価後は、このガイドで作成した破棄可能なdirectoryだけを削除します。
+ローカル評価後は、このガイドで作成した破棄可能なディレクトリだけを削除します。
 
 ```bash
 printf 'quickstart root: %s\n' "$LB_STORAGE_ROOT"
@@ -549,39 +553,39 @@ unset LINGONBERRY_STORAGE_BACKUP_DIR
 unset LINGONBERRY_STORAGE_TEMP_DIR
 ```
 
-`rm -rf`を実行する前に、表示されたpathを確認し、一時quickstart rootであることを確かめてください。`/var/lib/lingonberry`や`/var/backups/lingonberry`などのinstall済みnodeのpathへ置き換えてはいけません。
+`rm -rf`を実行する前に、表示されたパスを確認し、この入門ガイドで作成した一時ディレクトリであることを確かめてください。`/var/lib/lingonberry`や`/var/backups/lingonberry`などの導入済みのノードのパスへ置き換えてはいけません。
 
-### 14. Install済みnodeへ移行する
+### 14. 導入済みのノードへ移行する
 
-reference installed nodeでは`cargo run`の使用を終了し、operator runbookに従ってください。install modelでは次を使用します。
+基準構成で導入済みのノードでは`cargo run`の使用を終了し、運用手順書に従ってください。導入構成では次を使用します。
 
-- `/usr/local/bin`配下のrelease-mode binary
-- service account `lingonberry:lingonberry`
-- 保護されたenvironment file `/etc/lingonberry/storage.env`
-- `/var/lib/lingonberry`および`/var/backups/lingonberry`配下のdurable path
-- リポジトリに含まれるsystemd unit template
-- 明示的なbackup、migration、verification、およびrollback手順
+- `/usr/local/bin`配下のリリースモードバイナリ
+- サービス用アカウント `lingonberry:lingonberry`
+- 保護された環境設定ファイル `/etc/lingonberry/storage.env`
+- `/var/lib/lingonberry`および`/var/backups/lingonberry`配下の永続保存先
+- リポジトリに含まれるsystemdユニットのテンプレート
+- 明示的なバックアップ、移行、検証、およびロールバック手順
 
-`lingonberry-storage`をnetworkへ直接公開しないでください。public HTTP serviceはrelayと、そのreview済みreverse-proxy境界が担当します。
+`lingonberry-storage`をネットワークへ直接公開しないでください。公開するHTTPサービスはリレーと、確認済みのリバースプロキシ構成が担当します。
 
-### 15. Release境界
+### 15. リリースの状況と適用範囲
 
-このガイドは、現在のv1.0.0プレリリース実装を説明します。v1.0.0が公開済みであること、formal 72-hour soakが完了したこと、またはprivileged reference-host qualificationが完了したことを示すものではありません。
+このガイドは、現在のv1.0.0プレリリース実装を説明します。v1.0.0が公開済みであること、正式な72時間連続稼働試験が完了したこと、または管理者権限で行う基準ホスト適格性検証が完了したことを示すものではありません。
 
-指定されたpre-version candidateは引き続き次のcommitです。
+指定されたバージョン更新前の公開候補は引き続き次のコミットです。
 
 ```text
-f9543019f2c219aea3b085ff90f2da201b268a48
+8c6b48082205a3af555130eec1f3e7d2ac8811fe
 ```
 
-このcandidate以後の文書およびevidence commitは、candidateを再定義しません。
+この公開候補以後の文書および検証記録コミットは、公開候補を再定義しません。
 
 ### 参照文書
 
-- [v1.0 Operator Runbook](./V1_0_OPERATOR_RUNBOOK.md)
-- [Storage Node Runtime Contract](./STORAGE_NODE_RUNTIME.md)
-- [Operator CLI Contract](./OPERATOR_CLI_CONTRACT.md)
-- [Systemd Unit Templates](./SYSTEMD_UNIT_TEMPLATES.md)
-- [Supported Platforms](./SUPPORTED_PLATFORMS.md)
-- [Storage Migration and Upgrade](./STORAGE_MIGRATION_AND_UPGRADE.md)
-- [v1.0 Upgrade and Rollback](./V1_0_UPGRADE_AND_ROLLBACK.md)
+- [v1.0 単一ノード運用手順書](./V1_0_OPERATOR_RUNBOOK.md)
+- [ストレージノードの実行時仕様](./STORAGE_NODE_RUNTIME.md)
+- [運用CLIの仕様](./OPERATOR_CLI_CONTRACT.md)
+- [systemdユニットのテンプレートと仕様](./SYSTEMD_UNIT_TEMPLATES.md)
+- [対応環境](./SUPPORTED_PLATFORMS.md)
+- [保存形式の移行と更新の仕様](./STORAGE_MIGRATION_AND_UPGRADE.md)
+- [v1.0 更新とロールバックの手順](./V1_0_UPGRADE_AND_ROLLBACK.md)

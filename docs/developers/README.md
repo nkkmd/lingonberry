@@ -6,9 +6,11 @@
 >
 > 英語版がこの文書の正本です。日本語部分は同期翻訳です。内容に差異がある場合は英語版を優先します。
 
-**Status: v1.0 pre-release developer entry point** | **Last updated: 2026-07-27**
+**Status: v1.0 pre-release developer entry point** | **Last updated: 2026-10-20**
 
 ## English
+
+**Execution hold (2026-10-20):** Reference-host preflight, disk-pressure rehearsal, and the formal 72-hour soak are deferred at the maintainer’s request. Resume only after an explicit maintainer request; v1.0.0 remains unpublished.
 
 ### Start here
 
@@ -71,57 +73,59 @@ These developer documents do not redefine the candidate or authorize release pub
 
 ## 日本語
 
+**実機試験の保留（2026-10-20）:** 基準ホストでの事前検証、ディスク圧迫試験、正式72時間連続稼働試験は、管理者の指示により保留しています。明示的な再開指示を受けてから再開します。v1.0.0は未公開です。
+
 ### はじめに
 
-このディレクトリは、アプリケーション、サービス、connector、またはprotocol adapterをLingonberryと統合する開発者向けです。
+このディレクトリは、アプリケーション、サービス、コネクター、またはプロトコルアダプターをLingonberryと統合する開発者向けです。
 
-#### Publisher開発者
+#### データの公開機能を実装する開発者
 
-アプリケーションまたはサービスからKnowledge Objectを作成して送信する場合は、[Publisher Quickstart](./PUBLISHER_QUICKSTART.md)を使用してください。
+アプリケーションまたはサービスから知識オブジェクト（Knowledge Object）を作成して送信する場合は、[公開クライアントの入門ガイド](./PUBLISHER_QUICKSTART.md)を使用してください。
 
 この文書では次を扱います。
 
-- protocol-nativeなKnowledge Object境界
-- HTTP publish-request envelope
-- canonical signing-targetの構築
-- リポジトリに含まれるJavaScript reference producer
-- Ed25519 signatureの生成と強制検証
+- プロトコルが定める知識オブジェクトの範囲
+- 知識オブジェクトを包むHTTP公開要求のデータ構造
+- 正規化された署名対象データの構築
+- リポジトリ付属のJavaScript生成ツール（参照実装）
+- Ed25519署名の生成と強制検証
 - HTTP送信と結果処理
-- retryおよびconformanceのガイダンス
+- 再試行および仕様適合性の案内
 
 #### リポジトリ統合確認
 
-リポジトリに含まれるfixtureをローカルrelayで検証する場合は、[Repository Publish Walkthrough](./REPOSITORY_PUBLISH_WALKTHROUGH.md)を使用してください。
+リポジトリに含まれるサンプルデータをローカルリレーで検証する場合は、[リポジトリ付属のサンプルを使った公開手順](./REPOSITORY_PUBLISH_WALKTHROUGH.md)を使用してください。
 
-この文書はrepository integrationのwalkthroughです。新しい外部publisherを実装するための主要ガイドではありません。
+こちらはリポジトリ付属の構成を使った連携確認の手順書です。新しい外部公開クライアントを実装するための主要ガイドではありません。
 
-### ディレクトリの境界
+### 文書の配置と役割
 
-`docs/developers/`にはclient実装、application統合、reference producer、repository integrationのガイダンスを配置します。`docs/operations/`にはrelay、storage、deployment、service lifecycle、recovery、operator手順を配置します。文書の配置は主要な読者と責任境界によって決定します。
+`docs/developers/`にはクライアント実装、アプリケーション統合、参照実装の生成ツール、リポジトリ内の構成を使った連携確認の手順を配置します。`docs/operations/`にはリレー、ストレージ、配置、サービスの起動・停止・再起動、復旧、運用担当者向けの手順を配置します。文書の配置は主要な読者と責任境界によって決定します。
 
-#### Relayおよびstorage開発者
+#### リレーおよびストレージ開発者
 
-- [Relay Quickstart](../operations/RELAY_QUICKSTART.md)
-- [Storage Node Quickstart](../operations/STORAGE_NODE_QUICKSTART.md)
-- [HTTP Carrier Contract](../operations/HTTP_CARRIER_CONTRACT.md)
-- [Protocol-Native Wire Format](../protocols/PROTOCOL_NATIVE_WIRE_FORMAT.md)
+- [リレーの入門ガイド](../operations/RELAY_QUICKSTART.md)
+- [ストレージノードの入門ガイド](../operations/STORAGE_NODE_QUICKSTART.md)
+- [HTTP carrierの仕様](../operations/HTTP_CARRIER_CONTRACT.md)
+- [プロトコル固有の通信形式](../protocols/PROTOCOL_NATIVE_WIRE_FORMAT.md)
 
-### 正本となるcontract
+### 正本となる仕様
 
-- [Protocol Contract](../protocols/PROTOCOL_CONTRACT.md)
-- [Canonicalization](../protocols/CANONICALIZATION.md)
-- [HTTP Publish Signature](../protocols/HTTP_PUBLISH_SIGNATURE.md)
-- [Identity and Provenance](../protocols/IDENTITY_AND_PROVENANCE.md)
-- [Acceptance Policy](../operations/ACCEPTANCE_POLICY.md)
+- [プロトコル仕様](../protocols/PROTOCOL_CONTRACT.md)
+- [正規化の規則](../protocols/CANONICALIZATION.md)
+- [HTTP公開要求の署名仕様](../protocols/HTTP_PUBLISH_SIGNATURE.md)
+- [識別情報と来歴情報](../protocols/IDENTITY_AND_PROVENANCE.md)
+- [受入方針](../operations/ACCEPTANCE_POLICY.md)
 
-### Release境界
+### リリースの状況と適用範囲
 
-最新の公開releaseは`v0.9.0`です。固定されたpre-version v1.0 candidateは次のcommitです。
+最新の公開版は`v0.9.0`です。バージョン更新前の検証対象として固定したv1.0公開候補は次のコミットです。
 
 ```text
 8c6b48082205a3af555130eec1f3e7d2ac8811fe
 ```
 
-candidate qualificationとdocumentation walkthroughはPASS済みです。次のgateはprivileged reference-host preflightです。正式72時間soak、version preparation、tag、GitHub Releaseは未完了です。
+公開候補の検証と文書の手順に沿った動作確認は合格済みです。次に必要なのは基準ホスト上での事前検証です。正式な72時間連続稼働試験、バージョン更新の準備、タグ、GitHub Releaseは未完了です。
 
-これらの開発者向け文書はcandidateを再定義せず、release publicationを承認するものでもありません。
+これらの開発者向け文書は公開候補を再定義せず、リリースの公開を承認するものでもありません。

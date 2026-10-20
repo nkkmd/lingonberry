@@ -7,7 +7,7 @@
 
 - Tracked Markdown files: **172**
 - Release-blocking review entries: **0**
-- Classification totals: BILINGUAL_REQUIRED: 9, BILINGUAL_SCOPED: 3, ENGLISH_ONLY: 160
+- Classification totals: BILINGUAL_REQUIRED: 9, BILINGUAL_SCOPED: 4, ENGLISH_ONLY: 159
 - Governing policy: [`DOCUMENTATION_POLICY.md`](./DOCUMENTATION_POLICY.md)
 - Tracking issue: [#144](https://github.com/nkkmd/lingonberry/issues/144)
 
@@ -17,7 +17,7 @@ Every tracked Markdown file must appear below. `yes` in the final column means t
 
 ## 日本語
 
-追跡対象のMarkdownファイルは、すべて以下に掲載されなければなりません。最終列が`yes`の項目は、v1.0.0公開前に記載された作業を完了する必要があります。分類済みであることは、翻訳や正規化が完了済みであることを意味しません。
+Gitで追跡しているMarkdownファイルを、すべて下表に掲載します。最終列の`v1.0 blocker`が`yes`の項目は、v1.0.0の公開前に、対応事項（`Required action`）を完了する必要があります。文書が分類されていても、翻訳や表記の整理が完了しているとは限りません。
 
 ## Inventory
 
@@ -174,7 +174,7 @@ Every tracked Markdown file must appear below. `yes` in the final column means t
 | `docs/roadmap/V1_0_FORMAL_SOAK_COMMAND_MAP.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
 | `docs/roadmap/V1_0_FORMAL_SOAK_SCHEDULER.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
 | `docs/roadmap/V1_0_QUALIFICATION_PLAN.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
-| `docs/roadmap/V1_0_QUALIFICATION_STATUS.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
+| `docs/roadmap/V1_0_QUALIFICATION_STATUS.md` | `BILINGUAL_SCOPED` | `KEEP_BILINGUAL` | no |
 | `docs/roadmap/V1_0_REFERENCE_HOST_REHEARSAL.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
 | `docs/roadmap/V1_0_RELEASE_EVIDENCE.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
 | `docs/roadmap/V1_0_SOAK_PLAN.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |

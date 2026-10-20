@@ -8,7 +8,7 @@ English is normative for the unreleased v1.0.0 summary. The Japanese section is 
 
 ### v1.0.0 preparation summary
 
-Lingonberry v1.0.0 is not released. The fixed pre-version qualification candidate remains `f9543019f2c219aea3b085ff90f2da201b268a48`. Documentation, evidence, and tooling changes made after that commit do not redefine the candidate or replace candidate-bound executable evidence.
+Lingonberry v1.0.0 is not released. The fixed pre-version qualification candidate is `8c6b48082205a3af555130eec1f3e7d2ac8811fe`. Executable evidence bound to the previous candidate `f9543019f2c219aea3b085ff90f2da201b268a48` is historical. Documentation, evidence, and tooling changes made after that commit do not redefine the candidate or replace candidate-bound executable evidence.
 
 #### Completed preparation
 
@@ -29,6 +29,7 @@ Lingonberry v1.0.0 is not released. The fixed pre-version qualification candidat
 
 - The formal continuous 72-hour qualification soak has not been performed.
 - Privileged reference-host qualification remains incomplete.
+- At the maintainer’s request, real-host execution has been deferred since 2026-10-20. Resume only after an explicit request and rechecking the candidate, binaries, retained artifacts, and host prerequisites.
 - Workspace/package version preparation for `1.0.0` has not been performed.
 - The reviewed release PR, merged-release-commit validation, annotated tag, GitHub Release, and final publication evidence do not yet exist.
 
@@ -36,31 +37,32 @@ The eventual `1.0.0` release entry must be created only after all mandatory gate
 
 ### v1.0.0 準備状況（日本語）
 
-Lingonberry v1.0.0 は、まだリリースされていません。固定されたversion準備前のqualification candidateは `f9543019f2c219aea3b085ff90f2da201b268a48` のままです。このcommit以後の文書・証跡・tooling変更はcandidateを再定義せず、candidateに紐づく実行証跡を置き換えません。
+Lingonberry v1.0.0は、まだ公開されていません。バージョン更新前の公開候補は`8c6b48082205a3af555130eec1f3e7d2ac8811fe`に固定しています。このコミット以後に文書、検証記録、ツールを変更しても、公開候補や、それに対応する実行結果は置き換わりません。旧候補`f9543019f2c219aea3b085ff90f2da201b268a48`に対応する実行結果は過去の記録です。
 
 #### 完了済みの準備
 
-- Ubuntu 24.04 x86_64上で、release buildされたstorage／relay binary、checksum付き保存証跡、記録済みbinary digestを用いたcandidate qualificationが成功しています。
-- Security／compatibility reviewでは、未解決のCritical、High、release-blocking Medium findingはありません。
-- Candidate documentation walkthroughは、記録対象の全procedureに成功しています。
-- Protocol、transition、effective view、versioning、operator、storage、migration、recovery、evidenceの各contractを、固定runtime candidateを変更せずに確認・正規化しました。
-- Documentation inventoryとfreeze checkにより、残るrelease-blocking文書作業を明示的に追跡しています。
+- Ubuntu 24.04 x86_64上で、リリース用にビルドしたストレージとリレーのバイナリを使い、公開候補の検証に合格しました。検証記録はチェックサム付きで保存し、バイナリのハッシュ値も記録しています。
+- セキュリティと互換性の確認では、未解決のCritical、High、リリースを妨げるMediumの指摘はありません。
+- 公開候補を使い、文書に記載されたすべての対象手順の動作確認に合格しました。
+- プロトコル、遷移、有効ビュー、バージョン管理、運用、ストレージ、移行、復旧、検証記録の各仕様を、固定した公開候補の実行時の動作を変えずに確認・整理しました。
+- 文書一覧と文書の確定範囲の検査によって、公開前に解消すべき文書作業を明示的に管理しています。
 
-#### 互換性の境界
+#### 互換性の範囲
 
-- 固定candidateのproduction protocolおよびKnowledge Object schemaは`0.1.0`のままです。
-- Candidate以後の文書・tooling commitは、candidateのprotocol挙動、durable storage format、公開CLI／HTTP挙動、migration semantics、release build済みbinaryを変更しません。
-- Canonical storageが引き続き正本であり、indexとeffective viewは検証・再構築可能な派生状態です。
-- Unknown、unsupported、contradictory、corrupt、stale、incompleteな状態は、該当contractに従ってfail closedを維持します。
+- 固定した公開候補のプロトコルとKnowledge Objectのスキーマは、`0.1.0`のままです。
+- 公開候補の決定後に文書やツールを変更しても、候補のプロトコルの動作、永続保存形式、公開CLI・HTTPの動作、移行の意味、リリース用バイナリは変更しません。
+- 正規化済みデータを保存するストレージを引き続き正本とします。インデックスと有効ビューは、検証・再構築できる派生状態です。
+- 未知、未対応、矛盾、破損、古い状態、不完全な状態は、該当する仕様に従って安全側に処理を拒否します。
 
-#### 未完了
+#### 未完了の工程
 
-- Formal continuous 72-hour qualification soakは未実施です。
-- Privileged reference-host qualificationは未完了です。
-- Workspace／packageの`1.0.0` version準備は未実施です。
-- Reviewed release PR、merged release commitの検証、annotated tag、GitHub Release、最終publication evidenceは未作成です。
+- 正式72時間連続稼働試験は未実施です。
+- 管理者権限による基準ホストでの検証は未完了です。
+- 上記の実機試験は、管理者の指示により2026-10-20から保留中です。明示的な再開指示を受けた後に、公開候補、バイナリ、保存済みの検証記録、ホストの前提条件を再確認します。
+- ワークスペースと各パッケージのバージョンを`1.0.0`に更新する準備は未実施です。
+- レビュー済みのリリースPR、統合後のリリースコミットの検証、注釈付きタグ、GitHub Release、最終的な公開結果の記録は未作成です。
 
-最終的な`1.0.0` release entryは、すべての必須gate成功後にのみ作成します。そのentryでは、この未リリース要約をrelease evidenceとして扱わず、merged release commitと公開日を明示しなければなりません。
+正式な`1.0.0`の変更履歴は、すべての必須検証に合格した後に作成します。その際は、統合後のリリースコミットと公開日を明記します。この未公開版の要約だけを、リリース完了の根拠にはできません。
 
 ## [0.9.0] - 2026-07-22
 

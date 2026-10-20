@@ -1,8 +1,15 @@
-# Lingonberry v1.0.0 Qualification Status
+# Lingonberry v1.0.0 Qualification Status / 検証状況
+
+[English](#english) | [日本語](#japanese)
+
+> English is normative. The Japanese summary translates the current status and next steps; detailed technical evidence remains in English.
+> 英語を正本とします。日本語の要約では現在の状況と次の工程を説明し、技術的な検証記録の詳細は英語で記載します。
 
 **Status: repository evidence complete; reference-host execution deferred** | **Target release: v1.0.0** | **Parent issue: #109** | **Tracking issues: #332, #335, #341**
 
 **Execution hold — 2026-10-20:** At the maintainer’s request, privileged reference-host preflight, disk-pressure rehearsal, and the formal 72-hour soak are deferred. Repository preparation and recorded candidate results remain intact; this hold is neither a test failure nor a passed gate. Resume only after an explicit maintainer request, rechecking the fixed candidate, binary identities, retained artifacts, and host prerequisites. Version 1.0.0, tagging, and publication remain pending.
+
+## English
 
 ## 1. Active candidate
 
@@ -98,16 +105,54 @@ Freeze these values before provisioning or execution:
 
 ## 8. Execution order
 
-1. merge the repository evidence update;
-2. execute privileged reference-host preflight and disk-pressure rehearsal;
-3. freeze host-specific command-map and threshold inputs;
-4. start the formal 72-hour soak from the fixed candidate;
-5. verify evidence completeness and record residual-risk disposition;
-6. prepare and review version `1.0.0`;
-7. validate the merged release commit, tag, publish, and record final evidence.
+1. retain the merged repository evidence update;
+2. await an explicit maintainer request and recheck the fixed candidate, binary identities, retained artifacts, and host prerequisites;
+3. execute privileged reference-host preflight and disk-pressure rehearsal;
+4. freeze host-specific command-map and threshold inputs;
+5. start the formal 72-hour soak from the fixed candidate;
+6. verify evidence completeness and record residual-risk disposition;
+7. prepare and review version `1.0.0`;
+8. validate the merged release commit, tag, publish, and record final evidence.
 
 ## 9. Go/no-go decision
 
 **Current decision: Repository prerequisites satisfied; reference-host execution deferred by maintainer request; NO-GO for formal soak until that preflight passes.**
 
 The exact candidate qualification artifact and active-candidate documentation walkthrough have been independently verified and recorded. Formal soak authorization remains conditional on successful privileged reference-host preparation.
+
+<a id="japanese"></a>
+
+## 日本語
+
+### 現在の状況
+
+リポジトリ側の準備と公開候補の検証は完了しています。管理者の指示により、基準ホストでの事前検証、ディスク圧迫試験の予行演習、正式72時間連続稼働試験は、2026-10-20から保留中です。保留は試験の失敗でも合格でもありません。v1.0.0へのバージョン更新、タグの作成、公開も未完了です。
+
+### 検証対象と完了済みの確認
+
+バージョン更新前の公開候補は`8c6b48082205a3af555130eec1f3e7d2ac8811fe`に固定しています。旧候補`f9543019f2c219aea3b085ff90f2da201b268a48`に対応する実行結果は過去の記録であり、現在の候補の承認には使用しません。
+
+- 公開者のEd25519署名を、JSONの解析直後、受入判断や保存処理より前に検証するよう修正済みです。形式不正、無効な署名、署名検証基盤の障害を拒否します。
+- 公開候補の検証は12項目すべて合格しています。実行IDは`30238378797`、成果物IDは`8642393171`です。
+- 文書に沿った動作確認は16手順すべて合格しています。実行IDは`30239602412`、成果物IDは`8642773653`です。
+- 成果物のハッシュ値、バイナリの識別情報、`SHA256SUMS`の各項目は、独立した方法で検証済みです。手順の動作確認に対応する`SHA256SUMS`は34項目すべて確認しています。
+- セキュリティ差分の確認、文書一覧、英日併記、文書の確定範囲の検査は合格しています。
+
+バイナリのハッシュ値などの詳細は、上記の英語部分と[リリースの検証記録](./V1_0_RELEASE_EVIDENCE.md)を参照してください。
+
+### 再開後の工程
+
+1. 統合済みのリポジトリ側の検証記録を保持する
+2. 明示的な再開指示を受け、固定した公開候補、バイナリ、保存済みの検証記録、ホストの前提条件を再確認する
+3. 管理者権限で基準ホストの事前検証と、ディスク圧迫試験の予行演習を行う
+4. ホスト固有の実行コマンドの対応表と、しきい値を固定する
+5. 固定した公開候補で正式72時間連続稼働試験を始める
+6. 検証記録が揃っていることを確認し、残るリスクへの判断を記録する
+7. バージョン`1.0.0`の準備とレビューを行う
+8. 統合後のリリースコミットを検証し、タグを作成して公開し、最終的な検証記録を残す
+
+基準環境はUbuntu Server 24.04 LTS / x86_64 / systemdです。実行前に、公開候補とバイナリのハッシュ値、サービス用ユーザー、ディレクトリと所有権、環境設定ファイル、計測のしきい値、記録先の容量とinode数、UTC時刻、実施者、計画からの逸脱の記録先を確定します。パニック、メモリ不足、破損、状態の不一致、安全でない復旧、署名検証基盤の障害、検証記録の消失が起きた場合の停止条件も確認します。
+
+### 実施可否の判断
+
+リポジトリ側の前提条件は満たしていますが、実機試験は保留中です。管理者権限による基準ホストでの事前検証に合格するまで、正式72時間連続稼働試験は開始できません。

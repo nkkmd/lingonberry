@@ -62,49 +62,49 @@ Lingonberry v1.0 qualifies documented single-node HTTP and file/archive behavior
 
 ### 定義
 
-**carrier**は、Lingonberryのprotocol objectをproducer、storage node、relay、archive、consumerの間で運ぶ具体的なtransport／framing機構です。
+**carrier**は、Lingonberryのプロトコルオブジェクトを、データの作成者、ストレージノード、リレー、アーカイブ、利用者の間で運ぶための、具体的な伝送・フレーミング（データの区切り方）の仕組みです。
 
-carrierはprotocolそのものではありません。protocolはsemantic、canonical representation、identity、validation、compatibility ruleを定義します。carrierは、特定の媒体上でprotocol materialをどのようにpackaging、addressing、transmission、retry、storage、recoveryするかを定義します。
+プロトコルは、データの意味、正規表現、識別情報、検証、互換性の規則を定めます。carrierは、それらのデータを特定の媒体上でどのようにまとめ、宛先を指定し、伝送し、再試行し、保存し、復旧するかを定めます。
 
 ### 責務
 
 carrierは次の機能を提供できます。
 
-- protocol-native wire objectのframing
-- endpoint addressingとcarrier-local identifier
-- HTTP、file、archive、stream、その他明示的に対応した媒体でのbyte transport
-- 文書化されたretry、ordering、acknowledgement、capability negotiation
-- auditやreplayに必要なraw transport evidenceの保持
-- carrier固有の運用上限とfailure modeの公開
+- プロトコル固有の伝送オブジェクトの区切りを定める
+- 接続先のアドレスと、carrier内で使う識別子を提供する
+- HTTP、ファイル、アーカイブ、ストリームなど、明示的に対応した媒体でバイト列を伝送する
+- 文書に定めた再試行、順序制御、受信確認、対応機能の交渉を行う
+- 監査や再実行に必要な、伝送時の生データや記録を保持する
+- carrier固有の運用上の制限と、想定される障害を示す
 
-### 責務ではないもの
+### 責務の範囲外
 
 carrierは次のことをしてはいけません。
 
-- Knowledge Objectのsemanticを再定義する
-- canonical byteやcanonical identityを暗黙に書き換える
-- transport成功をsemantic acceptanceとみなす
-- carrier-local identifierをcanonical identityへ昇格させる
-- protocol validation、authorization、storage conflict ruleを回避する
-- versioned adapter contractなしに外部protocolとの相互運用性を主張する
+- Knowledge Objectの意味を再定義する
+- 正規化されたバイト列やcanonical identityを暗黙に書き換える
+- 伝送の成功だけで、内容がプロトコル上受け入れられたと判断する
+- carrier内の識別子をcanonical identityとして扱う
+- プロトコルの検証、認可、ストレージの競合規則を迂回する
+- バージョンを明記したアダプター仕様なしに、外部プロトコルとの相互運用性を主張する
 
-### identity境界
+### 識別子の境界
 
-- **Canonical identifier:** protocol contractに従って導出または検証されるprotocol-level identity
-- **Carrier identity:** HTTP request reference、archive object key、record URI、relay event ID、stream offsetなどのcarrier-local reference
-- **Storage-internal key:** storage backendが使用するimplementation key
+- **Canonical identifier（正規識別子）:** プロトコルの仕様に従って導出または検証される、プロトコル上の識別子
+- **Carrier identity（carrier内の識別情報）:** HTTP要求の参照、アーカイブのオブジェクトキー、レコードURI、リレーのイベントID、ストリーム内の位置など、carrier内で使う参照
+- **Storage-internal key（ストレージ内部キー）:** ストレージの実装が内部で使用するキー
 
-これらは明示的なevidenceによって関連付けられますが、相互に置き換えることはできません。
+これらは明示的な記録によって関連付けられますが、相互に置き換えることはできません。
 
-### wireとcanonical form
+### 伝送形式と正規表現
 
-protocol-native wire formatとcanonical representationは、Lingonberry contract内の異なる表現です。carrierはwire representationをtransportまたは保存し、canonicalizationとvalidationがcanonical semantic recordを決定します。
+プロトコル固有の伝送形式と正規表現は、Lingonberryの仕様における異なる表現です。carrierは伝送形式を運び、または保存します。正規化と検証によって、正規の意味を持つレコードが決まります。
 
-外部formatは自動的にLingonberry wire formatにはなりません。変換には、provenanceを保持し、lossy mappingを記録する明示的でversionedなadapterが必要です。
+外部の形式を、そのままLingonberryの伝送形式として扱うことはできません。変換には、来歴を保持し、変換で失われる情報を記録する、バージョン付きの明示的なアダプターが必要です。
 
-### v1.0境界
+### v1.0の対応範囲
 
-Lingonberry v1.0が資格確認するのは、文書化されたsingle-node HTTPおよびfile/archive behaviorです。multi-carrier federation、global ordering、distributed consensus、文書化されていない外部transportとの互換性は保証しません。
+Lingonberry v1.0の検証対象は、文書に定めた単一ノードでのHTTPおよびファイル・アーカイブの動作です。複数carrier間の連合、全体での順序保証、分散合意、文書化されていない外部の伝送方式との互換性は保証しません。
 
 ## Related contracts
 

@@ -1,4 +1,4 @@
-# Relay Quickstart
+# Relay Quickstart / リレーの入門ガイド
 
 [English](#english) | [日本語](#japanese)
 
@@ -6,9 +6,11 @@
 >
 > 英語版がこの文書の正本です。日本語部分は翻訳です。内容に差異がある場合は英語版を優先します。
 
-**Status: v1.0.0 documentation normalization** | **Last updated: 2026-07-23**
+**Status: v1.0.0 documentation normalization** | **Last updated: 2026-10-20**
 
 ## English
+
+**Execution hold (2026-10-20):** Reference-host preflight, disk-pressure rehearsal, and the formal 72-hour soak are deferred at the maintainer’s request. Resume only after an explicit maintainer request; v1.0.0 remains unpublished.
 
 ### Purpose
 
@@ -154,20 +156,22 @@ Read next:
 
 ## 日本語
 
+**実機試験の保留（2026-10-20）:** 基準ホストでの事前検証、ディスク圧迫試験、正式72時間連続稼働試験は、管理者の指示により保留しています。明示的な再開指示を受けてから再開します。v1.0.0は未公開です。
+
 ### 目的
 
-このquickstartは、初めてLingonberryを扱うcontributorが、repositoryのcloneから`cargo run`によるrelay起動までを確認するための手順です。開発環境で最短の起動確認を行うことを優先します。production installation、relay／storage分離、systemd deployment、recovery procedureは別文書で扱います。
+この入門ガイドは、初めてLingonberryを扱う開発参加者が、リポジトリの複製から`cargo run`によるリレー起動までを確認するための手順です。開発環境で最短の起動確認を行うことを優先します。本番環境への導入、リレー／ストレージ分離、systemdによる配置、復旧手順は別文書で扱います。
 
 ### 前提条件
 
 - Git
-- 現在のRust toolchain
+- 最新のRustツールチェーン
 - Cargo
-- `curl`または同等のHTTP client
+- `curl`または同等のHTTPクライアント
 
-Rustが未導入の場合は、公式の`rustup` installerを使用します。
+Rustが未導入の場合は、公式の`rustup` インストーラーを使用します。
 
-### 1. Repositoryをcloneする
+### 1. リポジトリを複製する
 
 HTTPS:
 
@@ -176,7 +180,7 @@ git clone https://github.com/nkkmd/lingonberry.git
 cd lingonberry
 ```
 
-GitHub SSH keyを設定済みの場合はSSHも使用できます。
+GitHub SSH鍵を設定済みの場合はSSHも使用できます。
 
 ```bash
 git clone git@github.com:nkkmd/lingonberry.git lingonberry
@@ -197,97 +201,97 @@ rustc --version
 cargo --version
 ```
 
-利用可能なRust toolchainが既にある場合、このsectionは不要です。
+利用可能なRustツールチェーンが既にある場合、この節は省略できます。
 
-### 3. Workspaceを確認する
+### 3. ワークスペースを確認する
 
-repository rootで実行します。
+リポジトリのルートで実行します。
 
 ```bash
 cargo metadata --no-deps
 ```
 
-正常終了し、workspace packageが表示されることを確認します。
+正常終了し、ワークスペース内のパッケージが表示されることを確認します。
 
-### 4. Relay capabilityを確認する
+### 4. リレーの提供機能を確認する
 
 ```bash
 cargo run -p lingonberry-relay -- capabilities
 ```
 
-HTTP listenerを起動する前に、このcommandが正常終了する必要があります。
+HTTP待受処理を起動する前に、このコマンドが正常終了する必要があります。
 
-### 5. HTTP relayを起動する
+### 5. HTTPリレーを起動する
 
 ```bash
 cargo run -p lingonberry-relay -- serve-http 127.0.0.1:8787
 ```
 
-`serve-http`はforegroundで動作します。このterminalは開いたままにします。
+`serve-http`は端末を占有して動作します（フォアグラウンド実行）。実行中はこの端末を開いたままにしてください。
 
-### 6. Capabilityとreadinessを確認する
+### 6. 提供機能と受付準備状態を確認する
 
-別のterminalを開きます。
+別の端末を開きます。
 
 ```bash
 curl -fsS http://127.0.0.1:8787/v1/capabilities
 curl -fsS http://127.0.0.1:8787/v1/ready
 ```
 
-`curl`が非zeroで終了する、connection refusedになる、またはsuccess以外のHTTP responseになる場合、quickstartは未達です。
+`curl`が0以外の終了コードで終了する、接続拒否になる、または成功以外のHTTP応答になる場合、この手順の動作確認は完了していません。
 
-### 7. 最小publishを試す
+### 7. 最小構成でデータを公開する
 
-relayが利用可能な状態でrepository fixtureを使用します。
+リレーが利用可能な状態でリポジトリ付属のサンプルデータを使用します。
 
 ```bash
 cargo run -p lingonberry-relay -- publish fixtures/http-publish-request/minimal-request.json
 ```
 
-完全なpublish手順は[Knowledge Object Publish Quickstart](./KNOWLEDGE_OBJECT_PUBLISH_QUICKSTART.md)を参照してください。
+完全な公開手順は[知識オブジェクトの公開入門](./KNOWLEDGE_OBJECT_PUBLISH_QUICKSTART.md)を参照してください。
 
-### 8. 任意のarchive確認
+### 8. アーカイブの確認（任意）
 
 ```bash
 cargo run -p lingonberry-relay -- export-archive /tmp/lingonberry-archive
 cargo run -p lingonberry-relay -- import-archive /tmp/lingonberry-archive
 ```
 
-この確認には破棄可能な開発用pathだけを使用してください。
+この確認には不要になれば削除できる開発用の保存先だけを使用してください。
 
-### 9. Relayを停止する
+### 9. リレーを停止する
 
-`serve-http`を実行しているterminalへ戻り、`Ctrl+C`を押します。
+`serve-http`を実行している端末へ戻り、`Ctrl+C`を押します。
 
-これは開発用の停止方法であり、production systemd lifecycleではありません。production向け運用ではoperator runbookとsystemd unitを使用します。
+これは開発環境での停止方法です。本番環境ではsystemdで起動・停止・再起動を管理します。本番環境向け運用では運用手順書とsystemdユニットを使用します。
 
-### 10. Reverse proxyを使った公開
+### 10. リバースプロキシを使った公開
 
-relayを外部公開する場合は、Caddyまたは承認済みreverse proxyをrelayの前段へ配置します。loopback listenerを公開interfaceとして扱わず、public endpointを確認します。
+リレーを外部公開する場合は、Caddyまたは承認済みリバースプロキシをリレーの前段へ配置します。ループバック待受を公開インターフェースとして扱わず、公開エンドポイントを確認します。
 
 ```bash
 curl -fsS https://<public-host>/v1/capabilities
 curl -fsS https://<public-host>/v1/ready
 ```
 
-このquickstartでstorage nodeを直接公開してはいけません。[Caddy Relay Publication](./CADDY_RELAY_PUBLICATION.md)と[Relay / Storage Separation](./RELAY_STORAGE_SEPARATION.md)を参照してください。
+この入門ガイドでストレージノードを直接公開してはいけません。[Caddyを使ったリレーの公開](./CADDY_RELAY_PUBLICATION.md)と[リレーとストレージの分離](./RELAY_STORAGE_SEPARATION.md)を参照してください。
 
 ### トラブルシューティング
 
 - `cargo: command not found`: `source "$HOME/.cargo/env"`を実行して再試行する
-- `127.0.0.1:8787`のbind失敗: 他processがportを使用していないか確認する
-- 初回buildが長い: 最初の実行ではdependencyのdownloadとcompileが発生する場合がある
-- readiness失敗: 再試行前にrelay terminalの出力を確認する
-- 公開Caddyの失敗: relayのloopback URLだけでなく、public hostname、TLS certificate、reverse-proxy target、firewallを確認する
+- `127.0.0.1:8787`のポートを確保できない: 他プロセスがポートを使用していないか確認する
+- 初回ビルドが長い: 最初の実行では依存パッケージのダウンロードとコンパイルが発生する場合がある
+- 受付準備状態の確認に失敗する: 再試行前にリレーを起動した端末の出力を確認する
+- Caddy経由の公開に失敗する: リレーのループバックURLだけでなく、公開ホスト名、TLS証明書、リバースプロキシの転送先、ファイアウォールを確認する
 
-### Production境界
+### 本番運用への適用範囲
 
-このquickstartはsource-based development向けであり、production deploymentを資格確認するものではありません。正式reference platformはUbuntu Server 24.04 LTS、x86_64、systemdで、release build済みbinaryとhardened unitを使用します。
+この入門ガイドはソースコードを使った開発向けであり、本番環境への導入が適切であると確認するためのものではありません。正式な基準環境はUbuntu Server 24.04 LTS、x86_64、systemdで、リリース用にビルドされたバイナリと安全対策を施したユニットを使用します。
 
 次に読む文書:
 
-- [Operations Index](./README.md)
-- [v0.8.0 Operator Runbook](./V0_8_OPERATOR_RUNBOOK.md)
-- [Supported Platforms](./SUPPORTED_PLATFORMS.md)
-- [Node Lifecycle Runbook](./NODE_LIFECYCLE_RUNBOOK.md)
-- [Relay / Storage Separation](./RELAY_STORAGE_SEPARATION.md)
+- [文書案内](./README.md)
+- [v0.8.0 運用手順書](./V0_8_OPERATOR_RUNBOOK.md)
+- [対応環境](./SUPPORTED_PLATFORMS.md)
+- [ノードの起動から停止までの運用手順](./NODE_LIFECYCLE_RUNBOOK.md)
+- [リレーとストレージの分離](./RELAY_STORAGE_SEPARATION.md)

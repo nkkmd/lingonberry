@@ -1,4 +1,4 @@
-# v1.0 Upgrade and Rollback / v1.0 Upgrade・Rollback
+# v1.0 Upgrade and Rollback / v1.0 更新とロールバックの手順
 
 [English](#english) | [日本語](#japanese)
 
@@ -9,7 +9,11 @@
 >
 > 英語版がこの文書の正本です。日本語部分は翻訳です。内容に差異がある場合は英語版を優先します。
 
+**Last updated: 2026-10-20**
+
 ## English
+
+**Execution hold (2026-10-20):** Reference-host preflight, disk-pressure rehearsal, and the formal 72-hour soak are deferred at the maintainer’s request. Resume only after an explicit maintainer request; v1.0.0 remains unpublished.
 
 ### 1. Scope and release boundary
 
@@ -20,7 +24,7 @@ The latest published release is `v0.9.0`. `v1.0.0` remains under qualification a
 The designated pre-version qualification candidate remains:
 
 ```text
-f9543019f2c219aea3b085ff90f2da201b268a48
+8c6b48082205a3af555130eec1f3e7d2ac8811fe
 ```
 
 This runbook does not authorize release publication, formal soak completion, implicit storage migration, destructive in-place restore, or manual repair of durable state.
@@ -314,34 +318,45 @@ Record old and new release identifiers, all relevant checksums, copied configura
 
 ## 日本語
 
-### 1. 対象範囲とリリース境界
+**実機試験の保留（2026-10-20）:** 基準ホストでの事前検証、ディスク圧迫試験、正式72時間連続稼働試験は、管理者の指示により保留しています。明示的な再開指示を受けてから再開します。v1.0.0は未公開です。
 
-このrunbookは、対応済みLingonberry single-node環境を新しいv1.x releaseへupgradeする最小手順と、検証失敗時に安全なrollback経路を選ぶための境界を定義します。
+### 1. 対象範囲とリリース状況
 
-最新の公開済みreleaseは`v0.9.0`です。`v1.0.0`は資格確認中で、まだ公開されていません。`v1.0.0` tagとGitHub Releaseが存在するまでは、これはpre-release guidanceであり、v1.0.0公開済みの証拠ではありません。
+この手順書は、サポート対象であるLingonberryの単一ノード環境を新しいv1.xリリースへ更新する基本手順と、検証失敗時に安全なロールバック経路を選ぶための境界を定義します。
 
-指定qualification candidateは次のcommitのままです。
+最新の公開版は`v0.9.0`です。`v1.0.0`は公開に向けた検証中で、まだ公開されていません。`v1.0.0` タグとGitHub Releaseが存在するまでは、これは公開前のガイドであり、v1.0.0公開済みの証拠ではありません。
+
+検証対象として指定した公開候補は次のコミットのままです。
 
 ```text
-f9543019f2c219aea3b085ff90f2da201b268a48
+8c6b48082205a3af555130eec1f3e7d2ac8811fe
 ```
 
-このrunbookはrelease公開、formal soak完了、implicit migration、active directoryへの破壊的restore、durable stateの手作業修復を許可しません。
+この手順書はリリース公開、正式な連続稼働試験完了、暗黙の移行処理、使用中のディレクトリへの破壊的復元、永続化された状態の手作業修復を許可しません。
 
 ### 2. 安全規則
 
-- canonical storageを正本とし、indexとeffective viewは再構築可能な派生状態として扱う
-- binary upgradeとstorage migrationを別のoperator判断として扱う
-- 通常起動時にimplicit migrationを行わない
-- active stateまたはactive dataへrestoreしない
-- manifest、journal、generation pointer、index、proof、evidenceを手作業で編集しない
-- `unknown_newer`、`corrupt`、不正なjournal state、未解決migration、unsafe restore target、矛盾したevidenceでは停止する
-- mutation前に旧binary、checksum、保護されたenvironment file、systemd unit、log、verified backupを保存する
-- Lingonberry unitの正本として`deploy/systemd/`を使用する
+- 保存した知識オブジェクトを正本とし、インデックスと遷移を反映した有効ビューは再構築可能な派生状態として扱う
+- バイナリの更新と保存形式の移行は、運用担当者が別々に判断する
+- 通常起動時に暗黙の移行処理を行わない
+- 稼働中の状態ディレクトリやデータディレクトリへ復元しない
+- マニフェスト、ジャーナル、世代を指すポインター、インデックス、証明データ、検証記録を手作業で編集しない
+- `unknown_newer`、`corrupt`、不正なジャーナルの状態、未解決の移行処理、安全でない復元対象、矛盾した検証記録では停止する
+- 変更前に旧バイナリ、チェックサム、保護された環境設定ファイル、systemdユニット、ログ、検証済みのバックアップを保存する
+- Lingonberry ユニットの正本として`deploy/systemd/`を使用する
 
-### 3. 前提条件とevidence取得
+### 3. 前提条件の確認と記録の保存
 
-binary置換前に、nodeのhealth確認、write traffic停止、installed binary digest記録、active設定とunitの保存、storageとmigration stateのinspection、pre-upgrade backupの作成・verify、進行中transactionがないことの確認、導入artifact digestの記録を行います。
+バイナリを置き換える前に、次を実施します。
+
+1. ノードのデータを読み取れることと、正常に動作していることを確認する
+2. 書き込み要求の受付を止めるか、処理中の要求が完了するまで待つ
+3. 導入済みバイナリのハッシュ値を記録する
+4. 使用中の環境設定ファイルとsystemdユニットを保存する
+5. ストレージと移行処理の状態を調べる
+6. 更新前のバックアップを作成して検証する
+7. 進行中のトランザクションがないことを確認する
+8. 導入する配布物のハッシュ値を記録する
 
 ```bash
 sudo systemctl status \
@@ -368,7 +383,7 @@ sudo cp -a \
   /var/backups/lingonberry/pre-upgrade-config/
 ```
 
-protected storage environmentでread-only checkを行います。
+保護されたストレージ環境で読み取り専用の検査を行います。
 
 ```bash
 sudo -u lingonberry sh -c '
@@ -383,7 +398,7 @@ sudo -u lingonberry sh -c '
 '
 ```
 
-新しいversion付きbackup先を作成し、verifyします。
+新しいバージョン付きバックアップ先を作成し、検証します。
 
 ```bash
 BACKUP_ID="pre-upgrade-$(date -u +%Y%m%dT%H%M%SZ)"
@@ -397,9 +412,9 @@ sudo -u lingonberry sh -c "
 "
 ```
 
-正確なbackup pathを記録し、未解決のpreconditionがある場合は続行しません。
+正確なバックアップパスを記録し、未解決の前提条件がある場合は続行しません。
 
-### 4. Service停止とinstalled binary保存
+### 4. サービスの停止と導入済みバイナリの保存
 
 ```bash
 sudo systemctl stop lingonberry-relay.service
@@ -417,9 +432,9 @@ sudo install -m 0755 /usr/local/bin/lingonberry-relay \
 sha256sum /usr/local/lib/lingonberry/rollback/*.previous
 ```
 
-### 5. 新release artifactのinstall
+### 5. 新しい公開配布物のインストール
 
-公開releaseではrelease build済みbinaryと公開checksumを使用します。candidate qualificationではexact candidateからbuildしたbinaryを使用しますが、それは公開release artifactではありません。
+公開リリースではリリース用にビルドされたバイナリと公開されたチェックサムを使用します。公開候補の検証では指定された正確な公開候補からビルドしたバイナリを使用しますが、それは正式な公開配布物ではありません。
 
 ```bash
 sha256sum \
@@ -442,7 +457,7 @@ sudo mv /usr/local/bin/lingonberry-relay.new \
   /usr/local/bin/lingonberry-relay
 ```
 
-対応bundleのreview済みunitをinstallします。local environment fileを未確認で上書きしてはいけません。
+対応する配布物一式の確認済みユニットをインストールします。ローカル環境設定ファイルを未確認で上書きしてはいけません。
 
 ```bash
 sudo install -m 0644 \
@@ -454,7 +469,7 @@ sudo install -m 0644 \
 sudo systemctl daemon-reload
 ```
 
-### 6. 起動前gate
+### 6. 起動前の検証
 
 ```bash
 sudo -u lingonberry sh -c '
@@ -472,11 +487,11 @@ sudo systemd-analyze verify \
   /etc/systemd/system/lingonberry-relay.service
 ```
 
-失敗したcheckはstartupをblockします。手作業によるfile編集で失敗を置き換えてはいけません。
+検査に失敗した場合は起動を中止します。検査を通すためにファイルを手作業で修正してはいけません。
 
-### 7. 明示的migration
+### 7. 明示的な移行
 
-`inspect`とrelease noteの両方がmigrationを必要かつ対応済みと示す場合だけ実行します。
+`inspect`とリリースノートの両方が移行を必要かつ対応済みと示す場合だけ実行します。
 
 ```text
 inspect → plan → backup → apply → verify → commit
@@ -495,7 +510,7 @@ sudo -u lingonberry sh -c '
 '
 ```
 
-中断時は最初に`status`を確認します。既存journalとsource bindingが有効な場合だけ`resume`を使用します。migration `rollback`は互換性のないtransitionがcommitされる前で、commandがdurable journal stateを受理する場合だけ使用します。
+中断時は最初に`status`を確認します。既存ジャーナルと移行元との対応情報が有効な場合だけ`resume`を使用します。移行 `rollback`は互換性のない遷移が確定される前で、コマンドが永続化されたジャーナル状態を受理する場合だけ使用します。
 
 ### 8. 起動と検証
 
@@ -519,13 +534,18 @@ sudo -u lingonberry sh -c '
 '
 ```
 
-controlled publish/readを1回実施し、relay restart前後のpersisted stateを比較します。
+管理下での公開・読み取りを1回実施し、リレー再起動前後の永続化された状態を比較します。
 
-### 9. Rollback境界
+### 9. ロールバックを選ぶ条件
 
-#### Binary-only rollback
+#### バイナリだけを戻すロールバック
 
-互換性のないmigrationが未commit、互換性のない設定が未確定、previous binaryがactive formatを解釈可能、pre-upgrade backupがverified、のすべてを証明できる場合だけ使用します。
+次のすべてを確認できる場合に限り使用します。
+
+- 互換性のない移行がまだ確定されていない
+- 互換性のない設定がまだ確定されていない
+- 更新前のバイナリで現在の保存形式を解釈できる
+- 更新前のバックアップが検証済みである
 
 ```bash
 sudo systemctl stop lingonberry-relay.service
@@ -546,38 +566,38 @@ sudo cp -a /var/backups/lingonberry/pre-upgrade-config/*.service \
 sudo systemctl daemon-reload
 ```
 
-起動前にprevious binaryのread-only inspectionを実行します。互換性が不明な場合はactive storageへ接続して起動しません。
+起動する前に、更新前のバイナリで読み取り専用の検査を行います。互換性が不明な場合は稼働中のストレージに接続して起動しません。
 
-#### Backup-based rollback
+#### バックアップからのロールバック
 
-new releaseがprevious binaryでは安全に開けないstateをcommitした場合、または互換性を証明できない場合に使用します。
+新しいリリースで、更新前のバイナリでは安全に開けない状態が確定した場合、または互換性を証明できない場合に使用します。
 
-1. write trafficとserviceを停止する
-2. post-upgrade data directoryをforensic analysis用に保存する
-3. verified pre-upgrade backupを新しいisolated directoryへrestoreする
-4. canonical recordとderived stateをverifyする
-5. verification後にだけconfigured pathを切り替える
-6. previous binary、unit、environment fileを復元する
-7. serviceを起動しread/write acceptanceを行う
+1. 書き込み要求とサービスを停止する
+2. 更新後のデータディレクトリを原因調査用に保存する
+3. 検証済みの更新前のバックアップを新しい分離されたディレクトリへ復元する
+4. 正規化済みのレコードと派生状態を検証する
+5. 検証後にだけ設定済みのパスを切り替える
+6. 更新前のバイナリ、ユニット、環境設定ファイルを復元する
+7. サービスを起動し、読み書きの受入確認を行う
 
-active directoryへ上書きrestoreせず、downgrade強制のためmanifestを削除・編集しません。
+使用中のディレクトリへ上書き復元せず、ダウングレードを強制するためマニフェストを削除・編集しません。
 
-### 10. Upgrade中断時
+### 10. 更新を中断した場合
 
-- **置換前:** serviceを停止したままartifact verificationとinstallを再実行する
-- **置換後・startup前:** `config`、`doctor`、`verify`、migration `inspect`を実行し、完了またはbinary-only rollbackを選ぶ
-- **migration中:** `status`後、durable journalに従って`resume`またはmigration `rollback`を行う
-- **startup write後:** 互換性が不明ならbackup-based rollbackを使用する
-- **migration commit後:** 互換性を証明できないolder binaryをactive storageへ接続しない
+- **置換前:** サービスを停止したまま成果物検証とインストールを再実行する
+- **置換後・起動前:** `config`、`doctor`、`verify`、移行 `inspect`を実行し、更新を完了するか、バイナリだけを戻すかを判断する
+- **移行中:** `status`後、永続化されたジャーナルに従って`resume`または移行 `rollback`を行う
+- **起動後に書き込みが行われた場合:** 互換性が不明ならバックアップからのロールバックを使用する
+- **移行コミット後:** 互換性を証明できない古いバイナリを使用中のストレージへ接続しない
 
-### 11. 完了evidence
+### 11. 完了時に残す記録
 
-旧・新release identifier、binary checksum、保存した設定とunit、verified backup path、diagnostic output、migration planとjournal stage、systemd verification、startup journal、health/readiness/index、publish/read、restart persistence、rollback判断を記録します。
+旧・新リリース識別子、バイナリのチェックサム、保存した設定とユニット、検証済みのバックアップパス、診断結果、移行計画とジャーナルの段階、systemdの検証、起動ジャーナル、正常性・受付準備状態・インデックスの検証結果、公開・読み取りの確認結果、再起動後のデータ保持、ロールバック判断を記録します。
 
 ### 12. 関連文書
 
-- [v1.0 Single-Node Operator Runbook](./V1_0_OPERATOR_RUNBOOK.md)
-- [Storage Migration and Upgrade Contract](./STORAGE_MIGRATION_AND_UPGRADE.md)
-- [Systemd Service Contract](./SYSTEMD_UNIT_TEMPLATES.md)
-- [Supported Platforms](./SUPPORTED_PLATFORMS.md)
-- [v0.8.0 Upgrade and Rollback](./V0_8_UPGRADE_AND_ROLLBACK.md) — 過去versionの手順
+- [v1.0 単一ノード運用手順書](./V1_0_OPERATOR_RUNBOOK.md)
+- [保存形式の移行と更新の仕様](./STORAGE_MIGRATION_AND_UPGRADE.md)
+- [systemdユニットのテンプレートと仕様](./SYSTEMD_UNIT_TEMPLATES.md)
+- [対応環境](./SUPPORTED_PLATFORMS.md)
+- [v0.8.0 更新とロールバックの手順](./V0_8_UPGRADE_AND_ROLLBACK.md) — 過去バージョンの手順

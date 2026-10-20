@@ -1,6 +1,8 @@
 # Lingonberry v1.0.0 Release Evidence
 
-**Status: active candidate qualification and documentation walkthrough PASS; reference-host preflight and soak pending** | **Target release: v1.0.0** | **Parent issue: #109** | **Last updated: 2026-07-27**
+**Status: active candidate qualification and documentation walkthrough PASS; reference-host preflight and soak pending** | **Target release: v1.0.0** | **Parent issue: #109** | **Last updated: 2026-10-20**
+
+**Execution hold — 2026-10-20:** At the maintainer’s request, privileged reference-host preflight, disk-pressure rehearsal, and the formal 72-hour soak are deferred. Repository preparation and recorded candidate results remain intact; this hold is neither a test failure nor a passed gate. Resume only after an explicit maintainer request, rechecking the fixed candidate, binary identities, retained artifacts, and host prerequisites. Version 1.0.0, tagging, and publication remain pending.
 
 ## 1. Evidence policy
 
@@ -96,7 +98,7 @@ The walkthrough executed or cross-referenced `DOC-01` through `DOC-16` without f
 | Security release-blocker review | Passed | `V1_0_SECURITY_DIFF_REVIEW.md` | Artifact-bound follow-up complete |
 | Installation/configuration/operations review | Passed | walkthrough run `30239602412` | None |
 | Upgrade/rollback/recovery review | Passed | walkthrough `DOC-13`, `DOC-15`, `DOC-16` | Cross-referenced where appropriate |
-| Privileged reference-host preflight | Pending | Issue #335 | Not yet executed |
+| Privileged reference-host preflight | Pending | Issue #343 | Deferred by maintainer request; not executed |
 | v1.0 qualification soak | Pending | soak tracking issue | Not started |
 
 ## 7. Signature-enforcement evidence
@@ -206,4 +208,4 @@ Remaining planned work is not classified as a deviation:
 
 **Decision: Pending**
 
-The active candidate qualification, security review, compatibility review, and documentation freeze are green. The repository is **GO for privileged reference-host preflight** and remains **NO-GO for formal soak** until that preflight passes. A final release `PASS` requires the soak, version preparation, merged-commit validation, tag, GitHub Release, and publication evidence.
+The active candidate qualification, security review, compatibility review, and documentation freeze are green. The repository is **Repository prerequisites satisfied; reference-host execution deferred by maintainer request** and remains **NO-GO for formal soak** until that preflight passes. A final release `PASS` requires the soak, version preparation, merged-commit validation, tag, GitHub Release, and publication evidence.

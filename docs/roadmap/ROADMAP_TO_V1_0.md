@@ -1,9 +1,11 @@
 # Roadmap to Lingonberry v1.0.0
 
-**Status: active release roadmap; repository qualification complete, reference-host qualification next**  
+**Status: active release roadmap; repository qualification complete, reference-host qualification deferred**
 **Latest published release: v0.9.0**  
 **Fixed pre-version qualification candidate: `8c6b48082205a3af555130eec1f3e7d2ac8811fe`**  
-**Last reviewed: 2026-07-27**
+**Last reviewed: 2026-10-20**
+
+**Execution hold — 2026-10-20:** At the maintainer’s request, privileged reference-host preflight, disk-pressure rehearsal, and the formal 72-hour soak are deferred. Repository preparation and recorded candidate results remain intact; this hold is neither a test failure nor a passed gate. Resume only after an explicit maintainer request, rechecking the fixed candidate, binary identities, retained artifacts, and host prerequisites. Version 1.0.0, tagging, and publication remain pending.
 
 ## 1. Purpose and authority
 

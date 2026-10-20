@@ -14,6 +14,8 @@ The workspace also provides persistent quarantine, verified backup and isolated 
 
 ### Release status
 
+**Execution hold — 2026-10-20:** At the maintainer’s request, privileged reference-host preflight, disk-pressure rehearsal, and the formal 72-hour soak are deferred. Repository preparation and recorded candidate results remain intact; this hold is neither a test failure nor a passed gate. Resume only after an explicit maintainer request, rechecking the fixed candidate, binary identities, retained artifacts, and host prerequisites. Version 1.0.0, tagging, and publication remain pending.
+
 The latest published release is `v0.9.0`. The stable single-node `v1.0.0` release is under final qualification and has not been published.
 
 The fixed pre-version candidate is:
@@ -29,7 +31,7 @@ lingonberry-storage  737b148de48bc2ed2f96b3fb8e068e4c696f73d4069e7eaf89b76eaa6a6
 lingonberry-relay    23b5cd4044b69a483a457a71164ac5376370793bd502518e2e7d1baeab34a81c
 ```
 
-Candidate qualification and the 16-procedure documentation walkthrough have passed and their artifacts were independently verified. Repository-side preparation is complete. Privileged reference-host preflight may proceed, but the formal 72-hour soak remains blocked until that preflight passes.
+Candidate qualification and the 16-procedure documentation walkthrough have passed and their artifacts were independently verified. Repository-side preparation is complete. Privileged reference-host preflight is currently deferred, and the formal 72-hour soak remains blocked until that preflight passes.
 
 Evidence and documentation commits after the candidate do not redefine it. Version update, the `v1.0.0` tag, GitHub Release, and final publication validation remain pending.
 
@@ -169,6 +171,8 @@ persistent quarantine、検証済みbackupとisolated restore、検証済みrepl
 
 ### リリース状況
 
+**実機試験の保留（2026-10-20）:** 管理者の指示により、実機での事前検証、ディスク圧迫試験、正式72時間連続稼働試験を一旦保留します。準備と記録済みの候補検証結果は保持します。保留を試験失敗や合格として扱いません。明示的な再開指示後に、固定候補・バイナリ識別値・保存済み証拠・ホスト条件を再確認します。v1.0.0への更新・タグ・公開は未完了です。
+
 最新の公開済みreleaseは`v0.9.0`です。stable single-node releaseである`v1.0.0`は最終qualification中であり、まだ公開されていません。
 
 固定済みのversion更新前candidateは次のcommitです。
@@ -184,7 +188,7 @@ lingonberry-storage  737b148de48bc2ed2f96b3fb8e068e4c696f73d4069e7eaf89b76eaa6a6
 lingonberry-relay    23b5cd4044b69a483a457a71164ac5376370793bd502518e2e7d1baeab34a81c
 ```
 
-candidate qualificationと16手順のdocumentation walkthroughはPASSし、artifactも独立検証済みです。repository側の準備は完了しており、privileged reference-host preflightへ進めます。ただし正式72時間soakはreference-host preflightがPASSするまで開始しません。
+candidate qualificationと16手順のdocumentation walkthroughはPASSし、artifactも独立検証済みです。repository側の準備は完了しており、privileged reference-host preflightは現在保留しています。ただし正式72時間soakはreference-host preflightがPASSするまで開始しません。
 
 candidate決定後のevidence／documentation commitはcandidate自体を変更しません。version更新、`v1.0.0` tag、GitHub Release、最終publication validationは未完了です。
 

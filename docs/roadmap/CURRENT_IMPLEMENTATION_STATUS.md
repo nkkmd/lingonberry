@@ -1,8 +1,10 @@
 # 現在の実装状況
 
-**Status: v1.0.0 active-candidate reference-host preflight ready** | **Latest published release: v0.9.0** | **Next release target: v1.0.0** | **Last updated: 2026-07-27**
+**Status: v1.0.0 active-candidate reference-host execution deferred** | **Latest published release: v0.9.0** | **Next release target: v1.0.0** | **Last updated: 2026-10-20**
 
 この文書は、Lingonberryの実装・qualification・release作業を中断／再開するときの引き継ぎ用正本です。
+
+**Execution hold — 2026-10-20:** At the maintainer’s request, privileged reference-host preflight, disk-pressure rehearsal, and the formal 72-hour soak are deferred. Repository preparation and recorded candidate results remain intact; this hold is neither a test failure nor a passed gate. Resume only after an explicit maintainer request, rechecking the fixed candidate, binary identities, retained artifacts, and host prerequisites. Version 1.0.0, tagging, and publication remain pending.
 
 ## Release state
 
@@ -14,7 +16,7 @@ reference platform: Ubuntu Server 24.04 LTS, x86_64, systemd
 candidate qualification: passed and independently inspected
 documentation walkthrough: passed and independently inspected
 repository-side preflight: complete
-privileged reference-host preflight: ready to execute
+privileged reference-host preflight: deferred by maintainer request (2026-10-20)
 formal 72-hour soak: blocked until reference-host preflight passes
 v1.0.0 version/tag/GitHub Release: pending
 ```
@@ -94,7 +96,7 @@ Superseded candidate `f9543019f2c219aea3b085ff90f2da201b268a48`と、そのcandi
 
 ## Current GO / NO-GO boundary
 
-### GO
+### Repository preparation complete; execution deferred
 
 - repository-side implementation and evidence review
 - exact-candidate qualification
@@ -141,4 +143,4 @@ Tracking issue: [#343](https://github.com/nkkmd/lingonberry/issues/343)
 
 ## Next step
 
-Issue #344で入口文書と実行identityを整合させた後、Issue #343に従ってactive candidateのprivileged reference-host preflightを実行します。preflightがPASSした場合のみ、同じcandidate／binary identityで正式72時間soakを開始します。
+Issue #344による入口文書と実行identityの整合は完了しています。実機試験は保留中です。明示的な再開指示後、Issue #343に従ってactive candidateのprivileged reference-host preflightを実行します。preflightがPASSした場合のみ、同じcandidate／binary identityで正式72時間soakを開始します。

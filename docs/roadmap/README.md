@@ -1,8 +1,10 @@
 # ロードマップ
 
-**Status: v1.0.0 reference-host preflight ready** | **Latest published release: v0.9.0** | **Next release target: v1.0.0** | **Last updated: 2026-07-27**
+**Status: v1.0.0 reference-host execution deferred** | **Latest published release: v0.9.0** | **Next release target: v1.0.0** | **Last updated: 2026-10-20**
 
 このディレクトリには、Lingonberryの実装・運用準備・qualification・releaseに関するroadmap、checklist、release note、release evidence、および作業再開用の現在地文書を置きます。
+
+**Execution hold — 2026-10-20:** At the maintainer’s request, privileged reference-host preflight, disk-pressure rehearsal, and the formal 72-hour soak are deferred. Repository preparation and recorded candidate results remain intact; this hold is neither a test failure nor a passed gate. Resume only after an explicit maintainer request, rechecking the fixed candidate, binary identities, retained artifacts, and host prerequisites. Version 1.0.0, tagging, and publication remain pending.
 
 ## 再開時に最初に読む文書
 
@@ -55,7 +57,7 @@ Evidence／documentation commitを追加してもcandidateは移動しません�
 - repository-side pre-real-host preparation
 - reference-host checker、command map、disk-pressure contractのactive identity alignment
 
-### 現在実行する項目
+### 保留中の項目（再開指示後に実行）
 
 - privileged reference-host preflight（Issue #343）
 - startup、restart、signed publish、persistence、diagnostics、backup／restore、index checks
@@ -77,7 +79,7 @@ Evidence／documentation commitを追加してもcandidateは移動しません�
 ## GO / NO-GO
 
 ```text
-GO:
+DEFERRED (maintainer request, 2026-10-20):
 - privileged reference-host preflight
 
 NO-GO:

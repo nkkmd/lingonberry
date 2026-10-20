@@ -1,16 +1,20 @@
-# Profiles
+# アプリケーションプロファイルの文書案内
 
-**Status: active** | **Last updated: 2026-06-19**
+**Status: active** | **Last updated: 2026-10-20**
 
-このディレクトリには、Lingonberry core の上に載る application profile を置きます。
+アプリケーションプロファイルは、Lingonberryの中核プロトコルの上に、分野や用途ごとの語彙、追加の検証規則、APIの要件を定めるものです。
+
+例えば、問い、観察、根拠をどう結び付けるかは、用途に応じてプロファイル側で定めます。オブジェクトの識別や正規化など、共通の規則は中核プロトコルに従います。
 
 ## 文書
 
-- [Toitoi application profile](./TOITOI_APPLICATION_PROFILE.md)
+- [Toitoiアプリケーションプロファイル](./TOITOI_APPLICATION_PROFILE.md): 問いを中心とするToitoi向けの型、関係、文脈情報、検証規則、API要件の草案
 
-## 役割
+## プロファイルで扱うこと
 
-- core protocol を分野に縛らない
-- 分野固有の語彙と validation を profile 側へ寄せる
-- 必要な API 契約を profile ごとに定義する
-- profile 固有の設定や運用差分は、各 profile 文書またはその併設メモに置く
+- 中核プロトコルを特定の分野に依存させない
+- 分野固有の語彙と追加の検証を定める
+- 用途ごとに必要なAPIの仕様を定める
+- プロファイル固有の設定や運用上の違いを、各プロファイルの文書または併設する運用メモに記録する
+
+基本用語から確認する場合は、[概念モデル](../concepts/CONCEPT_MODEL.md)と[用語集](../concepts/GLOSSARY.md)を参照してください。

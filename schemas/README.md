@@ -1,86 +1,65 @@
-# Schemas
+# スキーマ案内
 
-このディレクトリには、Lingonberry の protocol-native な JSON Schema を置きます。
+このディレクトリには、Lingonberryのプロトコル固有のJSON Schemaを置いています。知識オブジェクトの本体と、それをHTTPで公開するときの要求を定義します。
 
-## 役割
+## 最初に確認する2つのスキーマ
 
-この `schemas/` 配下の schema は、Lingonberry の protocol object を wire 上で扱うための参照実装です。
+| ファイル | 定義するもの |
+|---|---|
+| [knowledge-object.schema.json](./knowledge-object.schema.json) | 知識オブジェクト本体の構造 |
+| [http-publish-request.schema.json](./http-publish-request.schema.json) | オブジェクト本体と、公開者の公開鍵・署名をまとめたHTTP公開要求 |
 
-- `knowledge-object.schema.json` は、protocol-native な `knowledge object` 本体の schema です
-- `http-publish-request.schema.json` は、HTTP publish 時の request envelope の schema です
-- `http-publish-request.schema.json` の `object` は `knowledge-object.schema.json` を参照します
-- HTTP publish では、まず request envelope を validate し、その後に `object` 本体を validate します
+公開要求の`object`は、知識オブジェクトのスキーマを参照します。要求全体の構造と、内側のオブジェクトの両方を検証します。
 
-## 取り扱い
+## 知識オブジェクトの構造
 
-- `schemaVersion` は payload 側の contract version として扱います
-- `knowledge-object.schema.json` は現行 baseline として `0.1.0` を使います
-- `http-publish-request.schema.json` は request envelope なので、payload の `schemaVersion` とは別に document として version 管理します
-- 変更時は [Migration and Schema Versioning](../docs/operations/MIGRATION_AND_SCHEMA_VERSIONING.md) と fixtures を同時に見直します
+`knowledge-object.schema.json`は、正規化の対象となる知識単位の最小構造と拡張点を定めます。現在のスキーマバージョンは`0.1.0`です。
 
-## 各 schema の説明
+### 必須フィールド
 
-### `knowledge-object.schema.json`
+| フィールド | 意味 |
+|---|---|
+| `id` | プロトコル上の正規識別子。`lb:obj:`で始まる文字列 |
+| `schemaVersion` | オブジェクトのスキーマバージョン。現在は`0.1.0` |
+| `type` | 問い、観察、根拠など、知識オブジェクトの種別 |
+| `createdAt` | UTCで表す作成時刻 |
+| `body` | 本文の`text`と言語タグの`language` |
+| `provenance` | 出所や発行者などの来歴。`sources`に少なくとも1件の参照を含む |
+| `rawRef` | 受信した生データへの参照。`protocol`と`sourceId`を含む |
 
-`knowledge-object.schema.json` は、Lingonberry が扱う知識単位そのものを定義します。
+### 任意フィールド
 
-この schema は、canonical 化される対象の最小構造と、その拡張点を定めます。現行 baseline では次を core の必須 field とします。
+| フィールド | 意味 |
+|---|---|
+| `contexts` | 抽象化した文脈情報 |
+| `relations` | 他のオブジェクトとの意味上の関係 |
+| `status` | オブジェクトの状態 |
+| `lineage` | 派生、改訂、置換、翻訳などの履歴上の関係 |
+| `identityClaims` | 識別キーと正規識別子の対応を示す、検証可能な主張 |
+| `attachments` | 補助的な添付情報 |
+| `labels` | 検索や分類のためのラベル |
+| `meta` | 意味内容に含めない、実装上の補助情報 |
 
-- `id`
-- `schemaVersion`
-- `type`
-- `createdAt`
-- `body`
-- `provenance`
-- `rawRef`
+フィールドの型、使用できる値、追加フィールドの可否は、スキーマ本体で確認してください。
 
-加えて、任意で `contexts`, `relations`, `status`, `lineage`, `identityClaims`, `attachments`, `labels`, `meta` を持てます。  
-この schema は、carrier 固有の envelope ではなく、protocol object 本体の contract として扱います。
+## HTTP公開要求の構造
 
-#### 主要 field の意味
+`http-publish-request.schema.json`は、知識オブジェクトをHTTPで送るための外側の入れ物（request envelope）を定義します。
 
-- `id`: protocol 内で扱う canonical identity の参照軸です
-- `schemaVersion`: payload 側の contract version です
-- `type`: knowledge object の意味的な種別です
-- `createdAt`: canonical な作成時刻です
-- `body`: 本体の自然言語コンテンツです
-- `provenance`: どこから来たか、誰が主張したかを示す来歴です
-- `rawRef`: carrier 上の raw object への参照です
-- `contexts`: 文脈メタデータです
-- `relations`: 他の object との意味的なつながりです
-- `lineage`: 派生・修正・翻訳などの履歴です
-- `identityClaims`: identity key と canonical identity の対応を表す検証可能な主張です
-- `attachments`: 補助的な添付情報です
-- `labels`: 検索や分類用のラベルです
-- `meta`: 非意味的な実装メタデータです
+| フィールド | 意味 |
+|---|---|
+| `object` | 公開する知識オブジェクト本体 |
+| `publisher.publicKey` | 公開者のEd25519公開鍵。32バイトを小文字の16進数64文字で表す |
+| `publisher.signature` | 公開要求に対するEd25519署名。64バイトを小文字の16進数128文字で表す |
 
-### `http-publish-request.schema.json`
+`publisher`はHTTP公開に必要な付帯情報であり、内側の知識オブジェクト本体には含まれません。
 
-`http-publish-request.schema.json` は、HTTP publish 用の request envelope を定義します。
+署名対象は、要求全体から`publisher.signature`だけを除き、`lb.canonical.json.v1`で正規化したUTF-8バイト列です。`object`だけを署名する方式ではありません。構造や符号化形式の検証に通っても、暗号学的に有効な署名であるとは限りません。署名対象の正確な規則は[HTTP公開要求の署名仕様](../docs/protocols/HTTP_PUBLISH_SIGNATURE.md)、生成手順は[公開クライアントの入門ガイド](../docs/developers/PUBLISHER_QUICKSTART.md)を参照してください。
 
-この schema の主目的は、`knowledge object` 本体に加えて、publish 主体に関する carrier 側メタデータを一緒に運ぶことです。
+## バージョンと変更時の確認
 
-- `object` に publish 対象の `knowledge object` を入れます
-- `publisher` には publish 主体の公開鍵と署名を入れます
-- `publisher` は wire object 本体の一部ではなく、carrier 側の付帯情報です
+- `schemaVersion`は、オブジェクト本体が従う仕様のバージョンです。
+- 公開要求のスキーマは外側の入れ物を定めるため、内側の`schemaVersion`とは別に文書としてバージョンを管理します。
+- スキーマを変更するときは、[移行とスキーマのバージョン管理](../docs/operations/MIGRATION_AND_SCHEMA_VERSIONING.md)と、[正常例・不正例のサンプル](../fixtures/README.md)を併せて見直します。
 
-つまり、この schema は「知識オブジェクトそのもの」ではなく、「知識オブジェクトを HTTP で送るときの外側の入れ物」を表します。
-
-#### 主要 field の意味
-
-- `object`: publish 対象の `knowledge object` 本体です
-- `publisher`: publish 主体の署名付きメタデータです
-- `publisher.publicKey`: publisher 側で用意した Ed25519 の公開鍵です
-- `publisher.signature`: `publisher.signature` を除いた canonicalized request payload に対する署名です
-
-`publisher` は object の意味内容ではなく、carrier 側で publish を成立させるための情報です。
-
-## 読み方
-
-まず `knowledge-object.schema.json` を見て、protocol object の本体を把握します。  
-その上で `http-publish-request.schema.json` を読むと、HTTP publish にだけ必要な envelope の責務が分かりやすくなります。
-
-## 文書
-
-- [knowledge-object.schema.json](./knowledge-object.schema.json)
-- [http-publish-request.schema.json](./http-publish-request.schema.json)
+初めて読む場合は、知識オブジェクトのスキーマで本体を理解してから、HTTP公開要求のスキーマで送信時の付帯情報を確認してください。

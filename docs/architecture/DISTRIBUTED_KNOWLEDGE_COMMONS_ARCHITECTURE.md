@@ -1,5 +1,7 @@
 # Distributed Knowledge Commons Architecture
 
+**Last updated: 2026-10-22**
+
 **Status:** architecture direction for the v1.0.0 pre-release documentation set  
 **Implementation boundary:** the checked-in v1.0 candidate is a production-oriented single-node implementation, not a completed distributed commons.
 
@@ -192,6 +194,6 @@ Where this directional document conflicts with a checked-in schema, normative pr
 
 ## 10. Release boundary
 
-The fixed v1.0.0 pre-version candidate is `f9543019f2c219aea3b085ff90f2da201b268a48`. Documentation and tooling commits after that candidate do not redefine it.
+The fixed v1.0.0 pre-version candidate is `8c6b48082205a3af555130eec1f3e7d2ac8811fe`. Documentation and tooling commits after that candidate do not redefine it.
 
 Formal 72-hour soak, privileged reference-host qualification, product version preparation, release PR, tag, GitHub Release, and final publication evidence remain separate and incomplete release gates.

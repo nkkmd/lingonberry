@@ -1,6 +1,6 @@
 # Effective View Diagnostic Pagination
 
-**Status: normative v1.0 pre-release protocol contract** | **Rule version: `lb.http.effective-view.diagnostic-pagination.v1`** | **Last reviewed: 2026-07-25**
+**Status: normative v1.0 pre-release protocol contract** | **Rule version: `lb.http.effective-view.diagnostic-pagination.v1`** | **Last reviewed: 2026-10-22**
 
 This document defines generation-bound pagination for effective-view diagnostics and records the exact behavior and limitations of the checked-in relay implementation.
 
@@ -247,4 +247,4 @@ This contract does not provide:
 - proof that diagnostics omitted from a collected snapshot never existed;
 - formal release qualification, soak evidence, or reference-host qualification.
 
-The fixed v1.0.0 candidate remains `f9543019f2c219aea3b085ff90f2da201b268a48`. Documentation normalization and ordinary walkthrough checks do not redefine that candidate or satisfy the outstanding formal release gates.
+The fixed v1.0.0 candidate remains `8c6b48082205a3af555130eec1f3e7d2ac8811fe`. Documentation normalization and ordinary walkthrough checks do not redefine that candidate or satisfy the outstanding formal release gates.

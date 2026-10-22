@@ -2,6 +2,8 @@
 
 このリポジトリで作業するエージェント向けの運用ルールです。日本語を中心に記載しています。
 
+**Status: active** | **Last updated: 2026-10-22**
+
 ## プロジェクト基本情報
 
 - プロジェクト名: `Lingonberry`
@@ -37,7 +39,7 @@
 
 ## 実装配置の基準
 
-- 実装を追加するときは、`docs/architecture/DISTRIBUTED_KNOWLEDGE_COMMONS_ARCHITECTURE.md` の `## 13. 推奨リポジトリ構成` を基準にする
+- 実装を追加するときは、`docs/architecture/DISTRIBUTED_KNOWLEDGE_COMMONS_ARCHITECTURE.md` の `## 4. Logical layers` と、本書の「リポジトリ構成」を基準にする
 - 新しい実装は、原則として `packages/` 配下の責務別ディレクトリに置く
 - 既存の `docs/`、`schemas/`、`fixtures/` は、それぞれ仕様、スキーマ、検証サンプルの役割に保つ
 - 配置に迷うときは、まず構成章に照らして役割を分け、必要なら文書側の責務を見直す
@@ -67,6 +69,7 @@
 - 技術選定やcarrier・ストレージの方針を確認するとき: `docs/operations/README.md`
 - Toitoi との対応関係を確認するとき: `docs/architecture/TOITOI_REFERENCE_CHECKLIST.md`
 - アーキテクチャ全体に触れるとき: `docs/architecture/DISTRIBUTED_KNOWLEDGE_COMMONS_ARCHITECTURE.md`
+- 知識活用方針・研究記録の実証を進めるとき: `docs/architecture/KNOWLEDGE_WORKFLOW_ADOPTION.md`、`docs/roadmap/KNOWLEDGE_WORKFLOW_GAP_ANALYSIS.md`、`docs/roadmap/RESEARCH_RECORD_PILOT_PLAN.md`。計画の統合を実証完了や実機試験の再開と混同しない
 - 必要に応じて、関連する `docs/` の個別文書も確認する
 
 ## よく使うコマンド

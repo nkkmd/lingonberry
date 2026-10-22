@@ -1,6 +1,6 @@
 # Durable Transition Re-evaluation Queue
 
-**Status: v1.0.0 pre-release contract** | **Rule version: `lb.transition.reevaluation.queue.v1`** | **Last reviewed: 2026-07-26**
+**Status: v1.0.0 pre-release contract** | **Rule version: `lb.transition.reevaluation.queue.v1`** | **Last reviewed: 2026-10-22**
 
 ## 1. Purpose
 
@@ -203,7 +203,7 @@ Corruption, unsupported versions, contradictory evidence, incomplete authority e
 This document describes the v1.0.0 pre-release contract and the current implementation boundary. Its normalization does not redefine the fixed release candidate:
 
 ```text
-f9543019f2c219aea3b085ff90f2da201b268a48
+8c6b48082205a3af555130eec1f3e7d2ac8811fe
 ```
 
 Formal 72-hour soak evidence, privileged reference-host qualification, version update, release PR, tag, and GitHub Release remain separate release gates.

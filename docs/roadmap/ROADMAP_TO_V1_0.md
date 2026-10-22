@@ -3,7 +3,7 @@
 **Status: active release roadmap; repository qualification complete, reference-host qualification deferred**
 **Latest published release: v0.9.0**  
 **Fixed pre-version qualification candidate: `8c6b48082205a3af555130eec1f3e7d2ac8811fe`**  
-**Last reviewed: 2026-10-20**
+**Last reviewed: 2026-10-22**
 
 **Execution hold — 2026-10-20:** At the maintainer’s request, privileged reference-host preflight, disk-pressure rehearsal, and the formal 72-hour soak are deferred. Repository preparation and recorded candidate results remain intact; this hold is neither a test failure nor a passed gate. Resume only after an explicit maintainer request, rechecking the fixed candidate, binary identities, retained artifacts, and host prerequisites. Version 1.0.0, tagging, and publication remain pending.
 
@@ -159,6 +159,8 @@ The approved compatibility policy governs the exact contract. At roadmap level:
 - canonical durable evidence is authoritative, while indexes and effective views remain derived and rebuildable.
 
 ## 8. Post-v1.0 candidates
+
+The [knowledge workflow adoption design](../architecture/KNOWLEDGE_WORKFLOW_ADOPTION.md), [feature gap analysis](./KNOWLEDGE_WORKFLOW_GAP_ANALYSIS.md), and [research-record pilot plan](./RESEARCH_RECORD_PILOT_PLAN.md) make one bounded application evaluation concrete. Dataset selection, implementation and execution have not started. Planning and isolated application experiments may proceed separately from release qualification; they neither add a v1.0 release gate nor resume the held tests. No product version is assigned. Any runtime-affecting change selected for publication still requires the candidate and compatibility review described above.
 
 Potential post-v1.0 work includes:
 

@@ -1,6 +1,6 @@
 # Versioning and Compatibility
 
-**Status: v1.0.0 pre-release normative contract** | **English is normative** | **Last reviewed: 2026-07-26**
+**Status: v1.0.0 pre-release normative contract** | **English is normative** | **Last reviewed: 2026-10-22**
 
 ## English
 
@@ -141,7 +141,7 @@ The v1.0.0 pre-release repository does not claim:
 
 ### 10. Release boundary
 
-The fixed v1.0.0 candidate remains `f9543019f2c219aea3b085ff90f2da201b268a48`.
+The fixed v1.0.0 candidate remains `8c6b48082205a3af555130eec1f3e7d2ac8811fe`.
 
 This documentation update does not redefine that candidate. Formal 72-hour soak, privileged reference-host qualification, version update, release pull request, tag, and GitHub Release remain separate incomplete release gates.
 
@@ -201,4 +201,4 @@ fixtureの期待値を実装に合わせて自動再生成してはなりませ�
 
 ### 7. release境界
 
-固定candidateは`f9543019f2c219aea3b085ff90f2da201b268a48`のままです。この文書変更はcandidateを再定義しません。formal 72-hour soak、privileged reference-host qualification、version update、release PR、tag、GitHub Releaseは未完了の独立gateです。
+固定candidateは`8c6b48082205a3af555130eec1f3e7d2ac8811fe`のままです。この文書変更はcandidateを再定義しません。formal 72-hour soak、privileged reference-host qualification、version update、release PR、tag、GitHub Releaseは未完了の独立gateです。

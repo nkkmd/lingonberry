@@ -1,5 +1,7 @@
 # Protocol-Native Wire Format Contract
 
+**Last updated: 2026-10-22**
+
 **Status:** normative for the v1.0.0 pre-release implementation  
 **Protocol version:** `0.1.0`  
 **Knowledge Object schema version:** `0.1.0`  
@@ -301,7 +303,7 @@ Canonical JSON and FNV-derived identity keys MUST NOT be treated as cryptographi
 
 ## 15. Release boundary
 
-This contract describes the checked-in v1.0.0 pre-release implementation. It does not redefine the fixed release candidate `f9543019f2c219aea3b085ff90f2da201b268a48`.
+This contract describes the checked-in v1.0.0 pre-release implementation. It does not redefine the fixed release candidate `8c6b48082205a3af555130eec1f3e7d2ac8811fe`.
 
 This documentation change does not complete privileged reference-host qualification, start or complete the formal 72-hour soak, update the product version, create a release tag, or publish a GitHub Release.
 

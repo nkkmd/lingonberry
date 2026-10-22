@@ -30,12 +30,20 @@ REVIEWED_BILINGUAL_REQUIRED = {
     "docs/operations/V1_0_UPGRADE_AND_ROLLBACK.md",
 }
 BILINGUAL_SCOPED = {
+    # Adoption planning is fully translated for maintainer review; it is not
+    # an addition to the frozen v1.0 runtime contract.
+    "docs/architecture/KNOWLEDGE_WORKFLOW_ADOPTION.md",
+    "docs/roadmap/KNOWLEDGE_WORKFLOW_GAP_ANALYSIS.md",
+    "docs/roadmap/RESEARCH_RECORD_PILOT_PLAN.md",
     "docs/roadmap/V1_0_QUALIFICATION_STATUS.md",
     "docs/concepts/GLOSSARY.md",
     "docs/concepts/CARRIER.md",
     "docs/protocols/VERSIONING_AND_COMPATIBILITY.md",
 }
 REVIEWED_BILINGUAL_SCOPED = {
+    "docs/architecture/KNOWLEDGE_WORKFLOW_ADOPTION.md",
+    "docs/roadmap/KNOWLEDGE_WORKFLOW_GAP_ANALYSIS.md",
+    "docs/roadmap/RESEARCH_RECORD_PILOT_PLAN.md",
     "docs/roadmap/V1_0_QUALIFICATION_STATUS.md",
     "docs/concepts/CARRIER.md",
     "docs/concepts/GLOSSARY.md",

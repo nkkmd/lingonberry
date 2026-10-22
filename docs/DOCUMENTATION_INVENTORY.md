@@ -5,9 +5,9 @@
 
 ## Status
 
-- Tracked Markdown files: **172**
+- Tracked Markdown files: **175**
 - Release-blocking review entries: **0**
-- Classification totals: BILINGUAL_REQUIRED: 9, BILINGUAL_SCOPED: 4, ENGLISH_ONLY: 159
+- Classification totals: BILINGUAL_REQUIRED: 9, BILINGUAL_SCOPED: 7, ENGLISH_ONLY: 159
 - Governing policy: [`DOCUMENTATION_POLICY.md`](./DOCUMENTATION_POLICY.md)
 - Tracking issue: [#144](https://github.com/nkkmd/lingonberry/issues/144)
 
@@ -31,6 +31,7 @@ Gitで追跡しているMarkdownファイルを、すべて下表に掲載しま
 | `docs/DOCUMENTATION_POLICY.md` | `BILINGUAL_REQUIRED` | `KEEP_BILINGUAL` | no |
 | `docs/architecture/DISTRIBUTED_KNOWLEDGE_COMMONS_ARCHITECTURE.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
 | `docs/architecture/DUPLICATE_AND_CONFLICT_CONTRACT.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
+| `docs/architecture/KNOWLEDGE_WORKFLOW_ADOPTION.md` | `BILINGUAL_SCOPED` | `KEEP_BILINGUAL` | no |
 | `docs/architecture/LINGONBERRY_PROTOCOL_EVOLUTION_PROPOSAL.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
 | `docs/architecture/README.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
 | `docs/architecture/TOITOI_REFERENCE_CHECKLIST.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
@@ -129,6 +130,7 @@ Gitで追跡しているMarkdownファイルを、すべて下表に掲載しま
 | `docs/roadmap/CURRENT_IMPLEMENTATION_STATUS.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | no |
 | `docs/roadmap/IMPLEMENTATION_BACKLOG.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | no |
 | `docs/roadmap/IMPLEMENTATION_ROADMAP.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | no |
+| `docs/roadmap/KNOWLEDGE_WORKFLOW_GAP_ANALYSIS.md` | `BILINGUAL_SCOPED` | `KEEP_BILINGUAL` | no |
 | `docs/roadmap/OPERATIONAL_READINESS_BACKLOG.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | no |
 | `docs/roadmap/OPERATIONAL_READINESS_PHASE_12_IMPLEMENTATION_CHECKLIST.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | no |
 | `docs/roadmap/OPERATIONAL_READINESS_ROADMAP.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | no |
@@ -163,6 +165,7 @@ Gitで追跡しているMarkdownファイルを、すべて下表に掲載しま
 | `docs/roadmap/RELEASE_0_8_0_RELEASE_NOTE.md` | `ENGLISH_ONLY` | `ARCHIVE_REVIEW` | no |
 | `docs/roadmap/RELEASE_0_9_0_CHECKLIST.md` | `ENGLISH_ONLY` | `ARCHIVE_REVIEW` | no |
 | `docs/roadmap/RELEASE_0_9_0_RELEASE_NOTE.md` | `ENGLISH_ONLY` | `ARCHIVE_REVIEW` | no |
+| `docs/roadmap/RESEARCH_RECORD_PILOT_PLAN.md` | `BILINGUAL_SCOPED` | `KEEP_BILINGUAL` | no |
 | `docs/roadmap/ROADMAP_TO_V1_0.md` | `ENGLISH_ONLY` | `KEEP_ENGLISH` | no |
 | `docs/roadmap/V0_9_HARDENING_PLAN.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | no |
 | `docs/roadmap/V0_9_RELEASE_EVIDENCE.md` | `ENGLISH_ONLY` | `ENGLISH_NORMALIZATION` | no |

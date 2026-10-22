@@ -1,6 +1,6 @@
 # Architecture Documentation
 
-**Status: active** | **Language: English normative**
+**Status: active** | **Language: English normative** | **Last updated: 2026-10-22**
 
 This directory contains architecture-level documentation for Lingonberry. It explains system boundaries, checked-in contracts, compatibility constraints, audit records, and explicitly non-normative future directions.
 
@@ -11,10 +11,20 @@ Architecture documents do not override concrete schemas, runtime behavior, confo
 The fixed v1.0.0 release candidate is:
 
 ```text
-f9543019f2c219aea3b085ff90f2da201b268a48
+8c6b48082205a3af555130eec1f3e7d2ac8811fe
 ```
 
 Post-candidate documentation and tooling commits do not redefine that candidate. Formal 72-hour soak, privileged reference-host qualification, version preparation, release PR, tag, and GitHub Release remain separate release gates.
+
+Reference-host preflight, disk-pressure rehearsal and formal soak remain on hold. Use [Current Implementation Status](../roadmap/CURRENT_IMPLEMENTATION_STATUS.md) for the authoritative candidate and execution state; older candidate identifiers in supporting documents are historical.
+
+## Knowledge workflow adoption proposal
+
+- [Adoption design / 知識活用方針の採用設計](./KNOWLEDGE_WORKFLOW_ADOPTION.md#japanese): responsibilities, identity mapping, compatibility and release separation.
+- [Feature gap analysis / 現行機能との差分表](../roadmap/KNOWLEDGE_WORKFLOW_GAP_ANALYSIS.md#japanese): source-backed baseline and open questions.
+- [Research-record pilot / 研究記録の最小実証計画](../roadmap/RESEARCH_RECORD_PILOT_PLAN.md#japanese): bounded dataset, work sequence and acceptance criteria.
+
+These bilingual planning documents do not claim implementation or pilot completion and do not change the v1.0 candidate or its release gates.
 
 ## Recommended reading order
 

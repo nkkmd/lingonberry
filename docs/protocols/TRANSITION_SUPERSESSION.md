@@ -1,5 +1,7 @@
 # Transition Supersession and Effective-view Conflict Rule
 
+**Last updated: 2026-10-22**
+
 **Status: normative v1.0.0 pre-release contract** | **Rule version: `lb.transition.supersession.v1`**
 
 ## 1. Scope
@@ -8,7 +10,7 @@ This document defines how a consumer projects structurally valid Transition Obje
 
 Supersession does not change canonical Knowledge Objects, Transition Objects, signatures, identities, or stored bytes. It produces derived effective-view state only.
 
-The fixed v1.0.0 release candidate remains `f9543019f2c219aea3b085ff90f2da201b268a48`. Documentation changes do not redefine that candidate.
+The fixed v1.0.0 release candidate remains `8c6b48082205a3af555130eec1f3e7d2ac8811fe`. Documentation changes do not redefine that candidate.
 
 ## 2. Input boundary
 

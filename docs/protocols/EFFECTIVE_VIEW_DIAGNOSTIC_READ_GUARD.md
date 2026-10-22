@@ -1,6 +1,6 @@
 # Effective View Diagnostic Read Guard
 
-**Status: normative v1.0 pre-release protocol contract with an explicit implementation gap** | **Rule version: `lb.http.effective-view.diagnostic-read-guard.v1`** | **Last reviewed: 2026-07-25**
+**Status: normative v1.0 pre-release protocol contract with an explicit implementation gap** | **Rule version: `lb.http.effective-view.diagnostic-read-guard.v1`** | **Last reviewed: 2026-10-22**
 
 This document defines the in-flight snapshot protection required when a relay claims support for effective-view diagnostic read guards.
 
@@ -263,4 +263,4 @@ This rule does not provide:
 - secure cursor authentication in the checked-in implementation;
 - formal release qualification, soak evidence, or reference-host qualification.
 
-The fixed v1.0.0 candidate remains `f9543019f2c219aea3b085ff90f2da201b268a48`. Documentation normalization and ordinary walkthrough checks do not redefine that candidate or satisfy the outstanding formal release gates.
+The fixed v1.0.0 candidate remains `8c6b48082205a3af555130eec1f3e7d2ac8811fe`. Documentation normalization and ordinary walkthrough checks do not redefine that candidate or satisfy the outstanding formal release gates.

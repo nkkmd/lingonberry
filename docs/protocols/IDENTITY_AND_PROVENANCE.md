@@ -1,6 +1,6 @@
 # Identity and Provenance
 
-**Status: normative v1.0 pre-release protocol contract** | **Last reviewed: 2026-07-25**
+**Status: normative v1.0 pre-release protocol contract** | **Last reviewed: 2026-10-22**
 
 This document defines the implemented responsibilities and boundaries of the Lingonberry identity key, identity claims, provenance, and `rawRef` fields.
 
@@ -296,4 +296,4 @@ fixtures/http-publish-request/invalid-identity-claim-mismatch.json
 
 Any change to the selected basis, canonicalization, digest, key encoding, claim schema, version dispatch, unsupported-rule classification, or default finalization rule requires compatibility review and updated conformance vectors.
 
-The fixed v1.0.0 candidate remains `f9543019f2c219aea3b085ff90f2da201b268a48`. Documentation normalization and ordinary walkthrough checks do not redefine that candidate or satisfy the outstanding formal release gates.
+The fixed v1.0.0 candidate remains `8c6b48082205a3af555130eec1f3e7d2ac8811fe`. Documentation normalization and ordinary walkthrough checks do not redefine that candidate or satisfy the outstanding formal release gates.

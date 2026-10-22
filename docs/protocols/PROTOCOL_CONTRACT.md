@@ -1,5 +1,7 @@
 # Lingonberry Protocol Contract
 
+**Last updated: 2026-10-22**
+
 **Status: normative for the v1.0.0 pre-release implementation**  
 **Protocol version: `0.1.0`**  
 **Knowledge Object schema version: `0.1.0`**
@@ -246,7 +248,7 @@ This document and its checks do not constitute the formal 72-hour soak or privil
 The fixed v1.0.0 candidate remains:
 
 ```text
-f9543019f2c219aea3b085ff90f2da201b268a48
+8c6b48082205a3af555130eec1f3e7d2ac8811fe
 ```
 
 Later documentation, inventory, and tooling commits do not redefine that candidate.

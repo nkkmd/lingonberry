@@ -1,6 +1,6 @@
 # HTTP Publish Signature Contract
 
-**Status: normative v1.0 pre-release protocol contract** | **Rule version: `lb.http.publish.signature.v1`** | **Last reviewed: 2026-07-25**
+**Status: normative v1.0 pre-release protocol contract** | **Rule version: `lb.http.publish.signature.v1`** | **Last reviewed: 2026-10-22**
 
 This document defines the byte-exact Ed25519 signature contract for a Lingonberry HTTP publish request. It also records the checked-in relay boundary: the current schema validates the public-key and signature encodings, but the current publish-ingestion path does not yet perform Ed25519 verification before acceptance or storage.
 
@@ -219,4 +219,4 @@ This contract does not define:
 - archive trust policy;
 - release qualification or release authorization.
 
-The fixed v1.0.0 candidate remains `f9543019f2c219aea3b085ff90f2da201b268a48`. Documentation normalization and ordinary walkthrough checks do not redefine that candidate or satisfy the outstanding formal release gates.
+The fixed v1.0.0 candidate remains `8c6b48082205a3af555130eec1f3e7d2ac8811fe`. Documentation normalization and ordinary walkthrough checks do not redefine that candidate or satisfy the outstanding formal release gates.

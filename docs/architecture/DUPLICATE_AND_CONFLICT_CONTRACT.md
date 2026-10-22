@@ -1,5 +1,7 @@
 # Duplicate and Conflict Contract
 
+**Last updated: 2026-10-22**
+
 **Status:** normative for the checked-in duplicate/conflict classifier  
 **Contract version:** `1`
 
@@ -159,4 +161,4 @@ Contract version `1` requires coverage for at least:
 
 Changing identity inputs, decision order, classification meanings, result codes, or mutation behavior requires an explicit contract-version review and corresponding tests.
 
-The fixed pre-version release candidate remains `f9543019f2c219aea3b085ff90f2da201b268a48`. This documentation change does not redefine that candidate. Formal soak, privileged reference-host qualification, version preparation, release PR, tag, GitHub Release, and publication evidence remain separate release gates.
+The fixed pre-version release candidate remains `8c6b48082205a3af555130eec1f3e7d2ac8811fe`. This documentation change does not redefine that candidate. Formal soak, privileged reference-host qualification, version preparation, release PR, tag, GitHub Release, and publication evidence remain separate release gates.

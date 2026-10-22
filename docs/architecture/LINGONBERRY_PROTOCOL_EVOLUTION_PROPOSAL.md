@@ -1,5 +1,7 @@
 # Lingonberry Protocol Evolution Proposal
 
+**Last updated: 2026-10-22**
+
 **Status: architecture proposal**  
 **Normative status: non-normative until adopted by an explicit specification change**
 
@@ -10,7 +12,7 @@ This document describes how Lingonberry may evolve after the current v1.0 releas
 The fixed v1.0 candidate remains:
 
 ```text
-f9543019f2c219aea3b085ff90f2da201b268a48
+8c6b48082205a3af555130eec1f3e7d2ac8811fe
 ```
 
 Documentation commits made after that candidate do not redefine its runtime contents.

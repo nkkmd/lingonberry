@@ -6,7 +6,7 @@
 >
 > 英語版がこの文書の正本です。日本語部分は翻訳です。内容に差異がある場合は英語版を優先します。
 
-**Last updated: 2026-10-20**
+**Last updated: 2026-10-22**
 
 ## English
 
@@ -148,6 +148,8 @@ cargo test --workspace
 JavaScript contract tests and the external conformance suite run in `.github/workflows/ci.yml`. Candidate qualification, documentation integrity, documentation inventory, walkthrough, and soak rehearsal use dedicated workflows.
 
 ### Documentation
+
+For the proposed knowledge workflow direction, see the [adoption design](docs/architecture/KNOWLEDGE_WORKFLOW_ADOPTION.md), [feature gap analysis](docs/roadmap/KNOWLEDGE_WORKFLOW_GAP_ANALYSIS.md), and [research-record pilot plan](docs/roadmap/RESEARCH_RECORD_PILOT_PLAN.md). Pilot dataset selection, implementation, and execution have not started; the fixed release candidate and execution hold remain unchanged.
 
 - [Documentation policy](docs/DOCUMENTATION_POLICY.md)
 - [Documentation inventory](docs/DOCUMENTATION_INVENTORY.md)
@@ -305,6 +307,8 @@ cargo test --workspace
 JavaScriptの仕様確認テストと外部仕様適合性試験は`.github/workflows/ci.yml`で実行します。公開候補の検証、文書の整合性、文書一覧、手順に沿った確認、連続稼働試験予行演習は専用ワークフローで確認します。
 
 ### 文書
+
+知識活用方針の提案は、[採用設計](docs/architecture/KNOWLEDGE_WORKFLOW_ADOPTION.md#japanese)、[現行機能との差分表](docs/roadmap/KNOWLEDGE_WORKFLOW_GAP_ANALYSIS.md#japanese)、[研究記録の最小実証計画](docs/roadmap/RESEARCH_RECORD_PILOT_PLAN.md#japanese)を参照してください。実証の資料選定・実装・実行は未着手であり、固定した公開候補と実機試験の保留は維持しています。
 
 - [文書方針](docs/DOCUMENTATION_POLICY.md)
 - [文書一覧](docs/DOCUMENTATION_INVENTORY.md)

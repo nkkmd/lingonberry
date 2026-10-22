@@ -1,5 +1,7 @@
 # Transition Evidence Generation
 
+**Last updated: 2026-10-22**
+
 ## Status
 
 Normative pre-release contract for Lingonberry v1.0.0 target-scoped evidence generations.
@@ -181,6 +183,6 @@ Passing the repository conformance tests demonstrates the tested reference behav
 
 ## Release boundary
 
-This documentation normalization does not change the fixed v1.0.0 release candidate `f9543019f2c219aea3b085ff90f2da201b268a48`.
+This documentation normalization does not change the fixed v1.0.0 release candidate `8c6b48082205a3af555130eec1f3e7d2ac8811fe`.
 
 Formal 72-hour soak, privileged reference-host qualification, version update, release PR, tag, and GitHub Release remain separate release gates.

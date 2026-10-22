@@ -1,5 +1,7 @@
 # Transition Object Contract
 
+**Last updated: 2026-10-22**
+
 ## Status
 
 Normative protocol contract for the v1.0.0 pre-release documentation set.
@@ -198,7 +200,7 @@ Conformance fixtures are executable reference evidence. They do not by themselve
 This normalization is documentation-only. The fixed v1.0.0 candidate remains:
 
 ```text
-f9543019f2c219aea3b085ff90f2da201b268a48
+8c6b48082205a3af555130eec1f3e7d2ac8811fe
 ```
 
 The formal 72-hour soak, privileged reference-host qualification, version update, release PR, tag, and GitHub Release remain separate incomplete gates.

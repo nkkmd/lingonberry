@@ -1,6 +1,6 @@
 # Effective View Diagnostic Retention
 
-**Status: normative v1.0 pre-release protocol contract** | **Rule version: `lb.http.effective-view.diagnostic-retention.v1`** | **Last reviewed: 2026-07-25**
+**Status: normative v1.0 pre-release protocol contract** | **Rule version: `lb.http.effective-view.diagnostic-retention.v1`** | **Last reviewed: 2026-10-22**
 
 This contract defines retention and garbage-collection rules for **derived diagnostic snapshots** used by effective-view diagnostic pagination. It does not authorize deletion or mutation of canonical Knowledge Objects, Transition Objects, delegation or revocation evidence, signatures, immutable carrier digests, quarantine evidence, or any other canonical record.
 
@@ -246,4 +246,4 @@ This contract does not provide:
 - distributed coordination without an explicit shared mechanism;
 - formal soak evidence, reference-host qualification, or release authorization.
 
-The fixed v1.0.0 candidate remains `f9543019f2c219aea3b085ff90f2da201b268a48`. Documentation normalization and ordinary walkthrough checks do not redefine that candidate or satisfy the outstanding formal release gates.
+The fixed v1.0.0 candidate remains `8c6b48082205a3af555130eec1f3e7d2ac8811fe`. Documentation normalization and ordinary walkthrough checks do not redefine that candidate or satisfy the outstanding formal release gates.

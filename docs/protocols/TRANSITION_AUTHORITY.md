@@ -1,5 +1,7 @@
 # Transition Authority Classification
 
+**Last updated: 2026-10-22**
+
 **Status: normative protocol contract for the v1.0.0 pre-release implementation**  
 **Rule version: `lb.transition.authority.v1`**  
 **Protocol version: `0.1.0`**  
@@ -140,7 +142,7 @@ The manifest is executable specification evidence. It is not a substitute for pr
 The fixed v1.0.0 release candidate remains:
 
 ```text
-f9543019f2c219aea3b085ff90f2da201b268a48
+8c6b48082205a3af555130eec1f3e7d2ac8811fe
 ```
 
 This documentation update does not redefine that candidate. Formal 72-hour soak, privileged reference-host qualification, version update, release PR, tag, and GitHub Release remain incomplete.

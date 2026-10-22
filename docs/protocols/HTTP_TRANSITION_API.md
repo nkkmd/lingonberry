@@ -1,6 +1,6 @@
 # HTTP Transition Publish API
 
-**Status: normative v1.0 pre-release protocol contract** | **API route: `POST /v1/transitions`** | **Last reviewed: 2026-07-25**
+**Status: normative v1.0 pre-release protocol contract** | **API route: `POST /v1/transitions`** | **Last reviewed: 2026-10-22**
 
 This document defines the implemented HTTP boundary for publishing append-only Transition Objects. Transition publication is isolated from ordinary Knowledge Object publication and persists its own signed wire request, transition record, and reevaluation intent.
 
@@ -361,4 +361,4 @@ Filesystem permissions must protect the append-only log and reevaluation queue f
 
 Any change to the transition envelope, signature payload, identifier rules, validation semantics, duplicate classification, storage record shape, queue intent shape, or response contract requires compatibility review and may require a new versioned contract.
 
-The fixed v1.0.0 candidate remains `f9543019f2c219aea3b085ff90f2da201b268a48`. Documentation normalization and ordinary walkthrough checks do not redefine that candidate or satisfy the outstanding formal release gates.
+The fixed v1.0.0 candidate remains `8c6b48082205a3af555130eec1f3e7d2ac8811fe`. Documentation normalization and ordinary walkthrough checks do not redefine that candidate or satisfy the outstanding formal release gates.

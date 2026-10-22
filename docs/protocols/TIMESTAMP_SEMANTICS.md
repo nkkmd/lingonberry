@@ -1,5 +1,7 @@
 # Timestamp Semantics
 
+**Last updated: 2026-10-22**
+
 **Status:** normative for the v1.0.0 pre-release implementation  
 **Timestamp rule:** `lb.timestamp.rfc3339.utc.v1`  
 **Protocol version:** `0.1.0`
@@ -165,6 +167,6 @@ A fixture demonstrates the expected result for that fixture. It does not broaden
 
 ## 12. Release boundary
 
-The fixed v1.0.0 release candidate remains `f9543019f2c219aea3b085ff90f2da201b268a48`. This documentation change does not redefine that candidate.
+The fixed v1.0.0 release candidate remains `8c6b48082205a3af555130eec1f3e7d2ac8811fe`. This documentation change does not redefine that candidate.
 
 Normal CI, documentation inventory, bilingual checks, documentation freeze checks, and documentation walkthrough evidence do not constitute privileged reference-host qualification or the formal 72-hour soak. Product version update, release PR, annotated tag, and GitHub Release remain gated separately.

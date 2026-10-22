@@ -1,6 +1,6 @@
 # Effective View Read API
 
-**Status: normative v1.0 pre-release protocol contract** | **Rule version: `lb.http.effective-view.read.v1`** | **Last reviewed: 2026-07-25**
+**Status: normative v1.0 pre-release protocol contract** | **Rule version: `lb.http.effective-view.read.v1`** | **Last reviewed: 2026-10-22**
 
 This document defines the checked-in public HTTP read contract for a target object's effective view. The endpoint can return a current view, a stale last-known-good view with a newer incomplete observation, or an unresolved unavailable view when no prior complete view exists.
 
@@ -291,4 +291,4 @@ This contract does not provide:
 - distributed consistency;
 - reference-host qualification, formal soak completion, or release authorization.
 
-The fixed v1.0.0 candidate remains `f9543019f2c219aea3b085ff90f2da201b268a48`. Documentation normalization and ordinary walkthrough checks do not redefine that candidate or satisfy the outstanding formal release gates.
+The fixed v1.0.0 candidate remains `8c6b48082205a3af555130eec1f3e7d2ac8811fe`. Documentation normalization and ordinary walkthrough checks do not redefine that candidate or satisfy the outstanding formal release gates.

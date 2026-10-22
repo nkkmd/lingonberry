@@ -1,5 +1,7 @@
 # Toitoi Reference Checklist
 
+**Last updated: 2026-10-22**
+
 **Status:** active reference checklist  
 **Normative status:** non-normative  
 **Scope:** evaluating ideas and artifacts from the external Toitoi project for possible use in Lingonberry
@@ -33,7 +35,7 @@ An external document cannot override a Lingonberry schema, identifier rule, cano
 The fixed v1.0 release candidate remains:
 
 ```text
-f9543019f2c219aea3b085ff90f2da201b268a48
+8c6b48082205a3af555130eec1f3e7d2ac8811fe
 ```
 
 Reviewing or revising this checklist does not redefine that candidate. The formal 72-hour soak, privileged reference-host qualification, version preparation, release pull request, tag, and GitHub Release remain separate incomplete gates.
